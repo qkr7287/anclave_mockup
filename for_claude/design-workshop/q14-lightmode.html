@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anclave 디자인 — Q14. 라이트 모드</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css">
+<style>
+  :root{
+    --bg:#0d1117;--soft:#10151c;--card:#161c26;--card2:#1c2430;--border:rgba(255,255,255,.07);
+    --text:#e6edf3;--muted:#8b97a7;--faint:#6a7585;--accent:#6ea8fe;--on-accent:#08111f;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0a0d12;color:var(--text);font-family:"Pretendard",system-ui,sans-serif;line-height:1.5;padding:32px 24px 80px;font-size:14.5px}
+  .page-head{max-width:1080px;margin:0 auto 26px}
+  .page-head .q{display:inline-block;background:var(--accent);color:var(--on-accent);font-weight:800;font-size:12px;padding:3px 10px;border-radius:20px;letter-spacing:.5px}
+  .page-head h1{font-size:27px;margin:12px 0 6px;letter-spacing:-.5px}
+  .page-head p{color:var(--muted);font-size:14.5px}
+  .wrap{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:30px}
+
+  .sec-head{display:flex;align-items:baseline;gap:10px;margin-bottom:13px}
+  .sec-head .nm{font-size:16px;font-weight:700}
+  .sec-head .desc{color:var(--faint);font-size:12.5px}
+  .variants{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .variant{background:var(--card2);border:1px solid var(--border);border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.35);overflow:hidden}
+  .variant.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),0 2px 12px rgba(0,0,0,.4)}
+  .sel-tag{margin-left:auto;color:#3fb950;font-weight:800;font-size:11.5px}
+  .v-label{display:flex;align-items:center;gap:10px;padding:11px 16px;background:#11161e;border-bottom:1px solid var(--border);font-size:12.5px}
+  .v-label .pick{background:#1b232f;color:#cfd6df;font-weight:800;width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px}
+  .v-label .vt{font-weight:700}
+  .v-label .vd{color:var(--faint);font-size:11.5px}
+
+  /* light demo (scoped tokens) */
+  .demo{padding:18px;font-size:13.5px}
+  .light-a{--lbg:#f6f8fa;--lcard:#ffffff;--lbd:#d8dee4;--lbd-s:#eaeef2;--ltext:#1f2328;--lmuted:#636c76;--lacc:#2563eb;--lacc-s:#ddeafe;--lhead:#f1f3f6;--lzebra:#f8fafc;--lok:#1a7f37;--lok-bg:#dafbe1;--lwarn:#9a6700;--lwarn-bg:#fff3cd;--ldanger:#cf222e;--ldanger-bg:#ffe3e3}
+  .light-b{--lbg:#eef1f5;--lcard:#fbfcfd;--lbd:#e4e8ee;--lbd-s:#eef1f5;--ltext:#222831;--lmuted:#616a74;--lacc:#2f6fe0;--lacc-s:#e6eefb;--lhead:#eef1f6;--lzebra:#f4f6f9;--lok:#1a7f37;--lok-bg:#ddf5e4;--lwarn:#9a6700;--lwarn-bg:#fbf0d4;--ldanger:#cf222e;--ldanger-bg:#fce0e0}
+  .demo{background:var(--lbg);color:var(--ltext)}
+  .d-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+  .d-h .dt{font-size:16px;font-weight:800;letter-spacing:-.3px}
+  .lbtn{font-family:inherit;font-size:12.5px;font-weight:600;padding:7px 13px;border-radius:8px;cursor:pointer;border:1px solid transparent}
+  .lbtn.primary{background:var(--lacc);color:#fff}
+  .lbtn.outline{background:var(--lcard);border-color:var(--lbd);color:var(--ltext)}
+  .lstats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+  .lstat{background:var(--lcard);border:1px solid var(--lbd);border-radius:11px;padding:13px 14px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+  .lstat .sl{font-size:12px;color:var(--lmuted);margin-bottom:5px}
+  .lstat .sv{font-size:22px;font-weight:800;letter-spacing:-.4px}
+  .ltbl{background:var(--lcard);border:1px solid var(--lbd);border-radius:11px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  thead th{background:var(--lhead);color:var(--lmuted);font-weight:700;font-size:11.5px;text-align:left;padding:8px 13px;border-bottom:1px solid var(--lbd)}
+  td{padding:9px 13px;border-bottom:1px solid var(--lbd-s);color:var(--ltext)}
+  tbody tr:nth-child(even){background:var(--lzebra)}
+  tbody tr:last-child td{border-bottom:none}
+  .lbadge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700}
+  .lbadge.ok{background:var(--lok-bg);color:var(--lok)} .lbadge.warn{background:var(--lwarn-bg);color:var(--lwarn)} .lbadge.danger{background:var(--ldanger-bg);color:var(--ldanger)}
+  .lmono{color:var(--lmuted);font-size:12.5px}
+
+  /* dark reference small */
+  .ref-note{max-width:1080px;margin:0 auto;color:var(--faint);font-size:12.5px}
+
+  .footer{max-width:1080px;margin:30px auto 0;color:var(--muted);font-size:13.5px}
+  .footer b{color:#ccd}
+  .footer .ask{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-top:10px;font-size:13px;color:var(--text)}
+  .footer .ask code{background:#ffffff10;padding:2px 7px;border-radius:6px;font-size:12.5px;color:var(--accent)}
+</style>
+</head>
+<body>
+  <div class="page-head">
+    <span class="q">Q14 / 라이트 모드</span> <span style="display:inline-block;background:rgba(63,185,80,.13);color:#3fb950;font-weight:800;font-size:12px;padding:3px 11px;border-radius:20px;margin-left:6px">✓ 선택: 라이트 B (연한 그레이)</span>
+    <h1>라이트 모드 배경 톤은?</h1>
+    <p>무드 A(GitHub) 결 그대로 라이트 매핑. 같은 대시보드 조각을 두 배경 톤으로 그렸어요. <b style="color:#6ea8fe">A 클린 화이트</b> · <b style="color:#6ea8fe">B 소프트 그레이</b>. 컴포넌트(솔리드 카드·zebra·채움 배지·아웃라인 버튼)는 그대로 라이트화.</p>
+  </div>
+
+  <div class="wrap">
+    <section>
+      <div class="sec-head"><span class="nm">라이트 팔레트</span><span class="desc">실무관리자 대시보드 조각 예시</span></div>
+      <div class="variants">
+        <div class="variant">
+          <div class="v-label"><span class="pick">A</span><span class="vt">클린 화이트</span><span class="vd">캔버스 #f6f8fa · 카드 순백 #fff</span></div>
+          <div class="demo light-a" id="demoA"></div>
+        </div>
+        <div class="variant sel">
+          <div class="v-label"><span class="pick">B</span><span class="vt">소프트 그레이 (연한 선)</span><span class="vd">캔버스 #eef1f5 · 카드 #fbfcfd · 연한 보더</span><span class="sel-tag">✓ 선택됨</span></div>
+          <div class="demo light-b" id="demoB"></div>
+        </div>
+      </div>
+    </section>
+    <p class="ref-note">※ 라이트는 액센트를 진하게(#2563eb대)로 — 흰 배경 대비 확보. 상태색도 라이트 대비용(ok #1a7f37 / warn #9a6700 / danger #cf222e). 다크 토큰은 Q1·Q8 그대로.</p>
+  </div>
+
+  <div class="footer">
+    <p>→ 다음 후보: 차트 디테일 · 반응형 · 마이크로카피</p>
+    <div class="ask">골라주세요 — <code>라이트 A</code> 또는 <code>라이트 B</code></div>
+  </div>
+
+<script>
+  const rows=[
+    ['qwen-agent','Agent','92%','승인','ok'],
+    ['doc-summary','요약','64%','대기','warn'],
+    ['vision-ocr','OCR','8%','반려','danger'],
+    ['code-helper','Agent','77%','승인','ok'],
+  ];
+  function demo(){
+    return `
+      <div class="d-h">
+        <div class="dt">실무관리자 대시보드</div>
+        <div style="display:flex;gap:8px"><button class="lbtn outline">필터</button><button class="lbtn primary">+ 새 신청</button></div>
+      </div>
+      <div class="lstats">
+        <div class="lstat"><div class="sl">가동 GPU</div><div class="sv">18 / 24</div></div>
+        <div class="lstat"><div class="sl">평균 사용률</div><div class="sv">62%</div></div>
+      </div>
+      <div class="ltbl">
+        <table>
+          <thead><tr><th>서비스</th><th>종류</th><th>사용률</th><th>상태</th></tr></thead>
+          <tbody>${rows.map(r=>`<tr><td style="font-weight:600">${r[0]}</td><td class="lmono">${r[1]}</td><td>${r[2]}</td><td><span class="lbadge ${r[4]}">${r[3]}</span></td></tr>`).join('')}</tbody>
+        </table>
+      </div>`;
+  }
+  document.getElementById('demoA').innerHTML=demo();
+  document.getElementById('demoB').innerHTML=demo();
+</script>
+<script src="nav.js"></script>
+</body>
+</html>

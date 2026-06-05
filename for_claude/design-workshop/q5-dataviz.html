@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anclave 디자인 — Q5. 데이터 시각화</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css">
+<style>
+  :root{
+    --bg:#0d1117;--soft:#10151c;--card:#161c26;--card2:#1c2430;--border:rgba(255,255,255,.07);
+    --border-s:rgba(255,255,255,.045);--text:#e6edf3;--muted:#8b97a7;--faint:#6a7585;
+    --accent:#6ea8fe;--accent-soft:rgba(110,168,254,.12);--on-accent:#08111f;
+    --ok:#3fb950;--ok-bg:rgba(63,185,80,.14);--warn:#d29922;--warn-bg:rgba(210,153,34,.14);
+    --danger:#f85149;--danger-bg:rgba(248,81,73,.14);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0a0d12;color:var(--text);font-family:"Pretendard",system-ui,sans-serif;line-height:1.5;padding:32px 24px 80px}
+  .page-head{max-width:1080px;margin:0 auto 26px}
+  .page-head .q{display:inline-block;background:var(--accent);color:var(--on-accent);font-weight:800;font-size:12px;padding:3px 10px;border-radius:20px;letter-spacing:.5px}
+  .page-head h1{font-size:24px;margin:12px 0 6px;letter-spacing:-.4px}
+  .page-head p{color:var(--muted);font-size:14px}
+  .wrap{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:30px}
+
+  .sec-head{display:flex;align-items:baseline;gap:10px;margin-bottom:13px}
+  .sec-head .nm{font-size:16px;font-weight:700}
+  .sec-head .desc{color:var(--faint);font-size:12.5px}
+  .variants{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .variant{background:var(--card2);border:1px solid var(--border);border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.35);overflow:hidden}
+  .variant.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),0 2px 12px rgba(0,0,0,.4)}
+  .sel-tag{margin-left:auto;color:#3fb950;font-weight:800;font-size:11.5px}
+  .v-label{display:flex;align-items:center;gap:10px;padding:11px 16px;background:#11161e;border-bottom:1px solid var(--border);font-size:12.5px}
+  .v-label .pick{background:#1b232f;color:#cfd6df;font-weight:800;width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px}
+  .v-label .vt{font-weight:700}
+  .v-label .vd{color:var(--faint);font-size:11.5px}
+  .v-demo{padding:20px 18px}
+
+  .badge{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700}
+  .badge.ok{background:var(--ok-bg);color:var(--ok)} .badge.warn{background:var(--warn-bg);color:var(--warn)}
+  .badge.danger{background:var(--danger-bg);color:var(--danger)} .badge.idle{background:#ffffff10;color:var(--faint)}
+
+  /* gauges */
+  .gauges{display:flex;gap:10px}
+  .gauge{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px}
+  .gauge svg{width:100%;max-width:124px;display:block}
+  .gauge .gl{font-size:12px;color:var(--muted);font-weight:600}
+
+  /* charts */
+  .chart-svg{width:100%;height:120px;display:block}
+  .ct{font-size:12px;color:var(--muted);font-weight:600;margin-bottom:10px}
+
+  /* health grid A: detailed cells */
+  .grid-cells{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .gpu-cell{background:var(--soft);border:1px solid var(--border);border-radius:10px;padding:11px 12px}
+  .gpu-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}
+  .gpu-nm{font-weight:700;font-size:13px}
+  .gpu-bar{height:6px;background:#ffffff10;border-radius:4px;overflow:hidden}
+  .gpu-bar i{display:block;height:100%;border-radius:4px}
+  .gpu-meta{font-size:11px;color:var(--faint);margin-top:7px}
+
+  /* health grid B: heatmap */
+  .heat{display:flex;flex-direction:column;gap:6px}
+  .heat-row{display:flex;align-items:center;gap:6px}
+  .heat-lb{width:56px;font-size:11.5px;color:var(--muted);font-weight:600;flex-shrink:0}
+  .hcell{flex:1;aspect-ratio:1.5;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#0a0d12}
+  .heat-cols{display:flex;gap:6px;margin-left:62px;margin-bottom:2px}
+  .heat-cols span{flex:1;text-align:center;font-size:10.5px;color:var(--faint)}
+
+  .footer{max-width:1080px;margin:30px auto 0;color:var(--muted);font-size:13.5px}
+  .footer b{color:#ccd}
+  .footer .ask{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-top:10px;font-size:13px;color:var(--text)}
+  .footer .ask code{background:#ffffff10;padding:2px 7px;border-radius:6px;font-size:12.5px;color:var(--accent)}
+</style>
+</head>
+<body>
+  <div class="page-head">
+    <span class="q">Q5 / 데이터 시각화</span> <span style="display:inline-block;background:rgba(63,185,80,.13);color:#3fb950;font-weight:800;font-size:12px;padding:3px 11px;border-radius:20px;margin-left:6px">✓ 선택: 게이지 A · 차트 A · 헬스 B</span>
+    <h1>게이지 · 차트 · 헬스그리드 스타일은?</h1>
+    <p>무드 A + Q2~Q4 선택 고정 · <b style="color:#6ea8fe">게이지 A(반원 아크) · 차트 A(영역 라인) · 헬스그리드 B(히트맵) 선택됨</b>.</p>
+  </div>
+
+  <div class="wrap">
+    <section>
+      <div class="sec-head"><span class="nm">게이지</span><span class="desc">사용률·온도·전력 단일 지표</span></div>
+      <div class="variants">
+        <div class="variant sel">
+          <div class="v-label"><span class="pick">A</span><span class="vt">반원 아크</span><span class="vd">컴팩트 · 가로 나열에 유리</span><span class="sel-tag">✓ 선택됨</span></div>
+          <div class="v-demo"><div class="gauges" id="g-arc"></div></div>
+        </div>
+        <div class="variant">
+          <div class="v-label"><span class="pick">B</span><span class="vt">원형 링</span><span class="vd">존재감 · 큰 숫자 강조</span></div>
+          <div class="v-demo"><div class="gauges" id="g-ring"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="sec-head"><span class="nm">차트</span><span class="desc">시계열 추이 (토큰 호출량)</span></div>
+      <div class="variants">
+        <div class="variant sel">
+          <div class="v-label"><span class="pick">A</span><span class="vt">영역 라인</span><span class="vd">부드러운 추세 강조</span><span class="sel-tag">✓ 선택됨</span></div>
+          <div class="v-demo"><div class="ct">최근 12시간</div><div id="c-area"></div></div>
+        </div>
+        <div class="variant">
+          <div class="v-label"><span class="pick">B</span><span class="vt">막대</span><span class="vd">구간별 비교 명확</span></div>
+          <div class="v-demo"><div class="ct">최근 12시간</div><div id="c-bar"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="sec-head"><span class="nm">헬스그리드</span><span class="desc">GPU 상태 한눈에</span></div>
+      <div class="variants">
+        <div class="variant">
+          <div class="v-label"><span class="pick">A</span><span class="vt">상세 셀</span><span class="vd">GPU별 카드 + 사용률 바 + 상태</span></div>
+          <div class="v-demo"><div class="grid-cells" id="h-cells"></div></div>
+        </div>
+        <div class="variant sel">
+          <div class="v-label"><span class="pick">B</span><span class="vt">히트맵</span><span class="vd">다중 서버 × GPU · 밀도 색</span><span class="sel-tag">✓ 선택됨</span></div>
+          <div class="v-demo"><div id="h-heat"></div></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="footer">
+    <p>→ 다음: <b>Q6. 마법사 · 모달 · 빈 상태</b></p>
+    <div class="ask">골라주세요 — 예: <code>게이지 B · 차트 A · 헬스그리드 A</code></div>
+  </div>
+
+<script>
+  const C={accent:'#6ea8fe',ok:'#3fb950',warn:'#d29922',danger:'#f85149'};
+
+  // ---- gauges ----
+  const gauges=[['GPU 사용률',62,100,'%',C.accent],['평균 온도',71,100,'°C',C.warn],['전력',75,100,'%',C.ok]];
+  function arc(val,max,color,unit){
+    const r=46,cx=60,cy=58,frac=val/max,th=Math.PI*(1-frac);
+    const ex=(cx+r*Math.cos(th)).toFixed(1),ey=(cy-r*Math.sin(th)).toFixed(1);
+    return `<svg viewBox="0 0 120 70">
+      <path d="M ${cx-r} ${cy} A ${r} ${r} 0 0 1 ${cx+r} ${cy}" fill="none" stroke="#ffffff14" stroke-width="9" stroke-linecap="round"/>
+      <path d="M ${cx-r} ${cy} A ${r} ${r} 0 0 1 ${ex} ${ey}" fill="none" stroke="${color}" stroke-width="9" stroke-linecap="round"/>
+      <text x="60" y="54" text-anchor="middle" font-size="22" font-weight="800" fill="#e6edf3">${val}<tspan font-size="11" fill="#8b97a7">${unit}</tspan></text>
+    </svg>`;
+  }
+  function ring(val,max,color,unit){
+    const r=44,cx=60,cy=60,cir=2*Math.PI*r,frac=val/max;
+    return `<svg viewBox="0 0 120 120">
+      <circle cx="60" cy="60" r="44" fill="none" stroke="#ffffff14" stroke-width="11"/>
+      <circle cx="60" cy="60" r="44" fill="none" stroke="${color}" stroke-width="11" stroke-linecap="round"
+        stroke-dasharray="${(cir*frac).toFixed(1)} ${cir.toFixed(1)}" transform="rotate(-90 60 60)"/>
+      <text x="60" y="57" text-anchor="middle" font-size="26" font-weight="800" fill="#e6edf3">${val}</text>
+      <text x="60" y="76" text-anchor="middle" font-size="11" fill="#8b97a7">${unit}</text>
+    </svg>`;
+  }
+  document.getElementById('g-arc').innerHTML=gauges.map(g=>`<div class="gauge">${arc(g[1],g[2],g[4],g[3])}<span class="gl">${g[0]}</span></div>`).join('');
+  document.getElementById('g-ring').innerHTML=gauges.map(g=>`<div class="gauge">${ring(g[1],g[2],g[4],g[3])}<span class="gl">${g[0]}</span></div>`).join('');
+
+  // ---- charts ----
+  const series=[34,41,38,52,47,61,55,72,63,80,74,88];
+  const W=320,H=120,pad=6,max=100;
+  function pt(i,v){return [pad+(W-2*pad)*i/(series.length-1), H-pad-(H-2*pad)*v/max];}
+  function area(){
+    const pts=series.map((v,i)=>pt(i,v).map(n=>n.toFixed(1)).join(',')).join(' ');
+    const first=pt(0,series[0]),last=pt(series.length-1,series[series.length-1]);
+    return `<svg class="chart-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+      <polyline points="${first[0].toFixed(1)},${H-pad} ${pts} ${last[0].toFixed(1)},${H-pad}" fill="${C.accent}1f" stroke="none"/>
+      <polyline points="${pts}" fill="none" stroke="${C.accent}" stroke-width="2.5" stroke-linejoin="round"/>
+    </svg>`;
+  }
+  function bars(){
+    const n=series.length,gap=6,bw=(W-2*pad-gap*(n-1))/n;
+    return `<svg class="chart-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+      ${series.map((v,i)=>{const h=(H-2*pad)*v/max,x=pad+i*(bw+gap),y=H-pad-h;
+        return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="3" fill="${C.accent}"/>`;}).join('')}
+    </svg>`;
+  }
+  document.getElementById('c-area').innerHTML=area();
+  document.getElementById('c-bar').innerHTML=bars();
+
+  // ---- health grid ----
+  const gpus=[
+    {n:'GPU 0',u:82,s:'ok',l:'정상',m:'38 / 48 GB'},
+    {n:'GPU 1',u:64,s:'ok',l:'정상',m:'24 / 48 GB'},
+    {n:'GPU 2',u:93,s:'warn',l:'높음',m:'46 / 48 GB'},
+    {n:'GPU 3',u:18,s:'ok',l:'정상',m:'8 / 48 GB'},
+    {n:'GPU 4',u:0,s:'idle',l:'유휴',m:'0 / 48 GB'},
+    {n:'GPU 5',u:77,s:'ok',l:'정상',m:'34 / 48 GB'},
+  ];
+  const barColor={ok:C.ok,warn:C.warn,danger:C.danger,idle:'#39424f'};
+  document.getElementById('h-cells').innerHTML=gpus.map(g=>`
+    <div class="gpu-cell">
+      <div class="gpu-top"><span class="gpu-nm">${g.n}</span><span class="badge ${g.s}">${g.l}</span></div>
+      <div class="gpu-bar"><i style="width:${Math.max(g.u,2)}%;background:${barColor[g.s]}"></i></div>
+      <div class="gpu-meta">${g.u}% 사용 · ${g.m}</div>
+    </div>`).join('');
+
+  // heatmap: 3 servers x 6 GPUs
+  const heat=[
+    ['srv-01',[82,64,93,18,0,77]],
+    ['srv-02',[55,71,40,88,62,33]],
+    ['srv-03',[12,29,5,68,95,47]],
+  ];
+  function hc(u){
+    if(u===0) return '#1a212c';
+    const a=(0.22+u/100*0.78).toFixed(2);
+    return `rgba(110,168,254,${a})`;
+  }
+  let html=`<div class="heat-cols">${[0,1,2,3,4,5].map(i=>`<span>G${i}</span>`).join('')}</div><div class="heat">`;
+  html+=heat.map(([s,arr])=>`<div class="heat-row"><span class="heat-lb">${s}</span>${arr.map(u=>`<div class="hcell" style="background:${hc(u)};color:${u>55?'#0a0d12':'#8b97a7'}" title="${u}%">${u||''}</div>`).join('')}</div>`).join('');
+  html+='</div>';
+  document.getElementById('h-heat').innerHTML=html;
+</script>
+<script src="nav.js"></script>
+</body>
+</html>

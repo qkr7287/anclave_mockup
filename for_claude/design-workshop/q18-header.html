@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anclave 디자인 — Q18. 헤더 구성</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css">
+<style>
+  :root{
+    --bg:#0d1117;--soft:#10151c;--card:#161c26;--card2:#1c2430;--border:rgba(255,255,255,.07);
+    --border-s:rgba(255,255,255,.045);--text:#e6edf3;--muted:#8b97a7;--faint:#6a7585;
+    --accent:#6ea8fe;--accent-soft:rgba(110,168,254,.12);--on-accent:#08111f;
+    --ok:#3fb950;--ok-bg:rgba(63,185,80,.14);--warn:#d29922;--warn-bg:rgba(210,153,34,.14);--danger:#f85149;--danger-bg:rgba(248,81,73,.14);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0a0d12;color:var(--text);font-family:"Pretendard",system-ui,sans-serif;line-height:1.5;padding:32px 24px 80px;font-size:14.5px}
+  .page-head{max-width:1080px;margin:0 auto 26px}
+  .page-head .q{display:inline-block;background:var(--accent);color:var(--on-accent);font-weight:800;font-size:12px;padding:3px 10px;border-radius:20px;letter-spacing:.5px}
+  .page-head h1{font-size:27px;margin:12px 0 6px;letter-spacing:-.5px}
+  .page-head p{color:var(--muted);font-size:14.5px}
+  .wrap{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:30px}
+
+  .sec-head{display:flex;align-items:baseline;gap:10px;margin-bottom:13px}
+  .sec-head .nm{font-size:16px;font-weight:700}
+  .sec-head .desc{color:var(--faint);font-size:12.5px}
+  .variants{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .variant{background:var(--card2);border:1px solid var(--border);border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.35);overflow:hidden}
+  .variant.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),0 2px 12px rgba(0,0,0,.4)}
+  .sel-tag{margin-left:auto;color:#3fb950;font-weight:800;font-size:11.5px}
+  .v-label{display:flex;align-items:center;gap:10px;padding:11px 16px;background:#11161e;border-bottom:1px solid var(--border);font-size:12.5px}
+  .v-label .pick{background:#1b232f;color:#cfd6df;font-weight:800;width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px}
+  .v-label .vt{font-weight:700}
+  .v-label .vd{color:var(--faint);font-size:11.5px}
+  .v-demo{padding:0}
+
+  /* mini header */
+  .hd{display:flex;align-items:center;gap:14px;padding:0 14px;height:52px;background:var(--bg);border-bottom:1px solid var(--border)}
+  .hd .logo{font-weight:800;font-size:16px;letter-spacing:-.3px}
+  .hd .logo span{color:var(--accent)}
+  .search{flex:1;max-width:300px;height:34px;background:var(--soft);border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;padding:0 11px;color:var(--faint);font-size:12.5px;gap:8px}
+  .search .kbd{margin-left:auto;font-size:10.5px;color:var(--faint);border:1px solid var(--border);border-radius:4px;padding:1px 5px}
+  .search-ic{width:34px;height:34px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;gap:5px;font-size:11px;padding:0 9px;width:auto}
+  .right{margin-left:auto;display:flex;align-items:center;gap:9px}
+  .ib{width:34px;height:34px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative}
+  .ib svg{width:17px;height:17px}
+  .ib .dot{position:absolute;top:6px;right:7px;width:7px;height:7px;border-radius:50%;background:var(--danger);border:1.5px solid var(--bg)}
+  .role{display:flex;align-items:center;gap:7px;height:34px;padding:0 11px;border:1px solid var(--border);border-radius:8px;font-size:12.5px;color:var(--text);cursor:pointer}
+  .role .av{width:20px;height:20px;border-radius:50%;background:var(--accent);color:var(--on-accent);font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center}
+  .hd-body{height:64px;background:var(--bg);display:flex;align-items:center;padding:0 16px;color:var(--faint);font-size:12px}
+
+  /* dropdowns (confirmed) */
+  .dd-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .dd-card{background:var(--card2);border:1px solid var(--border);border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.35);overflow:hidden}
+  .dd-cap{padding:10px 16px;background:#11161e;border-bottom:1px solid var(--border);font-size:12.5px;font-weight:700;color:var(--muted)}
+  .dd-inner{padding:14px}
+  .dd{background:var(--card2);border:1px solid var(--border);border-radius:11px;box-shadow:0 12px 30px rgba(0,0,0,.5);overflow:hidden;width:280px}
+  .dd-hd{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700}
+  .dd-hd a{color:var(--accent);font-size:11.5px;font-weight:600;text-decoration:none;cursor:pointer}
+  .ni{display:flex;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border-s)}
+  .ni:last-child{border-bottom:none}
+  .ni .ic{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px}
+  .ni .ic.ok{background:var(--ok-bg);color:var(--ok)}.ni .ic.warn{background:var(--warn-bg);color:var(--warn)}.ni .ic.danger{background:var(--danger-bg);color:var(--danger)}
+  .ni .nb{flex:1;min-width:0}
+  .ni .nt{font-size:12.5px;font-weight:600}
+  .ni .nm{font-size:11px;color:var(--muted)}
+  .ni .nx{font-size:10.5px;color:var(--faint);flex-shrink:0}
+  .pp-sec{padding:7px 8px}
+  .pp-sec .lbl{font-size:10.5px;color:var(--faint);font-weight:700;padding:5px 8px 4px;text-transform:uppercase;letter-spacing:.4px}
+  .pp-it{display:flex;align-items:center;gap:9px;padding:8px 9px;border-radius:7px;font-size:12.5px;color:var(--text);cursor:pointer}
+  .pp-it:hover{background:#ffffff07}
+  .pp-it .rv{width:20px;height:20px;border-radius:50%;background:#39424f;color:#cfd6df;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center}
+  .pp-it.on{color:var(--accent)} .pp-it.on .rv{background:var(--accent);color:var(--on-accent)}
+  .pp-it .ck{margin-left:auto;color:var(--accent);font-size:12px}
+  .pp-div{height:1px;background:var(--border);margin:4px 0}
+
+  .footer{max-width:1080px;margin:30px auto 0;color:var(--muted);font-size:13.5px}
+  .footer b{color:#ccd}
+  .footer .ask{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-top:10px;font-size:13px;color:var(--text)}
+  .footer .ask code{background:#ffffff10;padding:2px 7px;border-radius:6px;font-size:12.5px;color:var(--accent)}
+</style>
+</head>
+<body>
+  <div class="page-head">
+    <span class="q">Q18 / 헤더 구성</span> <span style="display:inline-block;background:rgba(63,185,80,.13);color:#3fb950;font-weight:800;font-size:12px;padding:3px 11px;border-radius:20px;margin-left:6px">✓ 선택: 검색 A (인풋 상시)</span>
+    <h1>미니 헤더 구성은?</h1>
+    <p>Q2에서 고른 미니 헤더의 실제 구성. <b style="color:#6ea8fe">검색 방식</b>만 A/B로 고르고(알림 벨·역할 전환·프로필·테마 토글은 공통), 드롭다운들은 아래 확정안.</p>
+  </div>
+
+  <div class="wrap">
+
+    <!-- search style A/B -->
+    <section>
+      <div class="sec-head"><span class="nm">검색 방식</span><span class="desc">헤더에 검색을 어떻게 둘지</span></div>
+      <div class="variants">
+        <div class="variant sel">
+          <div class="v-label"><span class="pick">A</span><span class="vt">인풋 상시</span><span class="vd">검색창 항상 표시 · 바로 입력</span><span class="sel-tag">✓ 선택됨</span></div>
+          <div class="v-demo">
+            <div class="hd">
+              <div class="logo">Anclave<span>.</span></div>
+              <div class="search">🔍 서비스·모델 검색…</div>
+              <div class="right">
+                <button class="ib" title="알림"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a6 6 0 0 0-6 6c0 7-3 9-3 9h18s-3-2-3-9a6 6 0 0 0-6-6z"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0z"/></svg><span class="dot"></span></button>
+                <button class="ib" title="테마">🌗</button>
+                <div class="role"><span class="av">A</span>admin ▾</div>
+              </div>
+            </div>
+            <div class="hd-body">자원 / 자원맵</div>
+          </div>
+        </div>
+        <div class="variant">
+          <div class="v-label"><span class="pick">B</span><span class="vt">아이콘 + ⌘K</span><span class="vd">아이콘만 · 누르면 명령 팔레트</span></div>
+          <div class="v-demo">
+            <div class="hd">
+              <div class="logo">Anclave<span>.</span></div>
+              <div style="flex:1"></div>
+              <div class="right">
+                <button class="search-ic">🔍 <span class="kbd" style="margin:0">⌘K</span></button>
+                <button class="ib" title="알림"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a6 6 0 0 0-6 6c0 7-3 9-3 9h18s-3-2-3-9a6 6 0 0 0-6-6z"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0z"/></svg><span class="dot"></span></button>
+                <button class="ib" title="테마">🌗</button>
+                <div class="role"><span class="av">A</span>admin ▾</div>
+              </div>
+            </div>
+            <div class="hd-body">자원 / 자원맵</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- dropdowns (confirmed) -->
+    <section>
+      <div class="sec-head"><span class="nm">헤더 드롭다운</span><span class="desc">확정안 — 알림 벨 · 역할/프로필</span></div>
+      <div class="dd-row">
+        <div class="dd-card">
+          <div class="dd-cap">🔔 알림 벨</div>
+          <div class="dd-inner">
+            <div class="dd">
+              <div class="dd-hd">알림 <a>모두 읽음</a></div>
+              <div class="ni"><div class="ic warn">⚠</div><div class="nb"><div class="nt">GPU 사용률 90% 초과</div><div class="nm">srv-01 · GPU 2</div></div><div class="nx">2분 전</div></div>
+              <div class="ni"><div class="ic ok">✓</div><div class="nb"><div class="nt">API 신청이 승인됐어요</div><div class="nm">doc-summary</div></div><div class="nx">18분 전</div></div>
+              <div class="ni"><div class="ic danger">!</div><div class="nb"><div class="nt">컨테이너 health 비정상</div><div class="nm">cont-mistral-01</div></div><div class="nx">31분 전</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="dd-card">
+          <div class="dd-cap">👤 역할 전환 + 프로필</div>
+          <div class="dd-inner">
+            <div class="dd" style="width:240px">
+              <div class="pp-sec">
+                <div class="lbl">역할 전환</div>
+                <div class="pp-it on"><span class="rv">A</span>관리자<span class="ck">✓</span></div>
+                <div class="pp-it"><span class="rv">B</span>실무관리자 (B=C)</div>
+              </div>
+              <div class="pp-div"></div>
+              <div class="pp-sec">
+                <div class="pp-it">내 정보</div>
+                <div class="pp-it">설정</div>
+                <div class="pp-it" style="color:var(--danger)">로그아웃</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="footer">
+    <p>→ 다음: <b>Q19. 명령 팔레트 ⌘K</b></p>
+    <div class="ask">골라주세요 — <code>검색 A(인풋 상시)</code> 또는 <code>B(아이콘+⌘K)</code></div>
+  </div>
+<script src="nav.js"></script>
+</body>
+</html>

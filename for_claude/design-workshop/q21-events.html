@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anclave 디자인 — Q21. 이벤트 센터</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css">
+<style>
+  :root{
+    --bg:#0d1117;--soft:#10151c;--card:#161c26;--card2:#1c2430;--border:rgba(255,255,255,.07);
+    --border-s:rgba(255,255,255,.045);--text:#e6edf3;--muted:#8b97a7;--faint:#6a7585;
+    --accent:#6ea8fe;--accent-soft:rgba(110,168,254,.12);--on-accent:#08111f;
+    --ok:#3fb950;--ok-bg:rgba(63,185,80,.14);--warn:#d29922;--warn-bg:rgba(210,153,34,.14);
+    --danger:#f85149;--danger-bg:rgba(248,81,73,.14);--info:#6ea8fe;--info-bg:rgba(110,168,254,.14);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0a0d12;color:var(--text);font-family:"Pretendard",system-ui,sans-serif;line-height:1.5;padding:32px 24px 80px;font-size:14.5px}
+  .page-head{max-width:1080px;margin:0 auto 26px}
+  .page-head .q{display:inline-block;background:var(--accent);color:var(--on-accent);font-weight:800;font-size:12px;padding:3px 10px;border-radius:20px;letter-spacing:.5px}
+  .page-head h1{font-size:27px;margin:12px 0 6px;letter-spacing:-.5px}
+  .page-head p{color:var(--muted);font-size:14.5px}
+  .wrap{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:30px}
+
+  .sec-head{display:flex;align-items:baseline;gap:10px;margin-bottom:13px}
+  .sec-head .nm{font-size:16px;font-weight:700}
+  .sec-head .desc{color:var(--faint);font-size:12.5px}
+  .variants{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .variant{background:var(--card2);border:1px solid var(--border);border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.35);overflow:hidden}
+  .variant.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),0 2px 12px rgba(0,0,0,.4)}
+  .sel-tag{margin-left:auto;color:#3fb950;font-weight:800;font-size:11.5px}
+  .v-label{display:flex;align-items:center;gap:10px;padding:11px 16px;background:#11161e;border-bottom:1px solid var(--border);font-size:12.5px}
+  .v-label .pick{background:#1b232f;color:#cfd6df;font-weight:800;width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px}
+  .v-label .vt{font-weight:700}
+  .v-label .vd{color:var(--faint);font-size:11.5px}
+  .v-demo{padding:16px}
+
+  .badge{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700}
+  .badge.crit{background:var(--danger-bg);color:var(--danger)}
+  .badge.warn{background:var(--warn-bg);color:var(--warn)}
+  .badge.info{background:var(--info-bg);color:var(--info)}
+  .badge.ok{background:var(--ok-bg);color:var(--ok)}
+
+  /* A timeline */
+  .tl{position:relative;padding-left:18px}
+  .tl::before{content:"";position:absolute;left:4px;top:6px;bottom:6px;width:2px;background:var(--border)}
+  .tli{position:relative;padding:0 0 16px 16px}
+  .tli:last-child{padding-bottom:0}
+  .tli .dot{position:absolute;left:-18px;top:3px;width:10px;height:10px;border-radius:50%;border:2px solid var(--bg)}
+  .tli .dot.crit{background:var(--danger)}.tli .dot.warn{background:var(--warn)}.tli .dot.info{background:var(--info)}.tli .dot.ok{background:var(--ok)}
+  .tli .tt{font-size:13px;font-weight:600;margin-bottom:2px}
+  .tli.unread .tt::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);margin-right:6px;vertical-align:2px}
+  .tli .tm{font-size:11.5px;color:var(--muted)}
+  .tli .tx{font-size:11px;color:var(--faint);margin-top:2px}
+  .tli.read{opacity:.55}
+
+  /* B table */
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  thead th{background:#0f141b;color:#cfd6df;font-weight:700;font-size:11.5px;text-align:left;padding:8px 12px;border-bottom:1px solid var(--border)}
+  td{padding:9px 12px;border-bottom:1px solid var(--border-s);vertical-align:top}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr.unread{background:rgba(110,168,254,.05)}
+  tbody tr.unread td:first-child{box-shadow:inset 2px 0 0 var(--accent)}
+  .et-msg{font-weight:600;font-size:12.5px}
+  .et-src{font-size:11px;color:var(--faint)}
+  .et-time{font-size:11.5px;color:var(--muted);white-space:nowrap}
+  .et-act{color:var(--accent);font-size:11.5px;font-weight:600;cursor:pointer;white-space:nowrap}
+
+  .bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .lbtn{font-family:inherit;font-size:12px;font-weight:600;padding:5px 11px;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;white-space:nowrap}
+  .lbtn:hover{color:var(--text);border-color:rgba(255,255,255,.18)}
+  /* timeline toolbar (search + severity filter + period) */
+  .ev-top{display:flex;gap:8px;margin-bottom:10px}
+  .ev-search{flex:1;height:32px;background:var(--soft);border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;padding:0 11px;color:var(--faint);font-size:12.5px;gap:7px}
+  .ev-filters{display:flex;align-items:center;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+  .schip{font-family:inherit;font-size:12px;font-weight:500;padding:5px 11px;border-radius:18px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+  .schip i{width:7px;height:7px;border-radius:50%}
+  .schip:hover{border-color:rgba(255,255,255,.18);color:var(--text)}
+  .schip.on{background:var(--accent-soft);border-color:rgba(110,168,254,.4);color:var(--accent)}
+  .period{font-family:inherit;font-size:12px;font-weight:600;height:30px;padding:0 11px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer}
+
+  /* severity legend (confirmed) */
+  .confirm-card{background:var(--card2);border:1px solid var(--border);border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.35);padding:18px 20px}
+  .sev-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+  .sev{display:flex;gap:11px;align-items:flex-start}
+  .sev .sd{width:11px;height:11px;border-radius:50%;margin-top:4px;flex-shrink:0}
+  .sev .st{font-weight:700;font-size:13px}.sev .sx{font-size:12px;color:var(--muted)}
+
+  .footer{max-width:1080px;margin:30px auto 0;color:var(--muted);font-size:13.5px}
+  .footer b{color:#ccd}
+  .footer .ask{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-top:10px;font-size:13px;color:var(--text)}
+  .footer .ask code{background:#ffffff10;padding:2px 7px;border-radius:6px;font-size:12.5px;color:var(--accent)}
+</style>
+</head>
+<body>
+  <div class="page-head">
+    <span class="q">Q21 / 이벤트 센터</span> <span style="display:inline-block;background:rgba(63,185,80,.13);color:#3fb950;font-weight:800;font-size:12px;padding:3px 11px;border-radius:20px;margin-left:6px">✓ 선택: 이벤트 A (타임라인 + 검색/필터)</span>
+    <h1>관제 이벤트 레이아웃은?</h1>
+    <p>에러·이벤트 관제 화면(/events). <b style="color:#6ea8fe">A 타임라인</b> = 흐름 파악 + 상단 검색·심각도 필터·기간 · <b style="color:#6ea8fe">B 테이블</b> = 정렬·조치 열·대량 처리. 심각도 분류는 아래 확정안 · 안 읽은 항목 강조.</p>
+  </div>
+
+  <div class="wrap">
+    <section>
+      <div class="sec-head"><span class="nm">이벤트 센터 레이아웃</span><span class="desc">같은 이벤트, 두 방식</span></div>
+      <div class="variants">
+        <div class="variant sel">
+          <div class="v-label"><span class="pick">A</span><span class="vt">타임라인 + 검색/필터</span><span class="vd">시간 흐름·심각도 점 · 검색·필터·기간</span><span class="sel-tag">✓ 선택됨</span></div>
+          <div class="v-demo">
+            <div class="ev-top">
+              <div class="ev-search">🔍 이벤트·소스 검색…</div>
+              <button class="lbtn">모두 읽음</button>
+            </div>
+            <div class="ev-filters">
+              <button class="schip on">전체</button>
+              <button class="schip"><i style="background:var(--danger)"></i>위험</button>
+              <button class="schip"><i style="background:var(--warn)"></i>경고</button>
+              <button class="schip"><i style="background:var(--info)"></i>정보</button>
+              <button class="schip"><i style="background:var(--ok)"></i>복구</button>
+              <span style="flex:1"></span>
+              <button class="period">최근 24시간 ▾</button>
+            </div>
+            <div class="tl">
+              <div class="tli unread"><span class="dot crit"></span><div class="tt">XID 48 (DBE ECC) 오류 발생</div><div class="tm">srv-01 · GPU 2</div><div class="tx">3분 전</div></div>
+              <div class="tli unread"><span class="dot warn"></span><div class="tt">GPU 사용률 90% 초과</div><div class="tm">srv-01 · GPU 4</div><div class="tx">12분 전</div></div>
+              <div class="tli read"><span class="dot ok"></span><div class="tt">XID 48 자동 복구 완료</div><div class="tm">srv-01 · GPU 2</div><div class="tx">10분 전</div></div>
+              <div class="tli read"><span class="dot info"></span><div class="tt">슬라이스 할당</div><div class="tm">김민준 → h100-01</div><div class="tx">20분 전</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="variant">
+          <div class="v-label"><span class="pick">B</span><span class="vt">테이블</span><span class="vd">정렬·필터·조치 열 · 대량 처리</span></div>
+          <div class="v-demo">
+            <div class="bar"><span style="font-size:12.5px;color:var(--muted)">이벤트 21건 · 2 안읽음</span><button class="lbtn">모두 읽음</button></div>
+            <table>
+              <thead><tr><th>심각도</th><th>이벤트</th><th>시간</th><th>조치</th></tr></thead>
+              <tbody>
+                <tr class="unread"><td><span class="badge crit">위험</span></td><td><div class="et-msg">XID 48 (DBE ECC) 오류</div><div class="et-src">srv-01 · GPU 2</div></td><td class="et-time">3분 전</td><td><span class="et-act">컨테이너 보기 →</span></td></tr>
+                <tr class="unread"><td><span class="badge warn">경고</span></td><td><div class="et-msg">GPU 사용률 90% 초과</div><div class="et-src">srv-01 · GPU 4</div></td><td class="et-time">12분 전</td><td><span class="et-act">자원맵 →</span></td></tr>
+                <tr><td><span class="badge ok">복구</span></td><td><div class="et-msg">XID 48 자동 복구 완료</div><div class="et-src">srv-01 · GPU 2</div></td><td class="et-time">10분 전</td><td>—</td></tr>
+                <tr><td><span class="badge info">정보</span></td><td><div class="et-msg">슬라이스 할당</div><div class="et-src">김민준 → h100-01</div></td><td class="et-time">20분 전</td><td>—</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- severity legend (confirmed) -->
+    <section>
+      <div class="sec-head"><span class="nm">심각도 분류</span><span class="desc">확정안 — 알림 벨·토스트·이벤트 공통</span></div>
+      <div class="confirm-card">
+        <div class="sev-grid">
+          <div class="sev"><span class="sd" style="background:var(--danger)"></span><div><div class="st">위험 (Critical)</div><div class="sx">XID·ECC·health 실패 등 즉시 대응 · 빨강</div></div></div>
+          <div class="sev"><span class="sd" style="background:var(--warn)"></span><div><div class="st">경고 (Warning)</div><div class="sx">사용률/온도 임계 초과 · 주의 · 앰버</div></div></div>
+          <div class="sev"><span class="sd" style="background:var(--info)"></span><div><div class="st">정보 (Info)</div><div class="sx">슬라이스 할당·모델 로드 등 활동 · 블루</div></div></div>
+          <div class="sev"><span class="sd" style="background:var(--ok)"></span><div><div class="st">복구·성공 (OK)</div><div class="sx">자동 복구·승인 완료 등 · 초록</div></div></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="footer">
+    <p>핵심은 여기서 끝! 고르면 목업 구현 시작 가능 (Q22 접근성·Q23 벌크액션은 선택).</p>
+    <div class="ask">골라주세요 — <code>이벤트 A(타임라인)</code> 또는 <code>B(테이블)</code></div>
+  </div>
+<script src="nav.js"></script>
+</body>
+</html>

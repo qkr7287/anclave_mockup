@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anclave 디자인 — Q22. 접근성</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css">
+<style>
+  :root{
+    --bg:#0d1117;--soft:#10151c;--card:#161c26;--card2:#1c2430;--border:rgba(255,255,255,.07);
+    --border-s:rgba(255,255,255,.045);--text:#e6edf3;--muted:#8b97a7;--faint:#6a7585;
+    --accent:#6ea8fe;--accent-soft:rgba(110,168,254,.12);--on-accent:#08111f;--ok:#3fb950;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0a0d12;color:var(--text);font-family:"Pretendard",system-ui,sans-serif;line-height:1.5;padding:32px 24px 80px;font-size:14.5px}
+  .page-head{max-width:1080px;margin:0 auto 26px}
+  .page-head .q{display:inline-block;background:var(--accent);color:var(--on-accent);font-weight:800;font-size:12px;padding:3px 10px;border-radius:20px;letter-spacing:.5px}
+  .page-head h1{font-size:27px;margin:12px 0 6px;letter-spacing:-.5px}
+  .page-head p{color:var(--muted);font-size:14.5px}
+  .wrap{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:30px}
+
+  .sec-head{display:flex;align-items:baseline;gap:10px;margin-bottom:13px}
+  .sec-head .nm{font-size:16px;font-weight:700}
+  .sec-head .desc{color:var(--faint);font-size:12.5px}
+  .variants{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .variant{background:var(--card2);border:1px solid var(--border);border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.35);overflow:hidden}
+  .variant.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),0 2px 12px rgba(0,0,0,.4)}
+  .sel-tag{margin-left:auto;color:#3fb950;font-weight:800;font-size:11.5px}
+  .v-label{display:flex;align-items:center;gap:10px;padding:11px 16px;background:#11161e;border-bottom:1px solid var(--border);font-size:12.5px}
+  .v-label .pick{background:#1b232f;color:#cfd6df;font-weight:800;width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px}
+  .v-label .vt{font-weight:700}
+  .v-label .vd{color:var(--faint);font-size:11.5px}
+  .v-demo{padding:22px 18px;display:flex;flex-direction:column;gap:16px}
+
+  .fr{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .fr .fl{width:64px;font-size:11.5px;color:var(--faint);flex-shrink:0}
+  .btn{font-family:inherit;font-size:13px;font-weight:600;padding:8px 15px;border-radius:8px;cursor:pointer;border:1px solid transparent}
+  .btn.primary{background:var(--accent);color:var(--on-accent)}
+  .btn.outline{background:transparent;border-color:var(--border);color:var(--text)}
+  .inp{height:38px;width:170px;background:var(--soft);border:1px solid var(--border);border-radius:8px;padding:0 12px;color:var(--text);font-family:inherit;font-size:13px}
+  .lk{color:var(--accent);font-weight:600;text-decoration:none}
+  .mini-card{background:var(--soft);border:1px solid var(--border);border-radius:10px;padding:11px 13px;font-size:12.5px;width:150px}
+
+  /* A: ring only */
+  .a .foc{outline:2px solid var(--accent);outline-offset:2px}
+  /* B: ring + clearly visible glow halo */
+  .b .foc{outline:2px solid var(--accent);outline-offset:2px;box-shadow:0 0 0 5px rgba(110,168,254,.32),0 0 14px rgba(110,168,254,.45)}
+
+  /* confirmed tables */
+  .confirm-card{background:var(--card2);border:1px solid var(--border);border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.35);overflow:hidden}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  thead th{background:#11161e;color:var(--muted);font-weight:700;font-size:12px;text-align:left;padding:10px 16px;border-bottom:1px solid var(--border)}
+  td{padding:9px 16px;border-bottom:1px solid var(--border-s)}
+  tbody tr:last-child td{border-bottom:none}
+  kbd{display:inline-block;border:1px solid var(--border);border-bottom-width:2px;border-radius:5px;padding:1px 7px;font-family:ui-monospace,monospace;font-size:12px;background:#0f141b;color:var(--text)}
+  .desc-c{color:var(--muted);font-size:12.5px}
+  .checks{padding:18px 20px;display:grid;grid-template-columns:1fr 1fr;gap:11px 22px}
+  .chk{display:flex;gap:10px;align-items:flex-start;font-size:13px}
+  .chk .ci{color:var(--ok);flex-shrink:0;font-weight:800}
+  .chk .ct b{font-weight:700}
+  .chk .ct span{color:var(--muted)}
+
+  .footer{max-width:1080px;margin:30px auto 0;color:var(--muted);font-size:13.5px}
+  .footer b{color:#ccd}
+  .footer .ask{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-top:10px;font-size:13px;color:var(--text)}
+  .footer .ask code{background:#ffffff10;padding:2px 7px;border-radius:6px;font-size:12.5px;color:var(--accent)}
+</style>
+</head>
+<body>
+  <div class="page-head">
+    <span class="q">Q22 / 접근성</span> <span style="display:inline-block;background:rgba(63,185,80,.13);color:#3fb950;font-weight:800;font-size:12px;padding:3px 11px;border-radius:20px;margin-left:6px">✓ 선택: 포커스 A (링만) · 커스텀 단축키 없음</span>
+    <h1>포커스 표시 · 접근성은?</h1>
+    <p>키보드/스크린리더 사용자를 위한 기준. <b style="color:#6ea8fe">포커스 표시</b>만 A/B로 고르고, 접근성 원칙은 아래 확정안. <b>커스텀 단축키(⌘K·g→r·j/k 등)는 두지 않음</b> — Tab 이동·Enter·Esc 같은 기본 동작만. (아래 요소들은 포커스된 상태로 고정 표시)</p>
+  </div>
+
+  <div class="wrap">
+
+    <!-- focus A/B -->
+    <section>
+      <div class="sec-head"><span class="nm">포커스 표시 (focus ring)</span><span class="desc">키보드 탐색 시 현재 위치</span></div>
+      <div class="variants">
+        <div class="variant a sel">
+          <div class="v-label"><span class="pick">A</span><span class="vt">링만</span><span class="vd">2px 액센트 외곽선 · 깔끔</span><span class="sel-tag">✓ 선택됨</span></div>
+          <div class="v-demo">
+            <div class="fr"><span class="fl">버튼</span><button class="btn primary foc">발급</button><button class="btn outline">필터</button></div>
+            <div class="fr"><span class="fl">입력</span><input class="inp foc" value="qwen-agent"></div>
+            <div class="fr"><span class="fl">링크</span><a class="lk foc" href="#">자원맵 열기</a></div>
+            <div class="fr"><span class="fl">카드</span><div class="mini-card foc">GPU 02 · 포화 92%</div></div>
+          </div>
+        </div>
+        <div class="variant b">
+          <div class="v-label"><span class="pick">B</span><span class="vt">링 + 소프트 글로우</span><span class="vd">외곽선 + 은은한 후광 · 더 또렷</span></div>
+          <div class="v-demo">
+            <div class="fr"><span class="fl">버튼</span><button class="btn primary foc">발급</button><button class="btn outline">필터</button></div>
+            <div class="fr"><span class="fl">입력</span><input class="inp foc" value="qwen-agent"></div>
+            <div class="fr"><span class="fl">링크</span><a class="lk foc" href="#">자원맵 열기</a></div>
+            <div class="fr"><span class="fl">카드</span><div class="mini-card foc">GPU 02 · 포화 92%</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- a11y principles (confirmed) -->
+    <section>
+      <div class="sec-head"><span class="nm">접근성 원칙</span><span class="desc">확정안 — 전 화면 준수</span></div>
+      <div class="confirm-card">
+        <div class="checks">
+          <div class="chk"><span class="ci">✓</span><div class="ct"><b>대비 WCAG AA</b> <span>본문 4.5:1 · 큰 텍스트/UI 3:1 이상</span></div></div>
+          <div class="chk"><span class="ci">✓</span><div class="ct"><b>색만으로 정보 금지</b> <span>상태는 색 + 텍스트/아이콘 병기 (배지·심각도)</span></div></div>
+          <div class="chk"><span class="ci">✓</span><div class="ct"><b>모든 인터랙션 키보드 접근</b> <span>탭 순서 논리적 · 포커스 항상 보임</span></div></div>
+          <div class="chk"><span class="ci">✓</span><div class="ct"><b>포커스 트랩</b> <span>모달·드로어·팔레트 안에서 탭 순환 · Esc 닫기</span></div></div>
+          <div class="chk"><span class="ci">✓</span><div class="ct"><b>폼 라벨 연결</b> <span>label-for · 에러는 aria-describedby로 안내</span></div></div>
+          <div class="chk"><span class="ci">✓</span><div class="ct"><b>터치 타겟 ≥ 36px</b> <span>아이콘 버튼도 최소 클릭 영역 확보</span></div></div>
+          <div class="chk"><span class="ci">✓</span><div class="ct"><b>모션 존중</b> <span>prefers-reduced-motion 시 애니메이션 비활성</span></div></div>
+          <div class="chk"><span class="ci">✓</span><div class="ct"><b>스크린리더</b> <span>아이콘 버튼 aria-label · 라이브 영역으로 토스트 안내</span></div></div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="footer">
+    <p>→ 다음: <b>Q23. 벌크 액션 &amp; undo</b> (마지막)</p>
+    <div class="ask">골라주세요 — <code>포커스 A(링만)</code> 또는 <code>B(링+글로우)</code></div>
+  </div>
+<script src="nav.js"></script>
+</body>
+</html>

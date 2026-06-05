@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anclave 디자인 — Q20. 필터 & 포맷</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css">
+<style>
+  :root{
+    --bg:#0d1117;--soft:#10151c;--card:#161c26;--card2:#1c2430;--border:rgba(255,255,255,.07);
+    --border-s:rgba(255,255,255,.045);--text:#e6edf3;--muted:#8b97a7;--faint:#6a7585;
+    --accent:#6ea8fe;--accent-soft:rgba(110,168,254,.12);--on-accent:#08111f;
+    --ok:#3fb950;--ok-bg:rgba(63,185,80,.14);--warn:#d29922;--warn-bg:rgba(210,153,34,.14);--danger:#f85149;--danger-bg:rgba(248,81,73,.14);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0a0d12;color:var(--text);font-family:"Pretendard",system-ui,sans-serif;line-height:1.5;padding:32px 24px 80px;font-size:14.5px}
+  .page-head{max-width:1080px;margin:0 auto 26px}
+  .page-head .q{display:inline-block;background:var(--accent);color:var(--on-accent);font-weight:800;font-size:12px;padding:3px 10px;border-radius:20px;letter-spacing:.5px}
+  .page-head h1{font-size:27px;margin:12px 0 6px;letter-spacing:-.5px}
+  .page-head p{color:var(--muted);font-size:14.5px}
+  .wrap{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:30px}
+
+  .sec-head{display:flex;align-items:baseline;gap:10px;margin-bottom:13px}
+  .sec-head .nm{font-size:16px;font-weight:700}
+  .sec-head .desc{color:var(--faint);font-size:12.5px}
+  .variants{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .variant{background:var(--card2);border:1px solid var(--border);border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.35);overflow:hidden}
+  .variant.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),0 2px 12px rgba(0,0,0,.4)}
+  .sel-tag{margin-left:auto;color:#3fb950;font-weight:800;font-size:11.5px}
+  .v-label{display:flex;align-items:center;gap:10px;padding:11px 16px;background:#11161e;border-bottom:1px solid var(--border);font-size:12.5px}
+  .v-label .pick{background:#1b232f;color:#cfd6df;font-weight:800;width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px}
+  .v-label .vt{font-weight:700}
+  .v-label .vd{color:var(--faint);font-size:11.5px}
+  .v-demo{padding:16px}
+
+  /* chips (A) */
+  .chips{display:flex;align-items:center;gap:7px;margin-bottom:13px;flex-wrap:wrap}
+  .chip{font-family:inherit;font-size:12.5px;font-weight:600;padding:6px 12px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+  .chip .c{font-size:11px;color:var(--faint)}
+  .chip.on{background:var(--accent-soft);border-color:rgba(110,168,254,.4);color:var(--accent)} .chip.on .c{color:var(--accent)}
+  .cdiv{width:1px;height:18px;background:var(--border);margin:0 3px}
+
+  /* dropdown filter (B) */
+  .fbar{display:flex;align-items:center;gap:8px;margin-bottom:13px}
+  .fsearch{flex:1;max-width:200px;height:32px;background:var(--soft);border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;padding:0 10px;color:var(--faint);font-size:12.5px;gap:6px}
+  .fbtn{height:32px;border:1px solid rgba(110,168,254,.4);background:var(--accent-soft);color:var(--accent);border-radius:8px;font-family:inherit;font-size:12.5px;font-weight:600;padding:0 12px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+  .fbtn .cnt{background:var(--accent);color:var(--on-accent);font-size:10px;font-weight:800;border-radius:10px;padding:0 6px}
+  .fpanel{background:var(--soft);border:1px solid var(--border);border-radius:10px;padding:15px;margin-bottom:13px}
+  .fgrp{margin-bottom:14px}
+  .fpanel .fg{font-size:11px;color:var(--faint);font-weight:700;margin-bottom:9px;text-transform:uppercase;letter-spacing:.4px}
+  .fpanel .fopts{display:flex;flex-wrap:wrap;gap:7px}
+  .fopt{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:500;color:var(--muted);cursor:pointer;padding:5px 12px;border:1px solid var(--border);border-radius:18px;transition:border-color .12s,color .12s,background .12s}
+  .fopt:hover{border-color:rgba(255,255,255,.18);color:var(--text)}
+  .fopt.on{background:var(--accent-soft);border-color:rgba(110,168,254,.45);color:var(--accent);font-weight:600}
+  .fpanel .ff{display:flex;justify-content:flex-end;gap:8px;border-top:1px solid var(--border-s);padding-top:12px}
+  .lbtn{font-family:inherit;font-size:12px;font-weight:600;padding:6px 12px;border-radius:7px;cursor:pointer;border:1px solid transparent}
+  .lbtn.gh{background:transparent;color:var(--muted)} .lbtn.pr{background:var(--accent);color:var(--on-accent)}
+
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  thead th{background:#0f141b;color:#cfd6df;font-weight:700;font-size:11.5px;text-align:left;padding:8px 12px;border-bottom:1px solid var(--border)}
+  td{padding:9px 12px;border-bottom:1px solid var(--border-s)}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:nth-child(even){background:rgba(255,255,255,.04)}
+  .badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700}
+  .badge.ok{background:var(--ok-bg);color:var(--ok)}.badge.warn{background:var(--warn-bg);color:var(--warn)}.badge.danger{background:var(--danger-bg);color:var(--danger)}
+  .mono{color:var(--muted);font-size:12.5px}
+
+  /* format glossary */
+  .confirm-card{background:var(--card2);border:1px solid var(--border);border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.35);overflow:hidden}
+  .fmt-th{background:#11161e;color:var(--muted)}
+  .fmt-row td{padding:10px 16px;border-bottom:1px solid var(--border-s)}
+  .ex{color:var(--text);font-weight:700;font-family:ui-monospace,monospace;font-size:13px}
+  .desc-c{color:var(--muted);font-size:12.5px}
+
+  .footer{max-width:1080px;margin:30px auto 0;color:var(--muted);font-size:13.5px}
+  .footer b{color:#ccd}
+  .footer .ask{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-top:10px;font-size:13px;color:var(--text)}
+  .footer .ask code{background:#ffffff10;padding:2px 7px;border-radius:6px;font-size:12.5px;color:var(--accent)}
+</style>
+</head>
+<body>
+  <div class="page-head">
+    <span class="q">Q20 / 필터 &amp; 포맷</span> <span style="display:inline-block;background:rgba(63,185,80,.13);color:#3fb950;font-weight:800;font-size:12px;padding:3px 11px;border-radius:20px;margin-left:6px">✓ 선택: 필터 B (드롭다운 · 칩 토글)</span>
+    <h1>필터 UI · 날짜·숫자 표기는?</h1>
+    <p>목록·테이블의 <b style="color:#6ea8fe">필터 방식</b>을 A/B로 고르고, 날짜·시간·숫자 포맷은 아래 확정안으로 통일합니다.</p>
+  </div>
+
+  <div class="wrap">
+
+    <!-- filter A/B -->
+    <section>
+      <div class="sec-head"><span class="nm">필터 방식</span><span class="desc">서비스 목록 예시</span></div>
+      <div class="variants">
+        <div class="variant">
+          <div class="v-label"><span class="pick">A</span><span class="vt">칩 토글</span><span class="vd">상단 칩 · 한 번에 보고 빠르게 전환</span></div>
+          <div class="v-demo">
+            <div class="chips">
+              <button class="chip on">전체 <span class="c">24</span></button>
+              <button class="chip">승인 <span class="c">18</span></button>
+              <button class="chip">대기 <span class="c">4</span></button>
+              <button class="chip">반려 <span class="c">2</span></button>
+              <span class="cdiv"></span>
+              <button class="chip">종류 ▾</button>
+            </div>
+            <table>
+              <thead><tr><th>서비스</th><th>종류</th><th>상태</th></tr></thead>
+              <tbody>
+                <tr><td style="font-weight:600">qwen-agent</td><td class="mono">Agent</td><td><span class="badge ok">승인</span></td></tr>
+                <tr><td style="font-weight:600">doc-summary</td><td class="mono">요약</td><td><span class="badge warn">대기</span></td></tr>
+                <tr><td style="font-weight:600">code-helper</td><td class="mono">Agent</td><td><span class="badge ok">승인</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="variant sel">
+          <div class="v-label"><span class="pick">B</span><span class="vt">드롭다운 패널</span><span class="vd">필터 버튼 → 패널 · 칩 토글로 깔끔</span><span class="sel-tag">✓ 선택됨</span></div>
+          <div class="v-demo">
+            <div class="fbar"><div class="fsearch">🔍 검색</div><button class="fbtn">필터 <span class="cnt">2</span> ▾</button></div>
+            <div class="fpanel">
+              <div class="fgrp">
+                <div class="fg">상태</div>
+                <div class="fopts">
+                  <span class="fopt on">✓ 승인</span><span class="fopt on">✓ 대기</span><span class="fopt">반려</span>
+                </div>
+              </div>
+              <div class="fgrp">
+                <div class="fg">종류</div>
+                <div class="fopts">
+                  <span class="fopt">Agent</span><span class="fopt">요약</span><span class="fopt">OCR</span><span class="fopt">번역</span>
+                </div>
+              </div>
+              <div class="ff"><button class="lbtn gh">초기화</button><button class="lbtn pr">적용</button></div>
+            </div>
+            <table>
+              <thead><tr><th>서비스</th><th>종류</th><th>상태</th></tr></thead>
+              <tbody>
+                <tr><td style="font-weight:600">qwen-agent</td><td class="mono">Agent</td><td><span class="badge ok">승인</span></td></tr>
+                <tr><td style="font-weight:600">doc-summary</td><td class="mono">요약</td><td><span class="badge warn">대기</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- format glossary (confirmed) -->
+    <section>
+      <div class="sec-head"><span class="nm">날짜 · 시간 · 숫자 포맷</span><span class="desc">확정안 — 전 화면 통일</span></div>
+      <div class="confirm-card">
+        <table>
+          <thead><tr class="fmt-th"><th style="width:26%">항목</th><th style="width:30%">표기</th><th>규칙</th></tr></thead>
+          <tbody>
+            <tr class="fmt-row"><td>상대 시간</td><td class="ex">방금 · 2분 전 · 3시간 전 · 어제</td><td class="desc-c">기본 표시 · hover 시 절대시간 툴팁</td></tr>
+            <tr class="fmt-row"><td>절대 날짜·시간</td><td class="ex">2026-06-05 · 14:30</td><td class="desc-c">ISO 날짜 · 24시간제 · 7일 지나면 날짜로</td></tr>
+            <tr class="fmt-row"><td>정수 (천단위)</td><td class="ex">44,032</td><td class="desc-c">콤마 구분</td></tr>
+            <tr class="fmt-row"><td>큰 수 약어</td><td class="ex">1.2K · 3.4M 호출</td><td class="desc-c">차트·요약 지표는 약어, 상세는 전체</td></tr>
+            <tr class="fmt-row"><td>퍼센트</td><td class="ex">62%</td><td class="desc-c">사용률은 정수 · 변화량은 1자리(▲4.2%p)</td></tr>
+            <tr class="fmt-row"><td>용량</td><td class="ex">38 / 48 GB · 44,032 MiB</td><td class="desc-c">요약은 GB, 정밀 표시는 MiB</td></tr>
+            <tr class="fmt-row"><td>온도·전력</td><td class="ex">71°C · 303 W</td><td class="desc-c">단위 앞 공백(W) · °C는 붙임</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="footer">
+    <p>→ 다음: <b>Q21. 알림/이벤트 센터</b></p>
+    <div class="ask">골라주세요 — <code>필터 A(칩)</code> 또는 <code>B(드롭다운 패널)</code></div>
+  </div>
+<script src="nav.js"></script>
+</body>
+</html>

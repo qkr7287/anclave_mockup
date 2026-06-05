@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anclave 디자인 — Q2. 레이아웃</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css">
+<style>
+  :root{
+    --bg:#0d1117; --soft:#10151c; --card:#161c26; --border:rgba(255,255,255,.07);
+    --border2:rgba(255,255,255,.04); --text:#e6edf3; --muted:#8b97a7; --faint:#6a7585;
+    --accent:#6ea8fe; --accent-soft:rgba(110,168,254,.12); --on-accent:#08111f;
+    --ok:#3fb950; --warn:#d29922; --danger:#f85149;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0a0d12;color:var(--text);font-family:"Pretendard",system-ui,sans-serif;line-height:1.5;padding:32px 24px 80px}
+  .page-head{max-width:1180px;margin:0 auto 26px}
+  .page-head .q{display:inline-block;background:var(--accent);color:var(--on-accent);font-weight:800;font-size:12px;padding:3px 10px;border-radius:20px;letter-spacing:.5px}
+  .page-head h1{font-size:24px;margin:12px 0 6px;letter-spacing:-.4px}
+  .page-head p{color:var(--muted);font-size:14px}
+  .wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:24px}
+
+  .opt{border:1px solid var(--border);border-radius:16px;overflow:hidden}
+  .opt.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+  .opt-label{display:flex;align-items:center;gap:11px;padding:11px 18px;background:#11161e;border-bottom:1px solid var(--border);font-size:13px}
+  .opt-label .pick{background:#1b232f;color:#cfd6df;font-weight:800;width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px}
+  .opt-label .nm{font-weight:700;font-size:14px}
+  .opt-label .desc{color:var(--faint);font-size:12px;margin-left:4px}
+
+  /* app shell */
+  .app{background:var(--bg);height:430px;display:flex;flex-direction:column}
+  .hd{display:flex;align-items:center;gap:14px;padding:0 16px;height:52px;border-bottom:1px solid var(--border);flex-shrink:0}
+  .hd .logo{font-weight:800;font-size:16px;letter-spacing:-.3px}
+  .hd .logo span{color:var(--accent)}
+  .search{flex:1;max-width:320px;height:32px;background:var(--soft);border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;padding:0 11px;color:var(--faint);font-size:12.5px;gap:7px}
+  .hd .right{margin-left:auto;display:flex;align-items:center;gap:10px}
+  .iconbtn{width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--muted);display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer}
+  .role{display:flex;align-items:center;gap:7px;height:32px;padding:0 11px;border:1px solid var(--border);border-radius:8px;font-size:12.5px;color:var(--text);cursor:pointer}
+  .role .av{width:18px;height:18px;border-radius:50%;background:var(--accent);color:var(--on-accent);font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center}
+  .body{flex:1;display:flex;min-height:0}
+  .sb{width:212px;border-right:1px solid var(--border);padding:14px 10px;overflow:auto;flex-shrink:0;display:flex;flex-direction:column;gap:2px}
+  .sb.flat{width:200px}
+  .grp{font-size:10.5px;color:var(--faint);font-weight:700;letter-spacing:.5px;margin:12px 10px 4px;text-transform:uppercase}
+  .grp:first-child{margin-top:2px}
+  .mi{display:flex;align-items:center;gap:10px;padding:8px 11px;border-radius:8px;color:var(--muted);font-size:13px;position:relative;cursor:pointer}
+  .mi .ic{width:15px;height:15px;border-radius:4px;border:1.6px solid currentColor;opacity:.7;flex-shrink:0}
+  .mi:hover{color:var(--text);background:var(--border2)}
+  .mi.on{color:var(--text)}
+  .mi.on.bg{background:var(--accent-soft)}
+  .mi.on.bg .ic{color:var(--accent);opacity:1}
+  .mi.on.bar::before{content:"";position:absolute;left:0;top:6px;bottom:6px;width:3px;border-radius:3px;background:var(--accent)}
+  .mi.on.bar{color:var(--text)} .mi.on.bar .ic{color:var(--accent);opacity:1}
+  .main{flex:1;padding:18px 22px;overflow:auto;min-width:0}
+  .crumb{font-size:12px;color:var(--faint);margin-bottom:3px}
+  .h2{font-size:18px;font-weight:700;margin-bottom:2px}
+  .sub{color:var(--muted);font-size:12.5px;margin-bottom:16px}
+  .ph-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .ph{background:var(--card);border:1px solid var(--border);border-radius:11px;height:88px;display:flex;align-items:center;justify-content:center;color:var(--faint);font-size:12px}
+  .ph.tall{grid-column:1/-1;height:120px}
+  .mini-actions{display:flex;gap:8px;margin-bottom:16px}
+  .btn{border:1px solid var(--border);background:transparent;color:var(--text);font-family:inherit;font-size:12.5px;padding:7px 14px;border-radius:8px;cursor:pointer;font-weight:600}
+  .btn.primary{background:var(--accent);color:var(--on-accent);border-color:transparent}
+  .pagehd2{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:10px}
+</style>
+</head>
+<body>
+  <div class="page-head">
+    <span class="q">Q2 / 레이아웃</span> <span style="display:inline-block;background:rgba(63,185,80,.13);color:#3fb950;font-weight:800;font-size:12px;padding:3px 11px;border-radius:20px;margin-left:6px">✓ 선택: 2번</span>
+    <h1>앱 셸(헤더 + 사이드바) 구조는?</h1>
+    <p>무드 A(GitHub 다크, 외곽선 옅게) 고정 · 레이아웃 2안 중 <b style="color:#6ea8fe">2번 선택됨</b> — 플랫 사이드바 + 미니 헤더 + 배경칠 활성.</p>
+  </div>
+
+  <div class="wrap" id="wrap"></div>
+
+  <div class="page-head" style="margin-top:28px">
+    <p style="color:var(--muted);font-size:13.5px">→ 다음: <b style="color:#ccd">Q3. 카드 &amp; 테이블</b></p>
+  </div>
+
+<script>
+  // admin 사이드바 메뉴 (가장 많은 역할)
+  const grouped = [
+    {g:'둘러보기', items:[['마켓플레이스',0],['모델 카탈로그',0]]},
+    {g:'자원', items:[['자원맵',1],['실무관리자 대시보드',0]]},
+    {g:'관리', items:[['승인 관리',0],['신규 모델 도입',0],['관제 모니터링',0],['에러·이벤트',0]]},
+    {g:'기타', items:[['게시판',0]]},
+  ];
+  const flat = [['마켓플레이스',0],['모델 카탈로그',0],['자원맵',1],['승인 관리',0],['신규 모델 도입',0],['관제 모니터링',0],['에러·이벤트',0],['게시판',0]];
+
+  function mi(name, on, kind){ return `<div class="mi ${on?'on '+kind:''}"><span class="ic"></span>${name}</div>`; }
+  function content(){
+    return `<div class="crumb">자원 / 자원맵</div>
+      <div class="pagehd2">
+        <div><div class="h2">자원맵</div><div class="sub" style="margin:0">srv-01 · GPU 6장 · 클러스터 2 / MIG 1</div></div>
+        <div class="mini-actions" style="margin:0"><button class="btn">필터</button><button class="btn primary">새 신청</button></div>
+      </div>
+      <div class="ph-cards">
+        <div class="ph">게이지</div><div class="ph">전력 추이</div><div class="ph">GPU 헬스</div>
+        <div class="ph tall">서비스 테이블 / 상세</div>
+      </div>`;
+  }
+
+  const opts = [
+    { id:'1', nm:'그룹형 사이드바 + 검색 헤더', desc:'메뉴를 섹션으로 묶고, 헤더에 검색바. 활성 = 좌측 액센트 바',
+      header:`<div class="logo">Anclave<span>.</span></div>
+        <div class="search">🔍 서비스·모델 검색…</div>
+        <div class="right"><button class="iconbtn">🔔</button><button class="iconbtn">🌗</button>
+        <div class="role"><span class="av">A</span>admin ▾</div></div>`,
+      side:`<aside class="sb">${grouped.map(s=>`<div class="grp">${s.g}</div>${s.items.map(([n,o])=>mi(n,o,'bar')).join('')}`).join('')}</aside>` },
+    { id:'2', nm:'플랫 사이드바 + 미니 헤더', desc:'그룹 없이 평평한 리스트, 헤더는 얇게. 활성 = 배경칠',
+      header:`<div class="logo">Anclave<span>.</span></div>
+        <div style="flex:1"></div>
+        <div class="right"><button class="iconbtn">🔔</button><button class="iconbtn">🌗</button>
+        <div class="role"><span class="av">A</span>admin ▾</div></div>`,
+      side:`<aside class="sb flat">${flat.map(([n,o])=>mi(n,o,'bg')).join('')}</aside>` },
+  ];
+
+  document.getElementById('wrap').innerHTML = opts.map(o=>`
+    <div class="opt ${o.id==='2'?'sel':''}">
+      <div class="opt-label"><span class="pick">${o.id}</span><span class="nm">${o.nm}</span><span class="desc">${o.desc}</span>${o.id==='2'?'<span style="margin-left:auto;color:#3fb950;font-weight:800;font-size:12px">✓ 선택됨</span>':''}</div>
+      <div class="app">
+        <div class="hd">${o.header}</div>
+        <div class="body">${o.side}<main class="main">${content()}</main></div>
+      </div>
+    </div>`).join('');
+</script>
+<script src="nav.js"></script>
+</body>
+</html>

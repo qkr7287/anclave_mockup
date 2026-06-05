@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anclave 디자인 — Q24. 폼 컨트롤</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css">
+<style>
+  :root{
+    --bg:#0d1117;--soft:#10151c;--card:#161c26;--card2:#1c2430;--border:rgba(255,255,255,.07);
+    --border-s:rgba(255,255,255,.045);--text:#e6edf3;--muted:#8b97a7;--faint:#6a7585;
+    --accent:#6ea8fe;--accent-soft:rgba(110,168,254,.12);--on-accent:#08111f;--ok:#3fb950;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0a0d12;color:var(--text);font-family:"Pretendard",system-ui,sans-serif;line-height:1.5;padding:32px 24px 80px;font-size:14.5px}
+  .page-head{max-width:1080px;margin:0 auto 26px}
+  .page-head .q{display:inline-block;background:var(--accent);color:var(--on-accent);font-weight:800;font-size:12px;padding:3px 10px;border-radius:20px;letter-spacing:.5px}
+  .page-head h1{font-size:27px;margin:12px 0 6px;letter-spacing:-.5px}
+  .page-head p{color:var(--muted);font-size:14.5px}
+  .wrap{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:30px}
+
+  .sec-head{display:flex;align-items:baseline;gap:10px;margin-bottom:13px}
+  .sec-head .nm{font-size:16px;font-weight:700}
+  .sec-head .desc{color:var(--faint);font-size:12.5px}
+  .variants{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .variant{background:var(--card2);border:1px solid var(--border);border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.35);overflow:hidden}
+  .variant.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),0 2px 12px rgba(0,0,0,.4)}
+  .sel-tag{margin-left:auto;color:#3fb950;font-weight:800;font-size:11.5px}
+  .v-label{display:flex;align-items:center;gap:10px;padding:11px 16px;background:#11161e;border-bottom:1px solid var(--border);font-size:12.5px}
+  .v-label .pick{background:#1b232f;color:#cfd6df;font-weight:800;width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px}
+  .v-label .vt{font-weight:700}
+  .v-label .vd{color:var(--faint);font-size:11.5px}
+  .v-demo{padding:18px 16px}
+
+  /* multiselect A: chip input */
+  .lbl{font-size:12px;color:var(--muted);font-weight:600;margin-bottom:7px}
+  .msel{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-height:38px;background:var(--soft);border:1px solid var(--border);border-radius:8px;padding:6px 8px}
+  .mchip{display:inline-flex;align-items:center;gap:5px;background:var(--accent-soft);color:var(--accent);border:1px solid rgba(110,168,254,.3);border-radius:6px;padding:3px 8px;font-size:12px;font-weight:600}
+  .mchip b{cursor:pointer;opacity:.7}
+  .msel input{flex:1;min-width:70px;background:transparent;border:none;outline:none;color:var(--text);font-family:inherit;font-size:13px}
+  .msel input::placeholder{color:var(--faint)}
+  /* multiselect B: dropdown checklist */
+  .mbtn{width:100%;height:38px;background:var(--soft);border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;padding:0 12px;color:var(--text);font-size:13px;cursor:pointer;gap:6px}
+  .mbtn .cnt{background:var(--accent);color:var(--on-accent);font-size:10px;font-weight:800;border-radius:10px;padding:0 6px}
+  .mbtn .ar{margin-left:auto;color:var(--faint)}
+  .mpanel{margin-top:6px;background:var(--card2);border:1px solid var(--border);border-radius:9px;box-shadow:0 8px 22px rgba(0,0,0,.45);padding:6px}
+  .mopt{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:7px;font-size:13px;cursor:pointer}
+  .mopt:hover{background:#ffffff07}
+  .mopt .cb{width:16px;height:16px;border-radius:4px;border:1.5px solid var(--border);display:inline-flex;align-items:center;justify-content:center;font-size:11px}
+  .mopt.on .cb{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+  .msearch{height:32px;background:var(--soft);border:1px solid var(--border);border-radius:7px;display:flex;align-items:center;padding:0 10px;color:var(--faint);font-size:12px;gap:6px;margin-bottom:7px}
+  .mgroup{margin-bottom:4px}
+  .mgh{display:flex;align-items:center;justify-content:space-between;padding:7px 9px 4px;font-size:10.5px;color:var(--faint);font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+  .mall{color:var(--accent);font-size:11px;font-weight:600;cursor:pointer;text-transform:none;letter-spacing:0}
+
+  /* confirmed control set */
+  .confirm-card{background:var(--card2);border:1px solid var(--border);border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.35);padding:20px}
+  .ctrl-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px 28px}
+  .ctrl{}
+  .ctrl .cl{font-size:12px;color:var(--muted);font-weight:600;margin-bottom:9px}
+  /* toggle switch */
+  .row{display:flex;align-items:center;gap:10px}
+  .sw{width:38px;height:22px;border-radius:12px;background:#39424f;position:relative;cursor:pointer;transition:background .15s}
+  .sw.on{background:var(--accent)}
+  .sw::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left .15s}
+  .sw.on::after{left:18px}
+  .sw-t{font-size:13px}
+  /* slider */
+  .sld{height:6px;background:var(--soft);border-radius:4px;position:relative}
+  .sld .fill{position:absolute;left:0;top:0;bottom:0;width:65%;background:var(--accent);border-radius:4px}
+  .sld .knob{position:absolute;left:65%;top:50%;transform:translate(-50%,-50%);width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.5);cursor:pointer}
+  .sld-v{font-size:12px;color:var(--muted);margin-top:8px}
+  /* radio */
+  .rd{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--muted);cursor:pointer;margin-right:16px}
+  .rd .rc{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--border);display:inline-flex;align-items:center;justify-content:center}
+  .rd.on{color:var(--text)} .rd.on .rc{border-color:var(--accent)}
+  .rd.on .rc::after{content:"";width:8px;height:8px;border-radius:50%;background:var(--accent)}
+  /* checkbox */
+  .cx{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);cursor:pointer;margin-right:16px}
+  .cx .cb{width:16px;height:16px;border-radius:4px;border:1.5px solid var(--border);display:inline-flex;align-items:center;justify-content:center;font-size:11px}
+  .cx.on{color:var(--text)} .cx.on .cb{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+  /* select */
+  .selctrl{height:38px;width:100%;background:var(--soft);border:1px solid var(--border);border-radius:8px;padding:0 12px;color:var(--text);font-size:13px;display:flex;align-items:center}
+  .selctrl .ar{margin-left:auto;color:var(--faint)}
+  /* date */
+  .date{height:38px;width:100%;background:var(--soft);border:1px solid var(--border);border-radius:8px;padding:0 12px;color:var(--text);font-size:13px;display:flex;align-items:center;gap:8px}
+  .date .ic{margin-left:auto;color:var(--muted)}
+  /* stepper */
+  .step{display:inline-flex;align-items:center;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+  .step button{width:34px;height:36px;background:var(--soft);border:none;color:var(--text);font-size:16px;cursor:pointer}
+  .step .val{width:44px;text-align:center;font-size:13px;font-weight:600}
+
+  .footer{max-width:1080px;margin:30px auto 0;color:var(--muted);font-size:13.5px}
+  .footer b{color:#ccd}
+  .footer .ask{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-top:10px;font-size:13px;color:var(--text)}
+  .footer .ask code{background:#ffffff10;padding:2px 7px;border-radius:6px;font-size:12.5px;color:var(--accent)}
+</style>
+</head>
+<body>
+  <div class="page-head">
+    <span class="q">Q24 / 폼 컨트롤</span> <span style="display:inline-block;background:rgba(63,185,80,.13);color:#3fb950;font-weight:800;font-size:12px;padding:3px 11px;border-radius:20px;margin-left:6px">✓ 선택: 멀티셀렉트 B (검색+그룹)</span>
+    <h1>폼 컨트롤 세트는?</h1>
+    <p>신청·설정 화면용 컨트롤. <b style="color:#6ea8fe">멀티셀렉트</b>만 A/B로 고르고, 토글·슬라이더·라디오·날짜·스테퍼는 아래 확정 세트. (B는 검색·팀별 전체선택·"N명 요약"으로 후보가 많아도 안 터져요)</p>
+  </div>
+
+  <div class="wrap">
+
+    <!-- multiselect A/B -->
+    <section>
+      <div class="sec-head"><span class="nm">멀티셀렉트</span><span class="desc">허용 사용자·태그 등 여러 값 선택</span></div>
+      <div class="variants">
+        <div class="variant">
+          <div class="v-label"><span class="pick">A</span><span class="vt">칩 입력형</span><span class="vd">선택 적을 때만 · 많아지면 칩 폭발·그룹 X</span></div>
+          <div class="v-demo">
+            <div class="lbl">허용 사용자 <span style="color:var(--faint);font-weight:400">(2~3명 정도일 때)</span></div>
+            <div class="msel">
+              <span class="mchip">김민준 <b>✕</b></span><span class="mchip">이서연 <b>✕</b></span>
+              <input placeholder="이름 입력…">
+            </div>
+            <div style="font-size:11.5px;color:var(--faint);margin-top:9px">⚠ 10명+ 선택 시 칩이 줄바꿈으로 쌓이고, 팀 단위 선택이 안 됨</div>
+          </div>
+        </div>
+        <div class="variant sel">
+          <div class="v-label"><span class="pick">B</span><span class="vt">검색 + 그룹 드롭다운</span><span class="vd">N명 요약 · 그룹 전체선택 · 후보 많아도 OK</span><span class="sel-tag">✓ 선택됨</span></div>
+          <div class="v-demo">
+            <div class="lbl">허용 사용자</div>
+            <button class="mbtn">5명 선택됨 <span class="cnt">5</span><span class="ar">▾</span></button>
+            <div class="mpanel">
+              <div class="msearch">🔍 이름·팀 검색…</div>
+              <div class="mgroup">
+                <div class="mgh"><span>개발팀</span><span class="mall">전체 선택</span></div>
+                <div class="mopt on"><span class="cb">✓</span>김민준</div>
+                <div class="mopt on"><span class="cb">✓</span>이서연</div>
+                <div class="mopt on"><span class="cb">✓</span>박지후</div>
+              </div>
+              <div class="mgroup">
+                <div class="mgh"><span>운영팀</span><span class="mall">전체 선택</span></div>
+                <div class="mopt on"><span class="cb">✓</span>최유나</div>
+                <div class="mopt on"><span class="cb">✓</span>정해린</div>
+                <div class="mopt"><span class="cb"></span>강도윤</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- confirmed control set -->
+    <section>
+      <div class="sec-head"><span class="nm">컨트롤 세트</span><span class="desc">확정안 — 무드 A · 액센트 블루</span></div>
+      <div class="confirm-card">
+        <div class="ctrl-grid">
+          <div class="ctrl">
+            <div class="cl">토글 스위치</div>
+            <div class="row"><div class="sw on"></div><span class="sw-t">GPU 자동 회수 사용</span></div>
+            <div class="row" style="margin-top:10px"><div class="sw"></div><span class="sw-t" style="color:var(--muted)">유휴 알림 끄기</span></div>
+          </div>
+          <div class="ctrl">
+            <div class="cl">슬라이더</div>
+            <div class="sld"><div class="fill"></div><div class="knob"></div></div>
+            <div class="sld-v">포화 경고 임계값 · <b style="color:var(--text)">65%</b></div>
+          </div>
+          <div class="ctrl">
+            <div class="cl">라디오</div>
+            <div class="row"><span class="rd"><span class="rc"></span>낮음</span><span class="rd on"><span class="rc"></span>보통</span><span class="rd"><span class="rc"></span>높음</span></div>
+          </div>
+          <div class="ctrl">
+            <div class="cl">체크박스</div>
+            <div class="row"><span class="cx on"><span class="cb">✓</span>API 공개</span><span class="cx"><span class="cb"></span>로그 보관</span></div>
+          </div>
+          <div class="ctrl">
+            <div class="cl">셀렉트 (단일)</div>
+            <div class="selctrl">Qwen2.5-7B<span class="ar">▾</span></div>
+          </div>
+          <div class="ctrl">
+            <div class="cl">날짜 피커</div>
+            <div class="date">2026-06-30<span class="ic">📅</span></div>
+          </div>
+          <div class="ctrl">
+            <div class="cl">숫자 스테퍼</div>
+            <div class="row"><div class="step"><button>−</button><span class="val">3</span><button>+</button></div><span class="sw-t" style="color:var(--muted)">슬라이스 수</span></div>
+          </div>
+          <div class="ctrl">
+            <div class="cl">입력 (Q4 박스형)</div>
+            <div class="date" style="color:var(--faint)">서비스 이름…</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="footer">
+    <p>이게 마지막 항목! 고르면 <b>전체 리뷰</b> 후 목업 구현 시작.</p>
+    <div class="ask">골라주세요 — <code>멀티셀렉트 A(칩)</code> 또는 <code>B(드롭다운 체크)</code></div>
+  </div>
+<script src="nav.js"></script>
+</body>
+</html>

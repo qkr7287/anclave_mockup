@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anclave 디자인 — Q10. 헥사곤 자원맵</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css">
+<style>
+  :root{
+    --bg:#0d1117;--soft:#10151c;--card:#161c26;--card2:#1c2430;--border:rgba(255,255,255,.07);
+    --text:#e6edf3;--muted:#8b97a7;--faint:#6a7585;--accent:#6ea8fe;--accent-soft:rgba(110,168,254,.12);
+    --on-accent:#08111f;--ok:#3fb950;--warn:#d29922;--danger:#f85149;
+    --u0:#414a5c;--u1:#5b8def;--u2:#6b71d8;--u3:#8d6be0;--u4:#b25fd0;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0a0d12;color:var(--text);font-family:"Pretendard",system-ui,sans-serif;line-height:1.5;padding:32px 24px 80px}
+  .page-head{max-width:1120px;margin:0 auto 22px}
+  .page-head .q{display:inline-block;background:var(--accent);color:var(--on-accent);font-weight:800;font-size:12px;padding:3px 10px;border-radius:20px;letter-spacing:.5px}
+  .page-head h1{font-size:27px;margin:12px 0 6px;letter-spacing:-.5px}
+  .page-head p{color:var(--muted);font-size:14.5px}
+  .wrap{max-width:1120px;margin:0 auto}
+
+  .toolbar{display:flex;align-items:center;gap:14px;margin-bottom:16px;flex-wrap:wrap}
+  .density{display:inline-flex;gap:4px;background:var(--soft);border:1px solid var(--border);border-radius:10px;padding:4px}
+  .density button{font-family:inherit;font-size:13px;font-weight:600;color:var(--muted);background:transparent;border:none;padding:7px 14px;border-radius:7px;cursor:pointer}
+  .density button.on{color:var(--text);background:var(--card2)}
+  .legend{display:flex;align-items:center;gap:13px;margin-left:auto;flex-wrap:wrap}
+  .legend span{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+  .legend i{width:13px;height:13px;border-radius:3px}
+
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+  .stat{background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;box-shadow:0 2px 10px rgba(0,0,0,.3)}
+  .stat .sl{font-size:12.5px;color:var(--muted);margin-bottom:6px}
+  .stat .sv{font-size:24px;font-weight:800;letter-spacing:-.5px}
+  .stat .sv small{font-size:14px;color:var(--muted);font-weight:600}
+
+  .layout{display:grid;grid-template-columns:1fr 336px;gap:16px;align-items:start}
+  .map-card{background:var(--card2);border:1px solid var(--border);border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.3);padding:22px 20px;overflow:hidden}
+  .map-card .mh{font-size:16px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .map-viewport{position:relative;height:340px;overflow:hidden;cursor:grab;border-radius:8px}
+  .map-viewport.grabbing{cursor:grabbing}
+
+  /* hex grid */
+  .hexmap{display:inline-flex;flex-direction:column;align-items:flex-start;transform-origin:0 0;will-change:transform}
+  .hexrow{display:flex;gap:6px}
+  .hexrow+.hexrow{margin-top:-15px}
+  .hexrow.off{margin-left:30px}
+  .hex{width:54px;height:62px;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;cursor:pointer;color:#fff;
+    text-shadow:0 1px 2px rgba(0,0,0,.4);transition:transform .12s ease,filter .12s ease;position:relative}
+  .hex .hn{font-size:9.5px;font-weight:700;opacity:.85}
+  .hex .hu{font-size:13.5px;font-weight:800}
+  .hex:hover{transform:scale(1.08);filter:brightness(1.12);z-index:2}
+  /* 4-way drop-shadow draws a crisp border that follows the clip-path; + soft glow */
+  .hex.sel{transform:scale(1.16);z-index:6;filter:
+    drop-shadow(1.6px 0 0 #fff) drop-shadow(-1.6px 0 0 #fff) drop-shadow(0 1.6px 0 #fff) drop-shadow(0 -1.6px 0 #fff)
+    drop-shadow(0 0 9px rgba(170,200,255,.6)) brightness(1.06)}
+  .hexmap.has-sel .hex:not(.sel){opacity:.6;filter:saturate(.82)}
+  .hex.u0{color:#dfe4ec}
+  /* dense */
+  .hexmap.dense .hex{width:38px;height:44px;gap:0}
+  .hexmap.dense .hex .hn{display:none}
+  .hexmap.dense .hex .hu{font-size:11px}
+  .hexmap.dense .hexrow{gap:4px}
+  .hexmap.dense .hexrow+.hexrow{margin-top:-11px}
+  .hexmap.dense .hexrow.off{margin-left:21px}
+
+  /* detail panel */
+  .detail{background:var(--card2);border:1px solid var(--border);border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.3);padding:18px}
+  .d-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+  .d-hd .dn{font-size:18px;font-weight:800}
+  .badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11.5px;font-weight:700}
+  .badge.ok{background:rgba(63,185,80,.14);color:var(--ok)} .badge.warn{background:rgba(210,153,34,.14);color:var(--warn)}
+  .badge.danger{background:rgba(248,81,73,.14);color:var(--danger)} .badge.idle{background:#ffffff10;color:var(--faint)}
+  .d-sub{font-size:12.5px;color:var(--faint);margin-bottom:15px}
+  .d-metrics{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:16px}
+  .dm{background:var(--soft);border:1px solid var(--border);border-radius:9px;padding:10px 11px}
+  .dm .dl{font-size:11px;color:var(--muted);margin-bottom:3px}
+  .dm .dv{font-size:18px;font-weight:800}
+  .dsec{font-size:11.5px;color:var(--muted);font-weight:700;margin:0 0 8px;text-transform:uppercase;letter-spacing:.4px}
+  .vram{display:grid;grid-template-columns:repeat(32,1fr);gap:2px;margin-bottom:16px}
+  .vram i{height:20px;border-radius:2px;background:#ffffff0d}
+  .slices{display:flex;gap:5px;margin-bottom:16px}
+  .slice{flex:1;height:26px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:700}
+  .slice.used{background:var(--accent-soft);color:var(--accent);border:1px solid rgba(110,168,254,.3)}
+  .slice.free{background:#ffffff08;color:var(--faint);border:1px solid var(--border)}
+  .timeline{display:flex;flex-direction:column;gap:9px}
+  .tl{display:flex;gap:9px;font-size:12px}
+  .tl .tt{color:var(--faint);width:42px;flex-shrink:0}
+  .tl .tx{color:var(--muted)}
+
+  .footer{max-width:1120px;margin:26px auto 0;color:var(--muted);font-size:13.5px}
+  .footer b{color:#ccd}
+  .footer .ask{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-top:10px;font-size:13px;color:var(--text)}
+  .footer .ask code{background:#ffffff10;padding:2px 7px;border-radius:6px;font-size:12.5px;color:var(--accent)}
+</style>
+</head>
+<body>
+  <div class="page-head">
+    <span class="q">Q10 / 헥사곤 자원맵</span> <span style="display:inline-block;background:rgba(63,185,80,.13);color:#3fb950;font-weight:800;font-size:12px;padding:3px 11px;border-radius:20px;margin-left:6px">✓ 선택: 타일 A(여유) · 블루-퍼플</span>
+    <h1>자원맵 — 벌집 히트맵 + 상세</h1>
+    <p>핵심 화면. 실제 인터랙션(hover 강조 · 클릭 → 우측 상세)이 작동해요. <b style="color:#6ea8fe">타일 밀도</b>만 A/B로 고르면 되고, 색 단계·범례·레이아웃은 이 프로토타입대로 확정합니다.</p>
+  </div>
+
+  <div class="wrap">
+    <div class="toolbar">
+      <div class="density">
+        <button id="dA" class="on">A · 여유 타일</button>
+        <button id="dB">B · 조밀 타일</button>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="sl">전체 GPU</div><div class="sv">24</div></div>
+      <div class="stat"><div class="sl">가동 중</div><div class="sv">20<small> / 24</small></div></div>
+      <div class="stat"><div class="sl">평균 사용률</div><div class="sv">58<small>%</small></div></div>
+      <div class="stat"><div class="sl">포화 임박</div><div class="sv" style="color:var(--danger)">3</div></div>
+    </div>
+
+    <div class="layout">
+      <div class="map-card">
+        <div class="mh">
+          <span>srv-cluster · GPU 24장 <span style="font-size:11.5px;color:var(--faint);font-weight:400">· 우클릭 드래그로 이동 · 휠로 확대</span></span>
+          <div class="legend">
+            <span><i style="background:var(--u0)"></i>유휴 &lt;25</span>
+            <span><i style="background:var(--u1)"></i>여유 25–50</span>
+            <span><i style="background:var(--u2)"></i>적정 50–75</span>
+            <span><i style="background:var(--u3)"></i>높음 75–90</span>
+            <span><i style="background:var(--u4)"></i>포화 &gt;90</span>
+          </div>
+        </div>
+        <div class="map-viewport" id="viewport"><div class="hexmap" id="hexmap"></div></div>
+      </div>
+      <div class="detail" id="detail"></div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <p>→ 다음: <b>Q11. 테이블·폼 인터랙션</b></p>
+    <div class="ask">골라주세요 — <code>타일 A(여유)</code> 또는 <code>타일 B(조밀)</code> · 색·인터랙션·레이아웃은 위 프로토타입대로 확정</div>
+  </div>
+
+<script>
+  // 24 GPUs, fixed utilization so the heatmap shows every band
+  const U=[12,45,68,82,93,30, 55,71,8,40,62,77, 25,88,5,60,95,47, 33,52,18,70,85,15];
+  const gpus=U.map((u,i)=>({
+    id:i, name:'GPU '+String(i).padStart(2,'0'),
+    util:u, vram:Math.round(u*0.48), vramMax:48,
+    temp:38+Math.round(u*0.45), power:80+Math.round(u*2.4),
+    slices:u===0?0:(u>80?4:u>50?2:1),
+  }));
+  function band(u){return u<25?0:u<50?1:u<75?2:u<90?3:4;}
+  // each band as a light->dark gradient for a dimensional tile look
+  const GRAD=[
+    ['#525d72','#3a4252'], // 유휴 - 슬레이트
+    ['#6f9bf2','#4d72d2'], // 여유 - 블루
+    ['#7e88ee','#5d64ca'], // 적정 - 인디고
+    ['#9f80ea','#7a59ce'], // 높음 - 퍼플
+    ['#c178e2','#9c51c2'], // 포화 - 마젠타퍼플
+  ];
+  function statusOf(u){return u===0?['idle','유휴']:u>90?['danger','포화']:u>75?['warn','높음']:['ok','정상'];}
+
+  // hex layout: rows of 5 / 4 alternating (brick-ish honeycomb)
+  const rows=[]; let idx=0;
+  const pattern=[5,4,5,4,6]; // 24 total
+  for(const n of pattern){ rows.push(gpus.slice(idx,idx+n)); idx+=n; }
+
+  const map=document.getElementById('hexmap');
+  map.innerHTML=rows.map((row,ri)=>`<div class="hexrow ${ri%2?'off':''}">${
+    row.map(g=>{const b=band(g.util);return `<div class="hex u${b}" data-id="${g.id}" style="background:linear-gradient(155deg,${GRAD[b][0]},${GRAD[b][1]})">
+      <span class="hn">${g.name.replace('GPU ','G')}</span><span class="hu">${g.util}%</span></div>`;}).join('')
+  }</div>`).join('');
+
+  const detail=document.getElementById('detail');
+  function renderDetail(g){
+    const [sc,sl]=statusOf(g.util);
+    // full-width spectrum bar (green -> yellow), occupancy shown by the number
+    const N=32;
+    const vramCells=Array.from({length:N},(_,i)=>{
+      const hue=(140-(i/N)*78).toFixed(0);
+      return `<i class="on" style="background:hsl(${hue},58%,53%)"></i>`;
+    }).join('');
+    const slices=Array.from({length:4},(_,i)=>i<g.slices?`<div class="slice used">MIG${i+1}</div>`:`<div class="slice free">free</div>`).join('');
+    detail.innerHTML=`
+      <div class="d-hd"><span class="dn">${g.name}</span><span class="badge ${sc}">${sl}</span></div>
+      <div class="d-sub">srv-cluster · A100 80GB · 드라이버 550.x</div>
+      <div class="d-metrics">
+        <div class="dm"><div class="dl">사용률</div><div class="dv">${g.util}%</div></div>
+        <div class="dm"><div class="dl">VRAM</div><div class="dv">${g.vram}<span style="font-size:12px;color:var(--muted)"> / ${g.vramMax}GB</span></div></div>
+        <div class="dm"><div class="dl">온도</div><div class="dv">${g.temp}°C</div></div>
+        <div class="dm"><div class="dl">전력</div><div class="dv">${g.power}W</div></div>
+      </div>
+      <div class="dsec">VRAM 점유</div>
+      <div class="vram">${vramCells}</div>
+      <div class="dsec">슬라이스 (MIG)</div>
+      <div class="slices">${slices}</div>
+      <div class="dsec">최근 활동</div>
+      <div class="timeline">
+        <div class="tl"><span class="tt">2분 전</span><span class="tx">qwen-agent 추론 ${g.util}% 점유</span></div>
+        <div class="tl"><span class="tt">18분 전</span><span class="tx">VRAM ${g.vram}GB 할당</span></div>
+        <div class="tl"><span class="tt">1시간 전</span><span class="tx">서비스 재배치 완료</span></div>
+      </div>`;
+  }
+
+  let selId=4; // start on a saturated one
+  function select(id){
+    selId=id;
+    map.classList.add('has-sel');
+    map.querySelectorAll('.hex').forEach(h=>h.classList.toggle('sel',+h.dataset.id===id));
+    renderDetail(gpus[id]);
+  }
+  map.querySelectorAll('.hex').forEach(h=>h.addEventListener('click',()=>select(+h.dataset.id)));
+  select(selId);
+
+  // density toggle
+  const dA=document.getElementById('dA'), dB=document.getElementById('dB');
+  dA.onclick=()=>{map.classList.remove('dense');dA.classList.add('on');dB.classList.remove('on');};
+  dB.onclick=()=>{map.classList.add('dense');dB.classList.add('on');dA.classList.remove('on');};
+
+  // pan (right-click drag) + zoom (wheel)
+  const vp=document.getElementById('viewport');
+  let tx=0,ty=0,sc=1,panning=false,sx=0,sy=0;
+  function apply(){map.style.transform=`translate(${tx}px,${ty}px) scale(${sc})`;}
+  vp.addEventListener('contextmenu',e=>e.preventDefault());
+  vp.addEventListener('mousedown',e=>{
+    if(e.button===2){panning=true;sx=e.clientX-tx;sy=e.clientY-ty;vp.classList.add('grabbing');e.preventDefault();}
+  });
+  window.addEventListener('mousemove',e=>{if(panning){tx=e.clientX-sx;ty=e.clientY-sy;apply();}});
+  window.addEventListener('mouseup',()=>{panning=false;vp.classList.remove('grabbing');});
+  vp.addEventListener('wheel',e=>{e.preventDefault();sc=Math.min(2.2,Math.max(.6,sc-e.deltaY*0.0012));apply();},{passive:false});
+</script>
+<script src="nav.js"></script>
+</body>
+</html>

@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anclave 플랫폼 — 시스템 정리 (검토판)</title>
+<style>
+  :root{
+    --bg:#0d1117; --bg-soft:#161b22; --bg-card:#1c2330; --border:#2a3343;
+    --text:#e6edf3; --muted:#8b97a7; --accent:#6ea8fe; --accent2:#3fb6a8;
+    --ok:#3fb950; --warn:#d29922; --danger:#f85149; --inactive:#6e7681;
+    --chip:#222b3a; --shadow:0 6px 20px rgba(0,0,0,.35);
+  }
+  [data-theme="light"]{
+    --bg:#f6f8fa; --bg-soft:#fff; --bg-card:#fff; --border:#d8dee4;
+    --text:#1f2328; --muted:#636c76; --accent:#0969da; --accent2:#1a7f72;
+    --ok:#1a7f37; --warn:#9a6700; --danger:#cf222e; --inactive:#8c959f;
+    --chip:#eef1f4; --shadow:0 4px 14px rgba(140,149,159,.18);
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:"Pretendard","Segoe UI",system-ui,-apple-system,sans-serif;line-height:1.6;font-size:15px}
+  a{color:var(--accent);text-decoration:none}
+  .layout{display:grid;grid-template-columns:250px 1fr;max-width:1320px;margin:0 auto}
+  nav.side{position:sticky;top:0;height:100vh;overflow:auto;padding:24px 16px;
+    border-right:1px solid var(--border);background:var(--bg-soft)}
+  nav.side .brand{font-weight:800;font-size:18px;letter-spacing:-.3px;margin-bottom:4px}
+  nav.side .brand span{color:var(--accent)}
+  nav.side .sub{color:var(--muted);font-size:12px;margin-bottom:18px}
+  nav.side a{display:block;color:var(--muted);padding:5px 10px;border-radius:8px;font-size:13px}
+  nav.side a:hover{background:var(--chip);color:var(--text)}
+  main{padding:40px 48px;min-width:0}
+  header.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+  h1{font-size:26px;margin:0;letter-spacing:-.5px}
+  .lead{color:var(--muted);margin:4px 0 28px;max-width:820px}
+  section{margin:0 0 44px;scroll-margin-top:20px}
+  h2{font-size:20px;margin:0 0 16px;padding-bottom:8px;border-bottom:1px solid var(--border);letter-spacing:-.3px}
+  h2 .num{color:var(--accent);font-weight:700;margin-right:8px}
+  h3{font-size:15px;margin:18px 0 8px;color:var(--accent2)}
+  p{margin:8px 0}
+  .muted{color:var(--muted)}
+  .tbtn{cursor:pointer;border:1px solid var(--border);background:var(--bg-card);color:var(--text);
+    padding:7px 14px;border-radius:20px;font-size:13px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+  .chip{background:var(--chip);border:1px solid var(--border);border-radius:16px;padding:4px 12px;font-size:12.5px;color:var(--text)}
+  .chip b{color:var(--accent)}
+  .badge{display:inline-block;padding:1px 9px;border-radius:12px;font-size:12px;font-weight:600;border:1px solid transparent}
+  .b-a{background:rgba(110,168,254,.16);color:var(--accent);border-color:rgba(110,168,254,.35)}
+  .b-b{background:rgba(63,182,168,.16);color:var(--accent2);border-color:rgba(63,182,168,.35)}
+  .b-ok{background:rgba(63,185,80,.16);color:var(--ok)}
+  .b-warn{background:rgba(210,153,34,.16);color:var(--warn)}
+  .b-danger{background:rgba(248,81,73,.16);color:var(--danger)}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px;
+    background:var(--bg-card);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--border)}
+  th{background:var(--bg-soft);color:var(--muted);font-weight:600;font-size:12.5px}
+  tr:last-child td{border-bottom:none}
+  td.c,th.c{text-align:center}
+  .yes{color:var(--ok);font-weight:700}
+  .no{color:var(--inactive)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:16px;margin-top:14px}
+  .card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px 18px;box-shadow:var(--shadow)}
+  .card h4{margin:0 0 4px;font-size:14.5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .card .meta{color:var(--muted);font-size:12px;margin-bottom:8px}
+  .card ul{margin:6px 0 0;padding-left:18px}
+  .card li{margin:3px 0;font-size:13px}
+  .wire{background:var(--bg);border:1px dashed var(--border);border-radius:8px;padding:12px;margin-top:10px;
+    font-family:"JetBrains Mono","Consolas",monospace;font-size:12px;color:var(--muted);white-space:pre;overflow:auto;line-height:1.5}
+  .flow{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:12px 0;
+    background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:16px}
+  .node{background:var(--bg-soft);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px}
+  .arrow{color:var(--accent);font-weight:700}
+  pre.code{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:16px;overflow:auto;
+    font-family:"JetBrains Mono","Consolas",monospace;font-size:12px;line-height:1.55}
+  pre.code .kw{color:var(--accent)} pre.code .ty{color:var(--accent2)} pre.code .cm{color:var(--inactive)}
+  ol.road{counter-reset:s;list-style:none;padding:0;margin:12px 0}
+  ol.road li{position:relative;padding:8px 0 8px 40px;border-left:2px solid var(--border);margin-left:14px}
+  ol.road li::before{counter-increment:s;content:counter(s);position:absolute;left:-15px;top:7px;width:28px;height:28px;
+    border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700}
+  .checkcols{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+  .checkbox-card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px 18px}
+  .checkbox-card h4{margin:0 0 10px;font-size:14px;display:flex;align-items:center;gap:8px}
+  .checkbox-card label{display:flex;gap:9px;align-items:flex-start;padding:5px 0;font-size:13px;cursor:pointer}
+  .checkbox-card input{margin-top:4px;accent-color:var(--accent);width:15px;height:15px;flex-shrink:0}
+  .note{background:rgba(210,153,34,.1);border:1px solid rgba(210,153,34,.3);border-radius:8px;padding:10px 14px;font-size:13px;margin:10px 0}
+  .legend{font-size:12.5px;color:var(--muted);margin-top:8px}
+  hr.div{border:none;border-top:1px solid var(--border);margin:36px 0}
+  .group{font-size:12px;color:var(--accent2);font-weight:700;margin:18px 0 4px;text-transform:uppercase;letter-spacing:.5px}
+  /* 핵심 화면 시나리오 */
+  nav.side a.key{color:var(--accent);font-weight:700;background:rgba(110,168,254,.1)}
+  .scn{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px 18px;box-shadow:var(--shadow);margin-bottom:16px}
+  .scn>h4{margin:0 0 2px;font-size:15.5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .scn .role{color:var(--muted);font-size:12.5px;margin:0 0 12px}
+  .scn .role b{color:var(--text)}
+  ol.steps{margin:0;padding:0;list-style:none;counter-reset:st}
+  ol.steps li{position:relative;padding:7px 0 7px 32px;font-size:13.5px;border-bottom:1px dashed var(--border);line-height:1.5}
+  ol.steps li:last-child{border-bottom:none}
+  ol.steps li::before{counter-increment:st;content:counter(st);position:absolute;left:0;top:7px;width:21px;height:21px;
+    border-radius:6px;background:var(--chip);border:1px solid var(--border);color:var(--accent);font-size:11px;font-weight:700;
+    display:flex;align-items:center;justify-content:center}
+  ol.steps .res{color:var(--muted)}
+  ol.steps .res::before{content:"→ ";color:var(--accent)}
+  .scn .feat{margin-top:12px;padding-top:11px;border-top:1px solid var(--border);font-size:12.5px;color:var(--muted);line-height:1.7}
+  .scn .feat b{color:var(--accent2)}
+  .scn .feat .open{color:var(--warn)}
+  .scn-grid{display:grid;grid-template-columns:1fr;gap:0}
+  @media(min-width:1100px){.scn-grid{grid-template-columns:1fr 1fr;gap:16px}}
+</style>
+</head>
+<body>
+<div class="layout">
+  <nav class="side">
+    <div class="brand">Anclave<span>.</span></div>
+    <div class="sub">플랫폼 시스템 정리 (검토판)</div>
+    <a href="#overview">0 · 개요</a>
+    <a href="#terms">1 · 용어</a>
+    <a href="#roles">2 · 역할 &amp; 권한</a>
+    <a href="#approval">3 · 승인 구조</a>
+    <a href="#screens">4 · 화면 명세</a>
+    <a href="#scenarios" class="key">★ 화면 시나리오 (핵심)</a>
+    <a href="#screen-data" class="key">▦ 화면별 표시 데이터</a>
+    <a href="#flows">5 · 주요 흐름</a>
+    <a href="#dummy">6 · 더미 데이터</a>
+    <a href="#status">7 · 확정 / 추후</a>
+    <a href="#stack">8 · 기술 스택</a>
+    <a href="#design">9 · 디자인</a>
+    <a href="#routing">10 · 라우팅</a>
+    <a href="#shell">11 · 레이아웃</a>
+    <a href="#wireframe">12 · 와이어프레임</a>
+    <a href="#schema">13 · 데이터 스키마</a>
+    <a href="#roadmap">14 · 로드맵</a>
+    <a href="#features">15 · 기능 체크리스트</a>
+  </nav>
+  <main>
+    <header class="top">
+      <h1>Anclave 플랫폼</h1>
+      <button class="tbtn" onclick="toggleTheme()">🌗 테마</button>
+    </header>
+    <p class="lead">GPU 호스팅 + AI 서비스 마켓플레이스 플랫폼. <b>마켓플레이스 · GPU관리 · 모델관리</b>
+      3개 여정을 통합한 정리. 이 문서 하나로 역할·화면·흐름을 파악하고 그대로 React 목업까지 이어간다.
+      <b>전제: 모든 기능은 더미 데이터로만 구현.</b></p>
+
+    <!-- 0 -->
+    <section id="overview">
+      <h2><span class="num">0</span>시스템 개요</h2>
+      <table>
+        <thead><tr><th>축</th><th>내용</th></tr></thead>
+        <tbody>
+          <tr><td><b>마켓플레이스</b></td><td>운용 중 AI 서비스 카탈로그. 열람·API 사용 신청·게시</td></tr>
+          <tr><td><b>GPU관리</b></td><td>자원맵, GPU 할당 신청·승인, 실무관리자 대시보드, 관제·에러</td></tr>
+          <tr><td><b>모델관리</b></td><td>등록 모델 카탈로그(공통 열람), 신규 모델 도입(A 전용)</td></tr>
+        </tbody>
+      </table>
+      <div class="flow">
+        <div class="node">모델 카탈로그 열람</div><span class="arrow">→</span>
+        <div class="node">GPU 신청 (마법사: 용량+모델)</div><span class="arrow">→</span>
+        <div class="node">A 승인 (자원맵 서버 선택)</div><span class="arrow">→</span>
+        <div class="node">실무관리자 대시보드 (콘솔/주피터)</div><span class="arrow">→</span>
+        <div class="node">서비스 운용·게시</div><span class="arrow">→</span>
+        <div class="node">타 사용자 API 신청 → key 발급</div>
+      </div>
+    </section>
+
+    <!-- 1 -->
+    <section id="terms">
+      <h2><span class="num">1</span>용어</h2>
+      <div class="chips">
+        <span class="chip"><b>마켓플레이스</b> 서비스 카탈로그</span>
+        <span class="chip"><b>모델 카탈로그</b> 등록 모델 목록(허깅페이스 참고)</span>
+        <span class="chip"><b>워크스페이스</b> GPU 작업환경 (추상·페이지 아님)</span>
+        <span class="chip"><b>호스팅</b> GPU 할당받아 사용</span>
+        <span class="chip"><b>게시</b> 서비스 마켓 등록 (A 승인)</span>
+        <span class="chip"><b>API key</b> 외부 연동 키 (수동 발급)</span>
+        <span class="chip"><b>자원맵</b> 서버/GPU 현황</span>
+        <span class="chip"><b>클러스터링</b> GPU 묶어 1명에게</span>
+        <span class="chip"><b>MIG</b> GPU 분할해 다수에게</span>
+        <span class="chip"><b>실무관리자 대시보드</b> 내 GPU 상태·콘솔/주피터</span>
+      </div>
+    </section>
+
+    <!-- 2 -->
+    <section id="roles">
+      <h2><span class="num">2</span>역할 &amp; 권한</h2>
+      <p>권한은 실질 <b>2종</b>: <span class="badge b-a">A 최종관리자</span> / <span class="badge b-b">B 실무관리자</span> = <span class="badge b-b">C 사용자</span>
+        (권한 동일, 호스팅·받은 신청 유무로 화면만 다름). 사용자가 GPU 호스팅 받으면 그 범위에서 B가 됨.
+        <b>재할당 불가</b>(단말에서 종료).<br>
+        <b>목업 계정은 3개</b>: <code>admin</code> / <code>manager</code>(호스팅 후 = B 화면) / <code>user</code>(호스팅 전 = C 화면) —
+        <code>user → manager</code> 로 C→B 여정(호스팅 전→후)을 시연.</p>
+      <table>
+        <thead><tr><th>기능</th><th class="c">A 최종관리자</th><th class="c">B = C</th></tr></thead>
+        <tbody>
+          <tr><td>마켓플레이스 / 모델 카탈로그 열람</td><td class="c yes">✅</td><td class="c yes">✅</td></tr>
+          <tr><td>서비스 API / GPU / 게시 신청 (보내기)</td><td class="c yes">✅</td><td class="c yes">✅</td></tr>
+          <tr><td>게시 승인/반려</td><td class="c yes">✅</td><td class="c no">—</td></tr>
+          <tr><td>GPU 신청·변경·회수 승인</td><td class="c yes">✅</td><td class="c no">—</td></tr>
+          <tr><td>신규 모델 도입(등록·스캐닝)</td><td class="c yes">✅</td><td class="c no">—</td></tr>
+          <tr><td>직접 호스팅 + 서비스 직접 게시</td><td class="c yes">✅</td><td class="c no">—</td></tr>
+          <tr><td>전체 자원맵 / 관제 모니터링</td><td class="c yes">✅</td><td class="c no">—</td></tr>
+          <tr><td>호스팅 범위 자원맵 / 실무관리자 대시보드</td><td class="c yes">✅</td><td class="c yes">✅ <span class="muted">(자기 범위)</span></td></tr>
+          <tr><td>받은 API 신청 승인/반려 + key 발급</td><td class="c yes">✅</td><td class="c yes">✅ <span class="muted">(자기 서비스)</span></td></tr>
+          <tr><td>서비스 운용 (워크스페이스: 콘솔/주피터)</td><td class="c yes">✅</td><td class="c yes">✅ <span class="muted">(호스팅 시)</span></td></tr>
+          <tr><td>에러·이벤트 관제</td><td class="c yes">✅</td><td class="c yes">✅ <span class="muted">(자기 GPU)</span></td></tr>
+          <tr><td>게시판</td><td class="c">공지·답변</td><td class="c">문의</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 3 -->
+    <section id="approval">
+      <h2><span class="num">3</span>승인 구조</h2>
+      <table>
+        <thead><tr><th>승인 종류</th><th>신청자</th><th>주체</th><th>승인 결과</th><th>반려</th></tr></thead>
+        <tbody>
+          <tr><td>게시 승인 (마켓 등록)</td><td>B/C·A 직접</td><td><span class="badge b-a">A</span></td><td>마켓 노출</td><td>반려 사유</td></tr>
+          <tr><td>GPU 신청 승인 (모델 선택 포함)</td><td>B/C</td><td><span class="badge b-a">A</span></td><td>자원맵 서버 선택 → 자동 할당</td><td>반려 사유</td></tr>
+          <tr><td>GPU 추가/변경/회수 승인</td><td>B/C</td><td><span class="badge b-a">A</span></td><td>이전·확장·회수 재할당</td><td>반려 사유</td></tr>
+          <tr><td>API 사용 승인 (외부 연동)</td><td>타 사용자</td><td><span class="badge b-b">B</span></td><td>API key 수동 발급</td><td>반려 사유</td></tr>
+        </tbody>
+      </table>
+      <p class="legend">• <b>모델은 별도 신청·승인 없음</b> — 모델관리 원본의 "모델 추가/할당 요청 · 모델 추가 설치 요청"은
+        <b>GPU 신청/변경 신청에 흡수</b>(마법사의 모델 선택 단계). 모델 등록(도입)만 A 전용 운영.
+        • API key 수동 발급, 용도 미추적·호출량만 표시. • 승인/반려는 메일 + 글로벌 알림창 통보.</p>
+    </section>
+
+    <!-- 4 -->
+    <section id="screens">
+      <h2><span class="num">4</span>화면 명세</h2>
+
+      <div class="group">▶ 공통 화면</div>
+      <div class="grid">
+        <div class="card"><h4>4.1 로그인 <span class="badge b-ok">공통</span></h4>
+          <div class="meta">하드코딩 3계정 (시연용)</div>
+          <ul><li><code>admin</code> — 최종관리자(A)</li>
+            <li><code>manager</code> — 호스팅 보유 사용자 (B 화면: 대시보드·승인·자원맵)</li>
+            <li><code>user</code> — 호스팅 전 사용자 (C 화면: 소개·신청만)</li>
+            <li>공통 비번 · <b>manager=user 권한 동일</b>, 호스팅 유무로 화면만 다름</li></ul></div>
+        <div class="card"><h4>4.2 마켓플레이스 <span class="badge b-ok">공통</span></h4>
+          <div class="meta">서비스 목록 + 사용량 현황</div>
+          <ul><li>서비스 table(<b>서비스명 / 종류 / API여부 / 모델</b>) + "API 요청" 버튼</li>
+            <li><b>최대 사용량 서비스 순위</b> 현황표 (호출량·토큰 Top N) — 모델 카탈로그 "인기 모델"과 대응</li>
+            <li><b>검색·필터</b>: 종류 / API여부 / 모델 / 소유자 / 상태</li></ul></div>
+        <div class="card"><h4>4.3 서비스 상세 <span class="badge b-ok">공통</span></h4>
+          <div class="meta">상세 + 토큰 사용</div>
+          <ul><li>URL/테스트 URL/모델/소개/매뉴얼</li><li>자원 활용 · 토큰별(key) 사용량</li></ul></div>
+        <div class="card"><h4>4.4 모델 카탈로그 <span class="badge b-ok">공통 열람</span></h4>
+          <div class="meta">등록 모델 목록 (허깅페이스 참고)</div>
+          <ul><li><b>B=C</b>: 열람만 (<b>모델 신청 없음</b>) + "많이 쓰는 모델"(인기·사용량)</li><li><b>A</b>: 열람 + <b>"신규 모델 등록"</b>(모델 추가는 관리자만)</li>
+            <li><b>검색·필터</b>: 종류 / 부가서비스 / 인기 / 가용 여부</li></ul></div>
+        <div class="card"><h4>4.5 모델 상세 <span class="badge b-ok">공통</span></h4>
+          <div class="meta">모델 정보 + 사용 현황</div>
+          <ul><li>메타데이터 · 사용량</li><li>GPU 신청 시 이 모델을 선택</li></ul></div>
+        <div class="card"><h4>4.6 게시판 · 공지 <span class="badge b-ok">공통</span></h4>
+          <div class="meta">문의 / 답변 / 공지</div>
+          <ul><li>탭[공지 / 문의] · 글쓰기 · 답변됨 배지 · 상세 모달</li><li>B=C 문의 작성, A 답변·공지</li></ul></div>
+        <div class="card"><h4>4.7 알림 <span class="badge b-ok">공통</span></h4>
+          <div class="meta">메일 + 화면</div>
+          <ul><li>메일(입력 메일 발송) · 벨 드롭다운 · 알림 목록</li><li>글로벌 알림창(승인/반려/에러)</li></ul></div>
+      </div>
+
+      <div class="group">▶ 자원맵 · 모니터링 (전체 → 단일 서버 → GPU 상세 · 3 Step 드릴다운)</div>
+      <p class="muted" style="font-size:14px;margin:2px 0 10px"><b>드릴다운 3 Step (A 전용)</b> · Step1 전체 서버 모니터링(메인) → 서버 타일 클릭 → Step2 단일 서버 모니터링 → GPU 클릭 → Step3 GPU 상세 모니터링. 각 화면에 Step 뒤로가기 + 플로팅(콘솔·주피터·이벤트 로그). <b>사용자(B=C)는 이 드릴다운을 보지 않고, 자기 할당 자원은 4.14 대시보드에서만 본다.</b></p>
+      <div class="grid">
+        <div class="card"><h4>4.8 전체 서버 모니터링 <span class="badge b-ok">메인</span> <span class="badge b-a">A 전용</span></h4>
+          <div class="meta">자원맵 · 관리자 첫 진입 · <code>/resource-map</code></div>
+          <ul><li>연결된 <b>모든 GPU 서버</b>를 한눈에 — 데이터센터 가정: <b>H100 4개/서버 × 다수 서버</b> · 각 서버 헬스 🟢🔴⚪ · 알람</li>
+            <li><b>좌측 [확정]</b>: 자원맵 — <b>서버 타일 안에 GPU 4개 미니 표시</b>(헬스 히트맵), 타일 클릭 → 단일 서버</li>
+            <li><b>우측 [확정] · 상/하 분할</b></li>
+            <li>· <b>우상</b>: 전체 GPU MIG 슬라이스 현황 — 크기별(1g.10gb·2g.20gb·3g.40gb·7g) <b>개수·점유</b>, 빈 슬라이스는 <b>빗금(가용)</b> · <b>전체 합산 ↔ 서버별 분해 토글</b></li>
+            <li>· <b>우하</b>: <b>전체 서버 이벤트 로그</b> — /events와 <b>동일 소스 요약 피드</b>, 클릭 → 에러·이벤트 관제(4.18)</li>
+            <li><b>🚨 크리티컬 알람 발생 시</b>: 화면 <b>정중앙 위험 경고 오버레이</b>(센터 모달, 배경 dim) — 위험 색·아이콘·서버명으로 즉시 주의 환기 + 해당 서버/이벤트 이동 CTA (Q26)</li>
+            <li><b>서버 타일 클릭 → 4.9 단일 서버 모니터링</b> <span class="muted">(GPU 4개 미니는 표시용 · Step 순서 유지)</span></li></ul></div>
+        <div class="card"><h4>4.9 단일 서버 모니터링 <span class="badge b-a">A 전용</span></h4>
+          <div class="meta">전체 → 서버 선택 (Step 2) · <code>/resource-map/:serverId</code></div>
+          <ul><li>상단: <b>← 전체(Step 뒤로)</b> · 호스트 선택 · 실시간 갱신주기(1·5·60초) · 자연어 상태 한 줄</li>
+            <li><b>좌측</b>: 자원맵 헥사곤 — <b>해당 서버의 GPU 전체</b> 기준. GPU마다 <b>어떤 슬라이스로 분할·할당됐는지, 어떻게 나눴는지</b> 모두 표시</li>
+            <li><b>우상(1/3)</b>: KPI — <b>CPU · RAM · GPU 값 + 꺾은선 추이 그래프</b></li>
+            <li><b>우하(2/3)</b>: GPU 상세 <b>시각화 테이블</b>(단일 서버 GPU 데이터 요약, 상세는 4.10) + <b>올라간 서비스 목록</b>(사용량 많은 순 정렬)</li>
+            <li><b>GPU 클릭 → 4.10 GPU 상세 모니터링(Step 3)</b></li>
+            <li>플로팅 버튼: 콘솔 · 주피터 · 이벤트 로그 <span class="muted">(해당 서버 기준 · Q29)</span></li></ul></div>
+        <div class="card"><h4>4.10 GPU 상세 모니터링 <span class="badge b-a">A 전용</span></h4>
+          <div class="meta">단일 서버 → GPU 선택 (Step 3) · <code>/resource-map/:serverId/:gpuId</code></div>
+          <ul><li>구조 = HyperCube <code>/gpu-hosting</code> 참고하되 <b>① 전체 GPU 비교 · ② 자원맵 제외</b></li>
+            <li>KPI(작업률·VRAM·온도·전력)는 <b>프로그레스 바 대신 꺾은선 그래프</b>로 추이 표시</li>
+            <li>슬라이스 분할(사용자·모델·컨테이너) · 최근 활동 타임라인 등 그 외 영역 유지 + <b>디자인 재구성</b></li>
+            <li>이 GPU에 <b>올라간 서비스 상세</b> 표시</li>
+            <li><b>워크스페이스 진입 버튼</b>: 이 GPU 자원을 쓰는 사용자의 콘솔/주피터로 가는 <b>통로만 연결</b></li>
+            <li>상단: <b>← 단일 서버(Step 뒤로)</b> · 플로팅 버튼: 콘솔 · 주피터 · 이벤트 로그 <span class="muted">(해당 GPU 기준 · Q29)</span></li></ul></div>
+      </div>
+
+      <div class="group">▶ 신청 / 승인 (역할 분기)</div>
+      <div class="grid">
+        <div class="card"><h4>4.11 신청 관리 <span class="badge b-b">B = C</span></h4>
+          <div class="meta">탭[서비스 API / GPU / 게시]</div>
+          <ul><li><b>[GPU] 마법사</b>: 용량(장/슬라이스)→모델 다중선택→환경/부가→서비스명/목적</li>
+            <li>[서비스 API] 연결 서비스/URL/메타</li><li>[게시] 서비스명/URL/데모/메타</li>
+            <li>상태 <span class="badge b-ok">승인</span> <span class="badge b-warn">대기</span> <span class="badge b-danger">반려</span></li></ul></div>
+        <div class="card"><h4>4.12 게시 승인 관리 <span class="badge b-a">A</span></h4>
+          <div class="meta">게시 신청 전용 (독립 페이지) · <code>/admin/approvals/publish</code></div>
+          <ul><li>게시 신청 상세 → 승인(마켓 노출) / 반려(사유)</li>
+            <li>승인/반려 → 신청자 메일+알림</li></ul></div>
+        <div class="card"><h4>4.13 GPU 승인 관리 <span class="badge b-a">A</span></h4>
+          <div class="meta">GPU 신청 전용 (독립 페이지) · <code>/admin/approvals/gpu</code></div>
+          <ul><li>GPU 신청 사유·스펙·요청 모델 검토</li>
+            <li>승인 시 <b>자원맵 호출 → 서버 선택 → 자동 할당</b> / 반려(사유)</li>
+            <li>GPU 추가/변경/회수 승인도 여기서 처리</li></ul></div>
+        <div class="card"><h4>4.14 실무관리자 대시보드 = 사용자 자원 모니터링 <span class="badge b-b">B = C</span></h4>
+          <div class="meta">호스팅 보유자 본인이 자기 할당 자원을 보는 화면 · <code>/dashboard</code></div>
+          <ul><li><b>호스팅 보유자 본인</b>이 자기 할당 GPU 자원을 종합 모니터링하는 화면 (사용자 첫 진입)</li>
+            <li>GPU 스테이터스(작업률·VRAM·CPU·MEMORY·온도·전력) / 네트워크 / 나의 서비스 사용량(토큰)</li>
+            <li>로그 · <b>콘솔 버튼 · 주피터 버튼</b>(공유 URL) · 스테이터스 클릭→통계</li>
+            <li>사이드바: 다른 서버 보기 / 신청목록 이동</li></ul></div>
+        <div class="card"><h4>4.15 GPU 추가/변경/회수 <span class="badge b-b">B=C 신청</span> <span class="badge b-a">A 승인</span></h4>
+          <div class="meta">더미 UI · 승인 시 케이스별 결과·자원맵 반영</div>
+          <ul><li>변경 사유·스펙 입력 → A 승인 시 <b>4케이스 분기</b></li>
+            <li><code>expand</code> 추가 할당 · <code>migrate</code> 서버 변경 · <code>change</code> 카드/슬라이스 변경 · <code>reclaim</code> 회수</li>
+            <li>케이스별 <b>더미 결과 메시지 + 자원맵 반영 전/후</b> 표시</li></ul></div>
+        <div class="card"><h4>4.16 받은 API 신청 승인 <span class="badge b-b">B</span></h4>
+          <div class="meta">내 서비스에 들어온 외부 연동 요청 · <code>/api-approvals</code></div>
+          <ul><li>받은 API 신청 목록 → 상세 검토</li>
+            <li>승인 시 <b>API key 수동 발급</b>(복사) / 반려 시 사유 입력 → 신청자 메일+알림</li>
+            <li>key별 <b>호출량·연결 사용률 그래프</b></li></ul></div>
+      </div>
+
+      <div class="group">▶ A 전용 운영</div>
+      <div class="grid">
+        <div class="card"><h4>4.17 신규 모델 도입 <span class="badge b-a">A</span></h4>
+          <div class="meta">모델 카탈로그 "신규 등록"에서</div>
+          <ul><li>업로드 → <b>보안 스캐닝</b> → 메타데이터 → 세팅 → 등록 완료</li></ul></div>
+        <div class="card"><h4>4.18 에러 · 이벤트 관제 <span class="badge b-a">A</span> <span class="badge b-b">B</span></h4>
+          <div class="meta">알럿 발생 시 · 타임라인 + 상세 드로어</div>
+          <ul><li>알럿 → 이벤트 목록(심각도 위험/경고/정보/복구) → <b>이벤트 상세 드로어</b>(상태·담당·조치) → 문제 GPU 상세</li><li>검색·필터 칩 · 알럿 시 메일 수신</li></ul></div>
+        <div class="card"><h4>4.19 관제 모니터링 <span class="badge b-a">A</span></h4>
+          <div class="meta">관제실 빅스크린</div>
+          <ul><li>상시 관제 실시간 대시보드</li><li>개인정보 접근 로그 · 관리자 활동 추적 로그</li></ul></div>
+        <div class="card"><h4>워크스페이스 <span class="badge b-warn">개념·페이지 아님</span></h4>
+          <div class="meta">대시보드 안 진입점</div>
+          <ul><li>콘솔 / 주피터 <b>버튼</b>으로 접속 (데모 연결 미정)</li></ul></div>
+      </div>
+    </section>
+
+    <!-- ★ 핵심 화면 시나리오 -->
+    <section id="scenarios">
+      <h2><span class="num" style="color:var(--warn)">★</span>핵심 화면 시나리오 <span class="muted" style="font-size:13px;font-weight:400">— 화면별 액션 · 프로세스 · 기능 (회의 우선)</span></h2>
+      <p class="lead" style="margin-bottom:20px">이 문서의 <b>최우선 파트</b>. 각 화면에서 사용자가 <b>무슨 순서로 무엇을 누르고(액션) → 무슨 일이 일어나는지(프로세스)</b>, 그리고 그 화면이 <b>다루는 기능·데이터</b>를 정리. <span class="muted">화면 요약은 §4, 라우팅은 §10 참조.</span></p>
+
+      <div class="scn">
+        <h4>① 전체 서버 모니터링 <span class="badge b-ok">메인</span> <span class="badge b-a">A 전용</span></h4>
+        <p class="role">연결된 <b>모든 GPU 서버</b>를 한눈에 — 헬스·알람으로 문제 서버를 빠르게 포착하는 관제 진입점.</p>
+        <ol class="steps">
+          <li>로그인 직후 진입 <span class="res">좌측 자원맵(서버 타일 안 GPU 4개)에서 전체 헬스 🟢🔴⚪ 스캔</span></li>
+          <li>우상 MIG 슬라이스 현황 확인 <span class="res">크기별 개수·점유 + 빗금(가용)으로 남은 용량 파악 · 전체 ↔ 서버별 토글</span></li>
+          <li>우하 이벤트 로그 확인 <span class="res">최근 장애·알람 추적, 클릭 → /events 풀 화면</span></li>
+          <li>관심 서버 타일 클릭 <span class="res">② 단일 서버 모니터링으로 이동</span></li>
+        </ol>
+        <p class="feat"><b>기능·데이터</b> · <b>좌</b>: 자원맵(서버 타일 + GPU 4개 미니, 헬스 히트맵) · <b>우상</b>: 전체 MIG 슬라이스 현황(크기별 개수·점유 · 빗금=가용 · 전체↔서버별 토글) · <b>우하</b>: 전체 서버 이벤트 로그(/events 요약) · <b style="color:var(--danger)">🚨 크리티컬 알람 = 화면 정중앙 위험 경고 오버레이</b> <span class="muted">(H100 4개/서버 다수)</span></p>
+      </div>
+
+      <div class="scn">
+        <h4>② 단일 서버 모니터링 <span class="badge b-a">A 전용</span> <span class="muted" style="font-size:12px">Step 2</span></h4>
+        <p class="role">서버 <b>1대</b>의 GPU 전체를 관찰하고 슬라이스 분할·할당과 서버 KPI를 파악.</p>
+        <ol class="steps">
+          <li>전체에서 서버 타일 클릭 진입 <span class="res">상단 ← 전체로 Step 뒤로가기</span></li>
+          <li>좌측 자원맵 확인 <span class="res">해당 서버 GPU 전체의 슬라이스 분할·할당·분할 방식 파악</span></li>
+          <li>우상 KPI 확인 <span class="res">CPU·RAM·GPU 값 + 꺾은선 추이</span></li>
+          <li>우하 확인 <span class="res">GPU 상세 시각화 테이블 + 올라간 서비스 목록(사용량 많은 순)</span></li>
+          <li>GPU 클릭 <span class="res">③ GPU 상세 모니터링(Step 3)으로 이동</span></li>
+          <li>플로팅 버튼 <span class="res">콘솔·주피터·이벤트 로그(해당 서버 기준)</span></li>
+        </ol>
+        <p class="feat"><b>기능·데이터</b> · <b>좌</b>: 자원맵(서버 GPU 전체·슬라이스 분할/할당) · <b>우상</b>: CPU·RAM·GPU KPI + 꺾은선 추이 · <b>우하</b>: GPU 상세 테이블 + 올라간 서비스(사용량순) · 플로팅(콘솔·주피터·이벤트) · ← Step 뒤로</p>
+      </div>
+
+      <div class="scn">
+        <h4>③ GPU 상세 모니터링 <span class="badge b-a">A 전용</span> <span class="muted" style="font-size:12px">Step 3</span></h4>
+        <p class="role">GPU <b>1대</b>의 상세를 관찰. HyperCube <code>/gpu-hosting</code> 참고하되 ①비교·②자원맵 제외하고 재구성.</p>
+        <ol class="steps">
+          <li>단일 서버에서 GPU 클릭 진입 <span class="res">상단 ← 단일 서버로 Step 뒤로가기</span></li>
+          <li>KPI 확인 <span class="res">작업률·VRAM·온도·전력 — 프로그레스 바 대신 꺾은선 추이</span></li>
+          <li>슬라이스 분할·최근 활동 확인 <span class="res">사용자·모델·컨테이너 / 타임라인</span></li>
+          <li>이 GPU에 올라간 서비스 상세 확인 <span class="res">서비스별 점유·사용</span></li>
+          <li>플로팅 버튼 <span class="res">콘솔·주피터·이벤트 로그(해당 GPU 기준)</span></li>
+        </ol>
+        <p class="feat"><b>기능·데이터</b> · KPI 꺾은선 추이(작업률·VRAM·온도·전력) · 슬라이스 분할(사용자·모델·컨테이너) · 최근 활동 타임라인 · 올라간 서비스 상세 · 플로팅 · ← Step 뒤로 <span class="muted">(① 비교·② 자원맵 제외)</span></p>
+      </div>
+
+      <div class="scn">
+        <h4>④ 사용자 자원 모니터링 = 실무관리자 대시보드 <span class="badge b-b">B = C</span></h4>
+        <p class="role"><b>호스팅 보유자 본인</b>이 자기 할당 GPU 자원을 모니터링하고 워크스페이스(콘솔/주피터)로 진입.</p>
+        <ol class="steps">
+          <li><b>[B=C]</b> 호스팅 보유자 로그인 <span class="res">이 화면으로 첫 진입</span></li>
+          <li>GPU 스테이터스 확인 <span class="res">작업률·VRAM·CPU·MEM·온도·전력</span></li>
+          <li>서비스 사용량·네트워크·로그 확인 <span class="res">나의 토큰 사용 그래프</span></li>
+          <li>스테이터스 클릭 <span class="res">통계 상세로</span></li>
+          <li>[콘솔 ▶] / [주피터 ▶] 클릭 <span class="res">워크스페이스 접속 (공유 URL)</span></li>
+        </ol>
+        <p class="feat"><b>기능·데이터</b> · GPU 상태 지표 · 토큰 사용량 그래프 · 네트워크 · 로그 · 콘솔/주피터 버튼 · 통계 · 사이드바(다른 서버/신청목록)</p>
+      </div>
+
+      <div class="scn">
+        <h4>⑤ 신청 관리 <span class="badge b-b">B = C</span></h4>
+        <p class="role">서비스 API · GPU · 게시 <b>신청을 작성하고 처리 상태를 추적</b>. 탭으로 3종 신청을 한 곳에서.</p>
+        <ol class="steps">
+          <li>[GPU] 탭 → 마법사 시작 <span class="res">세로 스텝 진행</span></li>
+          <li>1단계 용량 선택 <span class="res">장(카드) / 슬라이스(MIG)</span></li>
+          <li>2단계 모델 다중 선택 <span class="res">카탈로그에서 — 모델 별도 신청 없이 여기로 흡수</span></li>
+          <li>3단계 환경/부가 <span class="res">우분투·주피터 등</span></li>
+          <li>4단계 서비스명·목적 입력 → 제출 <span class="res">대기🟡 상태로 등록</span></li>
+          <li>목록에서 상태 추적 <span class="res">승인🟢(할당·key) / 반려🔴(사유)</span></li>
+          <li>승인 결과 확인 <span class="res">발급 자원/API key 복사</span></li>
+        </ol>
+        <p class="feat"><b>기능·데이터</b> · 3탭(서비스 API / GPU 마법사 / 게시) · 마법사 4스텝 · 상태 배지 · 결과(key·할당·노출 / 반려 사유) · key 복사</p>
+      </div>
+
+      <div class="scn">
+        <h4>⑥ 승인 관리 — 게시 승인 · GPU 승인 (별도 페이지) <span class="badge b-a">A</span></h4>
+        <p class="role">게시 신청과 GPU 신청을 <b>각각 독립 페이지</b>에서 검토해 승인/반려. GPU는 자원맵에서 <b>서버를 직접 배정</b>.</p>
+        <ol class="steps">
+          <li><b>GPU 승인 관리</b> 진입 → 대기 신청 목록 <span class="res">사유·스펙·요청 모델 검토</span></li>
+          <li>승인 클릭 <span class="res">자원맵 호출 → 서버/GPU 선택 → 자동 할당</span></li>
+          <li>또는 반려 <span class="res">사유 입력 모달 → 신청자에 메일+알림 통보</span></li>
+          <li><b>게시 승인 관리</b>(별도 페이지) → 상세 검토 <span class="res">승인(마켓 노출) / 반려</span></li>
+        </ol>
+        <p class="feat"><b>기능·데이터</b> · 게시 승인 관리 / GPU 승인 관리 <b>2개 독립 페이지</b> · 검토 상세 · GPU 승인 시 자원맵 서버 선택 · 반려 사유 모달 · 통보(메일+글로벌 알림)<br>
+          <span class="muted">참고: API 사용 승인 + key 발급은 B(소유자)가 4.16 받은 API 신청에서 처리.</span></p>
+      </div>
+    </section>
+
+    <!-- ▦ 화면별 표시 데이터 -->
+    <section id="screen-data">
+      <h2><span class="num" style="color:var(--accent2)">▦</span>화면별 표시 데이터 <span class="muted" style="font-size:13px;font-weight:400">— 어느 화면에 무엇이 뜨는가 (회의용 매트릭스)</span></h2>
+      <p class="lead" style="margin-bottom:18px">화면마다 <b>핵심 지표(크게 표시) · 목록/테이블 · 차트·시각화 · 상태/액션</b>로 나눠 정리. 데이터 타입 정의는 §13, 화면 동작은 ★ 시나리오 참조.</p>
+
+      <div class="group">▶ 자원맵 · 모니터링 (핵심)</div>
+      <table>
+        <thead><tr><th style="width:15%">화면</th><th style="width:21%">핵심 지표 (크게)</th><th style="width:22%">목록 / 테이블</th><th style="width:22%">차트 · 시각화</th><th style="width:20%">상태 · 액션</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><b>전체 서버 모니터링</b><br><span class="muted" style="font-size:11.5px">메인</span></td>
+            <td>전체 GPU 가동률 · 서버 수 · 활성/장애 대수</td>
+            <td>우상: 전체 MIG 슬라이스 현황 — 크기별 개수·점유·빗금(가용)·전체↔서버별 / 우하: 전체 서버 이벤트 로그(/events 요약)</td>
+            <td>좌: 자원맵 — 서버 타일 + GPU 4개 미니 헬스 히트맵</td>
+            <td>헬스 🟢🔴⚪ · 이벤트 로그 → /events · 서버 타일 클릭→단일</td>
+          </tr>
+          <tr>
+            <td><b>단일 서버 모니터링</b><br><span class="muted" style="font-size:11.5px">Step 2</span></td>
+            <td>우상: CPU · RAM · GPU 값</td>
+            <td>우하: GPU 상세 시각화 테이블 · 올라간 서비스(사용량순)</td>
+            <td>좌: 자원맵(서버 GPU 전체·슬라이스 분할/할당) · 우상 KPI 꺾은선 추이</td>
+            <td>GPU 클릭→GPU 상세 · 플로팅(콘솔·주피터·이벤트) · ← Step 뒤로</td>
+          </tr>
+          <tr>
+            <td><b>GPU 상세 모니터링</b><br><span class="muted" style="font-size:11.5px">Step 3</span></td>
+            <td>작업률 · VRAM · 온도 · 전력 (꺾은선)</td>
+            <td>슬라이스 분할(사용자·모델·컨테이너) · 올라간 서비스 상세</td>
+            <td>KPI 꺾은선 추이(프로그레스 바 제외) · 최근활동 타임라인</td>
+            <td>플로팅(콘솔·주피터·이벤트) · ← Step 뒤로 (①비교·②자원맵 제외)</td>
+          </tr>
+          <tr>
+            <td><b>사용자 자원 모니터링</b><br><span class="muted" style="font-size:11.5px">= 실무관리자 대시보드</span></td>
+            <td>내 GPU 작업률 · VRAM · CPU · MEM · 온도 · 전력</td>
+            <td>로그 · 나의 서비스 목록</td>
+            <td>토큰 사용량 라인 · 네트워크</td>
+            <td>콘솔 ▶ / 주피터 ▶ · 스테이터스→통계</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="group">▶ 마켓 · 모델 (콘텐츠)</div>
+      <table>
+        <thead><tr><th style="width:15%">화면</th><th style="width:21%">핵심 지표 (크게)</th><th style="width:22%">목록 / 테이블</th><th style="width:22%">차트 · 시각화</th><th style="width:20%">상태 · 액션</th></tr></thead>
+        <tbody>
+          <tr><td><b>마켓플레이스</b></td><td>최대 사용량 서비스 순위</td><td>서비스 — 명/종류/API여부/모델</td><td>사용량 Top N 바</td><td>"API 요청" 버튼</td></tr>
+          <tr><td><b>서비스 상세</b></td><td>토큰 사용량 합계</td><td>key(토큰)별 사용량</td><td>토큰 사용 추이 라인</td><td>URL·테스트URL·모델·소개·매뉴얼</td></tr>
+          <tr><td><b>모델 카탈로그</b></td><td>인기·사용량 순위</td><td>모델 — 명/종류/사용량/부가서비스</td><td>사용량 바</td><td>(A) "신규 모델 등록" 버튼</td></tr>
+          <tr><td><b>모델 상세</b></td><td>사용량</td><td>메타데이터</td><td>사용 추이</td><td>GPU 신청 시 이 모델 선택</td></tr>
+        </tbody>
+      </table>
+
+      <div class="group">▶ 신청 · 승인 · 운영</div>
+      <table>
+        <thead><tr><th style="width:15%">화면</th><th style="width:21%">핵심 지표 (크게)</th><th style="width:22%">목록 / 테이블</th><th style="width:22%">차트 · 시각화</th><th style="width:20%">상태 · 액션</th></tr></thead>
+        <tbody>
+          <tr><td><b>신청 관리</b> <span class="badge b-b">B=C</span></td><td>신청별 처리 상태</td><td>3탭(API/GPU/게시) 신청 목록</td><td>—</td><td>승인🟢/대기🟡/반려🔴 · 결과(key·할당·사유) · 마법사</td></tr>
+          <tr><td><b>게시 승인 관리</b> <span class="badge b-a">A</span></td><td>대기 건수</td><td>게시 신청 목록</td><td>—</td><td>승인(마켓 노출) / 반려 사유 모달</td></tr>
+          <tr><td><b>GPU 승인 관리</b> <span class="badge b-a">A</span></td><td>대기 건수</td><td>GPU 신청 — 사유·스펙·요청 모델</td><td>—</td><td>승인→자원맵 서버 선택 · 반려 사유 모달</td></tr>
+          <tr><td><b>받은 API 승인</b> <span class="badge b-b">B</span></td><td>key별 호출량</td><td>받은 API 신청 목록</td><td>호출량 라인</td><td>승인/반려 · API key 수동 발급·복사</td></tr>
+          <tr><td><b>GPU 추가/변경/회수</b></td><td>—</td><td>변경 신청 내역</td><td>—</td><td>이전/변경/확장/회수 선택 UI</td></tr>
+          <tr><td><b>신규 모델 도입</b> <span class="badge b-a">A</span></td><td>보안 스캐닝 진행률</td><td>—</td><td>업로드·스캔 진행</td><td>업로드→스캐닝→메타→세팅 위저드</td></tr>
+          <tr><td><b>에러·이벤트 관제</b></td><td>미확인 알럿 수</td><td>이벤트 타임라인</td><td>심각도 점(위험/경고/정보/복구)</td><td>검색·필터 칩 · 문제 GPU 상세 링크</td></tr>
+          <tr><td><b>관제 모니터링</b> <span class="badge b-a">A</span></td><td>실시간 종합 지표</td><td>개인정보 접근 · 관리자 활동 로그</td><td>실시간 빅스크린 대시보드</td><td>상시 관제</td></tr>
+          <tr><td><b>게시판·공지 / 알림</b></td><td>—</td><td>글·문의·답변 / 알림 목록</td><td>—</td><td>(A)공지·답변 (B=C)문의 · 벨 드롭다운·모두 읽음</td></tr>
+        </tbody>
+      </table>
+      <p class="legend">• 큰 지표 = 24~32px 강조(§9 밀도 기준) · 라벨·보조 최소 14px(Q28). • "—"는 해당 영역 없음. • 색·배지·차트 규칙은 §9(Q5·Q15·Q21) 일괄 적용.</p>
+    </section>
+
+    <!-- 5 -->
+    <section id="flows">
+      <h2><span class="num">5</span>주요 흐름</h2>
+      <h3>5.1 GPU 호스팅 (마법사 → 승인 → 실무관리자)</h3>
+      <div class="flow">
+        <div class="node">모델 카탈로그</div><span class="arrow">→</span>
+        <div class="node">GPU 신청 마법사<br><span class="muted" style="font-size:11px">용량+모델+환경+목적</span></div><span class="arrow">→</span>
+        <div class="node"><span class="badge b-a">A</span> 승인 (서버 선택)</div><span class="arrow">→</span>
+        <div class="node">대시보드 (콘솔/주피터)</div><span class="arrow">→</span>
+        <div class="node">서비스 운용</div>
+      </div>
+      <h3>5.2 자원맵 모니터링 드릴다운 (전체 → 단일 서버 → GPU 상세 · 3 Step)</h3>
+      <div class="flow">
+        <div class="node">Step1 전체 서버 모니터링<br><span class="muted" style="font-size:11px">모든 서버 헬스·알람·MIG 현황</span></div><span class="arrow">→</span>
+        <div class="node">서버 타일 클릭</div><span class="arrow">→</span>
+        <div class="node">Step2 단일 서버 모니터링<br><span class="muted" style="font-size:11px">자원맵·KPI 추이·GPU 테이블·서비스</span></div><span class="arrow">→</span>
+        <div class="node">GPU 클릭</div><span class="arrow">→</span>
+        <div class="node">Step3 GPU 상세 모니터링<br><span class="muted" style="font-size:11px">KPI 추이·슬라이스·올라간 서비스</span></div>
+      </div>
+      <p class="legend">• 각 Step에 <b>← 뒤로가기</b> + <b>플로팅 버튼</b>(콘솔·주피터·이벤트 로그 — 현재 보는 대상 기준). • <b>드릴다운은 관리자(A) 전용</b> · 사용자(B=C)는 자기 할당 자원을 대시보드(4.14)에서만 본다.</p>
+      <h3>5.3 게시 / 5.4 API 사용 / 5.5 모델 도입 / 5.6 변경·에러</h3>
+      <div class="flow">
+        <div class="node">게시 신청 → <span class="badge b-a">A</span> 승인 → 마켓 노출</div>
+        <div class="node">"API 요청" → <span class="badge b-b">B</span> 승인 → key 발급 → 외부 연동</div>
+      </div>
+      <div class="flow">
+        <div class="node"><span class="badge b-a">A</span> 모델 등록 → 업로드 → 스캐닝 → 카탈로그 노출</div>
+        <div class="node">변경: 신청 → <span class="badge b-a">A</span> 승인(이전/확장/회수)</div>
+        <div class="node">에러: 알럿 → 이벤트 목록 → 문제 GPU 상세</div>
+      </div>
+    </section>
+
+    <!-- 6 -->
+    <section id="dummy">
+      <h2><span class="num">6</span>더미 데이터 명세</h2>
+      <table>
+        <thead><tr><th>항목</th><th>더미 구성</th></tr></thead>
+        <tbody>
+          <tr><td>계정</td><td><code>admin</code>(최종관리자) / <code>manager</code>(호스팅 후 = B) / <code>user</code>(호스팅 전 = C), 공통 비번 <code>agics12!@</code> · manager=user 권한 동일</td></tr>
+          <tr><td>서비스</td><td><code>qwen agent</code> 등 — 종류/모델/API 여부 다양 · <b>사용량 순위</b>(호출량 Top N)</td></tr>
+          <tr><td>모델</td><td>등록 모델 다수(인기·사용량 순위), 부가서비스(주피터 등)</td></tr>
+          <tr><td>서버/GPU</td><td><b>데이터센터 가정: H100 4개/서버 × 다수 서버</b> · 클러스터링/MIG 혼재 · 슬라이스 크기별(1g·2g·3g·7g) 분할 · 헬스 🟢🔴⚪</td></tr>
+          <tr><td>지표</td><td>SM/VRAM/온도·전력 + <b>CPU·시스템 MEMORY</b>(서버 단위)/토큰/API 호출량 — 더미 수치·그래프</td></tr>
+          <tr><td>신청·이벤트</td><td>API·GPU·게시·변경/회수 신청(승인/대기/반려) · 에러 알럿 · 관제 로그</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 7 -->
+    <section id="status">
+      <h2><span class="num">7</span>확정 / 추후 구체화</h2>
+      <h3>✅ 확정</h3>
+      <ul>
+        <li>역할 2종(A / B=C). 모든 기능 더미 구현</li>
+        <li>게시·GPU 승인 = A / API 사용 승인 = B(소유자)</li>
+        <li><b>모델 별도 신청 없음</b> — GPU 신청 마법사 모델 선택으로 흡수. 모델 등록은 A 전용</li>
+        <li>모델 카탈로그 공통 열람(사용자 인기·사용량 / A 등록 버튼)</li>
+        <li>GPU 신청 = 마법사, 승인 시 자원맵 서버 선택→자동 할당</li>
+        <li><b>자원맵 모니터링 3 Step (A 전용)</b>: 전체 서버 → 단일 서버 → GPU 상세. <b>사용자(B=C)는 드릴다운 미노출</b>, 자기 할당 자원은 대시보드(4.14)에서만. 사용자 단위 종합 조회 화면은 없음(자원/GPU/서비스 단위로 조회). GPU 상세에 워크스페이스 진입 통로 버튼</li>
+        <li><b>전체 서버 모니터링 구성</b>: 좌 = 자원맵(서버 타일 + GPU 4개 미니, 헬스 히트맵) / 우상 = 전체 MIG 슬라이스 현황(크기별 개수·점유, 빈 = 빗금, 전체↔서버별 토글) / 우하 = 전체 서버 이벤트 로그(/events 요약 피드) · 데이터센터 H100 4개/서버 다수</li>
+        <li><b>받은 API 신청 승인 = 독립 화면</b>(B) · GPU 변경 = <code>expand/migrate/change/reclaim</code> 4케이스 더미 결과</li>
+        <li>워크스페이스 = 추상(콘솔/주피터 버튼), 대시보드 안에 위치</li>
+        <li>GPU 추가/변경/회수 = 더미 UI / 관제 모니터링 = 포함</li>
+        <li><b>제외</b>: 오프라인 처리(에이전트 배포·이미지 관리), 벤치마킹</li>
+      </ul>
+      <h3>⏳ 추후 (구현 중 더미로 채움)</h3>
+      <ul>
+        <li>SM 활동률 정의 / 게시판·공지 세부 / 소개·매뉴얼 랜딩</li>
+        <li>자원맵 커스터마이징 영역 / 통합 신청 진입 UX</li>
+      </ul>
+      <h3>⚠️ 목업 착수 전 최소 정의 (화면 흐름 좌우)</h3>
+      <ul>
+        <li><b>역할별 첫 진입 페이지</b>: admin→자원맵/승인 · manager→실무관리자 대시보드 · user→마켓플레이스</li>
+        <li><b>반려·API key 발급 모달</b>: 승인/반려·발급 클릭 시 동작(더미 결과 표시)</li>
+        <li><b>빈 상태(empty state)</b>: 신청 없음 / 호스팅 전 대시보드 등</li>
+        <li><b>호스팅 전 user 접근 정책 [확정]</b>: 대시보드·자원맵·받은 API 메뉴 사이드바 <b>숨김</b> · 직접 URL 진입 시 "호스팅 후 이용 가능" 빈 상태 + 신청 CTA</li>
+      </ul>
+    </section>
+
+    <hr class="div">
+
+    <!-- 8 -->
+    <section id="stack">
+      <h2><span class="num">8</span>기술 스택 &amp; 원칙</h2>
+      <div class="chips">
+        <span class="chip"><b>Vite + React + TypeScript</b></span>
+        <span class="chip"><b>Tailwind CSS</b></span>
+        <span class="chip"><b>React Router</b></span>
+        <span class="chip"><b>Recharts</b> 차트·게이지</span>
+        <span class="chip"><b>React Bits</b> (reactbits.dev) 애니메이션/배경/텍스트</span>
+        <span class="chip">더미 <code>/src/mock</code></span>
+      </div>
+      <ul>
+        <li><b>기능 없음</b>: 더미 표시·화면 전환만</li>
+        <li><b>예쁨 우선</b>: 일관 토큰, 더미로 풍성. 컴포넌트 재사용(Table/Tabs/Badge/Card/Chart/Wizard/Modal)</li>
+        <li><b>일관성</b>: 역할·페이지가 제각각이지 않게 — 모든 화면이 <b>같은 레이아웃 셸 + 공통 컴포넌트 패턴</b>을 재사용. 역할 차이는 메뉴·데이터뿐, 화면 구조·스타일은 동일</li>
+      </ul>
+    </section>
+
+    <!-- 9 -->
+    <section id="design">
+      <h2><span class="num">9</span>디자인 방향</h2>
+      <ul>
+        <li><b>테마</b>: 다크 / 라이트 토글</li>
+        <li><b>톤 믹스</b>: 자원맵·대시보드·관제 = 모던 테크(다크 대시보드) · 마켓·모델 카탈로그·신청 = 클린 SaaS</li>
+        <li><b>상태 색</b>: GPU 헬스 🟢 정상/🔴 위험/⚪ 비활성 · 신청 🟢 승인/🟡 대기/🔴 반려</li>
+        <li><b>데이터 대시보드 스타일</b> (레퍼런스: Grafana NVIDIA · Zenius GPU 클러스터): <b>반원 아크 게이지</b>(Q5 A) · <b>영역 라인 차트</b>(Q5 A, 미니멀 축·hover 툴팁/Q15 A) · <b>헬스 그리드 = 히트맵</b>(Q5 B, 자원맵과 같은 블루퍼플 결) · 정보 밀도 높게. 자원맵·실무관리자 대시보드·관제에 적용</li>
+        <li><b>React Bits 활용 (Q13에서 절제 채택)</b>: 콘텐츠 화면(로그인·마켓·모델 카탈로그)은 <b>은은한 라디얼 글로우 + Gradient 로고</b> 정도만 (Aurora/Particle 풀배경·Tilt 등은 미채택) · 데이터 화면은 Count-Up 정도만 (가독성 우선)</li>
+        <li><b>반응형</b>: 데스크톱 우선</li>
+      </ul>
+      <h3 style="margin-top:16px">디자인 워크샵 결정 (누적)</h3>
+      <div style="background:rgba(248,81,73,.1);border:1px solid rgba(248,81,73,.32);border-radius:9px;padding:12px 15px;margin:12px 0;font-size:13.5px;line-height:1.6">
+        ⚠️ <b style="color:#f85149">전체 적용 원칙 — AI 티 금지 (아래 29개 결정 + 모든 구현·화면에 공통)</b><br>
+        ① 카드 좌측 액센트 바 · 불필요한 회전/그라데이션 · 의미 없는 아이콘 등 <b>기계적 장식 금지</b><br>
+        ② <b>과한 여백 · 작은 요소 · 정렬 어긋남 · 디자인 일관성 부족</b> 항상 점검<br>
+        ③ 구분·강조는 <b>가장 절제된 수단부터</b> · ④ 의심되면 <b>빼는 쪽으로</b>
+      </div>
+      <div style="background:rgba(110,168,254,.08);border:1px solid rgba(110,168,254,.3);border-radius:9px;padding:12px 15px;margin:12px 0;font-size:13.5px;line-height:1.6">
+        📐 <b style="color:#6ea8fe">콘텐츠 밀도 기준 — 레퍼런스 <code>HyperCube /gpu-hosting</code> 수준 (필수)</b><br>
+        Claude 기본 생성의 <b>허술한·여백 과다·휑한 레이아웃 금지</b>. 정보 밀도를 레퍼런스만큼 높인다:<br>
+        ① <b>한 화면에 4~5개 영역 동시</b> 표시(스크롤 최소) · 대시보드는 <b>3~4열 그리드</b>로 가로 폭을 꽉 채움<br>
+        ② 간격: 카드 패딩 <b>12~14px</b> · 요소 gap <b>8~12px</b> · 섹션 간 <b>16~20px</b> (넉넉하게 벌리지 말 것)<br>
+        ③ 여백 대신 <b>구분선·배경 톤</b>으로 영역 구분 · 테이블 행 패딩 <b>8~10px</b>(조밀)<br>
+        ④ <b>핵심 지표 크게(24~32px) + 라벨·보조 14px</b> 대비(Q28: 14px 미만 금지 — 작게 줄이지 말고 핵심을 키워서 대비) · 막대·미니차트·배지로 정보 압축<br>
+        ⑤ 단 <b>본문 가독성(14.5px)·최소 폰트(14px, Q28)·터치타겟(≥36px)은 유지</b> — 빽빽함 ≠ 작고 답답함. 밀도는 '공간 효율', 가독성은 별개
+      </div>
+      <div style="background:rgba(63,182,168,.1);border:1px solid rgba(63,182,168,.32);border-radius:9px;padding:12px 15px;margin:12px 0;font-size:13.5px;line-height:1.65">
+        📐 <b style="color:#3fb6a8">레이아웃 안정성 — 영역 고정 · 오버플로우 · 테이블 (구현 필수 · 자주 깨지는 부분)</b><br>
+        콘텐츠가 늘거나 길어져도 <b>레이아웃이 밀리거나 잘리지 않게</b> 한다. 가장 흔한 불만 두 가지를 원천 차단:<br>
+        ① <b>영역 크기 고정</b> — 한 번 정한 영역(카드·패널·차트)은 콘텐츠가 늘어도 <b>크기 불변</b>. 넘치면 레이아웃을 밀지 말고 <b>내부 스크롤(<code>overflow:auto</code>)</b> 또는 <b>말줄임</b>으로 흡수. 형제 영역으로 넘침·겹침·잘림 금지<br>
+        ② <b>Flex/Grid 자식 넘침 차단</b> — 자식에 <code>min-width:0</code>(가로)·<code>min-height:0</code>(세로) 적용(이게 없으면 긴 텍스트·표가 컨테이너를 밀어냄). 고정 트랙은 <code>px</code>/<code>minmax</code>, 가변은 <code>minmax(0,1fr)</code><br>
+        ③ <b>텍스트 오버플로</b> — 한 줄 유지 영역은 <code>ellipsis(…)</code> + <code>title</code>/tooltip. 줄바꿈 허용한 영역만 wrap. <b>글씨를 줄여서 욱여넣는 것 금지</b><br>
+        ④ <b>테이블</b> — <code>table-layout:fixed</code> + 컬럼 <b>명시 너비</b>. <b>헤더(제목)는 <code>nowrap</code>·크기 고정 — 절대 축소·2줄 줄바꿈 금지</b>. 셀 넘침은 ellipsis, 숫자 컬럼은 고정폭·우정렬. 컬럼 수가 화면에 안 맞으면 글씨 축소가 아니라 <b>컬럼 숨김/우선순위 드롭 또는 가로 스크롤</b>로 처리<br>
+        ⑤ <b>반응형 축소</b> — 최소 크기(<code>min-width</code>/<code>min-height</code>) 보장, 본문 가독성·터치타겟(≥36px) 유지. 깨지면 <b>스택/숨김으로 전환</b>하되 글씨 축소로 때우지 말 것
+      </div>
+      <ul>
+        <li><b>Q29 모니터링 드릴다운 네비 = Step 뒤로가기 + 플로팅 버튼</b> · 단일 서버·GPU 상세에 <b>← Step 뒤로가기</b>(전체→단일→GPU 상세) · <b>플로팅 버튼(콘솔·주피터·이벤트 로그)</b>은 현재 보는 대상 기준(단일 = 해당 서버, GPU 상세 = 해당 GPU) · 화면 우하단 고정 · 콘솔·주피터는 워크스페이스(새 창), <b>이벤트 로그는 우측 슬라이드 드로어</b>로 열림(모니터링 화면 유지)</li>
+        <li><b>Q28 최소 폰트 14px</b> · 웹 디자인 전체에서 <b>어떤 텍스트도 14px 미만 금지</b> — 캡션·라벨·보조도 14px 이상(기존 Q8 Caption·밀도 박스 보조 수치를 14px로 상향). 핵심 지표 대비는 <b>크게 키워서</b>(24~32px) 확보, 작게 줄여서 만들지 않음</li>
+        <li><b>Q27 헥사곤 패널 비주얼 = 단조롭지 않게 (의미 있는 장식만)</b> · 자원맵 헥사곤(전체 = 서버 타일+GPU4 / 단일 = GPU 슬라이스)은 <b>입체 그라데이션 · 내부 글로우 · 사용률 색</b>으로 풍성하게 · <b>활성 슬라이스 미세 펄스(숨쉬기)</b> · 빈 슬라이스 빗금 텍스처 · hover 하이라이트 · 선택 확대+발광 · 단 <b>의미 없는 회전·과장 장식은 금지</b>(AI 티 금지 원칙). 비주얼은 사용률·상태를 표현하는 선에서 · 전체·단일 모니터링 공통</li>
+        <li><b>Q26 크리티컬 알람 = 화면 정중앙 경고 오버레이</b> · 위험(critical) 이벤트 발생 시 토스트가 아닌 <b>센터 모달 오버레이</b>(배경 dim)로 강하게 경고 — 위험 색·아이콘·서버명·즉시 이동 CTA · 경고/정보 등 하위 심각도는 토스트·피드로(Q12·Q21) · 전체 서버 모니터링에 우선 적용</li>
+        <li><b>Q25 레이아웃 안정성 = 영역 고정 · 오버플로 흡수</b> · 지정 영역은 콘텐츠 늘어도 <b>크기 불변</b>(내부 스크롤/말줄임) · 테이블 <code>table-layout:fixed</code> + <b>헤더 nowrap·크기 고정</b>(축소·2줄 줄바꿈 금지, 안 맞으면 컬럼 숨김/가로 스크롤) · Flex/Grid 자식 <code>min-width:0</code> · <b>글씨 줄여 욱여넣기 금지</b> (상세: 위 "레이아웃 안정성" 박스)</li>
+        <li><b>Q1 무드 = A · GitHub 다크</b> (배경 #0d1117 / 카드 #161c26 · 솔리드 카드 #1c2430 / 보더 rgba(255,255,255,.07) / 액센트 블루 #6ea8fe) · 다크 메인 + 라이트 옵션(Q14)</li>
+        <li>외곽선(border)은 전체적으로 <b>더 옅게</b> — 미묘하게 (다크: <code>rgba(255,255,255,.07)</code> 수준)</li>
+        <li><b>Q2 레이아웃 = 2번</b> · 플랫 사이드바 + 미니 헤더 · 활성 메뉴는 배경칠(좌측 바 아님) · <b>상단 GNB 없음 — 모든 메뉴는 사이드바</b>(헤더는 검색·알림·테마·역할전환·프로필만) · <b>사이드바 접기/펴기 토글</b>(아이콘+라벨 ↔ 아이콘만, 사용자가 직접 토글)</li>
+        <li><b>액센트 = 블루 유지</b> (레퍼런스는 청록이나 A 블루로 통일)</li>
+        <li><b>자원맵 = 헥사곤 히트맵</b> 채택 (레퍼런스: HyperCube <code>/gpu-hosting</code>) — GPU를 벌집 타일로 배치, 사용률별 색은 <b>블루→퍼플 그라데이션</b>(Q10 확정: 유휴 슬레이트 / 여유 블루 / 적정 인디고 / 높음 퍼플 / 포화 마젠타퍼플). + 전체 GPU 비교 카드 + 선택 GPU 상세(큰 지표 4개·VRAM 풀 스펙트럼 바·슬라이스 분할·최근 활동 타임라인). 상세는 <b>Q10</b> 참조</li>
+        <li><b>Q3 카드·테이블 = 2번</b> · 솔리드 카드(채운 배경 + 그림자) · 테이블 진한 헤더 + zebra 줄무늬</li>
+        <li><b>Q4 컴포넌트 = 모두 A</b> · 채움형 배지 · 아웃라인 보조 버튼(주요만 채움) · 박스형 입력 · 언더라인 탭</li>
+        <li><b>Q5 데이터 시각화</b> = 게이지 <b>A</b>(반원 아크) · 차트 <b>A</b>(영역 라인) · 헬스그리드 <b>B</b>(히트맵 — 자원맵 헥사곤과 같은 결)</li>
+        <li><b>Q6 플로우</b> = 마법사 <b>B</b>(세로 스텝 + 설명) · 모달 <b>A</b>(센터 다이얼로그) · 빈 상태 <b>A</b>(아이콘 + 설명 + CTA)</li>
+        <li><b>Q7 모션 = B(적극)</b> · stagger 진입 · count-up · shiny 텍스트 · 버튼 스윕 · hover lift. <b>회전 보더 등 과한 장식 제외</b>, 포인트는 핵심 지표·CTA에만 절제</li>
+        <li><b>Q8 토큰</b> = 밀도/타이포 <b>B(여유)</b> — H1 27 / H2 20 / H3 16 / Body 14.5 / <b>Caption 14</b> (800·700·700·400, <b>최소 14px·Q28</b>) · 데이터viz 색 <b>A(블루 모노톤)</b> #6ea8fe→#4f86db→#3a64ad · 코어 확정: 간격 4px 베이스(4/8/12/16/24) · 라운드 버튼8·카드12·큰카드14 · 섀도 <code>0 2px 10px rgba(0,0,0,.35)</code></li>
+        <li><b>Q9 아이콘 = B(filled)</b> · 솔리드 실루엣 (매핑: Lucide solid 변형 / Phosphor Fill / Heroicons Solid 중 택1로 통일)</li>
+        <li><b>Q11 테이블·폼</b> = 테이블 <b>A</b>(번호 페이저 · 행 액션 상시 · 정렬 헤더 ↕) · 폼 검증 <b>A</b>(인라인 — 필드별 에러 + 별표(*) 필수 + 도움말 필드 아래)</li>
+        <li><b>Q12 상태</b> = 로딩 <b>A(스켈레톤)</b> · 토스트 <b>A(우측 상단)</b> · 에러(다시 시도)·권한없음(권한 요청)은 아이콘+설명+CTA 확정안</li>
+        <li><b>Q24 폼 컨트롤</b> = 멀티셀렉트 <b>B(검색 + 그룹 드롭다운, N명 요약)</b> — 팀별 그룹 + 그룹 전체선택 + 검색, 선택 많아도 버튼은 "N명 선택됨" · 확정 세트: 토글 스위치 · 슬라이더 · 라디오 · 체크박스 · 단일 셀렉트 · 날짜 피커 · 숫자 스테퍼 · 박스 입력(Q4) — 모두 무드 A·액센트 블루</li>
+        <li><b>Q23 벌크 액션 = A(상단 바)</b> · 다중 선택 시 헤더 자리에 액션 바(N개 선택 + 승인/반려/삭제 + 선택 해제) · 선택 행 강조 · <b>undo</b>: 되돌릴 수 있는 일괄 작업은 즉시 반영 + 토스트 "실행취소"(6초), 위험 작업은 확인 모달 + undo 둘 다</li>
+        <li><b>Q22 접근성</b> = 포커스 <b>A(2px 액센트 링만)</b> · <b>커스텀 단축키 없음</b>(Tab 이동·Enter·Esc 기본 동작만, ⌘K/g→r/j/k 미사용) · WCAG AA 대비 · 색+텍스트/아이콘 병기 · 키보드 전체 접근 · 포커스 트랩(모달·드로어, Esc 닫기) · 폼 라벨 연결 · 터치 타겟 ≥36px · prefers-reduced-motion 존중 · 스크린리더(aria)</li>
+        <li><b>Q21 이벤트 센터 = A(타임라인 + 검색/필터)</b> · 시간 흐름 + 심각도 점 · 상단 검색 + 심각도 필터 칩(전체/위험/경고/정보/복구) + 기간 · 안 읽음 강조 · "모두 읽음" · 심각도 4분류(위험 빨강 / 경고 앰버 / 정보 블루 / 복구·성공 초록)는 알림 벨·토스트·이벤트 공통</li>
+        <li><b>Q20 필터·포맷</b> = 필터 <b>B(드롭다운 패널 · 칩 토글)</b> — 필터 버튼→패널, 상태/종류 칩 토글, 초기화/적용 · 포맷: 상대시간(hover 절대) · ISO 날짜(2026-06-05 14:30) · 천단위(44,032) · 약어(1.2K) · % 정수·변화량 1자리 · 용량 GB/MiB · 온도°C·전력 W(공백)</li>
+        <li><b>Q19 명령 팔레트 = B(탐색 전용)</b> · <b>헤더 검색창 클릭/포커스로 열기</b>(⌘K 단축키 없음) · 서비스·GPU·페이지 이동만(명령 실행 제외) · 그룹화 + 첫 항목 하이라이트 + ↑↓/Enter/Esc 기본 키 동작</li>
+        <li><b>Q18 헤더</b> = 미니 헤더 · 검색 <b>A(인풋 상시)</b> · 알림 벨 드롭다운(이벤트 + 모두 읽음) · 테마 토글 · 역할 전환(관리자 A / 실무관리자 B=C) · 프로필 메뉴(내 정보·설정·로그아웃)</li>
+        <li><b>Q17 마이크로카피 = A(친근한 존댓말)</b> · "~할까요 / ~했어요" 톤 · 용어 통일: GPU(O, ≠그래픽카드) · 자원(≠리소스) · 슬라이스(MIG) · 서비스 · 모델 · 사용률 · 신청·승인·반려·대기 · 발급(API 키)</li>
+        <li><b>Q16 반응형</b> = 데스크톱 우선 · 브레이크포인트 <b>1024 / 768</b> · 사이드바 풀(아이콘+라벨) → 아이콘만 → 숨김(햄버거) · 모바일 내비 <b>A(좌측 드로어)</b></li>
+        <li><b>Q15 차트 = A(미니멀)</b> · 축 라벨만 · 그리드 없음 · hover 툴팁(수직 가이드선 + 점 + 값/시간)은 공통</li>
+        <li><b>Q14 라이트 모드 = B(소프트 그레이 · 연한 선)</b> — 캔버스 <code>#eef1f5</code> / 카드 <code>#fbfcfd</code> / 보더 <code>#e4e8ee</code>(연) / 텍스트 <code>#222831</code> / muted <code>#616a74</code> / 액센트 <code>#2f6fe0</code> / zebra <code>#f4f6f9</code> / 테이블헤더 <code>#eef1f6</code> · 상태 ok <code>#1a7f37</code> · warn <code>#9a6700</code> · danger <code>#cf222e</code>. 다크 토큰은 Q1·Q8 그대로, 토글 제공</li>
+        <li><b>Q13 콘텐츠 비주얼 = A(절제)</b> · 콘텐츠 화면(로그인·마켓·모델 카탈로그)만 은은한 라디얼 글로우 + gradient 로고 · 데이터 화면(자원맵·대시보드·관제)은 모션 최소(Count-Up 정도). Aurora/파티클 등 풀 비주얼은 미채택</li>
+        <li><b>Q10 자원맵 디테일</b>: 타일 밀도 <b>A(여유)</b> · 사용률 색 = <b>블루→퍼플 그라데이션</b>(유휴 슬레이트 / 여유 블루 / 적정 인디고 / 높음 퍼플 / 포화 마젠타퍼플) · 타일 light→dark 그라데이션 입체 · 선택 = 확대+흰 테두리+글로우, 비선택 dim · VRAM = 가로 풀 스펙트럼 바(초록→노랑, 점유는 숫자) · 범례는 맵 카드 헤더 안. <b>구현 시 헥사곤은 honeycomb-grid / d3-hexbin (React: visx Hexbin) + SVG 권장</b> (좌표·줌팬·성능·hit-area)</li>
+      </ul>
+    </section>
+
+    <!-- 10 -->
+    <section id="routing">
+      <h2><span class="num">10</span>라우팅 / 페이지 맵</h2>
+      <table>
+        <thead><tr><th>경로</th><th>화면</th><th>역할</th></tr></thead>
+        <tbody>
+          <tr><td><code>/login</code></td><td>로그인</td><td><span class="badge b-ok">공통</span></td></tr>
+          <tr><td><code>/marketplace</code> · <code>/marketplace/:id</code></td><td>마켓플레이스 · 서비스 상세</td><td><span class="badge b-ok">공통</span></td></tr>
+          <tr><td><code>/models</code> · <code>/models/:id</code></td><td>모델 카탈로그 · 모델 상세</td><td><span class="badge b-ok">공통</span></td></tr>
+          <tr><td><code>/board</code> · <code>/notifications</code></td><td>게시판 · 알림 목록</td><td><span class="badge b-ok">공통</span></td></tr>
+          <tr><td><code>/resource-map</code></td><td>전체 서버 모니터링 (Step 1 · 메인)</td><td><span class="badge b-a">A</span></td></tr>
+          <tr><td><code>/resource-map/:serverId</code></td><td>단일 서버 모니터링 (Step 2)</td><td><span class="badge b-a">A</span></td></tr>
+          <tr><td><code>/resource-map/:serverId/:gpuId</code></td><td>GPU 상세 모니터링 (Step 3)</td><td><span class="badge b-a">A</span></td></tr>
+          <tr><td><code>/requests</code></td><td>신청 관리 (서비스 API / GPU / 게시)</td><td><span class="badge b-b">B=C</span></td></tr>
+          <tr><td><code>/dashboard</code></td><td>실무관리자 대시보드 = 사용자 자원 모니터링</td><td><span class="badge b-b">B=C</span></td></tr>
+          <tr><td><code>/requests/gpu-change</code></td><td>GPU 추가/변경/회수</td><td><span class="badge b-b">B=C</span></td></tr>
+          <tr><td><code>/admin/approvals/publish</code></td><td>게시 승인 관리</td><td><span class="badge b-a">A</span></td></tr>
+          <tr><td><code>/admin/approvals/gpu</code></td><td>GPU 승인 관리</td><td><span class="badge b-a">A</span></td></tr>
+          <tr><td><code>/admin/models/new</code></td><td>신규 모델 도입</td><td><span class="badge b-a">A</span></td></tr>
+          <tr><td><code>/admin/monitoring</code></td><td>관제 모니터링</td><td><span class="badge b-a">A</span></td></tr>
+          <tr><td><code>/events</code></td><td>에러·이벤트 관제</td><td><span class="badge b-a">A</span> <span class="badge b-b">B</span></td></tr>
+          <tr><td><code>/api-approvals</code></td><td>받은 API 신청 승인 + key + 사용률</td><td><span class="badge b-b">B</span></td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 11 -->
+    <section id="shell">
+      <h2><span class="num">11</span>레이아웃 &amp; 공통 셸</h2>
+      <div class="wire">┌───────────────────────────────────────────────┐
+│ Header: [로고]  ...  [역할/계정][테마][알림벨]  │
+├──────────┬────────────────────────────────────┤
+│ Sidebar  │  Page content                      │
+│ (역할별) │                                    │
+│ [≡ 접기/ │   GNB 없음 · 메뉴는 전부 사이드바   │
+│  펴기]   │                                    │
+└──────────┴────────────────────────────────────┘</div>
+      <ul>
+        <li><b>A</b>: 마켓플레이스 · 모델 카탈로그 · 자원맵(전체) · 게시 승인 관리 · GPU 승인 관리 · 신규 모델 도입 · 관제 모니터링 · 이벤트 · 게시판</li>
+        <li><b>B=C</b>: 마켓플레이스 · 모델 카탈로그 · 신청 관리 · 실무관리자 대시보드(자기 할당 자원) · 받은 API 신청 · 이벤트 · 게시판 <span class="muted">(모니터링 드릴다운은 A 전용 · 미노출)</span></li>
+      </ul>
+    </section>
+
+    <!-- 12 -->
+    <section id="wireframe">
+      <h2><span class="num">12</span>화면별 와이어프레임</h2>
+      <h3>모델 카탈로그</h3>
+      <div class="wire">[검색/필터]                      (A) [+ 신규 모델 등록]
+┌ 모델명 │ 종류 │ 사용량(인기) │ 부가서비스 ┐
+│ Qwen   │ LLM  │ ▇▇▇▇ 상위    │ 주피터     │</div>
+      <h3>GPU 신청 마법사</h3>
+      <div class="wire">[1 용량] → [2 모델 선택] → [3 환경/부가] → [4 서비스명/목적] → [제출]
+ 장/슬라이스   다중 선택      우분투·주피터    사용목적</div>
+      <h3>실무관리자 대시보드</h3>
+      <div class="wire">[GPU 스테이터스 ▇ SM ▇ VRAM ▇ 온도]  [네트워크]
+[나의 서비스 사용량 · 토큰 그래프]    [로그]
+[콘솔 ▶] [주피터 ▶]   ← 워크스페이스 진입</div>
+      <h3>전체 서버 모니터링 (자원맵 · 메인)</h3>
+      <div class="wire">┌ 좌: 자원맵 ────────────┐ ┌ 우상: 전체 MIG 슬라이스 현황 ┐
+│ [서버] GPU □□□□       │ │ 1g/2g/3g/7g 크기별 개수·점유 │
+│ [서버] GPU □□□□ 🟢🔴  │ │ ▨ = 빈 슬라이스(가용)        │
+│ (서버 타일 + GPU4 미니)│ │ [ 전체합산 | 서버별 ] 토글   │
+│                       │ ├──────────────────────────────┤
+│ H100×4 서버 다수       │ │ 우하: 전체 서버 이벤트 로그   │
+│                       │ │ 심각도·서버·시간 → /events    │
+└ 서버 타일 클릭 → 단일 ──┘ └──────────────────────────────┘</div>
+      <h3>단일 서버 모니터링 (Step 2)</h3>
+      <div class="wire">[← 전체] [호스트 ▼] [실시간 1·5·60초]    상태: GPU 4대 정상
+┌ 좌: 자원맵 ──────────┐ ┌ 우상(1/3): KPI ───────────┐
+│ 서버 GPU 전체 헥사곤  │ │ CPU·RAM·GPU + 꺾은선 추이  │
+│ 슬라이스 분할·할당    │ ├───────────────────────────┤
+│                      │ │ 우하(2/3):                 │
+│ GPU 클릭 → GPU 상세   │ │ GPU 상세 테이블            │
+│                      │ │ 올라간 서비스(사용량순)    │
+└──────────────────────┘ └───────────────────────────┘
+        [플로팅: 콘솔 · 주피터 · 이벤트 로그(서버)]</div>
+      <h3>GPU 상세 모니터링 (Step 3 · HyperCube 참고·재구성)</h3>
+      <div class="wire">[← 단일 서버]
+┌ KPI: 작업률·VRAM·온도·전력 (꺾은선 추이 · 프로그레스바 X) ┐
+├────────────────────────────────────────────────────────┤
+│ 슬라이스 분할(사용자·모델·컨테이너) · 최근활동 타임라인   │
+│ 이 GPU에 올라간 서비스 상세                              │
+└────────────────────────────────────────────────────────┘
+        [플로팅: 콘솔 · 주피터 · 이벤트 로그(GPU)]
+   (① 전체 GPU 비교 · ② 자원맵 제외)</div>
+      <h3>신청 관리 (B=C) / 게시·GPU 승인 관리 (A · 별도 페이지)</h3>
+      <div class="wire">신청:      [ 서비스 API | GPU | 게시 ] → 목록 → 상태/결과
+게시 승인:  목록 → [승인(마켓 노출)][반려]
+GPU 승인:   목록 → [승인 → 자원맵 서버 선택][반려]</div>
+    </section>
+
+    <!-- 13 -->
+    <section id="schema">
+      <h2><span class="num">13</span>더미 데이터 스키마 (초안)</h2>
+      <pre class="code"><span class="kw">type</span> <span class="ty">Role</span> = 'admin' | 'user';
+<span class="kw">type</span> <span class="ty">Status</span> = 'pending' | 'approved' | 'rejected';
+<span class="kw">type</span> <span class="ty">GpuHealth</span> = 'normal' | 'danger' | 'inactive';   <span class="cm">// 🟢/🔴/⚪</span>
+<span class="kw">type</span> <span class="ty">AllocMode</span> = 'cluster' | 'mig';
+
+<span class="kw">interface</span> <span class="ty">Service</span> { id; name; kind; hasApi; model; serviceUrl; testUrl; description; manualUrl?; ownerUserId;
+  usageCount; usageRank; }   <span class="cm">// 마켓 "최대 사용량 순위"용</span>
+<span class="kw">interface</span> <span class="ty">Model</span> { id; name; kind; description; addons: string[]; usageRank; usageCount; }
+<span class="kw">interface</span> <span class="ty">GpuServer</span> { id; name; temp; network; cpuUtil; memUtil;   <span class="cm">// CPU·시스템 메모리(서버 단위)</span>
+  health; hostedServiceIds: string[]; hostedUserIds: string[]; gpus: Gpu[]; }
+<span class="kw">interface</span> <span class="ty">Gpu</span> { id; name; serial; smUtil; vramUtil; temp; power; health; allocMode;
+  assignedUserId?; assignedServiceId?; interconnect?; slices?: MigSlice[];
+  recentActivities?: { time; type; message }[]; }   <span class="cm">// 최근 활동 타임라인</span>
+<span class="kw">interface</span> <span class="ty">MigSlice</span> { id; usage; vramUtil; ownerUserId; modelId?; containerId?; }   <span class="cm">// 슬라이스 분할 표시</span>
+<span class="kw">interface</span> <span class="ty">ApiRequest</span> { id; requesterUserId; serviceId; model; targetServiceUrl; status; apiKey?; rejectReason?; }
+<span class="kw">interface</span> <span class="ty">GpuRequest</span> { id; requesterUserId; capacity; capacityUnit:'card'|'slice'; models:string[];
+  env; addons:string[]; serviceName; purpose; status; rejectReason?; }
+<span class="kw">interface</span> <span class="ty">GpuChangeRequest</span> { id; requesterUserId; type:'migrate'|'change'|'expand'|'reclaim'; reason; status; rejectReason?; }
+<span class="kw">interface</span> <span class="ty">PublishRequest</span> { id; requesterUserId; serviceName; serviceUrl; demoUrl; meta; status; rejectReason?; }
+<span class="kw">interface</span> <span class="ty">ApiKeyUsage</span> { keyId; serviceId; calls:number[]; connections; }
+<span class="kw">interface</span> <span class="ty">EventLog</span> { id; severity:'critical'|'warn'|'info'|'recovered'; status:'open'|'resolved'; gpuId?; serverId?; message; createdAt; }
+<span class="kw">interface</span> <span class="ty">Notification</span> { id; channel:'mail'|'screen'; message; createdAt; }
+<span class="kw">interface</span> <span class="ty">User</span> { id; username:'admin'|'manager'|'user'; name; role; email; hasHosting; initialRoute; }</pre>
+    </section>
+
+    <!-- 14 -->
+    <section id="roadmap">
+      <h2><span class="num">14</span>구현 로드맵</h2>
+      <ol class="road">
+        <li><b>셋업</b> — Vite+React+TS+Tailwind, 라우팅, 테마, 토큰</li>
+        <li><b>공통 셸</b> — Header/Sidebar(역할별) + 더미 모듈</li>
+        <li><b>카탈로그</b> — 마켓·서비스 상세 / 모델 카탈로그·모델 상세</li>
+        <li><b>신청 관리</b> — 탭(API/GPU 마법사/게시) + 상태·결과</li>
+        <li><b>자원맵 모니터링 (A 전용)</b> — 전체 서버 → 단일 서버 → GPU 상세 (3 Step 드릴다운)</li>
+        <li><b>대시보드·승인</b> — 실무관리자 대시보드 / 게시·GPU 승인 관리(별도) / 받은 API 승인·그래프</li>
+        <li><b>운영</b> — 신규 모델 도입 / 관제 / 에러·이벤트 / GPU 변경 / 게시판</li>
+        <li><b>로그인·폴리시</b> — 로그인 / 다크·라이트 / 반응형 / 더미 보강</li>
+      </ol>
+    </section>
+
+    <!-- 15 -->
+    <section id="features">
+      <h2><span class="num">15</span>기능 체크리스트 <span class="muted" style="font-size:13px;font-weight:400">— 검토하며 체크</span></h2>
+      <div class="checkcols">
+        <div class="checkbox-card">
+          <h4><span class="badge b-ok">공통</span></h4>
+          <label><input type="checkbox">로그인 (admin / manager / user 3계정)</label>
+          <label><input type="checkbox">마켓플레이스 메인 (서비스 table + API 요청)</label>
+          <label><input type="checkbox">서비스 상세 (메타 + 토큰별 사용량)</label>
+          <label><input type="checkbox">모델 카탈로그 (열람 + 인기·사용량) / 모델 상세</label>
+          <label><input type="checkbox">게시판·공지 / 알림(벨 + 목록)</label>
+          <label><input type="checkbox">테마 토글 / 공통 셸</label>
+        </div>
+        <div class="checkbox-card">
+          <h4><span class="badge b-b">실무관리자 = 사용자 (B = C)</span></h4>
+          <label><input type="checkbox">신청 관리 탭[서비스 API / GPU 마법사 / 게시]</label>
+          <label><input type="checkbox">GPU 신청 마법사 (용량·모델선택·환경·목적)</label>
+          <label><input type="checkbox">신청 결과(승인 key/할당/노출 · 반려 사유) / API key 수령·복사</label>
+          <label><input type="checkbox">실무관리자 대시보드 = 사용자 자원 모니터링 (GPU 상태·CPU·MEM·사용량·로그·콘솔/주피터·통계)</label>
+          <label><input type="checkbox">자원맵 드릴다운 내 범위 (전체→단일 서버) / 받은 API 승인 + key + 사용률 그래프</label>
+          <label><input type="checkbox">GPU 추가/변경/회수 (더미) / 에러·이벤트 관제</label>
+        </div>
+        <div class="checkbox-card">
+          <h4><span class="badge b-a">최종관리자 (A)</span></h4>
+          <label><input type="checkbox">전체 서버 모니터링 (자원맵·메인, 좌/우 패널·전체 서버 헬스·알람)</label>
+          <label><input type="checkbox">단일 서버 모니터링 (HyperCube 구조: 비교·자원맵·GPU 상세 + 호스팅 서비스/사용자)</label>
+          <label><input type="checkbox">게시 승인 관리 / GPU 승인 관리 (별도 페이지 · GPU 승인 시 자원맵 서버 선택)</label>
+          <label><input type="checkbox">신규 모델 도입 (업로드·스캐닝·메타·세팅)</label>
+          <label><input type="checkbox">직접 호스팅 + 서비스 직접 게시</label>
+          <label><input type="checkbox">관제 모니터링(관제실·접근/활동 로그) / 에러·이벤트</label>
+        </div>
+      </div>
+    </section>
+
+    <p class="muted" style="font-size:12.5px;margin-top:40px">정본: <b>이 HTML 파일</b> (md 없음) · 입력 원본: <code>origin/</code> 3개 여정 CSV(마켓플레이스·GPU관리·모델관리)</p>
+  </main>
+</div>
+<script>
+  function toggleTheme(){
+    const r=document.documentElement;
+    r.setAttribute('data-theme', r.getAttribute('data-theme')==='light'?'':'light');
+  }
+</script>
+</body>
+</html>

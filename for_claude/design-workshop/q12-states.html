@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anclave 디자인 — Q12. 상태 디자인</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css">
+<style>
+  :root{
+    --bg:#0d1117;--soft:#10151c;--card:#161c26;--card2:#1c2430;--border:rgba(255,255,255,.07);
+    --text:#e6edf3;--muted:#8b97a7;--faint:#6a7585;--accent:#6ea8fe;--accent-soft:rgba(110,168,254,.12);
+    --on-accent:#08111f;--ok:#3fb950;--ok-bg:rgba(63,185,80,.14);--warn:#d29922;--warn-bg:rgba(210,153,34,.14);
+    --danger:#f85149;--danger-bg:rgba(248,81,73,.14);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0a0d12;color:var(--text);font-family:"Pretendard",system-ui,sans-serif;line-height:1.5;padding:32px 24px 80px;font-size:14.5px}
+  .page-head{max-width:1080px;margin:0 auto 26px}
+  .page-head .q{display:inline-block;background:var(--accent);color:var(--on-accent);font-weight:800;font-size:12px;padding:3px 10px;border-radius:20px;letter-spacing:.5px}
+  .page-head h1{font-size:27px;margin:12px 0 6px;letter-spacing:-.5px}
+  .page-head p{color:var(--muted);font-size:14.5px}
+  .wrap{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:30px}
+
+  .sec-head{display:flex;align-items:baseline;gap:10px;margin-bottom:13px}
+  .sec-head .nm{font-size:16px;font-weight:700}
+  .sec-head .desc{color:var(--faint);font-size:12.5px}
+  .variants{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .variant{background:var(--card2);border:1px solid var(--border);border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.35);overflow:hidden}
+  .variant.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),0 2px 12px rgba(0,0,0,.4)}
+  .sel-tag{margin-left:auto;color:#3fb950;font-weight:800;font-size:11.5px}
+  .v-label{display:flex;align-items:center;gap:10px;padding:11px 16px;background:#11161e;border-bottom:1px solid var(--border);font-size:12.5px}
+  .v-label .pick{background:#1b232f;color:#cfd6df;font-weight:800;width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px}
+  .v-label .vt{font-weight:700}
+  .v-label .vd{color:var(--faint);font-size:11.5px}
+  .v-demo{padding:18px 16px}
+
+  @keyframes shimmer{to{background-position:-200% 0}}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* skeleton */
+  .sk{background:linear-gradient(90deg,#1c2430 25%,#27313f 50%,#1c2430 75%);background-size:200% 100%;animation:shimmer 1.4s linear infinite;border-radius:6px}
+  .sk-cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+  .sk-card{background:var(--soft);border:1px solid var(--border);border-radius:10px;padding:13px}
+  .sk-card .sk{height:10px}
+  .sk-row{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--border-s)}
+  .sk-tbl .sk-row:last-child{border-bottom:none}
+
+  /* spinner */
+  .spin-wrap{height:212px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px}
+  .spinner{width:34px;height:34px;border:3px solid rgba(255,255,255,.12);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+  .spin-wrap .st{font-size:13px;color:var(--muted)}
+
+  /* toast stage */
+  .stage{position:relative;height:230px;background:var(--bg);border-radius:10px;overflow:hidden;border:1px solid var(--border)}
+  .stage-skel{padding:14px;display:flex;flex-direction:column;gap:9px}
+  .stage-skel .b{height:11px;background:#ffffff08;border-radius:5px}
+  .stage-skel .b.w1{width:35%}.stage-skel .b.w2{width:75%}.stage-skel .b.r{height:40px}
+  .toasts{position:absolute;display:flex;flex-direction:column;gap:9px;width:262px}
+  .toasts.tr{top:12px;right:12px}
+  .toasts.br{bottom:12px;right:12px}
+  .toast{display:flex;align-items:flex-start;gap:10px;background:#222b38;border:1px solid var(--border);border-radius:10px;padding:11px 12px;box-shadow:0 10px 28px rgba(0,0,0,.5)}
+  .toast .ic{width:18px;height:18px;flex-shrink:0;margin-top:1px}
+  .toast .tb{flex:1;min-width:0}
+  .toast .tt{font-size:13px;font-weight:700}
+  .toast .td{font-size:11.5px;color:var(--muted);margin-top:1px}
+  .toast .x{color:var(--faint);font-size:12px;cursor:pointer}
+  .toast.ok{border-left:none} .toast.ok .ic{color:var(--ok)}
+  .toast.warn .ic{color:var(--warn)} .toast.danger .ic{color:var(--danger)}
+
+  /* error / empty states */
+  .state{display:flex;flex-direction:column;align-items:center;text-align:center;gap:11px;padding:26px 16px}
+  .state-ic{width:54px;height:54px;border-radius:14px;display:flex;align-items:center;justify-content:center}
+  .state-ic svg{width:26px;height:26px}
+  .state-ic.err{background:var(--danger-bg);color:var(--danger)}
+  .state-ic.lock{background:#ffffff0d;color:var(--muted)}
+  .state-t{font-size:15px;font-weight:700}
+  .state-d{font-size:12.5px;color:var(--muted);max-width:300px}
+  .btn{font-family:inherit;font-size:12.5px;font-weight:600;padding:7px 14px;border-radius:8px;cursor:pointer;border:1px solid transparent;margin-top:4px}
+  .btn.primary{background:var(--accent);color:var(--on-accent)}
+  .btn.outline{background:transparent;border-color:var(--border);color:var(--text)}
+  .confirm-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .confirm-card{background:var(--card2);border:1px solid var(--border);border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.35);overflow:hidden}
+  .cc-label{padding:10px 16px;background:#11161e;border-bottom:1px solid var(--border);font-size:12.5px;font-weight:700;color:var(--muted)}
+
+  .footer{max-width:1080px;margin:30px auto 0;color:var(--muted);font-size:13.5px}
+  .footer b{color:#ccd}
+  .footer .ask{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-top:10px;font-size:13px;color:var(--text)}
+  .footer .ask code{background:#ffffff10;padding:2px 7px;border-radius:6px;font-size:12.5px;color:var(--accent)}
+</style>
+</head>
+<body>
+  <div class="page-head">
+    <span class="q">Q12 / 상태 디자인</span> <span style="display:inline-block;background:rgba(63,185,80,.13);color:#3fb950;font-weight:800;font-size:12px;padding:3px 11px;border-radius:20px;margin-left:6px">✓ 선택: 로딩 A · 토스트 A</span>
+    <h1>로딩 · 토스트 · 에러 상태는?</h1>
+    <p>데이터가 없거나·로딩 중·실패할 때의 화면. <b style="color:#6ea8fe">로딩</b>과 <b style="color:#6ea8fe">토스트 위치</b>를 A/B로 고르고, 에러·권한없음은 아래 확정안으로 갑니다.</p>
+  </div>
+
+  <div class="wrap">
+
+    <!-- LOADING -->
+    <section>
+      <div class="sec-head"><span class="nm">로딩</span><span class="desc">데이터 불러오는 동안</span></div>
+      <div class="variants">
+        <div class="variant">
+          <div class="v-label"><span class="pick">A</span><span class="vt">스켈레톤</span><span class="vd">콘텐츠 모양 placeholder · 깜빡임 적음</span><span class="sel-tag">✓ 선택됨</span></div>
+          <div class="v-demo">
+            <div class="sk-cards">
+              <div class="sk-card"><div class="sk" style="width:50%;margin-bottom:9px"></div><div class="sk" style="width:70%;height:18px"></div></div>
+              <div class="sk-card"><div class="sk" style="width:50%;margin-bottom:9px"></div><div class="sk" style="width:70%;height:18px"></div></div>
+            </div>
+            <div class="sk-tbl">
+              <div class="sk-row"><div class="sk" style="width:30%;height:12px"></div><div class="sk" style="width:18%;height:12px"></div><div class="sk" style="width:22%;height:12px"></div></div>
+              <div class="sk-row"><div class="sk" style="width:26%;height:12px"></div><div class="sk" style="width:20%;height:12px"></div><div class="sk" style="width:16%;height:12px"></div></div>
+              <div class="sk-row"><div class="sk" style="width:32%;height:12px"></div><div class="sk" style="width:14%;height:12px"></div><div class="sk" style="width:24%;height:12px"></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="variant">
+          <div class="v-label"><span class="pick">B</span><span class="vt">스피너</span><span class="vd">중앙 회전 · 단순</span></div>
+          <div class="v-demo">
+            <div class="spin-wrap"><div class="spinner"></div><div class="st">불러오는 중…</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TOAST -->
+    <section>
+      <div class="sec-head"><span class="nm">토스트 알림</span><span class="desc">작업 결과 피드백 · 자동 사라짐</span></div>
+      <div class="variants">
+        <div class="variant">
+          <div class="v-label"><span class="pick">A</span><span class="vt">우측 상단</span><span class="vd">헤더 근처 · 시선 위쪽</span><span class="sel-tag">✓ 선택됨</span></div>
+          <div class="v-demo">
+            <div class="stage">
+              <div class="stage-skel"><div class="b w1"></div><div class="b w2"></div><div class="b r"></div></div>
+              <div class="toasts tr" id="toastsA"></div>
+            </div>
+          </div>
+        </div>
+        <div class="variant">
+          <div class="v-label"><span class="pick">B</span><span class="vt">우측 하단</span><span class="vd">콘텐츠 방해 적음 · 표준</span></div>
+          <div class="v-demo">
+            <div class="stage">
+              <div class="stage-skel"><div class="b w1"></div><div class="b w2"></div><div class="b r"></div></div>
+              <div class="toasts br" id="toastsB"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ERROR / PERMISSION (confirmed) -->
+    <section>
+      <div class="sec-head"><span class="nm">에러 · 권한없음</span><span class="desc">확정안 — Q6 빈 상태와 같은 결</span></div>
+      <div class="confirm-grid">
+        <div class="confirm-card">
+          <div class="cc-label">로드 실패</div>
+          <div class="state">
+            <div class="state-ic err"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 5a1.1 1.1 0 0 1 1.1 1.1v5.5a1.1 1.1 0 0 1-2.2 0V8.1A1.1 1.1 0 0 1 12 7zm0 9.2a1.3 1.3 0 1 1 0 2.6 1.3 1.3 0 0 1 0-2.6z"/></svg></div>
+            <div class="state-t">데이터를 불러오지 못했어요</div>
+            <div class="state-d">일시적인 네트워크 오류일 수 있어요. 잠시 후 다시 시도해주세요.</div>
+            <button class="btn outline">↻ 다시 시도</button>
+          </div>
+        </div>
+        <div class="confirm-card">
+          <div class="cc-label">권한 없음</div>
+          <div class="state">
+            <div class="state-ic lock"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 1.8a4.6 4.6 0 0 0-4.6 4.6V9H6.4A1.4 1.4 0 0 0 5 10.4v9.2A1.4 1.4 0 0 0 6.4 21h11.2a1.4 1.4 0 0 0 1.4-1.4v-9.2A1.4 1.4 0 0 0 17.6 9h-1V6.4A4.6 4.6 0 0 0 12 1.8zm0 2.2a2.4 2.4 0 0 1 2.4 2.4V9H9.6V6.4A2.4 2.4 0 0 1 12 4z"/></svg></div>
+            <div class="state-t">접근 권한이 없습니다</div>
+            <div class="state-d">이 화면은 관리자(A) 역할에서만 볼 수 있어요. 권한이 필요하면 관리자에게 요청하세요.</div>
+            <button class="btn outline">권한 요청</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="footer">
+    <p>→ 다음: <b>Q13. 콘텐츠 화면 비주얼 (React Bits)</b> — 마지막</p>
+    <div class="ask">골라주세요 — 예: <code>로딩 A · 토스트 B</code></div>
+  </div>
+
+<script>
+  const icCheck='<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-1.1 14.3-3.9-3.9 1.5-1.5 2.4 2.4 5-5L17.4 9z"/></svg>';
+  const icWarn='<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 1 21h22zm0 6a1 1 0 0 1 1 1v5a1 1 0 0 1-2 0V9a1 1 0 0 1 1-1zm0 8.3a1.2 1.2 0 1 1 0 2.4 1.2 1.2 0 0 1 0-2.4z"/></svg>';
+  const data=[
+    {c:'ok',ic:icCheck,t:'API 키 발급 완료',d:'qwen-agent · 키가 클립보드에 복사됐어요'},
+    {c:'warn',ic:icWarn,t:'GPU 사용률 90% 초과',d:'srv-01 GPU 2 · 곧 포화될 수 있어요'},
+  ];
+  function toastHtml(t){return `<div class="toast ${t.c}"><span class="ic">${t.ic}</span><div class="tb"><div class="tt">${t.t}</div><div class="td">${t.d}</div></div><span class="x">✕</span></div>`;}
+  document.getElementById('toastsA').innerHTML=data.map(toastHtml).join('');
+  document.getElementById('toastsB').innerHTML=data.map(toastHtml).join('');
+</script>
+<script src="nav.js"></script>
+</body>
+</html>

@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anclave 디자인 — Q19. 명령 팔레트</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css">
+<style>
+  :root{
+    --bg:#0d1117;--soft:#10151c;--card:#161c26;--card2:#1c2430;--border:rgba(255,255,255,.07);
+    --border-s:rgba(255,255,255,.045);--text:#e6edf3;--muted:#8b97a7;--faint:#6a7585;
+    --accent:#6ea8fe;--accent-soft:rgba(110,168,254,.12);--on-accent:#08111f;--warn:#d29922;--danger:#f85149;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0a0d12;color:var(--text);font-family:"Pretendard",system-ui,sans-serif;line-height:1.5;padding:32px 24px 80px;font-size:14.5px}
+  .page-head{max-width:1080px;margin:0 auto 26px}
+  .page-head .q{display:inline-block;background:var(--accent);color:var(--on-accent);font-weight:800;font-size:12px;padding:3px 10px;border-radius:20px;letter-spacing:.5px}
+  .page-head h1{font-size:27px;margin:12px 0 6px;letter-spacing:-.5px}
+  .page-head p{color:var(--muted);font-size:14.5px}
+  .wrap{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:30px}
+
+  .sec-head{display:flex;align-items:baseline;gap:10px;margin-bottom:13px}
+  .sec-head .nm{font-size:16px;font-weight:700}
+  .sec-head .desc{color:var(--faint);font-size:12.5px}
+  .variants{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .variant{background:var(--card2);border:1px solid var(--border);border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.35);overflow:hidden}
+  .variant.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),0 2px 12px rgba(0,0,0,.4)}
+  .sel-tag{margin-left:auto;color:#3fb950;font-weight:800;font-size:11.5px}
+  .v-label{display:flex;align-items:center;gap:10px;padding:11px 16px;background:#11161e;border-bottom:1px solid var(--border);font-size:12.5px}
+  .v-label .pick{background:#1b232f;color:#cfd6df;font-weight:800;width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px}
+  .v-label .vt{font-weight:700}
+  .v-label .vd{color:var(--faint);font-size:11.5px}
+  .v-demo{padding:18px 16px}
+
+  .stage{position:relative;background:var(--bg);border-radius:10px;overflow:hidden;border:1px solid var(--border);min-height:340px;padding-top:18px}
+  .stage-skel{padding:0 14px 14px;display:flex;flex-direction:column;gap:9px;filter:blur(.4px)}
+  .stage-skel .b{height:11px;background:#ffffff08;border-radius:5px}
+  .stage-skel .b.w1{width:35%}.stage-skel .b.w2{width:72%}.stage-skel .b.r{height:38px}
+  .dim{position:absolute;inset:0;background:rgba(5,8,12,.6)}
+
+  .palette{position:relative;z-index:2;margin:0 auto;width:90%;max-width:380px;background:var(--card2);border:1px solid rgba(255,255,255,.1);border-radius:13px;box-shadow:0 24px 60px rgba(0,0,0,.6);overflow:hidden}
+  .p-in{display:flex;align-items:center;gap:9px;padding:13px 15px;border-bottom:1px solid var(--border)}
+  .p-in .si{color:var(--faint);font-size:14px}
+  .p-in input{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-family:inherit;font-size:14px}
+  .p-in input::placeholder{color:var(--faint)}
+  .p-in .esc{font-size:10.5px;color:var(--faint);border:1px solid var(--border);border-radius:4px;padding:1px 6px}
+  .p-res{max-height:230px;overflow:auto;padding:6px}
+  .p-grp{font-size:10.5px;color:var(--faint);font-weight:700;padding:8px 9px 4px;text-transform:uppercase;letter-spacing:.4px}
+  .p-it{display:flex;align-items:center;gap:10px;padding:8px 9px;border-radius:8px;cursor:pointer;font-size:13px}
+  .p-it .ic{width:24px;height:24px;border-radius:6px;background:#ffffff0d;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;color:var(--muted)}
+  .p-it .nm{flex:1;min-width:0}
+  .p-it .meta{font-size:11px;color:var(--faint)}
+  .p-it.on{background:var(--accent-soft)}
+  .p-it.on .ic{background:var(--accent);color:var(--on-accent)}
+  .p-it.on .meta{color:var(--accent)}
+  .p-foot{display:flex;gap:14px;padding:9px 14px;border-top:1px solid var(--border);font-size:11px;color:var(--faint)}
+  .p-foot kbd{border:1px solid var(--border);border-radius:4px;padding:0 5px;font-family:inherit;margin-right:3px}
+
+  .footer{max-width:1080px;margin:30px auto 0;color:var(--muted);font-size:13.5px}
+  .footer b{color:#ccd}
+  .footer .ask{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-top:10px;font-size:13px;color:var(--text)}
+  .footer .ask code{background:#ffffff10;padding:2px 7px;border-radius:6px;font-size:12.5px;color:var(--accent)}
+</style>
+</head>
+<body>
+  <div class="page-head">
+    <span class="q">Q19 / 명령 팔레트</span> <span style="display:inline-block;background:rgba(63,185,80,.13);color:#3fb950;font-weight:800;font-size:12px;padding:3px 11px;border-radius:20px;margin-left:6px">✓ 선택: 팔레트 B (탐색 전용)</span>
+    <h1>⌘K 명령 팔레트 범위는?</h1>
+    <p>헤더 검색창을 클릭하면 열리는 전역 팔레트(⌘K 단축키 없음). <b style="color:#6ea8fe">A 탐색+액션</b> = 이동에 더해 "추가·발급" 명령까지 · <b style="color:#6ea8fe">B 탐색 전용</b> = 서비스·GPU·페이지 이동만. 첫 항목이 하이라이트, ↑↓로 이동.</p>
+  </div>
+
+  <div class="wrap">
+    <section>
+      <div class="sec-head"><span class="nm">명령 팔레트</span><span class="desc">전역 검색 + 빠른 이동</span></div>
+      <div class="variants">
+        <div class="variant">
+          <div class="v-label"><span class="pick">A</span><span class="vt">탐색 + 액션</span><span class="vd">이동 + 명령 실행 · 파워유저 효율↑</span></div>
+          <div class="v-demo">
+            <div class="stage">
+              <div class="stage-skel"><div class="b w1"></div><div class="b w2"></div><div class="b r"></div></div>
+              <div class="dim"></div>
+              <div class="palette">
+                <div class="p-in"><span class="si">🔍</span><input placeholder="서비스·GPU·페이지 검색 또는 명령…" readonly><span class="esc">esc</span></div>
+                <div class="p-res">
+                  <div class="p-grp">서비스</div>
+                  <div class="p-it on"><span class="ic">▦</span><span class="nm">qwen-agent</span><span class="meta">Agent · 승인</span></div>
+                  <div class="p-it"><span class="ic">▦</span><span class="nm">doc-summary</span><span class="meta">요약 · 대기</span></div>
+                  <div class="p-grp">GPU</div>
+                  <div class="p-it"><span class="ic">◆</span><span class="nm">GPU 02</span><span class="meta">포화 92%</span></div>
+                  <div class="p-grp">이동</div>
+                  <div class="p-it"><span class="ic">⬡</span><span class="nm">자원맵</span><span class="meta">페이지</span></div>
+                  <div class="p-it"><span class="ic">▣</span><span class="nm">승인 관리</span><span class="meta">페이지</span></div>
+                  <div class="p-grp">액션</div>
+                  <div class="p-it"><span class="ic">＋</span><span class="nm">새 서비스 추가</span><span class="meta">명령</span></div>
+                  <div class="p-it"><span class="ic">🔑</span><span class="nm">API 키 발급</span><span class="meta">명령</span></div>
+                </div>
+                <div class="p-foot"><span><kbd>↑↓</kbd>이동</span><span><kbd>↵</kbd>선택</span><span><kbd>esc</kbd>닫기</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="variant sel">
+          <div class="v-label"><span class="pick">B</span><span class="vt">탐색 전용</span><span class="vd">이동만 · 단순·예측 쉬움</span><span class="sel-tag">✓ 선택됨</span></div>
+          <div class="v-demo">
+            <div class="stage">
+              <div class="stage-skel"><div class="b w1"></div><div class="b w2"></div><div class="b r"></div></div>
+              <div class="dim"></div>
+              <div class="palette">
+                <div class="p-in"><span class="si">🔍</span><input placeholder="서비스·GPU·페이지 검색…" readonly><span class="esc">esc</span></div>
+                <div class="p-res">
+                  <div class="p-grp">서비스</div>
+                  <div class="p-it on"><span class="ic">▦</span><span class="nm">qwen-agent</span><span class="meta">Agent · 승인</span></div>
+                  <div class="p-it"><span class="ic">▦</span><span class="nm">doc-summary</span><span class="meta">요약 · 대기</span></div>
+                  <div class="p-grp">GPU</div>
+                  <div class="p-it"><span class="ic">◆</span><span class="nm">GPU 02</span><span class="meta">포화 92%</span></div>
+                  <div class="p-it"><span class="ic">◆</span><span class="nm">GPU 04</span><span class="meta">포화 93%</span></div>
+                  <div class="p-grp">이동</div>
+                  <div class="p-it"><span class="ic">⬡</span><span class="nm">자원맵</span><span class="meta">페이지</span></div>
+                  <div class="p-it"><span class="ic">▣</span><span class="nm">실무관리자 대시보드</span><span class="meta">페이지</span></div>
+                  <div class="p-it"><span class="ic">▣</span><span class="nm">승인 관리</span><span class="meta">페이지</span></div>
+                </div>
+                <div class="p-foot"><span><kbd>↑↓</kbd>이동</span><span><kbd>↵</kbd>선택</span><span><kbd>esc</kbd>닫기</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="footer">
+    <p>→ 다음: <b>Q20. 필터 &amp; 날짜·숫자 포맷</b></p>
+    <div class="ask">골라주세요 — <code>팔레트 A(탐색+액션)</code> 또는 <code>B(탐색 전용)</code></div>
+  </div>
+<script src="nav.js"></script>
+</body>
+</html>

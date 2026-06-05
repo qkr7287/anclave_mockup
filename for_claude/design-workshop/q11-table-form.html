@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anclave 디자인 — Q11. 테이블·폼</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css">
+<style>
+  :root{
+    --bg:#0d1117;--soft:#10151c;--card:#161c26;--card2:#1c2430;--border:rgba(255,255,255,.07);
+    --border-s:rgba(255,255,255,.045);--text:#e6edf3;--muted:#8b97a7;--faint:#6a7585;
+    --accent:#6ea8fe;--accent-soft:rgba(110,168,254,.12);--on-accent:#08111f;
+    --ok:#3fb950;--ok-bg:rgba(63,185,80,.14);--warn:#d29922;--warn-bg:rgba(210,153,34,.14);
+    --danger:#f85149;--danger-bg:rgba(248,81,73,.14);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0a0d12;color:var(--text);font-family:"Pretendard",system-ui,sans-serif;line-height:1.5;padding:32px 24px 80px;font-size:14.5px}
+  .page-head{max-width:1120px;margin:0 auto 26px}
+  .page-head .q{display:inline-block;background:var(--accent);color:var(--on-accent);font-weight:800;font-size:12px;padding:3px 10px;border-radius:20px;letter-spacing:.5px}
+  .page-head h1{font-size:27px;margin:12px 0 6px;letter-spacing:-.5px}
+  .page-head p{color:var(--muted);font-size:14.5px}
+  .wrap{max-width:1120px;margin:0 auto;display:flex;flex-direction:column;gap:30px}
+
+  .sec-head{display:flex;align-items:baseline;gap:10px;margin-bottom:13px}
+  .sec-head .nm{font-size:16px;font-weight:700}
+  .sec-head .desc{color:var(--faint);font-size:12.5px}
+  .variants{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .variant{background:var(--card2);border:1px solid var(--border);border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.35);overflow:hidden}
+  .variant.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),0 2px 12px rgba(0,0,0,.4)}
+  .sel-tag{margin-left:auto;color:#3fb950;font-weight:800;font-size:11.5px}
+  .v-label{display:flex;align-items:center;gap:10px;padding:11px 16px;background:#11161e;border-bottom:1px solid var(--border);font-size:12.5px}
+  .v-label .pick{background:#1b232f;color:#cfd6df;font-weight:800;width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px}
+  .v-label .vt{font-weight:700}
+  .v-label .vd{color:var(--faint);font-size:11.5px}
+  .v-demo{padding:18px 16px}
+
+  .btn{font-family:inherit;font-size:12.5px;font-weight:600;padding:7px 13px;border-radius:8px;cursor:pointer;border:1px solid transparent}
+  .btn.primary{background:var(--accent);color:var(--on-accent)}
+  .btn.outline{background:transparent;border-color:var(--border);color:var(--text)}
+  .btn.sm{padding:5px 10px;font-size:12px}
+  .badge{display:inline-flex;align-items:center;gap:5px;padding:2px 10px;border-radius:20px;font-size:11.5px;font-weight:700}
+  .badge.ok{background:var(--ok-bg);color:var(--ok)} .badge.warn{background:var(--warn-bg);color:var(--warn)}
+  .badge.danger{background:var(--danger-bg);color:var(--danger)}
+
+  /* table */
+  .tbar{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+  .tsearch{flex:1;max-width:200px;height:32px;background:var(--soft);border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;padding:0 10px;color:var(--faint);font-size:12.5px;gap:6px}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  thead th{background:#0f141b;color:#cfd6df;font-weight:700;font-size:12px;text-align:left;padding:9px 12px;border-bottom:2px solid rgba(255,255,255,.1);cursor:pointer;user-select:none;white-space:nowrap}
+  thead th .ar{color:var(--faint);font-size:10px;margin-left:3px}
+  thead th.act{cursor:default}
+  td{padding:10px 12px;border-bottom:1px solid var(--border-s);font-size:13px}
+  tbody tr:nth-child(even){background:rgba(255,255,255,.045)}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:hover{background:var(--accent-soft)}
+  .mono{color:var(--muted);font-size:12.5px}
+  .row-act{display:flex;gap:6px;justify-content:flex-end}
+  .ic-btn{width:26px;height:26px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:12px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+  .ic-btn:hover{color:var(--text);border-color:rgba(255,255,255,.18)}
+  .B-hover .row-act{opacity:0;transition:opacity .12s}
+  .B-hover tbody tr:hover .row-act{opacity:1}
+  /* pagination */
+  .pager{display:flex;align-items:center;gap:6px;margin-top:13px;justify-content:flex-end}
+  .pager button{min-width:28px;height:28px;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:inherit;font-size:12.5px;cursor:pointer}
+  .pager button.on{background:var(--accent);color:var(--on-accent);border-color:transparent;font-weight:700}
+  .more{margin-top:12px;text-align:center}
+  .more button{width:100%;border:1px dashed var(--border);background:transparent;color:var(--muted);font-family:inherit;font-size:12.5px;font-weight:600;padding:9px;border-radius:8px;cursor:pointer}
+  .more button:hover{color:var(--text);border-color:rgba(255,255,255,.2)}
+
+  /* form */
+  .field{margin-bottom:15px}
+  .field label{display:block;font-size:12.5px;color:var(--muted);font-weight:600;margin-bottom:6px}
+  .req-star{color:var(--danger);margin-left:2px}
+  .req-badge{display:inline-block;background:var(--danger-bg);color:var(--danger);font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;margin-left:6px;vertical-align:1px}
+  .inp{height:38px;width:100%;background:var(--soft);border:1px solid var(--border);border-radius:8px;padding:0 12px;color:var(--text);font-family:inherit;font-size:13.5px}
+  .inp:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .inp.err{border-color:var(--danger);box-shadow:0 0 0 3px var(--danger-bg)}
+  select.inp{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--faint) 50%),linear-gradient(135deg,var(--faint) 50%,transparent 50%);background-position:calc(100% - 16px) 17px,calc(100% - 11px) 17px;background-size:5px 5px,5px 5px;background-repeat:no-repeat}
+  .hint{font-size:11.5px;color:var(--faint);margin-top:6px}
+  .err-msg{font-size:11.5px;color:var(--danger);margin-top:6px;display:flex;align-items:center;gap:5px}
+  .err-summary{background:var(--danger-bg);border:1px solid rgba(248,81,73,.3);border-radius:9px;padding:11px 13px;margin-bottom:16px;font-size:12.5px;color:#ffb4ae}
+  .err-summary b{color:var(--danger)}
+  .form-ft{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
+
+  .footer{max-width:1120px;margin:30px auto 0;color:var(--muted);font-size:13.5px}
+  .footer b{color:#ccd}
+  .footer .ask{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-top:10px;font-size:13px;color:var(--text)}
+  .footer .ask code{background:#ffffff10;padding:2px 7px;border-radius:6px;font-size:12.5px;color:var(--accent)}
+</style>
+</head>
+<body>
+  <div class="page-head">
+    <span class="q">Q11 / 테이블·폼</span> <span style="display:inline-block;background:rgba(63,185,80,.13);color:#3fb950;font-weight:800;font-size:12px;padding:3px 11px;border-radius:20px;margin-left:6px">✓ 선택: 테이블 A · 폼 A</span>
+    <h1>테이블·폼 인터랙션은?</h1>
+    <p>Q3 솔리드 카드+zebra · Q4 박스 입력·아웃라인 버튼 고정. <b style="color:#6ea8fe">테이블</b>과 <b style="color:#6ea8fe">폼 검증</b>을 각각 A/B로. 헤더 클릭하면 정렬돼요.</p>
+  </div>
+
+  <div class="wrap">
+
+    <!-- TABLE -->
+    <section>
+      <div class="sec-head"><span class="nm">테이블</span><span class="desc">서비스 목록 — 정렬·페이지·행 액션</span></div>
+      <div class="variants">
+        <div class="variant sel">
+          <div class="v-label"><span class="pick">A</span><span class="vt">번호 페이저 · 액션 상시</span><span class="vd">행 우측 버튼 항상 표시</span><span class="sel-tag">✓ 선택됨</span></div>
+          <div class="v-demo">
+            <div class="tbar"><div class="tsearch">🔍 서비스 검색…</div><button class="btn outline sm">필터</button></div>
+            <table id="tblA"></table>
+            <div class="pager" id="pagerA"></div>
+          </div>
+        </div>
+        <div class="variant">
+          <div class="v-label"><span class="pick">B</span><span class="vt">더 보기 · 액션 hover</span><span class="vd">행에 올렸을 때만 액션</span></div>
+          <div class="v-demo">
+            <div class="tbar"><div class="tsearch">🔍 서비스 검색…</div><button class="btn outline sm">필터</button></div>
+            <table id="tblB" class="B-hover"></table>
+            <div class="more"><button id="moreB">+ 5개 더 보기</button></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FORM -->
+    <section>
+      <div class="sec-head"><span class="nm">폼 검증</span><span class="desc">필수 표시 · 에러 · 도움말</span></div>
+      <div class="variants">
+        <div class="variant sel">
+          <div class="v-label"><span class="pick">A</span><span class="vt">인라인 검증</span><span class="vd">필드별 에러 · 별표(*) 필수</span><span class="sel-tag">✓ 선택됨</span></div>
+          <div class="v-demo">
+            <div class="field"><label>서비스 이름<span class="req-star">*</span></label><input class="inp" value="qwen-agent"></div>
+            <div class="field"><label>모델<span class="req-star">*</span></label>
+              <select class="inp err"><option>모델을 선택하세요</option></select>
+              <div class="err-msg">⚠ 모델을 선택해야 합니다</div>
+            </div>
+            <div class="field"><label>설명</label><input class="inp" placeholder="간단한 설명…"><div class="hint">최대 80자 · 마켓플레이스에 표시됩니다</div></div>
+            <div class="form-ft"><button class="btn outline">취소</button><button class="btn primary">발급</button></div>
+          </div>
+        </div>
+        <div class="variant">
+          <div class="v-label"><span class="pick">B</span><span class="vt">요약 검증</span><span class="vd">상단 요약 · "필수" 뱃지</span></div>
+          <div class="v-demo">
+            <div class="err-summary"><b>2개 항목</b>을 확인하세요 — 모델, 슬라이스 수</div>
+            <div class="field"><label>서비스 이름<span class="req-badge">필수</span></label><input class="inp" value="qwen-agent"></div>
+            <div class="field"><label>모델<span class="req-badge">필수</span></label><select class="inp err"><option>모델을 선택하세요</option></select></div>
+            <div class="field"><label>설명</label><input class="inp" placeholder="간단한 설명…"></div>
+            <div class="form-ft"><button class="btn outline">취소</button><button class="btn primary">발급</button></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="footer">
+    <p>→ 다음: <b>Q12. 상태 디자인 (로딩·에러·토스트)</b></p>
+    <div class="ask">골라주세요 — 예: <code>테이블 A · 폼 B</code></div>
+  </div>
+
+<script>
+  const rows=[
+    ['qwen-agent','Agent','Qwen2.5',92,'승인','ok','2026-06-01'],
+    ['doc-summary','요약','Llama3',64,'대기','warn','2026-06-02'],
+    ['vision-ocr','OCR','InternVL',8,'반려','danger','2026-05-28'],
+    ['code-helper','Agent','DeepSeek',77,'승인','ok','2026-06-03'],
+    ['translate-api','번역','Qwen2.5',55,'승인','ok','2026-05-30'],
+    ['tts-voice','음성','XTTS',31,'대기','warn','2026-06-01'],
+    ['embed-svc','임베딩','BGE-m3',88,'승인','ok','2026-05-29'],
+    ['rerank-svc','리랭크','BGE',12,'반려','danger','2026-05-27'],
+    ['chat-bot','Agent','Qwen2.5',70,'승인','ok','2026-06-02'],
+    ['img-gen','이미지','SDXL',95,'승인','ok','2026-06-03'],
+  ];
+  const cols=[['서비스','s',0],['종류','s',1],['모델','s',2],['사용률','n',3],['상태','b',4]];
+  let sortKey=null,sortDir=1;
+
+  function sortRows(data){
+    if(sortKey===null) return data.slice();
+    return data.slice().sort((a,b)=>{
+      let x=a[sortKey],y=b[sortKey];
+      if(typeof x==='number') return (x-y)*sortDir;
+      return (''+x).localeCompare(''+y)*sortDir;
+    });
+  }
+  function head(){
+    return '<thead><tr>'+cols.map(c=>{
+      const ar=sortKey===c[2]?(sortDir>0?'▲':'▼'):'↕';
+      return `<th data-k="${c[2]}">${c[0]}<span class="ar">${ar}</span></th>`;
+    }).join('')+'<th class="act"></th></tr></thead>';
+  }
+  function body(data){
+    return '<tbody>'+data.map(r=>`<tr>
+      <td style="font-weight:600">${r[0]}</td>
+      <td class="mono">${r[1]}</td>
+      <td class="mono">${r[2]}</td>
+      <td>${r[3]}%</td>
+      <td><span class="badge ${r[5]}">${r[4]}</span></td>
+      <td><div class="row-act"><button class="ic-btn" title="편집">✎</button><button class="ic-btn" title="더보기">⋯</button></div></td>
+    </tr>`).join('')+'</tbody>';
+  }
+
+  // Table A: 5 rows + numbered pager
+  let pageA=1; const perA=5;
+  function renderA(){
+    const sorted=sortRows(rows);
+    const start=(pageA-1)*perA;
+    document.getElementById('tblA').innerHTML=head()+body(sorted.slice(start,start+perA));
+    const pages=Math.ceil(rows.length/perA);
+    let p='<button '+(pageA===1?'disabled':'')+' data-p="prev">‹</button>';
+    for(let i=1;i<=pages;i++) p+=`<button class="${i===pageA?'on':''}" data-p="${i}">${i}</button>`;
+    p+='<button '+(pageA===pages?'disabled':'')+' data-p="next">›</button>';
+    document.getElementById('pagerA').innerHTML=p;
+    bindHead('tblA',renderA);
+  }
+  document.getElementById('pagerA').addEventListener('click',e=>{
+    const b=e.target.closest('button'); if(!b)return;
+    const p=b.dataset.p; const pages=Math.ceil(rows.length/perA);
+    if(p==='prev')pageA=Math.max(1,pageA-1); else if(p==='next')pageA=Math.min(pages,pageA+1); else pageA=+p;
+    renderA();
+  });
+
+  // Table B: progressive "더 보기"
+  let shownB=5;
+  function renderB(){
+    const sorted=sortRows(rows);
+    document.getElementById('tblB').innerHTML=head()+body(sorted.slice(0,shownB));
+    const more=document.getElementById('moreB');
+    const rest=rows.length-shownB;
+    more.parentElement.style.display=rest>0?'block':'none';
+    more.textContent=`+ ${Math.min(5,rest)}개 더 보기 (${shownB}/${rows.length})`;
+    bindHead('tblB',renderB);
+  }
+  document.getElementById('moreB').addEventListener('click',()=>{shownB=Math.min(rows.length,shownB+5);renderB();});
+
+  function bindHead(tid,rerender){
+    document.querySelectorAll('#'+tid+' thead th[data-k]').forEach(th=>{
+      th.onclick=()=>{const k=+th.dataset.k; if(sortKey===k)sortDir*=-1; else{sortKey=k;sortDir=1;} rerender();};
+    });
+  }
+  renderA(); renderB();
+</script>
+<script src="nav.js"></script>
+</body>
+</html>

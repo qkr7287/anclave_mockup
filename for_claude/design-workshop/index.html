@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anclave 디자인 워크샵 — 진행 현황</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css">
+<style>
+  :root{--bg:#0d1117;--card:#161c26;--border:rgba(255,255,255,.07);--text:#e6edf3;--muted:#8b97a7;--faint:#6a7585;--accent:#6ea8fe;--ok:#3fb950}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:"Pretendard",system-ui,sans-serif;line-height:1.55;padding:44px 24px 80px}
+  .wrap{max-width:760px;margin:0 auto}
+  h1{font-size:26px;letter-spacing:-.5px}
+  .lead{color:var(--muted);font-size:14px;margin:6px 0 26px}
+  .ref{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:24px;font-size:13.5px}
+  .ref b{color:var(--accent)}
+  .ref code{background:#ffffff10;padding:2px 7px;border-radius:6px;font-size:12.5px}
+  .step{display:flex;align-items:flex-start;gap:14px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:15px 17px;margin-bottom:11px;text-decoration:none;color:inherit}
+  .step:hover{border-color:var(--accent)}
+  .step .n{width:30px;height:30px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px}
+  .step.done .n{background:rgba(63,185,80,.14);color:var(--ok)}
+  .step.now .n{background:rgba(110,168,254,.16);color:var(--accent)}
+  .step.todo{opacity:.55} .step.todo .n{background:#ffffff0d;color:var(--faint)}
+  .step .body{flex:1;min-width:0}
+  .step .t{font-weight:700;font-size:14.5px}
+  .step .pick{font-size:13px;margin-top:2px}
+  .step.done .pick{color:var(--ok)} .step.now .pick{color:var(--accent)} .step.todo .pick{color:var(--faint)}
+  .step .go{color:var(--faint);font-size:12px;align-self:center;flex-shrink:0}
+  .hint{color:var(--faint);font-size:12.5px;margin-top:18px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Anclave 디자인 워크샵</h1>
+  <p class="lead">UI/UX를 질문 하나씩 — 옵션을 실제 렌더로 보고 선택 → 누적. 각 질문 HTML은 이 폴더에 보관됨. 모두 확정되면 목업 구현.</p>
+
+  <div class="ref">📌 <b>자원맵 레퍼런스</b>: <code>http://192.168.0.63:33000/gpu-hosting</code> — 특히 자원맵 화면 설계에 적극 참고</div>
+
+  <a class="step done" href="q1-mood.html">
+    <div class="n">✓</div>
+    <div class="body"><div class="t">Q1 · 디자인 무드</div><div class="pick">선택: A · GitHub 다크 (외곽선 옅게) · 다크 메인 + 라이트 옵션 · 폰트 Pretendard · 밀도 균형</div></div>
+    <div class="go">보기 →</div>
+  </a>
+
+  <a class="step done" href="q2-layout.html">
+    <div class="n">✓</div>
+    <div class="body"><div class="t">Q2 · 앱 셸 레이아웃</div><div class="pick">선택: 2번 · 플랫 사이드바 + 미니 헤더 + 배경칠 활성</div></div>
+    <div class="go">보기 →</div>
+  </a>
+
+  <a class="step done" href="q3-cards-tables.html">
+    <div class="n">✓</div>
+    <div class="body"><div class="t">Q3 · 카드 &amp; 테이블</div><div class="pick">선택: 2번 · 솔리드 카드(채운 배경 + 그림자) · 진한 헤더 + zebra</div></div>
+    <div class="go">보기 →</div>
+  </a>
+
+  <a class="step done" href="q4-components.html">
+    <div class="n">✓</div>
+    <div class="body"><div class="t">Q4 · 컴포넌트 (배지·버튼·입력·탭)</div><div class="pick">선택: 모두 A · 채움 배지 · 아웃라인 보조 버튼 · 박스형 입력 · 언더라인 탭</div></div>
+    <div class="go">보기 →</div>
+  </a>
+  <a class="step done" href="q5-dataviz.html">
+    <div class="n">✓</div>
+    <div class="body"><div class="t">Q5 · 데이터 시각화 (게이지·차트·헬스그리드)</div><div class="pick">선택: 게이지 A(반원 아크) · 차트 A(영역 라인) · 헬스그리드 B(히트맵)</div></div>
+    <div class="go">보기 →</div>
+  </a>
+  <a class="step done" href="q6-wizard-modal-empty.html">
+    <div class="n">✓</div>
+    <div class="body"><div class="t">Q6 · 마법사·모달·빈 상태</div><div class="pick">선택: 마법사 B(세로 스텝) · 모달 A(센터) · 빈 상태 A(안내형)</div></div>
+    <div class="go">보기 →</div>
+  </a>
+  <a class="step done" href="q7-motion.html">
+    <div class="n">✓</div>
+    <div class="body"><div class="t">Q7 · 모션 / React Bits 포인트</div><div class="pick">선택: 모션 B (적극 · 포인트 절제 — 회전 보더 등 과한 효과 제외)</div></div>
+    <div class="go">보기 →</div>
+  </a>
+
+  <p class="lead" style="margin:22px 0 12px">상세 토큰 · 핵심 화면 (구현 직전 확정)</p>
+
+  <a class="step done" href="q8-tokens.html">
+    <div class="n">✓</div>
+    <div class="body"><div class="t">Q8 · 디자인 토큰</div><div class="pick">선택: 밀도/타이포 B(여유·본문 14.5px) · 데이터viz 색 A(블루 모노톤) · 코어 토큰 확정</div></div>
+    <div class="go">보기 →</div>
+  </a>
+  <a class="step done" href="q9-icons.html">
+    <div class="n">✓</div>
+    <div class="body"><div class="t">Q9 · 아이콘</div><div class="pick">선택: B · filled(솔리드 실루엣)</div></div>
+    <div class="go">보기 →</div>
+  </a>
+  <a class="step done" href="q10-resourcemap.html">
+    <div class="n">✓</div>
+    <div class="body"><div class="t">Q10 · 헥사곤 자원맵 상세</div><div class="pick">선택: 타일 A(여유) · 블루-퍼플 그라데이션 · 선택 테두리+글로우 · VRAM 스펙트럼 · 구현은 hex 라이브러리</div></div>
+    <div class="go">보기 →</div>
+  </a>
+  <a class="step done" href="q11-table-form.html">
+    <div class="n">✓</div>
+    <div class="body"><div class="t">Q11 · 테이블·폼 인터랙션</div><div class="pick">선택: 테이블 A(번호 페이저·액션 상시) · 폼 A(인라인 검증·별표 필수)</div></div>
+    <div class="go">보기 →</div>
+  </a>
+  <a class="step done" href="q12-states.html">
+    <div class="n">✓</div>
+    <div class="body"><div class="t">Q12 · 상태 디자인</div><div class="pick">선택: 로딩 A(스켈레톤) · 토스트 A(우측 상단) · 에러/권한없음 확정안</div></div>
+    <div class="go">보기 →</div>
+  </a>
+  <a class="step done" href="q13-content-visual.html">
+    <div class="n">✓</div>
+    <div class="body"><div class="t">Q13 · 콘텐츠 화면 비주얼</div><div class="pick">선택: 비주얼 A(절제) · 콘텐츠 화면만 은은한 글로우+gradient 로고 · 데이터 화면은 모션 최소</div></div>
+    <div class="go">보기 →</div>
+  </a>
+
+  <p class="lead" style="margin:22px 0 12px">추가 상세 (구현 품질용)</p>
+
+  <a class="step done" href="q14-lightmode.html">
+    <div class="n">✓</div>
+    <div class="body"><div class="t">Q14 · 라이트 모드</div><div class="pick">선택: B(소프트 그레이 · 연한 선) · 캔버스 #eef1f5 / 카드 #fbfcfd / 보더 #e4e8ee</div></div>
+    <div class="go">보기 →</div>
+  </a>
+  <a class="step done" href="q15-charts.html">
+    <div class="n">✓</div>
+    <div class="body"><div class="t">Q15 · 차트 디테일</div><div class="pick">선택: A(미니멀) · 축 라벨만·그리드 없음 · hover 툴팁(수직선+점+값) 공통</div></div>
+    <div class="go">보기 →</div>
+  </a>
+  <a class="step done" href="q16-responsive.html">
+    <div class="n">✓</div>
+    <div class="body"><div class="t">Q16 · 반응형</div><div class="pick">선택: 데스크톱 우선 · BP 1024/768 · 사이드바 풀→아이콘→숨김 · 모바일 내비 A(드로어)</div></div>
+    <div class="go">보기 →</div>
+  </a>
+  <a class="step done" href="q17-microcopy.html">
+    <div class="n">✓</div>
+    <div class="body"><div class="t">Q17 · 마이크로카피</div><div class="pick">선택: 어조 A(친근한 존댓말) · 용어 사전 확정(GPU·자원·슬라이스·서비스·모델·발급 등)</div></div>
+    <div class="go">보기 →</div>
+  </a>
+
+  <a class="step done" href="q18-header.html">
+    <div class="n">✓</div>
+    <div class="body"><div class="t">Q18 · 헤더 구성</div><div class="pick">선택: 검색 A(인풋 상시) · 알림 벨 드롭다운·역할 전환(A/B=C)·프로필·테마 토글 확정</div></div>
+    <div class="go">보기 →</div>
+  </a>
+  <a class="step done" href="q19-cmdk.html">
+    <div class="n">✓</div>
+    <div class="body"><div class="t">Q19 · 명령 팔레트 ⌘K</div><div class="pick">선택: B(탐색 전용) · 서비스·GPU·페이지 이동만 · 첫 항목 하이라이트·키보드 네비</div></div>
+    <div class="go">보기 →</div>
+  </a>
+  <a class="step done" href="q20-filters.html">
+    <div class="n">✓</div>
+    <div class="body"><div class="t">Q20 · 필터 &amp; 날짜·숫자 포맷</div><div class="pick">선택: 필터 B(드롭다운 패널·칩 토글) · 포맷 확정(상대시간·ISO·천단위·약어·% ·GB/MiB)</div></div>
+    <div class="go">보기 →</div>
+  </a>
+  <a class="step done" href="q21-events.html">
+    <div class="n">✓</div>
+    <div class="body"><div class="t">Q21 · 알림/이벤트 센터</div><div class="pick">선택: A(타임라인 + 검색·심각도 필터·기간) · 심각도 위험/경고/정보/복구 · 안읽음 강조</div></div>
+    <div class="go">보기 →</div>
+  </a>
+  <a class="step done" href="q22-a11y.html">
+    <div class="n">✓</div>
+    <div class="body"><div class="t">Q22 · 접근성</div><div class="pick">선택: 포커스 A(링만) · 커스텀 단축키 없음(기본 키만) · WCAG AA·키보드 접근·포커스 트랩 등</div></div>
+    <div class="go">보기 →</div>
+  </a>
+  <a class="step done" href="q23-bulk.html">
+    <div class="n">✓</div>
+    <div class="body"><div class="t">Q23 · 벌크 액션 &amp; undo</div><div class="pick">선택: 액션바 A(상단) · 선택 행 강조 · undo 토스트(6초)·위험작업 확인모달+undo</div></div>
+    <div class="go">보기 →</div>
+  </a>
+
+  <a class="step done" href="q24-form-controls.html">
+    <div class="n">✓</div>
+    <div class="body"><div class="t">Q24 · 폼 컨트롤 세트</div><div class="pick">선택: 멀티셀렉트 B(검색+그룹 드롭다운) · 토글·슬라이더·라디오·날짜·스테퍼 확정</div></div>
+    <div class="go">보기 →</div>
+  </a>
+
+  <div class="ref" style="margin-top:18px;border-color:rgba(63,185,80,.3)">✅ <b style="color:#3fb950">디자인 워크샵 24문항 전부 완료</b> — §9에 누적 + 'AI 티 금지' & '콘텐츠 밀도(HyperCube 수준)' 전체 원칙. 다음: 공통 셸 → 자원맵 → 대시보드 순 목업 구현.</div>
+
+  <p class="hint">확정 내용은 정본 <code>Anclave-시스템정리.html</code> §9에 누적 기록됩니다.</p>
+</div>
+</body>
+</html>

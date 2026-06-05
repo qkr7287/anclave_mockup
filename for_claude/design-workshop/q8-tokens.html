@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anclave 디자인 — Q8. 디자인 토큰</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css">
+<style>
+  :root{
+    --bg:#0d1117;--soft:#10151c;--card:#161c26;--card2:#1c2430;--border:rgba(255,255,255,.07);
+    --text:#e6edf3;--muted:#8b97a7;--faint:#6a7585;--accent:#6ea8fe;--accent-soft:rgba(110,168,254,.12);
+    --on-accent:#08111f;--ok:#3fb950;--warn:#d29922;--danger:#f85149;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0a0d12;color:var(--text);font-family:"Pretendard",system-ui,sans-serif;line-height:1.5;padding:32px 24px 80px}
+  .page-head{max-width:1080px;margin:0 auto 26px}
+  .page-head .q{display:inline-block;background:var(--accent);color:var(--on-accent);font-weight:800;font-size:12px;padding:3px 10px;border-radius:20px;letter-spacing:.5px}
+  .page-head h1{font-size:24px;margin:12px 0 6px;letter-spacing:-.4px}
+  .page-head p{color:var(--muted);font-size:14px}
+  .wrap{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:30px}
+
+  .sec-head{display:flex;align-items:baseline;gap:10px;margin-bottom:13px}
+  .sec-head .nm{font-size:16px;font-weight:700}
+  .sec-head .desc{color:var(--faint);font-size:12.5px}
+  .variants{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .variant{background:var(--card2);border:1px solid var(--border);border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.35);overflow:hidden}
+  .variant.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),0 2px 12px rgba(0,0,0,.4)}
+  .sel-tag{margin-left:auto;color:#3fb950;font-weight:800;font-size:11.5px}
+  .v-label{display:flex;align-items:center;gap:10px;padding:11px 16px;background:#11161e;border-bottom:1px solid var(--border);font-size:12.5px}
+  .v-label .pick{background:#1b232f;color:#cfd6df;font-weight:800;width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px}
+  .v-label .vt{font-weight:700}
+  .v-label .vd{color:var(--faint);font-size:11.5px}
+  .v-demo{padding:20px 18px}
+
+  /* type scale rows */
+  .type-row{display:flex;align-items:baseline;gap:12px;padding:6px 0;border-bottom:1px solid var(--border)}
+  .type-row:last-child{border-bottom:none}
+  .type-row .tk{color:var(--faint);font-size:11px;font-family:ui-monospace,monospace;width:118px;flex-shrink:0}
+
+  /* density preview */
+  .dp-card{background:var(--soft);border:1px solid var(--border);border-radius:10px;margin-top:14px}
+  .mini-metric{display:flex;justify-content:space-between;align-items:center}
+  .mini-metric .mv{font-weight:800;letter-spacing:-.4px}
+  .mini-metric .ml{color:var(--muted)}
+
+  /* A compact */
+  .dA .t-h1{font-size:22px;font-weight:800;letter-spacing:-.4px}
+  .dA .t-h2{font-size:17px;font-weight:700}
+  .dA .t-h3{font-size:14px;font-weight:700}
+  .dA .t-body{font-size:13px}
+  .dA .t-cap{font-size:11.5px;color:var(--muted)}
+  .dA .dp-card{padding:13px 14px}
+  .dA .dp-card+.dp-card{margin-top:8px}
+  .dA .mini-metric .mv{font-size:21px}
+  .dA .mini-metric .ml{font-size:12px}
+
+  /* B roomy */
+  .dB .t-h1{font-size:27px;font-weight:800;letter-spacing:-.5px}
+  .dB .t-h2{font-size:20px;font-weight:700}
+  .dB .t-h3{font-size:16px;font-weight:700}
+  .dB .t-body{font-size:14.5px}
+  .dB .t-cap{font-size:12.5px;color:var(--muted)}
+  .dB .dp-card{padding:18px 18px}
+  .dB .dp-card+.dp-card{margin-top:12px}
+  .dB .mini-metric .mv{font-size:26px}
+  .dB .mini-metric .ml{font-size:13.5px}
+
+  /* dataviz chart */
+  .legend{display:flex;gap:14px;margin-bottom:12px;flex-wrap:wrap}
+  .legend span{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+  .legend i{width:11px;height:11px;border-radius:3px;display:inline-block}
+  .grp-chart{display:flex;align-items:flex-end;gap:14px;height:120px;padding-top:6px}
+  .grp{flex:1;display:flex;align-items:flex-end;justify-content:center;gap:5px;height:100%}
+  .grp b{flex:1;max-width:16px;border-radius:4px 4px 0 0;display:block}
+  .grp-x{display:flex;gap:14px;margin-top:7px}
+  .grp-x span{flex:1;text-align:center;font-size:11px;color:var(--faint)}
+
+  /* token swatches */
+  .tok-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:22px}
+  .tok-block .tt{font-size:12px;font-weight:700;color:var(--muted);margin-bottom:9px;text-transform:uppercase;letter-spacing:.4px}
+  .sw{display:flex;align-items:center;gap:10px;padding:6px 0}
+  .sw .chip{width:30px;height:30px;border-radius:8px;border:1px solid var(--border);flex-shrink:0}
+  .sw .nm{font-size:12.5px}
+  .sw .hex{margin-left:auto;font-size:11.5px;color:var(--faint);font-family:ui-monospace,monospace}
+  .scale-row{display:flex;align-items:center;gap:10px;padding:5px 0;font-size:12.5px}
+  .scale-row .bar{height:14px;background:var(--accent-soft);border:1px solid rgba(110,168,254,.3);border-radius:4px}
+  .scale-row .lb{width:74px;color:var(--muted);font-family:ui-monospace,monospace;font-size:11.5px}
+  .confirmed-card{background:var(--card2);border:1px solid var(--border);border-radius:14px;padding:22px 20px}
+
+  .footer{max-width:1080px;margin:30px auto 0;color:var(--muted);font-size:13.5px}
+  .footer b{color:#ccd}
+  .footer .ask{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-top:10px;font-size:13px;color:var(--text)}
+  .footer .ask code{background:#ffffff10;padding:2px 7px;border-radius:6px;font-size:12.5px;color:var(--accent)}
+</style>
+</head>
+<body>
+  <div class="page-head">
+    <span class="q">Q8 / 디자인 토큰</span> <span style="display:inline-block;background:rgba(63,185,80,.13);color:#3fb950;font-weight:800;font-size:12px;padding:3px 11px;border-radius:20px;margin-left:6px">✓ 선택: 밀도 B · 색 A</span>
+    <h1>밀도 · 타이포 · 색 토큰을 확정해요</h1>
+    <p>이후 모든 화면의 기준이 되는 값들. <b style="color:#6ea8fe">밀도/타이포</b>와 <b style="color:#6ea8fe">데이터viz 색</b>만 A/B로 고르면 되고, 코어 색·라운드·간격은 아래 확정값으로 굳힙니다.</p>
+  </div>
+
+  <div class="wrap">
+
+    <!-- DENSITY & TYPE -->
+    <section>
+      <div class="sec-head"><span class="nm">밀도 &amp; 타이포 스케일</span><span class="desc">대시보드는 정보량 많음 · 가독성과 균형</span></div>
+      <div class="variants">
+        <div class="variant">
+          <div class="v-label"><span class="pick">A</span><span class="vt">컴팩트 (데이터 친화)</span><span class="vd">한 화면에 많이 · 본문 13px</span></div>
+          <div class="v-demo dA">
+            <div class="type-row"><span class="tk">H1 / 22·800</span><span class="t-h1">자원 현황</span></div>
+            <div class="type-row"><span class="tk">H2 / 17·700</span><span class="t-h2">서비스 목록</span></div>
+            <div class="type-row"><span class="tk">H3 / 14·700</span><span class="t-h3">GPU 사용률</span></div>
+            <div class="type-row"><span class="tk">Body / 13·400</span><span class="t-body">qwen-agent · Qwen2.5 기반 에이전트</span></div>
+            <div class="type-row"><span class="tk">Caption / 11.5</span><span class="t-cap">최근 업데이트 2분 전</span></div>
+            <div class="dp-card"><div class="mini-metric"><span class="ml">가동 GPU</span><span class="mv">18 / 24</span></div></div>
+            <div class="dp-card"><div class="mini-metric"><span class="ml">평균 사용률</span><span class="mv">62%</span></div></div>
+          </div>
+        </div>
+        <div class="variant sel">
+          <div class="v-label"><span class="pick">B</span><span class="vt">여유 (가독성 우선)</span><span class="vd">크고 넉넉 · 본문 14.5px</span><span class="sel-tag">✓ 선택됨</span></div>
+          <div class="v-demo dB">
+            <div class="type-row"><span class="tk">H1 / 27·800</span><span class="t-h1">자원 현황</span></div>
+            <div class="type-row"><span class="tk">H2 / 20·700</span><span class="t-h2">서비스 목록</span></div>
+            <div class="type-row"><span class="tk">H3 / 16·700</span><span class="t-h3">GPU 사용률</span></div>
+            <div class="type-row"><span class="tk">Body / 14.5·400</span><span class="t-body">qwen-agent · Qwen2.5 기반 에이전트</span></div>
+            <div class="type-row"><span class="tk">Caption / 12.5</span><span class="t-cap">최근 업데이트 2분 전</span></div>
+            <div class="dp-card"><div class="mini-metric"><span class="ml">가동 GPU</span><span class="mv">18 / 24</span></div></div>
+            <div class="dp-card"><div class="mini-metric"><span class="ml">평균 사용률</span><span class="mv">62%</span></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- DATAVIZ COLOR -->
+    <section>
+      <div class="sec-head"><span class="nm">데이터 시각화 색</span><span class="desc">차트·게이지·히트맵의 색 운용</span></div>
+      <div class="variants">
+        <div class="variant sel">
+          <div class="v-label"><span class="pick">A</span><span class="vt">블루 모노톤</span><span class="vd">한 색 명도 단계 · 차분·통일</span><span class="sel-tag">✓ 선택됨</span></div>
+          <div class="v-demo">
+            <div class="legend">
+              <span><i style="background:#6ea8fe"></i>qwen</span><span><i style="background:#4f86db"></i>llama</span><span><i style="background:#3a64ad"></i>intern</span>
+            </div>
+            <div class="grp-chart" id="mono"></div>
+            <div class="grp-x"><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span></div>
+          </div>
+        </div>
+        <div class="variant">
+          <div class="v-label"><span class="pick">B</span><span class="vt">카테고리 멀티</span><span class="vd">계열별 다른 색 · 구분 쉬움</span></div>
+          <div class="v-demo">
+            <div class="legend">
+              <span><i style="background:#6ea8fe"></i>qwen</span><span><i style="background:#3fb9b0"></i>llama</span><span><i style="background:#a98bff"></i>intern</span>
+            </div>
+            <div class="grp-chart" id="multi"></div>
+            <div class="grp-x"><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CONFIRMED CORE TOKENS -->
+    <section>
+      <div class="sec-head"><span class="nm">코어 토큰</span><span class="desc">확정값 — 무드 A 기반, 선택 불필요</span></div>
+      <div class="confirmed-card">
+        <div class="tok-grid">
+          <div class="tok-block">
+            <div class="tt">표면 / 라인</div>
+            <div class="sw"><span class="chip" style="background:#0d1117"></span><span class="nm">배경 bg</span><span class="hex">#0d1117</span></div>
+            <div class="sw"><span class="chip" style="background:#161c26"></span><span class="nm">카드 card</span><span class="hex">#161c26</span></div>
+            <div class="sw"><span class="chip" style="background:#1c2430"></span><span class="nm">솔리드 카드</span><span class="hex">#1c2430</span></div>
+            <div class="sw"><span class="chip" style="background:#2b3340"></span><span class="nm">보더 border</span><span class="hex">rgba(255,255,255,.07)</span></div>
+          </div>
+          <div class="tok-block">
+            <div class="tt">강조 / 상태</div>
+            <div class="sw"><span class="chip" style="background:#6ea8fe"></span><span class="nm">액센트 accent</span><span class="hex">#6ea8fe</span></div>
+            <div class="sw"><span class="chip" style="background:#3fb950"></span><span class="nm">정상 ok</span><span class="hex">#3fb950</span></div>
+            <div class="sw"><span class="chip" style="background:#d29922"></span><span class="nm">주의 warn</span><span class="hex">#d29922</span></div>
+            <div class="sw"><span class="chip" style="background:#f85149"></span><span class="nm">위험 danger</span><span class="hex">#f85149</span></div>
+          </div>
+          <div class="tok-block">
+            <div class="tt">간격 (4px 베이스)</div>
+            <div class="scale-row"><span class="lb">xs · 4</span><span class="bar" style="width:4px"></span></div>
+            <div class="scale-row"><span class="lb">sm · 8</span><span class="bar" style="width:8px"></span></div>
+            <div class="scale-row"><span class="lb">md · 12</span><span class="bar" style="width:12px"></span></div>
+            <div class="scale-row"><span class="lb">lg · 16</span><span class="bar" style="width:16px"></span></div>
+            <div class="scale-row"><span class="lb">xl · 24</span><span class="bar" style="width:24px"></span></div>
+          </div>
+          <div class="tok-block">
+            <div class="tt">라운드 · 섀도</div>
+            <div class="scale-row"><span class="lb">버튼/배지</span><span style="width:30px;height:22px;background:#1c2430;border:1px solid var(--border);border-radius:8px"></span><span style="color:var(--faint);font-size:11.5px">8px</span></div>
+            <div class="scale-row"><span class="lb">카드</span><span style="width:36px;height:24px;background:#1c2430;border:1px solid var(--border);border-radius:12px"></span><span style="color:var(--faint);font-size:11.5px">12px</span></div>
+            <div class="scale-row"><span class="lb">큰 카드</span><span style="width:40px;height:26px;background:#1c2430;border:1px solid var(--border);border-radius:14px"></span><span style="color:var(--faint);font-size:11.5px">14px</span></div>
+            <div class="scale-row"><span class="lb">섀도</span><span style="width:46px;height:26px;background:#1c2430;border:1px solid var(--border);border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,.45)"></span><span style="color:var(--faint);font-size:11.5px">0 2 10 /.35</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="footer">
+    <p>→ 다음 후보: 헥사곤 자원맵 상세 · 아이콘 · 테이블/폼 인터랙션 · 상태 디자인</p>
+    <div class="ask">골라주세요 — 예: <code>밀도 A · 색 B</code> (코어 토큰은 그대로 확정)</div>
+  </div>
+
+<script>
+  // grouped bars: 5 days x 3 series
+  const data=[[60,45,30],[72,52,38],[55,60,42],[80,58,35],[68,64,48]];
+  const monoC=['#6ea8fe','#4f86db','#3a64ad'];
+  const multiC=['#6ea8fe','#3fb9b0','#a98bff'];
+  function chart(el,cols){
+    el.innerHTML=data.map(day=>`<div class="grp">${day.map((v,i)=>`<b style="height:${v}%;background:${cols[i]}"></b>`).join('')}</div>`).join('');
+  }
+  chart(document.getElementById('mono'),monoC);
+  chart(document.getElementById('multi'),multiC);
+</script>
+<script src="nav.js"></script>
+</body>
+</html>

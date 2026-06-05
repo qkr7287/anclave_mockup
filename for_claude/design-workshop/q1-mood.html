@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anclave 디자인 — Q1. 무드 (선택: A)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#101013;color:#e8e8ea;font-family:"Pretendard",system-ui,sans-serif;line-height:1.5;padding:32px 24px 80px}
+  .page-head{max-width:1280px;margin:0 auto 28px}
+  .page-head .q{display:inline-block;background:#6ea8fe;color:#08111f;font-weight:800;font-size:12px;padding:3px 10px;border-radius:20px;letter-spacing:.5px}
+  .page-head .done{display:inline-block;background:rgba(63,185,80,.13);color:#3fb950;font-weight:800;font-size:12px;padding:3px 11px;border-radius:20px;margin-left:6px}
+  .page-head h1{font-size:24px;margin:12px 0 6px;letter-spacing:-.4px}
+  .page-head p{color:#9a9aa2;font-size:14px}
+  .moods{max-width:1280px;margin:0 auto;display:flex;flex-direction:column;gap:24px}
+  .mood{border-radius:18px;overflow:hidden;border:1px solid #26262c}
+  .mood.sel{border-color:#6ea8fe;box-shadow:0 0 0 1px #6ea8fe}
+  .mood-label{display:flex;align-items:center;gap:12px;padding:11px 18px;background:#191920;border-bottom:1px solid #26262c;font-size:13px;flex-wrap:wrap}
+  .mood-label .pick{background:#26262c;color:#cfcfd6;font-weight:800;width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px}
+  .mood.sel .mood-label .pick{background:#6ea8fe;color:#08111f}
+  .mood-label .nm{font-weight:700;font-size:14px}
+  .mood-label .sw{display:inline-flex;align-items:center;gap:6px;color:#8a8a92;font-size:12px}
+  .mood-label .dot{width:13px;height:13px;border-radius:4px;display:inline-block;border:1px solid #0003}
+  .demos{display:flex;flex-wrap:wrap}
+  .demo{flex:1;min-width:380px;position:relative;background:var(--bg);color:var(--text);display:flex;min-height:330px;font-size:13px}
+  .demo.light{border-left:1px solid #26262c}
+  .demo::before{content:attr(data-mode);position:absolute;top:8px;right:10px;z-index:2;font-size:10px;font-weight:700;letter-spacing:.5px;padding:2px 8px;border-radius:10px;background:var(--tag-bg);color:var(--tag-fg);opacity:.9}
+  .side{width:164px;background:var(--soft);border-right:1px solid var(--border);padding:15px 11px;flex-shrink:0}
+  .logo{font-weight:800;font-size:15px;letter-spacing:-.3px;margin:2px 6px 14px;color:var(--text)}
+  .logo span{color:var(--accent)}
+  .nav{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:9px;color:var(--muted);font-size:12px;margin-bottom:2px}
+  .nav .ic{width:7px;height:7px;border-radius:2px;background:var(--muted);opacity:.6}
+  .nav.active{background:var(--active);color:var(--text)}
+  .nav.active .ic{background:var(--accent);opacity:1}
+  .content{flex:1;padding:16px 18px;min-width:0}
+  .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px;flex-wrap:wrap}
+  .title{font-weight:700;font-size:14px;color:var(--text)}
+  .title small{color:var(--muted);font-weight:400;margin-left:6px;font-size:11.5px}
+  .actions{display:flex;align-items:center;gap:7px}
+  .btn{border:1px solid var(--border);background:transparent;color:var(--text);font-family:inherit;font-size:12px;padding:6px 12px;border-radius:8px;cursor:pointer;font-weight:600}
+  .btn.primary{background:var(--accent);color:var(--on-accent);border-color:transparent;box-shadow:var(--accent-glow)}
+  .badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700}
+  .badge.ok{background:var(--ok-bg);color:var(--ok)} .badge.warn{background:var(--warn-bg);color:var(--warn)} .badge.danger{background:var(--danger-bg);color:var(--danger)}
+  .cards{display:grid;grid-template-columns:1fr 1.3fr 1fr;gap:11px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:12px 13px;backdrop-filter:var(--blur)}
+  .card-t{font-size:11px;color:var(--muted);margin-bottom:8px;font-weight:600}
+  .gauge-wrap{display:flex;flex-direction:column;align-items:center}
+  .gauge-val{font-size:21px;font-weight:800;color:var(--text);margin-top:-6px}
+  .gauge-val small{font-size:11px;color:var(--muted);font-weight:600}
+  .health{display:grid;grid-template-columns:repeat(6,1fr);gap:5px}
+  .gpu{aspect-ratio:1;border-radius:4px;background:var(--inactive)}
+  .gpu.ok{background:var(--ok)} .gpu.warn{background:var(--warn)} .gpu.dn{background:var(--danger)}
+  table{width:100%;border-collapse:collapse;font-size:11.5px}
+  th,td{text-align:left;padding:5px 7px;border-bottom:1px solid var(--border);color:var(--text)}
+  th{color:var(--muted);font-weight:600;font-size:10.5px}
+  td .badge{font-size:10px;padding:1px 7px}
+  .spark{width:100%;height:70px}
+  .legend-bar{display:flex;gap:7px;margin-top:11px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+  <div class="page-head">
+    <span class="q">Q1 / 디자인</span><span class="done">✓ 선택: A · GitHub 다크 (외곽선 옅게)</span>
+    <h1>어느 무드가 끌리나요?</h1>
+    <p>같은 화면을 무드 3종 × 다크/라이트로 렌더. <b>A · GitHub 다크</b> 선택됨 (다크 메인 + 라이트 옵션, 폰트 Pretendard).</p>
+  </div>
+  <div class="moods" id="moods"></div>
+
+<script>
+  const moods = [
+    { id:'A', name:'GitHub 다크', hex:'#0d1117 / #6ea8fe', cls:'a', sel:true },
+    { id:'B', name:'Linear 딥퍼플', hex:'#0b0a12 / #8b7cff', cls:'b', sel:false },
+    { id:'C', name:'Vercel 고대비', hex:'#000000 / #00d8ff', cls:'c', sel:false },
+  ];
+  function gauge(){ return `<svg viewBox="0 0 120 68" width="124"><path d="M12 62 A48 48 0 0 1 108 62" fill="none" stroke="var(--track)" stroke-width="11" stroke-linecap="round"/><path d="M12 62 A48 48 0 0 1 108 62" fill="none" stroke="var(--accent)" stroke-width="11" stroke-linecap="round" stroke-dasharray="150" stroke-dashoffset="92"/></svg>`; }
+  function spark(){ const pts="0,55 14,48 28,52 42,38 56,44 70,30 84,36 98,22 112,28 126,18 140,24 154,14"; return `<svg class="spark" viewBox="0 0 154 74" preserveAspectRatio="none"><polyline points="${pts} 154,74 0,74" fill="var(--spark-fill)" stroke="none"/><polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="2.2"/></svg>`; }
+  const H = ['ok','ok','ok','dn','ok','ok','ok','warn','ok','ok','dn','ok','ok','ok','ok','ok','ok','dn'];
+  function health(){ return `<div class="health">${H.map(c=>`<div class="gpu ${c}"></div>`).join('')}</div>`; }
+  function shell(){
+    return `<aside class="side"><div class="logo">Anclave<span>.</span></div>
+        <div class="nav active"><span class="ic"></span>자원맵</div><div class="nav"><span class="ic"></span>마켓플레이스</div>
+        <div class="nav"><span class="ic"></span>신청 관리</div><div class="nav"><span class="ic"></span>승인 관리</div><div class="nav"><span class="ic"></span>대시보드</div></aside>
+      <main class="content"><div class="topbar"><div class="title">자원맵 <small>· srv-01 / GPU 6</small></div>
+          <div class="actions"><span class="badge ok">정상</span><button class="btn">필터</button><button class="btn primary">새 신청</button></div></div>
+        <div class="cards"><div class="card"><div class="card-t">GPU 온도</div><div class="gauge-wrap">${gauge()}<div class="gauge-val">34<small>°C</small></div></div></div>
+          <div class="card"><div class="card-t">전력 추이 (W)</div>${spark()}</div><div class="card"><div class="card-t">GPU 헬스</div>${health()}</div>
+          <div class="card" style="grid-column:1/-1"><div class="card-t">서비스</div><table>
+              <tr><th>서비스</th><th>모델</th><th>API</th><th>상태</th></tr>
+              <tr><td>qwen-agent</td><td>Qwen2.5</td><td>✓</td><td><span class="badge ok">승인</span></td></tr>
+              <tr><td>doc-summary</td><td>Llama3</td><td>✓</td><td><span class="badge warn">대기</span></td></tr>
+              <tr><td>vision-ocr</td><td>InternVL</td><td>—</td><td><span class="badge danger">반려</span></td></tr></table>
+            <div class="legend-bar"><span class="badge ok">승인</span><span class="badge warn">대기</span><span class="badge danger">반려</span></div></div></div></main>`;
+  }
+  document.getElementById('moods').innerHTML = moods.map(m=>`
+    <div class="mood ${m.cls} ${m.sel?'sel':''}">
+      <div class="mood-label"><span class="pick">${m.id}</span><span class="nm">${m.name}</span>
+        <span class="sw"><span class="dot" style="background:${m.hex.split(' / ')[0]}"></span>${m.hex.split(' / ')[0]}</span>
+        <span class="sw"><span class="dot" style="background:${m.hex.split(' / ')[1]}"></span>${m.hex.split(' / ')[1]}</span>
+        ${m.sel?'<span style="margin-left:auto;color:#3fb950;font-weight:800;font-size:12px">✓ 선택됨</span>':'<span style="margin-left:auto;color:#7a7a82;font-size:11.5px">← 다크 (메인) · 라이트 →</span>'}</div>
+      <div class="demos"><div class="demo dark" data-mode="DARK">${shell()}</div><div class="demo light" data-mode="LIGHT">${shell()}</div></div>
+    </div>`).join('');
+</script>
+<style>
+  .mood.a .demo.dark{--bg:#0d1117;--soft:#161b22;--card:#1c2330;--border:rgba(255,255,255,.07);--active:#222b3a;--text:#e6edf3;--muted:#8b97a7;--accent:#6ea8fe;--on-accent:#08111f;--accent-glow:none;--ok:#3fb950;--warn:#d29922;--danger:#f85149;--inactive:#3a4252;--ok-bg:rgba(63,185,80,.15);--warn-bg:rgba(210,153,34,.15);--danger-bg:rgba(248,81,73,.15);--track:#2a3343;--spark-fill:rgba(110,168,254,.12);--r:11px;--blur:none;--tag-bg:#ffffff14;--tag-fg:#cfd6df}
+  .mood.a .demo.light{--bg:#ffffff;--soft:#f6f8fa;--card:#ffffff;--border:#e4e8ec;--active:#eaeef2;--text:#1f2328;--muted:#636c76;--accent:#0969da;--on-accent:#fff;--accent-glow:none;--ok:#1a7f37;--warn:#9a6700;--danger:#cf222e;--inactive:#d0d7de;--ok-bg:rgba(26,127,55,.12);--warn-bg:rgba(154,103,0,.12);--danger-bg:rgba(207,34,46,.12);--track:#e1e6eb;--spark-fill:rgba(9,105,218,.1);--r:11px;--blur:none;--tag-bg:#00000010;--tag-fg:#57606a}
+  .mood.b .demo.dark{--bg:#0b0a12;--soft:#131120;--card:#1a1726cc;--border:#2a2540;--active:#221d36;--text:#ededf2;--muted:#8b8a99;--accent:#8b7cff;--on-accent:#0c0a18;--accent-glow:0 4px 16px rgba(139,124,255,.35);--ok:#4ade80;--warn:#fbbf24;--danger:#f87171;--inactive:#322c48;--ok-bg:rgba(74,222,128,.14);--warn-bg:rgba(251,191,36,.14);--danger-bg:rgba(248,113,113,.14);--track:#2a2540;--spark-fill:rgba(139,124,255,.14);--r:13px;--blur:blur(6px);--tag-bg:#ffffff14;--tag-fg:#d6d2ee}
+  .mood.b .demo.light{--bg:#faf9fd;--soft:#f3f1f9;--card:#ffffff;--border:#e7e3f2;--active:#efebf9;--text:#1a1823;--muted:#6b6878;--accent:#6d5cff;--on-accent:#fff;--accent-glow:0 4px 14px rgba(109,92,255,.25);--ok:#16a34a;--warn:#d97706;--danger:#dc2626;--inactive:#e0dcec;--ok-bg:rgba(22,163,74,.12);--warn-bg:rgba(217,119,6,.12);--danger-bg:rgba(220,38,38,.12);--track:#e7e3f2;--spark-fill:rgba(109,92,255,.1);--r:13px;--blur:none;--tag-bg:#00000010;--tag-fg:#6b6878}
+  .mood.b .demo.dark .card{background:linear-gradient(160deg,#1c1830cc,#15121f99)} .mood.b .demo.light .card{background:linear-gradient(160deg,#ffffff,#faf9fd)} .mood.b .demo .btn.primary{background:linear-gradient(135deg,#9b7cff,#6f5cff)}
+  .mood.c .demo.dark{--bg:#000000;--soft:#0a0a0a;--card:#0b0b0b;--border:#1f1f1f;--active:#141414;--text:#ffffff;--muted:#8a8a8a;--accent:#00d8ff;--on-accent:#001016;--accent-glow:0 0 14px rgba(0,216,255,.4);--ok:#00e599;--warn:#f5a623;--danger:#ff4d4d;--inactive:#222;--ok-bg:rgba(0,229,153,.13);--warn-bg:rgba(245,166,35,.13);--danger-bg:rgba(255,77,77,.13);--track:#1a1a1a;--spark-fill:rgba(0,216,255,.1);--r:8px;--blur:none;--tag-bg:#ffffff14;--tag-fg:#bbb}
+  .mood.c .demo.light{--bg:#ffffff;--soft:#fafafa;--card:#ffffff;--border:#eaeaea;--active:#f4f4f4;--text:#000000;--muted:#666666;--accent:#007a99;--on-accent:#fff;--accent-glow:none;--ok:#00936a;--warn:#b8740a;--danger:#e02424;--inactive:#e5e5e5;--ok-bg:rgba(0,147,106,.12);--warn-bg:rgba(184,116,10,.12);--danger-bg:rgba(224,36,36,.12);--track:#eeeeee;--spark-fill:rgba(0,122,153,.08);--r:8px;--blur:none;--tag-bg:#00000010;--tag-fg:#666}
+  .mood.c .demo .btn{border-color:var(--border)}
+</style>
+<script src="nav.js"></script>
+</body>
+</html>

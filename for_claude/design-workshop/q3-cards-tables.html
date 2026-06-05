@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anclave 디자인 — Q3. 카드 & 테이블</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css">
+<style>
+  :root{--bg:#0d1117;--soft:#10151c;--card:#161c26;--card2:#19202b;--border:rgba(255,255,255,.07);--border-s:rgba(255,255,255,.045);
+    --text:#e6edf3;--muted:#8b97a7;--faint:#6a7585;--accent:#6ea8fe;--accent-soft:rgba(110,168,254,.12);--on-accent:#08111f;
+    --ok:#3fb950;--ok-bg:rgba(63,185,80,.14);--warn:#d29922;--warn-bg:rgba(210,153,34,.14);--danger:#f85149;--danger-bg:rgba(248,81,73,.14)}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0a0d12;color:var(--text);font-family:"Pretendard",system-ui,sans-serif;line-height:1.5;padding:32px 24px 80px}
+  .page-head{max-width:1080px;margin:0 auto 26px}
+  .page-head .q{display:inline-block;background:var(--accent);color:var(--on-accent);font-weight:800;font-size:12px;padding:3px 10px;border-radius:20px;letter-spacing:.5px}
+  .page-head h1{font-size:24px;margin:12px 0 6px;letter-spacing:-.4px}
+  .page-head p{color:var(--muted);font-size:14px}
+  .wrap{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+  .opt{border:1px solid var(--border);border-radius:16px;overflow:hidden}
+  .opt.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+  .opt-label{display:flex;align-items:center;gap:11px;padding:11px 18px;background:#11161e;border-bottom:1px solid var(--border);font-size:13px}
+  .opt-label .pick{background:#1b232f;color:#cfd6df;font-weight:800;width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px}
+  .opt-label .nm{font-weight:700;font-size:14px}
+  .opt-label .desc{color:var(--faint);font-size:12px}
+  .demo{background:var(--bg);padding:20px}
+
+  /* metric + chart cards */
+  .top{display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:13px;margin-bottom:16px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:12px}
+  .metric{padding:15px 16px}
+  .metric .mt{font-size:12px;color:var(--muted);font-weight:600;margin-bottom:9px}
+  .metric .mv{font-size:27px;font-weight:800;letter-spacing:-.5px}
+  .metric .mv small{font-size:14px;color:var(--muted);font-weight:600}
+  .metric .delta{font-size:11.5px;color:var(--ok);margin-top:3px}
+  .bar{height:6px;background:var(--soft);border-radius:4px;margin-top:11px;overflow:hidden}
+  .bar i{display:block;height:100%;background:var(--accent);border-radius:4px}
+  .chart{padding:15px 16px}
+  .chart .mt{font-size:12px;color:var(--muted);font-weight:600;margin-bottom:6px}
+  .spark{width:100%;height:64px}
+
+  /* table */
+  .tbl-card{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+  .tbl-hd{display:flex;align-items:center;justify-content:space-between;padding:13px 16px}
+  .tbl-hd .tt{font-weight:700;font-size:14px}
+  .tbl-hd .ta{display:flex;gap:7px}
+  .btn{border:1px solid var(--border);background:transparent;color:var(--text);font-family:inherit;font-size:12px;padding:6px 12px;border-radius:8px;cursor:pointer;font-weight:600}
+  .btn.primary{background:var(--accent);color:var(--on-accent);border-color:transparent}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:10px 16px}
+  th{color:var(--muted);font-weight:600;font-size:11.5px}
+  .badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:11.5px;font-weight:700}
+  .badge.ok{background:var(--ok-bg);color:var(--ok)} .badge.warn{background:var(--warn-bg);color:var(--warn)} .badge.danger{background:var(--danger-bg);color:var(--danger)}
+  .mono{color:var(--muted);font-size:12px}
+
+  /* ===== Variant 1: 플랫 미니멀 (라인 중심, 배경 없음) ===== */
+  .v1 .card{background:transparent;border:1px solid var(--border)}
+  .v1 .tbl-card{background:transparent}
+  .v1 .metric .mt{font-weight:600}
+  .v1 .tbl-hd{border-bottom:1px solid var(--border)}
+  .v1 th{border-bottom:1px solid var(--border)}
+  .v1 td{border-bottom:1px solid var(--border-s)}
+  .v1 tbody tr:last-child td{border-bottom:none}
+  .v1 tbody tr:hover{background:var(--accent-soft)}
+
+  /* ===== Variant 2: 솔리드 카드 + zebra (강한 구분) ===== */
+  .v2 .card{background:#1c2430;border:1px solid var(--border);box-shadow:0 2px 10px rgba(0,0,0,.4)}
+  .v2 .tbl-card{background:#1c2430;box-shadow:0 2px 10px rgba(0,0,0,.4)}
+  .v2 .tbl-hd{background:#0f141b;border-bottom:1px solid var(--border)}
+  .v2 thead th{background:#0f141b}
+  .v2 th{border-bottom:2px solid rgba(255,255,255,.12);font-weight:700;color:#cfd6df}
+  .v2 tbody tr:nth-child(even){background:rgba(255,255,255,.045)}
+  .v2 td{border-bottom:1px solid var(--border-s)}
+  .v2 tbody tr:last-child td{border-bottom:none}
+  .v2 tbody tr:hover{background:var(--accent-soft)}
+</style>
+</head>
+<body>
+  <div class="page-head">
+    <span class="q">Q3 / 카드 &amp; 테이블</span> <span style="display:inline-block;background:rgba(63,185,80,.13);color:#3fb950;font-weight:800;font-size:12px;padding:3px 11px;border-radius:20px;margin-left:6px">✓ 선택: 2번</span>
+    <h1>카드와 테이블 스타일은?</h1>
+    <p>무드 A 고정 · <b style="color:#6ea8fe">2번 선택됨</b> — 솔리드 카드(채운 배경 + 그림자) · 진한 테이블 헤더 + zebra 줄무늬.</p>
+  </div>
+
+  <div class="wrap" id="wrap"></div>
+
+  <div class="page-head" style="margin-top:28px">
+    <p style="color:var(--muted);font-size:13.5px">고르면 비우고 <b style="color:#ccd">Q4. 컴포넌트(배지·버튼·입력·탭)</b>로 넘어갈게요.</p>
+  </div>
+
+<script>
+  function spark(){ const p="0,52 16,46 32,50 48,34 64,40 80,26 96,33 112,18 128,25 144,12 160,20";
+    return `<svg class="spark" viewBox="0 0 160 64" preserveAspectRatio="none">
+      <polyline points="${p} 160,64 0,64" fill="rgba(110,168,254,.1)" stroke="none"/>
+      <polyline points="${p}" fill="none" stroke="var(--accent)" stroke-width="2"/></svg>`; }
+  const rows = [
+    ['qwen-agent','Agent','Qwen2.5','✓','ok','승인'],
+    ['doc-summary','요약','Llama3','✓','warn','대기'],
+    ['vision-ocr','OCR','InternVL','—','danger','반려'],
+    ['code-helper','Agent','DeepSeek','✓','ok','승인'],
+    ['translate-api','번역','Qwen2.5','✓','ok','승인'],
+  ];
+  function body(v){
+    return `<div class="demo ${v}">
+      <div class="top">
+        <div class="card"><div class="metric"><div class="mt">가동 GPU</div><div class="mv">18<small> / 24</small></div><div class="delta">▲ 2 (지난주 대비)</div><div class="bar"><i style="width:75%"></i></div></div></div>
+        <div class="card"><div class="metric"><div class="mt">평균 사용률</div><div class="mv">62<small>%</small></div><div class="delta">▲ 4%p</div><div class="bar"><i style="width:62%"></i></div></div></div>
+        <div class="card"><div class="chart"><div class="mt">토큰 호출 추이</div>${spark()}</div></div>
+      </div>
+      <div class="tbl-card">
+        <div class="tbl-hd"><div class="tt">서비스 목록</div><div class="ta"><button class="btn">필터</button><button class="btn primary">+ API 요청</button></div></div>
+        <table>
+          <thead><tr><th>서비스</th><th>종류</th><th>모델</th><th>API</th><th>상태</th></tr></thead>
+          <tbody>${rows.map(r=>`<tr><td>${r[0]}</td><td class="mono">${r[1]}</td><td class="mono">${r[2]}</td><td class="mono">${r[3]}</td><td><span class="badge ${r[4]}">${r[5]}</span></td></tr>`).join('')}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }
+  const opts = [
+    {id:'1', nm:'플랫 미니멀', desc:'배경 없는 카드(보더만) · 라인 테이블 + hover · 줄무늬 없음', v:'v1'},
+    {id:'2', nm:'솔리드 카드', desc:'채운 카드 배경 + 그림자 · 진한 헤더 + zebra 줄무늬', v:'v2'},
+  ];
+  document.getElementById('wrap').innerHTML = opts.map(o=>`
+    <div class="opt ${o.id==='2'?'sel':''}">
+      <div class="opt-label"><span class="pick">${o.id}</span><span class="nm">${o.nm}</span><span class="desc">${o.desc}</span>${o.id==='2'?'<span style="margin-left:auto;color:#3fb950;font-weight:800;font-size:12px">✓ 선택됨</span>':''}</div>
+      ${body(o.v)}
+    </div>`).join('');
+</script>
+<script src="nav.js"></script>
+</body>
+</html>

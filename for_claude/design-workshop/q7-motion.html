@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anclave 디자인 — Q7. 모션</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css">
+<style>
+  :root{
+    --bg:#0d1117;--soft:#10151c;--card:#161c26;--card2:#1c2430;--border:rgba(255,255,255,.07);
+    --text:#e6edf3;--muted:#8b97a7;--faint:#6a7585;--accent:#6ea8fe;--accent-soft:rgba(110,168,254,.12);
+    --on-accent:#08111f;--ok:#3fb950;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0a0d12;color:var(--text);font-family:"Pretendard",system-ui,sans-serif;line-height:1.5;padding:32px 24px 80px}
+  .page-head{max-width:1080px;margin:0 auto 26px}
+  .page-head .q{display:inline-block;background:var(--accent);color:var(--on-accent);font-weight:800;font-size:12px;padding:3px 10px;border-radius:20px;letter-spacing:.5px}
+  .page-head h1{font-size:24px;margin:12px 0 6px;letter-spacing:-.4px}
+  .page-head p{color:var(--muted);font-size:14px}
+  .wrap{max-width:1080px;margin:0 auto}
+
+  .sec-head{display:flex;align-items:baseline;gap:10px;margin-bottom:13px}
+  .sec-head .nm{font-size:16px;font-weight:700}
+  .sec-head .desc{color:var(--faint);font-size:12.5px}
+  .variants{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .variant{background:var(--card2);border:1px solid var(--border);border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.35);overflow:hidden}
+  .variant.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),0 2px 12px rgba(0,0,0,.4)}
+  .sel-tag{margin-left:auto;color:#3fb950;font-weight:800;font-size:11.5px}
+  .v-label{display:flex;align-items:center;gap:10px;padding:11px 16px;background:#11161e;border-bottom:1px solid var(--border);font-size:12.5px}
+  .v-label .pick{background:#1b232f;color:#cfd6df;font-weight:800;width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px}
+  .v-label .vt{font-weight:700}
+  .v-label .vd{color:var(--faint);font-size:11.5px}
+  .v-demo{padding:20px 18px}
+
+  .btn{font-family:inherit;font-size:12.5px;font-weight:600;padding:7px 14px;border-radius:8px;cursor:pointer;border:1px solid transparent}
+  .btn.primary{background:var(--accent);color:var(--on-accent)}
+  .btn.outline{background:transparent;border-color:var(--border);color:var(--text)}
+
+  /* demo dashboard fragment */
+  .demo-title{font-size:13px;font-weight:700;margin-bottom:12px}
+  .mini-cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+  .mcard{background:var(--soft);border:1px solid var(--border);border-radius:10px;padding:12px 13px}
+  .mcard .ml{font-size:11.5px;color:var(--muted);margin-bottom:5px}
+  .mcard .mv{font-size:24px;font-weight:800;letter-spacing:-.5px}
+  .demo-actions{display:flex;gap:8px}
+
+  /* keyframes */
+  @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  @keyframes shimmer{to{background-position:-200% center}}
+
+  /* ---- A: subtle ---- */
+  .mA .anim{animation:fadeUp .45s ease both}
+  .mA .mcard{transition:transform .18s ease,border-color .18s ease}
+  .mA .mcard:hover{transform:translateY(-2px);border-color:rgba(255,255,255,.16)}
+  .mA .btn{transition:filter .15s ease}
+  .mA .btn.primary:hover{filter:brightness(1.08)}
+
+  /* ---- B: rich (React Bits 포인트) ---- */
+  .mB .anim{animation:fadeUp .55s cubic-bezier(.2,.7,.2,1) both}
+  .mB .anim:nth-child(1){animation-delay:.05s}
+  .mB .anim:nth-child(2){animation-delay:.16s}
+  .mB .mcard{transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease}
+  .mB .mcard:hover{transform:translateY(-4px);border-color:var(--accent);box-shadow:0 8px 22px rgba(110,168,254,.18)}
+  .mB .shiny{background:linear-gradient(100deg,#e6edf3 0%,#e6edf3 38%,#a8ccff 50%,#e6edf3 62%,#e6edf3 100%);
+    background-size:200% auto;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shimmer 3s linear infinite}
+  .mB .btn.primary{position:relative;overflow:hidden}
+  .mB .btn.primary::after{content:"";position:absolute;top:0;left:-60%;width:40%;height:100%;
+    background:linear-gradient(100deg,transparent,rgba(255,255,255,.45),transparent);transform:skewX(-18deg);animation:sweep 3.2s ease-in-out infinite}
+  @keyframes sweep{0%,60%{left:-60%}100%{left:140%}}
+
+  .replay{display:inline-flex;align-items:center;gap:6px;margin-top:2px;background:transparent;border:1px solid var(--border);color:var(--muted);font-family:inherit;font-size:11.5px;padding:5px 11px;border-radius:7px;cursor:pointer}
+  .replay:hover{color:var(--text);border-color:rgba(255,255,255,.16)}
+
+  .note{max-width:1080px;margin:16px auto 0;color:var(--faint);font-size:12.5px}
+  .footer{max-width:1080px;margin:26px auto 0;color:var(--muted);font-size:13.5px}
+  .footer b{color:#ccd}
+  .footer .ask{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-top:10px;font-size:13px;color:var(--text)}
+  .footer .ask code{background:#ffffff10;padding:2px 7px;border-radius:6px;font-size:12.5px;color:var(--accent)}
+</style>
+</head>
+<body>
+  <div class="page-head">
+    <span class="q">Q7 / 모션 · React Bits</span> <span style="display:inline-block;background:rgba(63,185,80,.13);color:#3fb950;font-weight:800;font-size:12px;padding:3px 11px;border-radius:20px;margin-left:6px">✓ 선택: 모션 B (포인트 절제)</span>
+    <h1>모션은 얼마나 넣을까요?</h1>
+    <p>같은 화면 조각에 모션 강도를 다르게 적용했어요. <b style="color:#6ea8fe">A 절제</b> = 진입 fade + hover만 · <b style="color:#6ea8fe">B 적극</b> = stagger 진입 + 카운트업 + shiny 텍스트 + 버튼 스윕. (카드에 마우스를 올려보세요)</p>
+  </div>
+
+  <div class="wrap">
+    <section>
+      <div class="sec-head"><span class="nm">모션 방향</span><span class="desc">전역 기본값 — 개별 화면에서 가감</span></div>
+      <div class="variants">
+        <div class="variant">
+          <div class="v-label"><span class="pick">A</span><span class="vt">절제 (subtle)</span><span class="vd">차분 · 빠른 진입 · 과장 없음</span></div>
+          <div class="v-demo mA" id="demoA">
+            <div class="demo-title anim">자원맵 개요</div>
+            <div class="mini-cards">
+              <div class="mcard anim"><div class="ml">가동 GPU</div><div class="mv" data-to="18">18</div></div>
+              <div class="mcard anim"><div class="ml">평균 사용률</div><div class="mv" data-to="62" data-unit="%">62%</div></div>
+            </div>
+            <div class="demo-actions anim"><button class="btn primary">+ 새 신청</button><button class="btn outline">필터</button></div>
+          </div>
+          <div style="padding:0 18px 16px"><button class="replay" data-target="demoA">↻ 다시 재생</button></div>
+        </div>
+
+        <div class="variant sel">
+          <div class="v-label"><span class="pick">B</span><span class="vt">적극 (rich)</span><span class="vd">stagger · 카운트업 · shiny · 스윕</span><span class="sel-tag">✓ 선택됨</span></div>
+          <div class="v-demo mB" id="demoB">
+            <div class="demo-title anim shiny">자원맵 개요</div>
+            <div class="mini-cards">
+              <div class="mcard anim"><div class="ml">가동 GPU</div><div class="mv" data-to="18">0</div></div>
+              <div class="mcard anim"><div class="ml">평균 사용률</div><div class="mv" data-to="62" data-unit="%">0%</div></div>
+            </div>
+            <div class="demo-actions anim"><button class="btn primary">+ 새 신청</button><button class="btn outline">필터</button></div>
+          </div>
+          <div style="padding:0 18px 16px"><button class="replay" data-target="demoB">↻ 다시 재생</button></div>
+        </div>
+      </div>
+      <p class="note">※ 모든 모션은 <code style="color:#8b97a7">prefers-reduced-motion</code> 시 자동 비활성(구현 단계 반영). React Bits 포인트(shiny 텍스트/버튼 스윕)는 B의 핵심 지표·CTA에만 절제해서 사용합니다.</p>
+    </section>
+  </div>
+
+  <div class="footer">
+    <p>이게 마지막이에요 — 고르면 <b>7개 답을 정본(Anclave-시스템정리.html §9)에 누적</b>하고 목업 구현으로 들어갑니다.</p>
+    <div class="ask">골라주세요 — <code>모션 A</code> 또는 <code>모션 B</code> (B여도 포인트는 절제 적용)</div>
+  </div>
+
+<script>
+  function countUp(el){
+    const to=+el.dataset.to, unit=el.dataset.unit||'', dur=900, t0=performance.now();
+    function step(t){
+      const p=Math.min((t-t0)/dur,1), e=1-Math.pow(1-p,3);
+      el.textContent=Math.round(to*e)+unit;
+      if(p<1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+  function replay(stage){
+    stage.querySelectorAll('.anim').forEach(el=>{el.style.animation='none';void el.offsetWidth;el.style.animation='';});
+    // B counts up; A just shows final value
+    if(stage.classList.contains('mB')) stage.querySelectorAll('.mv[data-to]').forEach(countUp);
+  }
+  document.querySelectorAll('.replay').forEach(b=>b.addEventListener('click',()=>replay(document.getElementById(b.dataset.target))));
+  // initial + gentle auto-loop so motion is visible without interaction
+  ['demoA','demoB'].forEach(id=>replay(document.getElementById(id)));
+  setInterval(()=>['demoA','demoB'].forEach(id=>replay(document.getElementById(id))),5000);
+</script>
+<script src="nav.js"></script>
+</body>
+</html>
