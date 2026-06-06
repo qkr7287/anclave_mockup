@@ -42,6 +42,7 @@
   <nav class="side">
     <div class="brand">Anclave<span>.</span></div>
     <div class="sub">디자인 스펙 (Q1~Q29)</div>
+    <a href="#guardrail" style="color:#f85149;font-weight:700">★가드레일</a>
     <a href="#q1">Q1</a><a href="#q2">Q2</a><a href="#q3">Q3</a><a href="#q4">Q4</a><a href="#q5">Q5</a><a href="#q6">Q6</a>
     <a href="#q7">Q7</a><a href="#q8">Q8</a><a href="#q9">Q9</a><a href="#q10">Q10</a><a href="#q11">Q11</a><a href="#q12">Q12</a>
     <a href="#q13">Q13</a><a href="#q14">Q14</a><a href="#q15">Q15</a><a href="#q16">Q16</a><a href="#q17">Q17</a><a href="#q18">Q18</a>
@@ -53,6 +54,32 @@
     <p class="lead">design-workshop의 채택안을 React+Tailwind로 <b>정확히</b> 재현하기 위한 픽셀 단위 값. 색·간격·DOM 구조·모션. 짝: <code>Anclave-구현계획.html</code> §3·§4의 상세 레퍼런스.</p>
 
     <div class="note">기본 폰트 <b>Pretendard</b> · line-height 1.5 · 워크샵 셸 배경 <code>#0a0d12</code>, 앱 <code>--bg</code>는 <code>#0d1117</code> · 공통 활성/선택/호버 틴트 = <code>accent-soft = rgba(110,168,254,.12)</code> · 토스트/언두 표면 <code>#222b38</code>, 모달/팔레트/패널 <code>--card2 #1c2430</code>.</div>
+
+    <section id="guardrail"><h2><span class="q" style="color:#f85149">★</span>전 화면 공통 가드레일 <span class="pick" style="color:#f85149">AI 티 금지 · 밀도 · 정렬 (§8 DoD가 참조)</span></h2>
+      <div class="note" style="background:rgba(248,81,73,.1);border-color:rgba(248,81,73,.35)">
+        <b style="color:#f85149">모든 화면에 강제. /goal DoD에서 매 Goal 공통으로 검증한다.</b>
+      </div>
+      <h3>① AI 티 금지</h3>
+      <ul>
+        <li><b>카드 좌측 액센트 바 금지</b> · 불필요한 회전·파티클·orb·aurora·무의미 gradient·decorative SVG/배경 장식 <b>추가 금지</b></li>
+        <li>아이콘은 <b>실제 액션·상태 의미가 있을 때만</b> · 장식 아이콘 금지</li>
+        <li>구분·강조는 <b>가장 절제된 수단부터</b>(배경 톤·구분선 → 그 다음 색) · <b>의심되면 빼는 쪽</b></li>
+        <li>허용 모션만(Q7: stagger·count-up·hover lift·shiny 텍스트·버튼 sweep) · 그 외 효과 금지</li>
+      </ul>
+      <h3>② 밀도 (휑함 금지)</h3>
+      <ul>
+        <li><b>한 화면 4~5개 영역 동시</b> 표시(스크롤 최소) · <b>대시보드류는 1280px+ 에서 3~4열 그리드</b>로 가로 폭 꽉 채움</li>
+        <li>카드 패딩 <b>12~14px</b> · 요소 gap <b>8~12px</b> · 섹션 간 <b>16~20px</b> · 테이블 행 패딩 8~10px</li>
+        <li><b>빈 공간만 차지하는 카드 금지</b> · 첫 viewport(above-fold)가 휑하지 않게 · 여백 대신 구분선·배경 톤으로 영역 구분</li>
+        <li>핵심 지표 크게(24~32px) + 라벨 14px(Q28) 대비 · 막대·미니차트·배지로 정보 압축</li>
+      </ul>
+      <h3>③ 정렬 · 레이아웃 안정성 (Q25)</h3>
+      <ul>
+        <li>영역 크기 고정 · 오버플로는 내부 스크롤/말줄임으로 흡수 · 형제 영역 침범·잘림 금지 · <code>min-width:0</code></li>
+        <li><b>텍스트 겹침 0</b> · <b>가로 스크롤은 표 내부에서만</b> · <b>카드 높이 튐 없음</b>(같은 행 카드 높이 정렬) · 정렬 어긋남 없음</li>
+        <li>테이블 <code>table-layout:fixed</code> · 헤더 nowrap·크기 고정 · 글씨 줄여 욱여넣기 금지</li>
+      </ul>
+    </section>
 
     <section id="q1"><h2><span class="q">Q1</span>무드 <span class="pick">A · GitHub 다크</span></h2>
       <h3>다크 코어 토큰</h3>

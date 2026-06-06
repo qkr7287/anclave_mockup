@@ -421,11 +421,21 @@ ModelImport(safetensors,scan,checksum) · AuditLog(action,target,1년+)</pre>
       <p class="muted"><code>/goal</code> 조건문은 <b>"§8 Goal N DoD를 모두 충족"</b>으로 간결히 걸고, 실제 합격선은 아래 <b>DoD 체크리스트</b>로 판정한다. 각 항목은 <b>검증 가능</b>(파일 존재·빌드·렌더·픽셀값 일치)해야 한다.</p>
 
       <div class="note">ℹ️ <b>/goal 조건문에는 turn 제한을 넣지 않는다</b>(turn 수는 파일/렌더로 검증되는 DoD가 아님). 운영 메모로만: "30턴 초과 시 사람이 진행 상황 보고 중단 여부 판단".</div>
+
+      <h3>공통 DoD <span class="muted" style="font-size:13px">(전 Goal 매 턴 검증 · 디자인스펙 가드레일 참조)</span></h3>
+      <div class="note" style="background:rgba(248,81,73,.1);border-color:rgba(248,81,73,.35)"><b style="color:#f85149">의뢰인 최우선</b> — AI 티 금지 + 여백/정렬/밀도. Goal 2·3 화면이 생기면 매 턴 아래를 함께 판정.</div>
+      <ul>
+        <li>☐ <b>AI 티 금지</b>(가드레일①): <b>카드 좌측 accent bar 없음</b> · 회전·파티클·orb·aurora·무의미 gradient·decorative SVG 없음 · 아이콘은 액션·상태 의미 있을 때만 · 의심되면 빼기</li>
+        <li>☐ <b>밀도</b>(가드레일②): 대시보드류 <b>1280px+ 3~4열</b> · 첫 viewport에 <b>4개+ 영역</b> · 카드 padding <b>12~14px</b> · gap <b>8~12px</b> · section <b>16~20px</b> · <b>빈 공간만 차지하는 카드/휑한 화면 금지</b></li>
+        <li>☐ <b>정렬·안정성</b>(가드레일③·Q25): <b>텍스트 겹침 0</b> · 가로 스크롤은 표 내부만 · <b>같은 행 카드 높이 정렬</b> · 정렬 어긋남 없음 · 헤더 nowrap 고정</li>
+        <li>☐ <b>스크린샷 검증</b>: <b>1440×900 · 1280×800 · 1024×768</b>에서 위 3개 위배 없음(겹침·휑함·정렬 어긋남·높이 튐 0) · 콘솔 에러 0</li>
+      </ul>
+
       <h3>Goal 1 — 기반</h3>
       <p class="muted" style="margin:4px 0">조건문 예: <code>app 폴더에서 구현계획 §8 Goal 1 DoD 체크리스트를 모두 충족한다. for_claude/Anclave-시스템정리·구현계획·디자인스펙을 사양으로 따른다.</code></p>
       <ul>
         <li>☐ <code>npm run build</code> 성공 (TS 타입에러·빌드에러 0)</li>
-        <li>☐ <code>src/data/</code>: <b>§5 Canonical ID 정본 표대로</b>(id·이름·관계 일치) — users 10·models 10·services 7·servers 8(각 H100×4)·gpus 32·slices(MIG, 일부 빈=가용)·requests 25(상태 분포)·events 12(심각도 4분류)·audit 20+ · <b>P3 타입</b>(Agent·BoardPost·AccessPolicy·Capability·InfraIntegration·ActivationStat) 포함</li>
+        <li>☐ <code>src/data/</code>: users·models·services = <b>§5 Canonical 정본 표 그대로</b>(id·이름·관계) · servers·gpus = §5 표 + id 규칙(<code>srv-NN-gpuN</code>) · requests 25·events 12·audit 20+·activation = <b>수량·상태 분포 + 참조 무결성</b> 충족 · <b>P3 타입</b>(Agent·BoardPost·AccessPolicy·Capability·InfraIntegration·ActivationStat) 포함</li>
         <li>☐ <b>참조 무결성</b>: §5 integrity 충족 — 끊긴 FK 0 (slice.owner∈users · service.model∈models · event.gpuId∈gpus …)</li>
         <li>☐ <code>src/lib/</code>: theme(다크/라이트 토글) · role(A / B=C Context) · routes(28경로↔화면↔역할 맵)</li>
         <li>☐ <code>Shell</code>+<code>Sidebar</code>: 사이드바 = IA 8 대분류 + 접기/펴기 · <b>상단 가로 GNB 없음</b>(디자인스펙 Q2 경고) · 역할별 메뉴 노출 필터</li>
@@ -433,7 +443,7 @@ ModelImport(safetensors,scan,checksum) · AuditLog(action,target,1년+)</pre>
         <li>☐ <code>src/components/ui/</code>: Table·Card·Badge·StatusBadge·KpiStat·Tabs·Modal·Drawer·EmptyState·FloatingButtons·CriticalAlert·StepBack·Toast (스텁이라도 존재·import 가능)</li>
         <li>☐ <code>src/components/charts/</code>: LineChart·ArcGauge·Hexagon·Heatmap 스텁</li>
         <li>☐ <code>index.css</code>: 디자인스펙 Q1 다크 토큰 + Q14 라이트 토큰 <b>색값 정확</b>(--bg #0d1117 / --accent #6ea8fe / 라이트 캔버스 #eef1f5 …)</li>
-        <li>☐ <code>App.tsx</code>: 28개 라우트 등록(<b>경로 = 시스템정리 §10 · IA.xlsx와 1:1 일치</b>) · 각 화면이 빈 골격이라도 셸 안에서 렌더 · 콘솔 에러 0</li>
+        <li>☐ <code>App.tsx</code>·routes·사이드바 메뉴: 28개 라우트 등록 · <b>경로·순서 = 시스템정리 §10 · IA.xlsx 화면 IA 순서와 동일</b>(IA 8 대분류 순) · 각 화면 빈 골격이라도 셸 안 렌더 · 콘솔 에러 0</li>
         <li>☐ 역할 전환 시 사이드바 메뉴가 A/B=C에 맞게 바뀜</li>
       </ul>
 
@@ -448,6 +458,8 @@ ModelImport(safetensors,scan,checksum) · AuditLog(action,target,1년+)</pre>
         <li>☐ <b>4.17 마켓플레이스</b> · <b>4.12 모델 카탈로그</b>: Table+검색·필터(Q20)·순위</li>
         <li>☐ 디자인스펙 Q10·Q5·Q15·Q3·Q11·Q6 픽셀값 적용 · 헥사곤 줌팬 동작 · build 성공 · 콘솔 0</li>
         <li>☐ <b>Q28 폰트 보정</b>: 폰트 크기는 <b>14px floor 적용 후 값이 정답</b> · 디자인스펙 Q1~Q24의 14px 미만 폰트값(11~13.5px) <b>그대로 사용 금지</b>(간격·아이콘·차트 축 라벨은 예외)</li>
+        <li>☐ <b>P1 8화면 §9.2 역할 접근표 · §9.3 상태 매트릭스 충족</b>(4.2~4.5·4.8·4.10·4.12·4.17: 역할별 접근·권한없음·빈상태·장애상태)</li>
+        <li>☐ <b>공통 DoD 충족</b>(AI 티 금지·밀도·정렬·스크린샷) — 위 공통 DoD 4항목을 P1 전 화면에 적용</li>
       </ul>
 
       <h3>Goal 3 — P2 · P3 화면</h3>
