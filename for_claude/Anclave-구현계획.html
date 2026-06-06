@@ -416,7 +416,7 @@ ModelImport(safetensors,scan,checksum) · AuditLog(action,target,1년+)</pre>
     <!-- 8 -->
     <section id="goal-exec">
       <h2><span class="num">8</span>/goal 실행 (단계별)</h2>
-      <p class="muted">3개의 <code>/goal</code>을 순서대로. 각 Goal이 끝나면 검증·커밋 후 다음 Goal. <b>전 단계 공통 전제</b>: 작업 폴더 <code>app/</code>, 사양 = <code>Anclave-시스템정리·구현계획·디자인스펙.html</code> 준수, 더미는 §5 시드대로 풍부하게, 디자인은 디자인스펙 픽셀값 정확 적용, 콘솔 에러 0.</p>
+      <p class="muted"><b>기반 G0 + 페이지/흐름별 G1~G14</b>를 순서대로(아래 "실행 단위" 표). 각 goal이 끝나면 밀도 게이트·커밋 후 다음 goal. <b>전 단계 공통 전제</b>: 작업 폴더 <code>app/</code>, 사양 = <code>Anclave-시스템정리·구현계획·디자인스펙.html</code> 준수, 더미는 §5 시드대로 풍부하게, 디자인은 디자인스펙 픽셀값 정확 적용, 콘솔 에러 0.</p>
 
       <p class="muted"><code>/goal</code> 조건문은 <b>"§8 Goal N DoD를 모두 충족"</b>으로 간결히 걸고, 실제 합격선은 아래 <b>DoD 체크리스트</b>로 판정한다. 각 항목은 <b>검증 가능</b>(파일 존재·빌드·렌더·픽셀값 일치)해야 한다.</p>
 
@@ -432,15 +432,41 @@ ModelImport(safetensors,scan,checksum) · AuditLog(action,target,1년+)</pre>
         <li>☐ <b>스크린샷 검증</b>: <b>1440×900 · 1280×800 · 1024×768</b>에서 위 3개 위배 없음(겹침·휑함·정렬 어긋남·높이 튐 0) · 콘솔 에러 0</li>
       </ul>
 
-      <h3>Goal 1 — 기반</h3>
+      <h3>실행 단위 — 기반 1 + 페이지/흐름별 (1차 3-goal 폐기 후 개편)</h3>
+      <div class="note" style="background:rgba(248,81,73,.1);border-color:rgba(248,81,73,.35)"><b style="color:#f85149">1차 3-goal(기반 / P1 8화면 / P2·P3 20화면)은 한 goal에 화면을 몰아넣어 휑함·편차를 유발 → 폐기.</b> 아래처럼 <b>기반 G0 + 페이지/흐름별 G1~G14</b>로 잘게 끊는다. <b>각 goal = 끝나면 밀도 게이트 통과 + 즉시 커밋 → 다음 goal.</b> 화면이 적은 goal일수록 above-fold 영역 ≥4·KPI 카드 구성을 화면마다 확실히 채울 여유가 생긴다.</div>
+      <table>
+        <colgroup><col style="width:11%"><col style="width:25%"><col style="width:40%"><col style="width:24%"></colgroup>
+        <thead><tr><th>goal</th><th>화면</th><th>범위 · 핵심 산출</th><th>DoD 참조</th></tr></thead>
+        <tbody>
+          <tr><td><b>G0 기반</b></td><td>골격 28라우트</td><td>셸 · <b>아코디언 사이드바</b>(Q2) · Header · role(A/B=C) · §5 canonical 더미+무결성 · 공통 UI 13+차트 4 · <b>밀도 페이지 템플릿(PageShell: KPI행 슬롯 + 섹션 그리드 슬롯 — 모든 화면이 재사용해 편차 차단)</b></td><td>아래 "Goal 1 — 기반" DoD + 아코디언 + 페이지 템플릿</td></tr>
+          <tr><td><b>G1</b></td><td>4.2·4.3·4.4</td><td>자원맵 3계층(헥사곤·MIG·이벤트·아크게이지·슬라이스)</td><td>아래 Goal 2 DoD 4.2~4.4 · Q10·Q5</td></tr>
+          <tr><td><b>G2</b></td><td>4.5·4.6</td><td>내 할당 자원 · 신청현황</td><td>Goal 2 DoD 4.5 · §8표 4.6</td></tr>
+          <tr><td><b>G3</b></td><td>4.8·4.11</td><td>신청 관리(마법사) · 변경·확장·이전·회수</td><td>Goal 2 DoD 4.8 · §8표 4.11 · §9.1</td></tr>
+          <tr><td><b>G4</b></td><td>4.9·4.10</td><td>게시 승인 · GPU 승인(자원맵 서버 선택)</td><td>Goal 2 DoD 4.10 · §8표 4.9 · §9.1</td></tr>
+          <tr><td><b>G5</b></td><td>4.12·4.13</td><td>모델 카탈로그 · 모델 상세</td><td>Goal 2 DoD 4.12 · §8표 4.13</td></tr>
+          <tr><td><b>G6</b></td><td>4.14·4.15</td><td>신규 모델 반입(보안 점검 스텝) · 내 모델</td><td>§8표 4.14·4.15</td></tr>
+          <tr><td><b>G7</b></td><td>4.16</td><td>데몬·에이전트 관리</td><td>§8표 4.16</td></tr>
+          <tr><td><b>G8</b></td><td>4.17·4.18</td><td>마켓플레이스 · 서비스 상세(플레이그라운드)</td><td>Goal 2 DoD 4.17 · §8표 4.18</td></tr>
+          <tr><td><b>G9</b></td><td>4.19·4.20</td><td>API 연동(키 발급) · 활성화 대시보드(3뷰)</td><td>§8표 4.19·4.20 + 동반영역 명시</td></tr>
+          <tr><td><b>G10</b></td><td>4.21·4.22</td><td>에러·이벤트 관제(타임라인) · 알림 센터</td><td>§8표 4.21·4.22</td></tr>
+          <tr><td><b>G11</b></td><td>4.7</td><td>관제 빅스크린(헬스 Heatmap·부하·알럿)</td><td>§8표 4.7</td></tr>
+          <tr><td><b>G12</b></td><td>4.23</td><td>게시판·공지</td><td>§8표 4.23</td></tr>
+          <tr><td><b>G13</b></td><td>4.24·4.25·4.26·4.27·4.28</td><td>감사·접근통제·능력탐지·사용자·인프라(관리자 화면군 — <b>동반영역 명시 필수</b>)</td><td>§8표 해당 행 + 동반영역</td></tr>
+          <tr><td><b>G14</b></td><td>4.1 + 폴리시</td><td>로그인(Q13) + 다크/라이트·반응형 Q16·빈/로딩/에러(§9.3) 전수 점검</td><td>§8표 4.1 · §9.3</td></tr>
+        </tbody>
+      </table>
+      <div class="note">ℹ️ 아래 <b>화면별 DoD 상세</b>(구 Goal 1/2/3 체크리스트 · §6 화면 명세)는 <b>그대로 유효</b> — 묶음 단위만 위 표를 따른다. 각 goal 조건문은 "§8 해당 화면 DoD + 공통 밀도 DoD 충족"으로 건다.</div>
+
+      <h3>Goal 1 — 기반 <span class="muted" style="font-size:13px">(= 실행단위 G0)</span></h3>
       <p class="muted" style="margin:4px 0">조건문 예: <code>app 폴더에서 구현계획 §8 Goal 1 DoD 체크리스트를 모두 충족한다. for_claude/Anclave-시스템정리·구현계획·디자인스펙을 사양으로 따른다.</code></p>
       <p class="muted" style="margin:8px 0 2px"><b>작업 순서</b> (이 순서로 쌓는다):</p>
       <ol>
         <li>Vite+React+TS+Tailwind v4 셋업 · <code>index.css</code> 디자인 토큰(Q1 다크 + Q14 라이트)</li>
         <li><code>src/lib</code>: theme(토글) · role(A/B=C Context+localStorage 영속) · routes(28맵, IA 순서)</li>
         <li><code>src/data</code>: §5 canonical 시드(users·models·services·servers·gpus·slices·requests·events·audit·activation) + <code>verifyIntegrity()</code> dev 가드</li>
-        <li><code>components/ui</code> 13종 + <code>charts</code> 4종 — <b>실제 동작</b> 컴포넌트(Goal 2 재사용)</li>
-        <li><code>Shell</code> · <code>Sidebar</code>(IA 8대분류·접기·역할필터·GNB 없음) · <code>Header</code>(검색·벨·테마·역할전환·프로필)</li>
+        <li><code>components/ui</code> 13종 + <code>charts</code> 4종 — <b>실제 동작</b> 컴포넌트(이후 전 화면 재사용)</li>
+        <li><b>밀도 페이지 템플릿</b> <code>components/PageShell</code> — 헤더 + <b>KPI행 슬롯(3~4개)</b> + <b>섹션 그리드 슬롯</b>(메인/보조). 모든 화면이 이걸로 above-fold 영역 ≥4를 기본 충족(화면 간 편차 차단) · KpiStat은 [지표 24~32px + 델타/스파크/게이지] 구성 강제</li>
+        <li><code>Shell</code> · <code>Sidebar</code>(<b>IA 8 대분류 아코디언 — 그룹 클릭 접기/펴기·활성 그룹만 펼침</b>·역할필터·GNB 없음) · <code>Header</code>(검색·벨·테마·역할전환·프로필)</li>
         <li><code>App.tsx</code> 28라우트 골격(IA 순서) + <b>역할 접근 가드</b>(§9.2, 직접 URL·새로고침에도 동작)</li>
       </ol>
       <p class="muted" style="margin:8px 0 2px"><b>완료 체크리스트 (DoD)</b>:</p>
@@ -449,7 +475,8 @@ ModelImport(safetensors,scan,checksum) · AuditLog(action,target,1년+)</pre>
         <li>☐ <code>src/data/</code>: users·models·services = <b>§5 Canonical 정본 표 그대로</b>(id·이름·관계) · servers·gpus = §5 표 + id 규칙(<code>srv-NN-gpuN</code>) · requests 25·events 12·audit 20+·activation = <b>수량·상태 분포 + 참조 무결성</b> 충족 · <b>P3 타입</b>(Agent·BoardPost·AccessPolicy·Capability·InfraIntegration·ActivationStat) 포함</li>
         <li>☐ <b>참조 무결성</b>: §5 integrity 충족 — 끊긴 FK 0 (slice.owner∈users · service.model∈models · event.gpuId∈gpus …)</li>
         <li>☐ <code>src/lib/</code>: theme(다크/라이트 토글) · role(A / B=C Context) · routes(28경로↔화면↔역할 맵)</li>
-        <li>☐ <code>Shell</code>+<code>Sidebar</code>: 사이드바 = IA 8 대분류 + 접기/펴기 · <b>상단 가로 GNB 없음</b>(디자인스펙 Q2 경고) · 역할별 메뉴 노출 필터</li>
+        <li>☐ <code>Shell</code>+<code>Sidebar</code>: <b>IA 8 대분류 아코디언 — 그룹 헤더 클릭 시 펼침/접힘(chevron), 현재 라우트 그룹만 기본 펼침</b> · <b>상단 가로 GNB 없음</b>(디자인스펙 Q2 경고) · 역할별 메뉴 노출 필터</li>
+        <li>☐ <code>components/PageShell</code>(밀도 템플릿): KPI행 슬롯 + 섹션 그리드 슬롯 제공 · KpiStat 카드 = 지표+보조요소(델타/스파크/게이지)·높이 96~120px · 이후 전 화면이 재사용해 편차 차단</li>
         <li>☐ <code>Header</code>: 검색 인풋 + 알림 벨(드롭다운) + 테마 토글 + 역할 전환(A/B=C) + 프로필 — <b>메뉴 항목 없음</b></li>
         <li>☐ <code>src/components/ui/</code>: Table·Card·Badge·StatusBadge·KpiStat·Tabs·Modal·Drawer·EmptyState·FloatingButtons·CriticalAlert·StepBack·Toast (스텁이라도 존재·import 가능)</li>
         <li>☐ <code>src/components/charts/</code>: LineChart·ArcGauge·Hexagon·Heatmap 스텁</li>

@@ -98,7 +98,8 @@
       <ul>
         <li>셸: <code>flex column</code> — 헤더 위, 아래 <code>flex row</code>(사이드바+메인)</li>
         <li><b>헤더</b> <code>height:52px; padding:0 16px; border-bottom:1px solid --border; gap:14px</code> · 로고 <code>800/16px</code>, 닷=accent · 레이아웃: 로고 → <b>검색 인풋(Q18-A 상시·좌측 flex)</b> → 우측(gap:10) 벨·테마·역할칩. (Q2는 기본 레이아웃, 검색은 Q18-A 기준 상시 인풋)</li>
-        <li><b>플랫 사이드바</b> <code>width:200px; padding:14px 10px; border-right; gap:2px; overflow:auto</code> · 그룹 헤더 없는 플랫 리스트</li>
+        <li><b>아코디언 사이드바</b> <code>width:200px; padding:14px 10px; border-right; gap:2px; overflow:auto</code> — IA 8 대분류를 <b>접기/펴기 그룹</b>으로. <span style="color:#f85149">1차의 "8그룹 전부 펼친 플랫 나열"은 복잡해 보여 폐기.</span></li>
+        <li><b>그룹 헤더(클릭 가능)</b> <code>padding:8px 11px; radius:8; 12px/700; color:--muted</code> + 우측 chevron 14px(열림 ▾/닫힘 ▸) · 클릭 시 하위 펼침/접힘(<code>aria-expanded</code>·hover bg) · <b>기본 = 현재 라우트가 속한 그룹만 펼침</b>, 나머지 접힘 · 하위 항목 <code>padding-left:14</code> 들여쓰기 · 단일 화면 그룹은 헤더 자체가 링크</li>
         <li><b>메뉴 아이템</b> <code>padding:8px 11px; radius:8px; gap:10px; 13px; color:--muted</code> · 아이콘박스 <code>15×15; radius:4</code> · hover <code>color:--text; bg:rgba(255,255,255,.04)</code></li>
         <li><b>활성 = 배경칠</b> <code>bg:accent-soft(rgba(110,168,254,.12)); color:--text</code>, 아이콘 accent (좌측바 아님)</li>
         <li>메인 <code>flex:1; padding:18px 22px; overflow:auto</code> · 브레드크럼 12px · H2 18px/700</li>
