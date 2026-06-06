@@ -102,7 +102,7 @@
 
       <div class="group">① 선행 정독 메시지 — 매 /goal 전 1회 (일반 메시지로 먼저 입력)</div>
       <div class="note">💡 짧은 조건문만으론 문서를 대충 읽고 갈 수 있어서, <b>아래를 먼저 보내 문서를 정독·준수하게</b> 한 뒤 /goal을 건다.</div>
-      <pre class="cmd"><span class="label">먼저 이걸 일반 메시지로 ↓</span>이제 구현 시작이야. 먼저 for_claude의 Anclave-구현계획·디자인스펙·시스템정리를 꼼꼼히 정독해. §8 Goal DoD와 §9 검증 매트릭스, 디자인스펙의 전 화면 공통 가드레일(AI 티 금지·여백/정렬/밀도)을 그대로 따르고, 화면·라우트·사이드바 메뉴는 IA 8 대분류 순서로. §5 canonical 시드 정본대로 더미를 채우고, 그다음 이어서 거는 /goal 목표를 향해 구현해줘.</pre>
+      <pre class="cmd"><span class="label">먼저 이걸 일반 메시지로 ↓</span>이제 구현 시작이야. 먼저 for_claude의 Anclave-구현계획·디자인스펙·시스템정리를 꼼꼼히 정독해. §8 Goal DoD와 §9 검증 매트릭스, 디자인스펙의 전 화면 공통 가드레일(AI 티 금지·여백/정렬/밀도)을 그대로 따르고, 화면·라우트·사이드바 메뉴는 IA 8 대분류 순서로. §5 canonical 시드 정본대로 더미를 채워. 그리고 npm run dev로 서버를 띄워 화면을 만들 때마다 크롬(claude-in-chrome)으로 실제 렌더를 직접 보면서, 여백·정렬·밀도·AI 티·텍스트 겹침을 눈으로 확인하고 고쳐가며 구현해(코드만 보고 끝내지 말 것). 그다음 이어서 거는 /goal 목표를 향해 구현해줘.</pre>
 
       <div class="group">② /goal 조건문 — Goal 1 (기반 · 셋업·셸·라우터·공통컴포넌트·더미·28라우트 골격)</div>
       <pre class="cmd"><span class="label">/goal</span>app 폴더에서 npm run build가 에러 없이 통과하고 구현계획 §8 Goal 1 DoD를 모두 충족한다. 사양 = for_claude/Anclave-시스템정리·구현계획·디자인스펙. 검증: build exit 0, src/{lib,data,components} 존재, App.tsx의 28개 라우트가 IA.xlsx 화면 IA 순서와 동일, src/data는 §5 canonical 정본+참조무결성 충족, 사이드바=IA 8대분류이며 상단 가로 GNB 없음, 콘솔 에러 0.</pre>
@@ -118,7 +118,7 @@
     <section id="flow">
       <h2><span class="num">3</span>실행 흐름</h2>
       <div class="step"><div class="n">1</div><div><b>Goal 1 조건 입력</b> — <code>/goal</code> + Goal 1 조건문. 그 턴부터 Claude가 DoD 충족을 향해 자동 작업.</div></div>
-      <div class="step"><div class="n">2</div><div><b>자동 반복</b> — 매 턴 끝에 Haiku가 판정 → 미충족이면 다음 턴 자동. (사람은 지켜보다 막히면 개입)</div></div>
+      <div class="step"><div class="n">2</div><div><b>자동 반복 + 크롬 실시간 확인</b> — 매 턴 끝에 Haiku가 판정 → 미충족이면 다음 턴 자동. Claude는 <b><code>npm run dev</code> 띄우고 화면마다 크롬(claude-in-chrome)으로 실제 렌더를 보며</b> 여백·정렬·AI 티를 눈으로 잡아간다(코드만으로 끝내지 않음). (사람은 지켜보다 막히면 개입)</div></div>
       <div class="step"><div class="n">3</div><div><b>충족 → 자동 종료</b> — 조건 충족되면 /goal이 끝난다. <b>여기서 사람이 검증</b>(렌더 확인·스크린샷)하고 <b>커밋</b>.</div></div>
       <div class="step"><div class="n">4</div><div><b>다음 Goal</b> — <code>/goal</code> + Goal 2 조건문(새 조건이면 자동 대체, 또는 <code>/goal clear</code> 후 입력). Goal 3까지 반복.</div></div>
       <div class="note">✅ 단계를 나눈 이유: 한 번에 28화면을 자동 구현하면 중간 검증·되돌리기가 어렵다. <b>기반 → P1 → 나머지</b>로 끊어 각 단계 끝에 사람이 확인·커밋하면 안전하고, 공통 컴포넌트 완성 후 화면당 작업이 가벼워진다.</div>
@@ -130,6 +130,7 @@
       <h3>효율</h3>
       <ul>
         <li><b>선행 정독 메시지를 매번 먼저</b>(§2 ①) — 짧은 조건문만으론 문서를 대충 읽고 갈 수 있다. "구현계획·디자인스펙·시스템정리 정독 + 가드레일 준수 + IA 순서"를 일반 메시지로 먼저 보낸 뒤 /goal을 걸면, 자세한 사항이 다 반영된다.</li>
+        <li><b>크롬으로 실시간 보며 구현</b> — 여백·정렬·AI 티·밀도는 코드만으론 판정 못 한다. <code>npm run dev</code> 띄우고 화면마다 <b>claude-in-chrome으로 실제 렌더를 직접 보며</b> 수정하면 퀄리티가 크게 오른다. (전제: dev 서버 + claude-in-chrome 권한 · localhost는 한 번 허용 필요)</li>
         <li><b>조건문은 짧게</b>, 작업 내용은 DoD 참조 — 빠른 모델 판정이 깔끔해진다.</li>
         <li><b>커밋 먼저</b> — /goal 시작 전 깨끗한 상태(체크포인트). 자동 반복이라 되돌릴 때 편하다. (현재 <code>feat/design-docs</code> 브랜치에 4종 문서 커밋됨)</li>
         <li><b>한 Goal = 한 /goal</b> — 욕심내서 한 번에 28화면 걸지 말 것. 3단계 유지.</li>
