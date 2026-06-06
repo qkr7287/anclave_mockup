@@ -97,10 +97,14 @@
 
     <!-- 2 -->
     <section id="conditions">
-      <h2><span class="num">2</span>3단계 조건문 (그대로 복붙)</h2>
-      <p class="muted">순서대로: Goal 1 → 검증·커밋 → Goal 2 → 검증·커밋 → Goal 3.</p>
+      <h2><span class="num">2</span>선행 메시지 + 3단계 조건문 (그대로 복붙)</h2>
+      <p class="muted">순서: <b>① 선행 메시지(일반 입력)</b> → <b>② /goal 조건문</b> → 충족 시 검증·커밋 → 다음 Goal. ①은 <b>매 Goal 시작 전마다</b> 붙인다.</p>
 
-      <div class="group">Goal 1 — 기반 (셋업·셸·라우터·공통컴포넌트·더미·28라우트 골격)</div>
+      <div class="group">① 선행 정독 메시지 — 매 /goal 전 1회 (일반 메시지로 먼저 입력)</div>
+      <div class="note">💡 짧은 조건문만으론 문서를 대충 읽고 갈 수 있어서, <b>아래를 먼저 보내 문서를 정독·준수하게</b> 한 뒤 /goal을 건다.</div>
+      <pre class="cmd"><span class="label">먼저 이걸 일반 메시지로 ↓</span>이제 구현 시작이야. 먼저 for_claude의 Anclave-구현계획·디자인스펙·시스템정리를 꼼꼼히 정독해. §8 Goal DoD와 §9 검증 매트릭스, 디자인스펙의 전 화면 공통 가드레일(AI 티 금지·여백/정렬/밀도)을 그대로 따르고, 화면·라우트·사이드바 메뉴는 IA 8 대분류 순서로. §5 canonical 시드 정본대로 더미를 채우고, 그다음 이어서 거는 /goal 목표를 향해 구현해줘.</pre>
+
+      <div class="group">② /goal 조건문 — Goal 1 (기반 · 셋업·셸·라우터·공통컴포넌트·더미·28라우트 골격)</div>
       <pre class="cmd"><span class="label">/goal</span>app 폴더에서 npm run build가 에러 없이 통과하고 구현계획 §8 Goal 1 DoD를 모두 충족한다. 사양 = for_claude/Anclave-시스템정리·구현계획·디자인스펙. 검증: build exit 0, src/{lib,data,components} 존재, App.tsx의 28개 라우트가 IA.xlsx 화면 IA 순서와 동일, src/data는 §5 canonical 정본+참조무결성 충족, 사이드바=IA 8대분류이며 상단 가로 GNB 없음, 콘솔 에러 0.</pre>
 
       <div class="group">Goal 2 — P1 화면 (자원맵 3계층·대시보드·신청·승인·마켓·카탈로그)</div>
@@ -125,6 +129,7 @@
       <h2><span class="num">4</span>효율 팁 · 주의</h2>
       <h3>효율</h3>
       <ul>
+        <li><b>선행 정독 메시지를 매번 먼저</b>(§2 ①) — 짧은 조건문만으론 문서를 대충 읽고 갈 수 있다. "구현계획·디자인스펙·시스템정리 정독 + 가드레일 준수 + IA 순서"를 일반 메시지로 먼저 보낸 뒤 /goal을 걸면, 자세한 사항이 다 반영된다.</li>
         <li><b>조건문은 짧게</b>, 작업 내용은 DoD 참조 — 빠른 모델 판정이 깔끔해진다.</li>
         <li><b>커밋 먼저</b> — /goal 시작 전 깨끗한 상태(체크포인트). 자동 반복이라 되돌릴 때 편하다. (현재 <code>feat/design-docs</code> 브랜치에 4종 문서 커밋됨)</li>
         <li><b>한 Goal = 한 /goal</b> — 욕심내서 한 번에 28화면 걸지 말 것. 3단계 유지.</li>
