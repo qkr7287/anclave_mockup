@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anclave — 디자인 스펙 (Q1~Q24 구현값)</title>
+<style>
+  :root{
+    --bg:#0d1117; --soft:#161b22; --card:#1c2330; --card2:#1c2430; --active:#222b3a;
+    --text:#e6edf3; --muted:#8b97a7; --border:rgba(255,255,255,.08);
+    --accent:#6ea8fe; --accent2:#3fb6a8; --ok:#3fb950; --warn:#d29922; --danger:#f85149;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:"Pretendard","Segoe UI",system-ui,sans-serif;line-height:1.6;font-size:15px}
+  code{font-family:"JetBrains Mono","Consolas",monospace;font-size:13px;color:var(--accent2);
+    background:rgba(63,182,168,.08);padding:1px 5px;border-radius:5px}
+  .layout{display:grid;grid-template-columns:230px 1fr;max-width:1280px;margin:0 auto}
+  nav.side{position:sticky;top:0;height:100vh;overflow:auto;padding:22px 14px;
+    border-right:1px solid var(--border);background:var(--soft);font-size:13.5px}
+  nav.side .brand{font-weight:800;font-size:17px;margin-bottom:2px}
+  nav.side .brand span{color:var(--accent)}
+  nav.side .sub{color:var(--muted);font-size:13px;margin-bottom:14px}
+  nav.side a{display:inline-block;color:var(--muted);padding:3px 8px;border-radius:7px;font-size:13px;margin:1px}
+  nav.side a:hover{background:var(--active);color:var(--text)}
+  main{padding:36px 44px;min-width:0}
+  h1{font-size:26px;margin:0 0 4px}
+  .lead{color:var(--muted);margin:4px 0 26px;max-width:840px}
+  section{margin:0 0 32px;scroll-margin-top:16px}
+  h2{font-size:18px;margin:0 0 10px;padding-bottom:7px;border-bottom:1px solid var(--border)}
+  h2 .q{color:var(--accent);font-weight:800;margin-right:8px}
+  h2 .pick{font-size:13px;font-weight:600;color:var(--accent2);margin-left:6px}
+  h3{font-size:14px;margin:14px 0 6px;color:var(--accent2)}
+  ul{margin:6px 0;padding-left:20px} li{margin:4px 0;font-size:14px}
+  .swatch{display:inline-block;width:11px;height:11px;border-radius:3px;border:1px solid var(--border);vertical-align:middle;margin-right:4px}
+  .note{background:rgba(110,168,254,.08);border:1px solid rgba(110,168,254,.3);border-radius:9px;padding:11px 14px;font-size:13.5px;margin:12px 0}
+  hr.div{border:none;border-top:1px solid var(--border);margin:30px 0}
+</style>
+</head>
+<body>
+<div class="layout">
+  <nav class="side">
+    <div class="brand">Anclave<span>.</span></div>
+    <div class="sub">디자인 스펙 (Q1~Q24)</div>
+    <a href="#q1">Q1</a><a href="#q2">Q2</a><a href="#q3">Q3</a><a href="#q4">Q4</a><a href="#q5">Q5</a><a href="#q6">Q6</a>
+    <a href="#q7">Q7</a><a href="#q8">Q8</a><a href="#q9">Q9</a><a href="#q10">Q10</a><a href="#q11">Q11</a><a href="#q12">Q12</a>
+    <a href="#q13">Q13</a><a href="#q14">Q14</a><a href="#q15">Q15</a><a href="#q16">Q16</a><a href="#q17">Q17</a><a href="#q18">Q18</a>
+    <a href="#q19">Q19</a><a href="#q20">Q20</a><a href="#q21">Q21</a><a href="#q22">Q22</a><a href="#q23">Q23</a><a href="#q24">Q24</a>
+  </nav>
+  <main>
+    <h1>Anclave — 디자인 스펙 (구현값)</h1>
+    <p class="lead">design-workshop의 채택안을 React+Tailwind로 <b>정확히</b> 재현하기 위한 픽셀 단위 값. 색·간격·DOM 구조·모션. 짝: <code>Anclave-구현계획.html</code> §3·§4의 상세 레퍼런스.</p>
+
+    <div class="note">기본 폰트 <b>Pretendard</b> · line-height 1.5 · 워크샵 셸 배경 <code>#0a0d12</code>, 앱 <code>--bg</code>는 <code>#0d1117</code> · 공통 활성/선택/호버 틴트 = <code>accent-soft = rgba(110,168,254,.12)</code> · 토스트/언두 표면 <code>#222b38</code>, 모달/팔레트/패널 <code>--card2 #1c2430</code>.</div>
+
+    <section id="q1"><h2><span class="q">Q1</span>무드 <span class="pick">A · GitHub 다크</span></h2>
+      <h3>다크 코어 토큰</h3>
+      <ul>
+        <li><span class="swatch" style="background:#0d1117"></span><code>--bg:#0d1117</code> · <code>--soft:#161b22</code> · <code>--card:#1c2330</code> · <code>--active:#222b3a</code></li>
+        <li><code>--text:#e6edf3</code> · <code>--muted:#8b97a7</code> · <code>--border:rgba(255,255,255,.07)</code></li>
+        <li><span class="swatch" style="background:#6ea8fe"></span><code>--accent:#6ea8fe</code> · <code>--on-accent:#08111f</code>(액센트 위 텍스트) · 글로우 없음</li>
+        <li>상태: <code>--ok:#3fb950</code> · <code>--warn:#d29922</code> · <code>--danger:#f85149</code> · <code>--inactive:#3a4252</code></li>
+        <li>상태 배지 bg: ok <code>rgba(63,185,80,.15)</code> · warn <code>rgba(210,153,34,.15)</code> · danger <code>rgba(248,81,73,.15)</code></li>
+        <li>게이지 트랙 <code>--track:#2a3343</code> · 스파크 <code>rgba(110,168,254,.12)</code> · radius <code>11px</code> · blur/glow 없음</li>
+      </ul>
+    </section>
+
+    <section id="q2"><h2><span class="q">Q2</span>레이아웃 <span class="pick">옵션 2 · 플랫 사이드바 + 미니 헤더</span></h2>
+      <div class="note" style="background:rgba(248,81,73,.1);border-color:rgba(248,81,73,.35)">❌ <b style="color:#f85149">상단 가로 GNB(Global Nav Bar) 금지</b> — 전역 메뉴는 <b>오직 좌측 사이드바</b>(IA 8 대분류·접기/펴기). 상단 헤더엔 <b>메뉴 항목을 절대 두지 말 것</b>(검색·알림 벨·테마·역할 전환·프로필만). HyperCube식 상단 가로 탭 메뉴 재현 금지.</div>
+      <ul>
+        <li>셸: <code>flex column</code> — 헤더 위, 아래 <code>flex row</code>(사이드바+메인)</li>
+        <li><b>헤더</b> <code>height:52px; padding:0 16px; border-bottom:1px solid --border; gap:14px</code> · 로고 <code>800/16px</code>, 닷=accent · 레이아웃: 로고 → flex:1 spacer → 우측(gap:10) 벨·테마·역할칩. 미니 헤더엔 검색 인풋 없음(Q18-A에서)</li>
+        <li><b>플랫 사이드바</b> <code>width:200px; padding:14px 10px; border-right; gap:2px; overflow:auto</code> · 그룹 헤더 없는 플랫 리스트</li>
+        <li><b>메뉴 아이템</b> <code>padding:8px 11px; radius:8px; gap:10px; 13px; color:--muted</code> · 아이콘박스 <code>15×15; radius:4</code> · hover <code>color:--text; bg:rgba(255,255,255,.04)</code></li>
+        <li><b>활성 = 배경칠</b> <code>bg:accent-soft(rgba(110,168,254,.12)); color:--text</code>, 아이콘 accent (좌측바 아님)</li>
+        <li>메인 <code>flex:1; padding:18px 22px; overflow:auto</code> · 브레드크럼 12px · H2 18px/700</li>
+        <li>아이콘버튼 <code>32×32; radius:8; border:1px --border; transparent</code> · 역할칩 <code>height:32; padding:0 11; border; radius:8</code>, 아바타 <code>18×18 round; bg:accent; color:on-accent; 10px/800</code></li>
+      </ul>
+    </section>
+
+    <section id="q3"><h2><span class="q">Q3</span>카드·테이블 <span class="pick">옵션 2 · 솔리드 카드 + zebra</span></h2>
+      <ul>
+        <li>토큰: <code>--card2:#1c2430</code>, <code>--border-s:rgba(255,255,255,.045)</code></li>
+        <li><b>솔리드 카드</b> <code>bg:#1c2430; border:1px --border; radius:12; shadow:0 2px 10px rgba(0,0,0,.4)</code></li>
+        <li><b>지표 카드</b> 패딩 <code>15px 16px</code> · 타이틀 12px/600 muted mb9 · 값 <code>27px/800; ls:-.5</code> 단위 14px muted · 델타 11.5px ok · 바 <code>height:6; bg:--soft; radius:4</code> fill accent</li>
+        <li><b>테이블 헤더바</b> <code>bg:#0f141b; padding:13px 16px; border-bottom</code> · 타이틀 14px/700</li>
+        <li><b>thead th</b> <code>bg:#0f141b; color:#cfd6df; 700; 11.5px; border-bottom:2px solid rgba(255,255,255,.12)</code></li>
+        <li><b>td</b> <code>padding:10px 16px; 13px; border-bottom:1px --border-s</code> · 마지막행 border 없음</li>
+        <li><b>zebra</b> <code>tr:nth-child(even){bg:rgba(255,255,255,.045)}</code> · 행 hover <code>accent-soft</code></li>
+        <li>테이블 배지 <code>padding:2px 10; radius:20; 11.5px/700</code></li>
+      </ul>
+    </section>
+
+    <section id="q4"><h2><span class="q">Q4</span>컴포넌트 <span class="pick">모두 A</span></h2>
+      <ul>
+        <li><b>배지(채움)</b> <code>inline-flex; gap:6; padding:3px 11; radius:20; 12px/700</code> · ok/warn/danger=상태 fill bg+색, info=accent-soft bg+accent · 선행 닷 <code>6×6 round currentColor</code></li>
+        <li><b>버튼</b> <code>13px/600; padding:8px 16; radius:8; border:1px transparent; gap:7</code> · primary <code>bg:accent; color:on-accent</code> · outline <code>transparent; border:--border; color:--text</code> · ghost <code>transparent; color:--muted</code> · danger-soft <code>danger-bg; color:danger</code></li>
+        <li><b>박스 입력</b> <code>height:38; bg:--soft; border:1px --border; radius:8; padding:0 12; 13px</code> · 포커스 <code>border:accent; shadow:0 0 0 3px accent-soft</code>(3px 링) · 라벨 12px/600 muted · 힌트 11.5px</li>
+        <li><b>언더라인 탭</b> 컨테이너 <code>border-bottom:1px --border; gap:4</code> · 탭 <code>padding:9px 14; 13px/600; color:--muted; border-bottom:2px transparent; mb:-1px</code> · 활성 <code>color:--text; border-bottom:accent</code></li>
+      </ul>
+    </section>
+
+    <section id="q5"><h2><span class="q">Q5</span>데이터viz <span class="pick">게이지 A(반원 아크) · 차트 A(영역 라인) · 헬스 B(히트맵)</span></h2>
+      <ul>
+        <li><b>게이지 아크</b> SVG <code>viewBox 0 0 120 70</code>, r=46, center(60,58) · 트랙 stroke <code>#ffffff14</code> sw9 round · 값 아크 stroke=지표색, 각도 <code>θ=π(1-val/max)</code>, 끝점 <code>(60+46cosθ, 58-46sinθ)</code> · 중앙 텍스트 22px/800, 단위 11px muted · 색: 사용률 <code>#6ea8fe</code> 온도 <code>#d29922</code> 전력 <code>#3fb950</code></li>
+        <li><b>영역 라인</b> SVG <code>viewBox 0 0 320 120; preserveAspectRatio:none</code>, pad6 max100 · fill <code>#6ea8fe1f</code>(베이스라인까지 닫기) · 라인 <code>stroke:accent; sw:2.5; round</code> · 그리드·축 없음</li>
+        <li><b>히트맵</b> 행=서버 열=GPU · 열헤더 left-offset 62px, 10.5px · 행라벨 56px 11.5/600 · 셀 <code>flex:1; aspect-ratio:1.5; radius:6; 11px/700</code> · 색 util0→<code>#1a212c</code>, else <code>rgba(110,168,254, .22 + util/100*.78)</code> · 텍스트 util&gt;55면 <code>#0a0d12</code> else muted</li>
+      </ul>
+    </section>
+
+    <section id="q6"><h2><span class="q">Q6</span>마법사 B(세로) · 모달 A(센터) · 빈상태 A</h2>
+      <ul>
+        <li><b>세로 스테퍼</b> 각 스텝 <code>flex; gap:12; pb:18; relative</code> · 커넥터 <code>::before left:13; top:30; bottom:0; w:2; bg:--border</code>(완료→ok) · 노드 <code>28×28 round; 12.5/800</code> 기본 <code>bg:#ffffff0d; border:1.5px --border</code>, done <code>bg:ok; color:#0a0d12</code>, on <code>bg:accent-soft; color:accent; border:1.5px accent</code> · 타이틀 13px/700, 서브 11.5px</li>
+        <li><b>센터 모달</b> dim <code>inset:0; bg:rgba(5,8,12,.62)</code> · 박스 <code>translate(-50%,-50%); width:74%; bg:--card2; border; radius:12; shadow:0 12px 36px rgba(0,0,0,.5); padding:16</code> · 헤더 14px/700+✕ · 푸터 우측정렬 gap8(outline+primary)</li>
+        <li><b>빈상태</b> 센터 컬럼 <code>gap:11; padding:24px 12</code> · 아이콘박스 <code>56×56; radius:14; bg:accent-soft; border:1px rgba(110,168,254,.25); color:accent</code> svg 26×26 · 타이틀 15px/700 · 설명 12.5px muted max280 · CTA primary</li>
+      </ul>
+    </section>
+
+    <section id="q7"><h2><span class="q">Q7</span>모션 <span class="pick">B · 적극(절제된 액센트)</span></h2>
+      <ul>
+        <li>키프레임: <code>fadeUp(opacity0+translateY14→1)</code> · <code>shimmer(bg-position→-200%)</code> · <code>sweep(left:-60%→140%)</code></li>
+        <li>진입 <code>animation:fadeUp .55s cubic-bezier(.2,.7,.2,1) both</code> · stagger 자식1 .05s, 자식2 .16s</li>
+        <li>카드 hover <code>transition .2s</code> → <code>translateY(-4px); border:accent; shadow:0 8px 22px rgba(110,168,254,.18)</code></li>
+        <li>count-up ease-out <code>1-(1-p)^3</code> ~900ms(핵심 지표) · shiny 텍스트(핵심 헤딩만) <code>linear-gradient(100deg,#e6edf3,#a8ccff,#e6edf3); bg-size:200%; bg-clip:text; shimmer 3s</code></li>
+        <li>버튼 sweep(primary CTA만) <code>::after w:40%; skewX(-18deg); rgba(255,255,255,.45) 그라데; sweep 3.2s</code> · 모두 <code>prefers-reduced-motion</code> 게이트</li>
+      </ul>
+    </section>
+
+    <section id="q8"><h2><span class="q">Q8</span>토큰 <span class="pick">밀도 B(여유) · 데이터viz 색 A(블루 모노)</span></h2>
+      <ul>
+        <li>타입: H1 <code>27/800 ls-.5</code> · H2 <code>20/700</code> · H3 <code>16/700</code> · Body <code>14.5/400</code> · Caption <code>12.5</code></li>
+        <li>카드 패딩 18px · 스택 gap 12px · 간격 4px베이스(4·8·12·16·24) · radius 버튼/배지8·카드12·큰카드14 · 섀도 <code>0 2px 10px rgba(0,0,0,.35)</code></li>
+        <li>데이터viz 모노 시리즈: <code>#6ea8fe → #4f86db → #3a64ad</code></li>
+      </ul>
+    </section>
+
+    <section id="q9"><h2><span class="q">Q9</span>아이콘 <span class="pick">B · filled</span></h2>
+      <ul>
+        <li><code>&lt;svg viewBox="0 0 24 24" fill="currentColor" stroke="none"&gt;</code> · 그리드 24×24, 사이드바 18×18 · 솔리드 실루엣(Lucide/Phosphor filled, Heroicons solid 중 통일) · 사이드바 활성 아이콘 accent</li>
+      </ul>
+    </section>
+
+    <section id="q10"><h2><span class="q">Q10</span>자원맵 <span class="pick">헥사곤 honeycomb(블루→퍼플) · 타일 A(여유)</span></h2>
+      <ul>
+        <li>그리드 <code>1fr 336px</code>(맵+상세) gap16 · 헥사 타일 <code>54×62; clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%); color:#fff</code> · 이름 9.5px/700 op.85, 사용률 13.5px/800</li>
+        <li>행 <code>display:flex; gap:6</code> · <code>.hexrow+.hexrow{margin-top:-15px}</code> · 홀수행 <code>margin-left:30px</code> · 24 GPU 패턴 <code>[5,4,5,4,6]</code></li>
+        <li><b>밴드 그라데</b> <code>linear-gradient(155deg, light, dark)</code>: 유휴&lt;25 <code>#525d72→#3a4252</code> · 25-50 <code>#6f9bf2→#4d72d2</code> · 50-75 <code>#7e88ee→#5d64ca</code> · 75-90 <code>#9f80ea→#7a59ce</code> · &gt;90 <code>#c178e2→#9c51c2</code></li>
+        <li>범례 스와치 <code>#414a5c · #5b8def · #6b71d8 · #8d6be0 · #b25fd0</code></li>
+        <li>hover <code>scale(1.08) brightness(1.12) z2</code> · 선택 <code>scale(1.16)</code> 흰테두리=drop-shadow ±1.6px ×4 + <code>drop-shadow(0 0 9px rgba(170,200,255,.6)) brightness(1.06)</code> · 비선택 <code>opacity:.6 saturate(.82)</code></li>
+        <li>뷰포트 <code>height:340; overflow:hidden; cursor:grab</code> · 팬=우클릭 드래그, 줌=휠(scale .6~2.2), <code>translate(x,y) scale(s); transform-origin:0 0</code></li>
+        <li>상세 패널: 이름 18px/800+상태배지 · 2×2 지표그리드(soft bg radius9) · VRAM바 <code>repeat(32,1fr) gap2; height:20; radius2</code> 점유 <code>hsl(140-i/32*78, 58%, 53%)</code>(초록→노랑) · MIG 슬라이스 4셀 height26, used=accent-soft+accent border, free=<code>#ffffff08</code>(빗금/dim)</li>
+      </ul>
+    </section>
+
+    <section id="q11"><h2><span class="q">Q11</span>테이블 A · 폼 A(인라인 검증)</h2>
+      <ul>
+        <li>테이블: zebra <code>rgba(255,255,255,.045)</code> hover accent-soft · th <code>bg:#0f141b; color:#cfd6df; 12px/700; padding:9px 12; border-bottom:2px; cursor:pointer</code> 정렬 <code>↕/▲/▼</code> 10px · td 13px padding10px12</li>
+        <li>행 액션(상시) <code>.ic-btn 26×26; radius6; border:1px --border; color:--muted</code> hover border밝게</li>
+        <li>페이저 우측 gap6 · 버튼 <code>min-w28; h28; radius7; border</code> 활성 <code>bg:accent; color:on-accent; 700</code> · ‹ › · 5행/페이지</li>
+        <li>폼 인라인: field mb15, 라벨 12.5/600 mb6, 필수 <code>*</code>=danger · 입력 h38 포커스 3px링 · 에러 <code>border:danger; shadow:0 0 0 3px danger-bg</code> + <code>⚠</code> 메시지 11.5px danger · 힌트 11.5px · 셀렉트 커스텀 캐럿 · 푸터 우측(outline+primary)</li>
+      </ul>
+    </section>
+
+    <section id="q12"><h2><span class="q">Q12</span>로딩 A(스켈레톤) · 토스트 A(우상단)</h2>
+      <ul>
+        <li>스켈레톤 <code>linear-gradient(90deg,#1c2430 25%,#27313f 50%,#1c2430 75%); bg-size:200% 100%; shimmer 1.4s; radius6</code> · 카드 placeholder 50%/70%바, 테이블행 12px바 가변폭</li>
+        <li>토스트 우상단 컨테이너 <code>top:12; right:12; width:262; column; gap:9</code> · 토스트 <code>bg:#222b38; border; radius:10; padding:11px 12; shadow:0 10px 28px rgba(0,0,0,.5)</code> 아이콘 18×18(타입색), 타이틀 13/700, 설명 11.5 muted, ✕</li>
+        <li>에러/권한없음(빈상태와 동일): 아이콘박스 54×54 radius14, err=danger-bg, lock=#ffffff0d · 타이틀 15/700, 설명 12.5 max300, outline 다시시도</li>
+      </ul>
+    </section>
+
+    <section id="q13"><h2><span class="q">Q13</span>콘텐츠 비주얼 <span class="pick">A · 절제</span></h2>
+      <ul>
+        <li>로그인 배경=<code>#0a0d12</code> 위 라디얼 글로우 2겹 <code>radial(28% 22%, rgba(110,168,254,.10), transparent 55%) + radial(78% 80%, rgba(157,111,224,.08), transparent 55%)</code> 정적(파티클/오로라 없음)</li>
+        <li>로그인 카드 <code>width:280; bg:rgba(22,28,38,.82); backdrop-blur:8px; border; radius:16; padding:24px 22; shadow:0 20px 50px rgba(0,0,0,.5)</code></li>
+        <li>브랜드 22px/800, gradient 텍스트 <code>linear-gradient(92deg,#6ea8fe,#9d6fe0); bg-clip:text</code>(정적) · 필드 h38, primary h40 · React Bits는 콘텐츠 화면만</li>
+      </ul>
+    </section>
+
+    <section id="q14"><h2><span class="q">Q14</span>라이트 모드 <span class="pick">B · 소프트 그레이</span></h2>
+      <ul>
+        <li>토큰: 캔버스 <code>#eef1f5</code> · 카드 <code>#fbfcfd</code> · border <code>#e4e8ee</code>(subtle <code>#eef1f5</code>) · text <code>#222831</code> · muted <code>#616a74</code> · accent <code>#2f6fe0</code>(accent-soft <code>#e6eefb</code>) · 테이블헤더 <code>#eef1f6</code> · zebra <code>#f4f6f9</code></li>
+        <li>상태(라이트): ok <code>#1a7f37</code>/bg <code>#ddf5e4</code> · warn <code>#9a6700</code>/bg <code>#fbf0d4</code> · danger <code>#cf222e</code>/bg <code>#fce0e0</code></li>
+        <li>카드 <code>border:1px; radius:11; shadow:0 1px 3px rgba(0,0,0,.05)</code> · 솔리드카드+zebra+채움배지+outline 구조 동일, 라이트 매핑만</li>
+      </ul>
+    </section>
+
+    <section id="q15"><h2><span class="q">Q15</span>차트 <span class="pick">A · 미니멀</span></h2>
+      <ul>
+        <li>SVG <code>viewBox 0 0 440 170; overflow:visible</code> 패딩 left30 right12 top12 bottom22 · 그리드 없음 · y축 0/40/80(10px faint, pl-7 우정렬), x축 격점 H-7 센터</li>
+        <li>area <code>rgba(110,168,254,.14)</code> · line <code>stroke:accent; sw:2.5; round</code></li>
+        <li>hover 툴팁(공유): 수직선 <code>rgba(255,255,255,.18); dasharray:3 3</code> · 점 <code>fill:accent; stroke:#0a0d12 2px; r:4.5</code> · tip <code>bg:#222b38; border; radius8; padding:7px 10; 12px; transform:translate(-50%,-100%)</code> 값13/800·x라벨11px · 최근 인덱스 스냅</li>
+      </ul>
+    </section>
+
+    <section id="q16"><h2><span class="q">Q16</span>반응형 <span class="pick">데스크톱 우선 · 모바일 좌측 드로어</span></h2>
+      <ul>
+        <li>브레이크: ≥1024 풀 사이드바 · 768~1023 아이콘만 · &lt;768 숨김+햄버거</li>
+        <li>모바일 드로어 dim <code>inset:0; bg:rgba(5,8,12,.55); z2</code> · 드로어 <code>top/left/bottom:0; width:66%; bg:--card2; border-right; shadow:6px 0 20px; z3; padding:12px 9; column gap7</code> 좌측 슬라이드, 햄버거 토글(하단탭 아님)</li>
+      </ul>
+    </section>
+
+    <section id="q17"><h2><span class="q">Q17</span>마이크로카피 <span class="pick">A · 친근한 존댓말</span></h2>
+      <ul>
+        <li>톤 <code>~할까요? / ~했어요 / ~할 수 있어요</code> · 버튼 "+ 새 서비스 추가" · 삭제 "정말 삭제할까요? / 되돌릴 수 없어요." · 성공 "API 키가 발급됐어요" · 빈상태 "아직 등록된 서비스가 없어요"</li>
+        <li>용어(강제): GPU(≠그래픽카드) · 자원(≠리소스) · 슬라이스(MIG) · 서비스(≠앱) · 모델 · 사용률 · 신청·승인·반려·대기 · 발급(API 키, ≠생성)</li>
+      </ul>
+    </section>
+
+    <section id="q18"><h2><span class="q">Q18</span>미니 헤더 <span class="pick">검색 A(인풋 상시)</span></h2>
+      <ul>
+        <li>헤더 <code>height:52; padding:0 14; gap:14; bg:--bg; border-bottom</code></li>
+        <li>검색(상시) <code>flex:1; max-width:300; height:34; bg:--soft; border; radius:8; padding:0 11; 12.5px</code> placeholder "🔍 서비스·모델 검색…" → 클릭 시 팔레트(Q19)</li>
+        <li>우측 gap9: 벨 <code>34×34; radius8; border; svg17</code> 안읽음닷 <code>top6 right7; 7×7 round; bg:danger; border:1.5px --bg</code> · 테마토글 · 역할칩 <code>h34; padding:0 11; 12.5px</code> 아바타 20×20</li>
+        <li>벨 드롭다운 <code>width:280; bg:--card2; border; radius:11; shadow:0 12px 30px</code> · "알림"+"모두 읽음"(accent 11.5) · 항목 <code>padding:10px 14; gap:10</code> 상태아이콘 28×28 radius7, 타이틀 12.5/600, 시간 10.5px</li>
+        <li>역할/프로필 드롭다운 width240 · 섹션 라벨 10.5px대문자 · 항목 <code>padding:8px 9; radius7; 12.5px</code> 아바타 20×20, 활성 accent+✓, 구분선, 로그아웃 danger</li>
+      </ul>
+    </section>
+
+    <section id="q19"><h2><span class="q">Q19</span>명령 팔레트 <span class="pick">B · 탐색 전용</span></h2>
+      <ul>
+        <li>dim <code>rgba(5,8,12,.6)</code> · 팔레트 <code>width:90%; max-width:380; bg:--card2; border:1px rgba(255,255,255,.1); radius:13; shadow:0 24px 60px; overflow:hidden</code></li>
+        <li>입력행 <code>padding:13px 15; gap:9; border-bottom</code> 검색아이콘+14px input+<code>esc</code>칩 · 결과 <code>max-height:230; padding:6</code> 그룹라벨 10.5/700대문자 · 항목 <code>padding:8px 9; radius8; gap10; 13px</code> 아이콘박스 24×24, 활성 <code>bg:accent-soft</code> 첫항목 하이라이트</li>
+        <li>그룹=탐색만(서비스/GPU/이동) 액션 없음 · 푸터 <code>↑↓ 이동 · ↵ 선택 · esc 닫기</code> · ⌘K 없음(헤더 검색 클릭으로 열기)</li>
+      </ul>
+    </section>
+
+    <section id="q20"><h2><span class="q">Q20</span>필터 <span class="pick">B · 드롭다운 패널 + 칩</span></h2>
+      <ul>
+        <li>필터바 gap8: 검색 <code>flex:1; max-width:200; h32; soft</code> · 필터버튼 <code>h32; border:1px rgba(110,168,254,.4); bg:accent-soft; color:accent; radius8; 12.5/600; padding:0 12</code> + count배지 + ▾</li>
+        <li>패널 <code>bg:--soft; border; radius10; padding15</code> 그룹라벨 11px/700대문자 · 옵션칩 <code>padding:5px 12; border; radius18; 12.5px; color:--muted</code> 선택 <code>bg:accent-soft; border:rgba(110,168,254,.45); color:accent; 600 +✓</code> · 푸터 우측 초기화(ghost)+적용(primary)</li>
+        <li>포맷: 상대시간(hover 절대) · ISO <code>2026-06-05 · 14:30</code> · 천단위 <code>44,032</code> · 약어 <code>1.2K·3.4M</code> · % 정수 <code>62%</code> 변화 <code>▲4.2%p</code> · 용량 <code>38 / 48 GB</code> · 온도 <code>71°C</code>(공백X) 전력 <code>303 W</code>(공백)</li>
+      </ul>
+    </section>
+
+    <section id="q21"><h2><span class="q">Q21</span>이벤트 <span class="pick">A · 타임라인 + 검색/필터</span></h2>
+      <ul>
+        <li>툴바 gap8: 검색 <code>flex:1; h32; soft</code> + "모두 읽음" · 심각도 칩 <code>padding:5px 11; radius18; border; 12px</code> + <code>7×7 round</code> 심각도닷, 활성 accent-soft · 우측 기간 "최근 24시간 ▾"</li>
+        <li>타임라인 <code>padding-left:18</code> 레일 <code>::before left4; top/bottom6; w2; bg:--border</code> · 항목 <code>padding:0 0 16px 16</code> 닷 <code>left-18; top3; 10×10 round; border:2px --bg</code> 심각도색 · 타이틀 13/600, 시간 11px · 안읽음=accent 6px닷, 읽음 opacity.55</li>
+        <li>심각도: 위험=danger(XID/ECC/health) · 경고=warn(util/temp) · 정보=<code>#6ea8fe</code>(슬라이스/모델로드) · 복구=ok</li>
+      </ul>
+    </section>
+
+    <section id="q22"><h2><span class="q">Q22</span>접근성 <span class="pick">A · 2px 링 · 커스텀 단축키 없음</span></h2>
+      <ul>
+        <li>포커스 <code>outline:2px solid accent; outline-offset:2px</code>(글로우 없음) · 커스텀 단축키 없음(Tab/Enter/Esc만)</li>
+        <li>WCAG AA(텍스트 4.5:1, UI 3:1) · 색만 쓰지 않기(상태=색+텍스트/아이콘) · 키보드 전체 접근·포커스 가시·모달/드로어/팔레트 포커스 트랩+Esc · label-for+aria-describedby · 터치타겟 ≥36px · prefers-reduced-motion · 아이콘버튼 aria-label · 토스트 live region</li>
+      </ul>
+    </section>
+
+    <section id="q23"><h2><span class="q">Q23</span>벌크 액션 <span class="pick">A · 상단 바 + undo</span></h2>
+      <ul>
+        <li>상단 벌크바 <code>flex; gap8; bg:accent-soft; border:1px rgba(110,168,254,.3); radius9; padding:9px 12; mb11</code> 체크박스+카운트 12.5/700 accent · 액션버튼 <code>12/600; padding:6px 12; radius7; border</code> ok=초록, danger=빨강 · "선택 해제" <code>margin-left:auto</code>(헤더 자리 대체, 플로팅 아님)</li>
+        <li>선택행 <code>tr.sel-row{bg:accent-soft}</code> 체크박스 <code>16×16; radius4; border:1.5px</code> on=accent fill</li>
+        <li>undo 토스트 <code>bg:#222b38; border; radius10; padding:11px 14; 13px</code> "실행취소"(accent 13/700)+✕ · 되돌릴 작업 즉시반영+undo(~6s), 위험 작업 확인모달+undo 둘 다</li>
+      </ul>
+    </section>
+
+    <section id="q24"><h2><span class="q">Q24</span>폼 컨트롤 <span class="pick">멀티셀렉트 B(그룹+검색)</span></h2>
+      <ul>
+        <li>멀티셀렉트 트리거 <code>width:100%; h38; soft; border; radius8; padding:0 12; 13px</code> "N명 선택됨"+count배지+▾ · 패널 <code>mt6; bg:--card2; border; radius9; shadow; padding6</code> 검색(h32) + 그룹(헤더 10.5px대문자+"전체 선택" accent) + 옵션 <code>padding:7px 9; radius7; 13px</code> 체크박스 16×16</li>
+        <li><b>확정 컨트롤</b>: 토글 <code>38×22; radius12; bg:#39424f</code> on=accent, knob 18×18 슬라이드 <code>.15s</code> · 슬라이더 트랙 <code>h6; soft; radius4</code> fill accent, knob 16×16 · 라디오 <code>16×16 round border1.5</code> on=accent+8×8닷 · 체크박스 <code>16×16; radius4; border1.5</code> · 셀렉트/날짜 h38 soft+▾/📅 · 스테퍼 <code>border; radius8</code> 버튼 34×36 −/+, 값 44px센터</li>
+      </ul>
+    </section>
+
+    <hr class="div">
+    <p class="muted" style="font-size:13px">출처: <code>for_claude/design-workshop/q1~q24.html</code> · 짝 문서: 시스템정리(사양) · 구현계획(가이드) · 본 문서(픽셀 스펙)</p>
+  </main>
+</div>
+</body>
+</html>
