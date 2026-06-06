@@ -102,7 +102,7 @@
 
       <div class="group">① 선행 정독 메시지 — 매 /goal 전 1회 (일반 메시지로 먼저 입력)</div>
       <div class="note">💡 짧은 조건문만으론 문서를 대충 읽고 갈 수 있어서, <b>아래를 먼저 보내 문서를 정독·준수하게</b> 한 뒤 /goal을 건다.</div>
-      <pre class="cmd"><span class="label">먼저 이걸 일반 메시지로 ↓</span>이제 구현 시작이야. 먼저 for_claude의 Anclave-구현계획·디자인스펙·시스템정리를 꼼꼼히 정독해. §8 Goal DoD와 §9 검증 매트릭스, 디자인스펙의 전 화면 공통 가드레일(AI 티 금지·여백/정렬/밀도)을 그대로 따르고, 화면·라우트·사이드바 메뉴는 IA 8 대분류 순서로. §5 canonical 시드 정본대로 더미를 채워. 그리고 npm run dev로 서버를 띄워 화면을 만들 때마다 크롬(claude-in-chrome)으로 실제 렌더를 직접 보면서, 여백·정렬·밀도·AI 티·텍스트 겹침을 눈으로 확인하고 고쳐가며 구현해(코드만 보고 끝내지 말 것). 그다음 이어서 거는 /goal 목표를 향해 구현해줘.</pre>
+      <pre class="cmd"><span class="label">먼저 이걸 일반 메시지로 ↓ (Goal N의 N만 바꿔 매 Goal 재사용)</span>이제 Goal N 구현 시작이야. 먼저 for_claude의 Anclave-구현계획·디자인스펙·시스템정리를 꼼꼼히 정독해. §8 Goal N의 작업 순서대로 진행하고 DoD를 모두 충족해. §9 검증 매트릭스와 디자인스펙 전 화면 공통 가드레일(AI 티 금지·여백/정렬/밀도)을 그대로 따르고, 화면·라우트·사이드바 메뉴는 IA 8 대분류 순서로. §5 canonical 시드 정본대로 더미를 써. npm run dev로 서버를 띄워 화면 만들 때마다 크롬(claude-in-chrome)으로 실제 렌더를 보면서 여백·정렬·밀도·AI 티·텍스트 겹침을 눈으로 확인·수정해(코드만 보고 끝내지 말 것). 폭별 스크린샷은 resize_window로 1440/1280/1024 뷰포트를 바꿔 캡처해. 그다음 이어서 거는 /goal 목표를 향해 구현해줘.</pre>
 
       <div class="group">② /goal 조건문 — Goal 1 (기반 · 셋업·셸·라우터·공통컴포넌트·더미·28라우트 골격)</div>
       <pre class="cmd"><span class="label">/goal</span>app 폴더에서 npm run build가 에러 없이 통과하고 구현계획 §8 Goal 1 DoD를 모두 충족한다. 사양 = for_claude/Anclave-시스템정리·구현계획·디자인스펙. 검증: build exit 0, src/{lib,data,components} 존재, App.tsx의 28개 라우트가 IA.xlsx 화면 IA 순서와 동일, src/data는 §5 canonical 정본+참조무결성 충족, 사이드바=IA 8대분류이며 상단 가로 GNB 없음, 콘솔 에러 0.</pre>
