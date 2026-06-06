@@ -254,6 +254,63 @@ ModelImport(safetensors,scan,checksum) · AuditLog(action,target,1년+)</pre>
         <li><code>gpuRequest.requesterUserId ∈ users</code> · <code>gpuRequest.models ⊂ models</code></li>
         <li><code>event.gpuId ∈ gpus</code> · <code>event.serverId ∈ servers</code> · <code>auditLog.actorUserId ∈ users</code> · <code>apiRequest.serviceId ∈ services</code> · <code>activationStat.{serviceId,modelId,consumerUserId}</code> 모두 존재</li>
       </ul>
+
+      <h3>Canonical 시드 ID 정본 (이 값으로 src/data 작성 · "실값 일치" 판정 기준)</h3>
+      <div class="group">users (10)</div>
+      <table>
+        <colgroup><col style="width:18%"><col style="width:18%"><col style="width:20%"><col style="width:44%"></colgroup>
+        <thead><tr><th>id</th><th>name</th><th>role / 호스팅</th><th>비고</th></tr></thead>
+        <tbody>
+          <tr><td><code>u-admin</code></td><td>admin</td><td>admin</td><td>최종관리자 · initialRoute=/resource-map</td></tr>
+          <tr><td><code>u-manager</code></td><td>manager</td><td>user · ✅호스팅</td><td>실무(B) · initialRoute=/dashboard</td></tr>
+          <tr><td><code>u-user</code></td><td>user</td><td>user · ❌</td><td>호스팅 전(C) · initialRoute=/marketplace</td></tr>
+          <tr><td><code>u-kim</code></td><td>김민준</td><td>user · ✅</td><td>svc-qwen·svc-code 소유</td></tr>
+          <tr><td><code>u-lee</code></td><td>이서연</td><td>user · ✅</td><td>svc-llama·svc-vqa 소유</td></tr>
+          <tr><td><code>u-park</code></td><td>박지훈</td><td>user · ✅</td><td>svc-doc 소유</td></tr>
+          <tr><td><code>u-choi</code></td><td>최수아</td><td>user · ❌</td><td>호스팅 전</td></tr>
+          <tr><td><code>u-jung</code></td><td>정도윤</td><td>user · ✅</td><td>svc-sd 소유</td></tr>
+          <tr><td><code>u-han</code></td><td>한예린</td><td>user · ❌</td><td>호스팅 전</td></tr>
+          <tr><td><code>u-yoon</code></td><td>윤서진</td><td>user · ✅</td><td>svc-stt 소유</td></tr>
+        </tbody>
+      </table>
+      <div class="group">models (10 · usageRank)</div>
+      <table>
+        <colgroup><col style="width:16%"><col style="width:34%"><col style="width:24%"><col style="width:26%"></colgroup>
+        <thead><tr><th>id</th><th>name</th><th>kind</th><th>rank</th></tr></thead>
+        <tbody>
+          <tr><td><code>m1</code></td><td>Llama 3 70B</td><td>LLM</td><td>1</td></tr>
+          <tr><td><code>m2</code></td><td>Qwen2.5-72B</td><td>LLM</td><td>2</td></tr>
+          <tr><td><code>m3</code></td><td>DeepSeek-V3</td><td>LLM</td><td>3</td></tr>
+          <tr><td><code>m7</code></td><td>Qwen2.5-Coder 32B</td><td>Code</td><td>4</td></tr>
+          <tr><td><code>m5</code></td><td>Qwen2.5-VL 7B</td><td>Vision-Language</td><td>5</td></tr>
+          <tr><td><code>m4</code></td><td>Mistral Small 24B</td><td>LLM</td><td>6</td></tr>
+          <tr><td><code>m8</code></td><td>SDXL</td><td>Image</td><td>7</td></tr>
+          <tr><td><code>m6</code></td><td>Gemma2 27B</td><td>LLM</td><td>8</td></tr>
+          <tr><td><code>m9</code></td><td>Whisper Large v3</td><td>STT</td><td>9</td></tr>
+          <tr><td><code>m10</code></td><td>BGE-M3</td><td>Embedding</td><td>10</td></tr>
+        </tbody>
+      </table>
+      <div class="group">services (7)</div>
+      <table>
+        <colgroup><col style="width:16%"><col style="width:22%"><col style="width:16%"><col style="width:14%"><col style="width:32%"></colgroup>
+        <thead><tr><th>id</th><th>name</th><th>model</th><th>API</th><th>owner · 종류</th></tr></thead>
+        <tbody>
+          <tr><td><code>svc-qwen</code></td><td>qwen-agent</td><td>m2</td><td>✅</td><td>u-kim · LLM 에이전트</td></tr>
+          <tr><td><code>svc-llama</code></td><td>llama-chat</td><td>m1</td><td>✅</td><td>u-lee · 챗봇</td></tr>
+          <tr><td><code>svc-code</code></td><td>code-assist</td><td>m7</td><td>✅</td><td>u-kim · 코딩</td></tr>
+          <tr><td><code>svc-doc</code></td><td>doc-search</td><td>m10</td><td>✅</td><td>u-park · RAG 검색</td></tr>
+          <tr><td><code>svc-sd</code></td><td>sd-image</td><td>m8</td><td>❌</td><td>u-jung · 이미지 생성</td></tr>
+          <tr><td><code>svc-stt</code></td><td>speech-text</td><td>m9</td><td>✅</td><td>u-yoon · 음성→텍스트</td></tr>
+          <tr><td><code>svc-vqa</code></td><td>vision-qa</td><td>m5</td><td>❌</td><td>u-lee · 이미지 Q&amp;A</td></tr>
+        </tbody>
+      </table>
+      <div class="group">servers · gpus (id 규칙)</div>
+      <ul>
+        <li><b>servers</b>: <code>srv-01</code>~<code>srv-08</code> (위 §5 표의 위치·상태) · 각 <code>gpus</code> 4장</li>
+        <li><b>gpus</b> id 규칙: <code>{serverId}-gpu0</code>~<code>-gpu3</code> (예: <code>srv-01-gpu0</code>) · 총 32 · name = H100-{NN}</li>
+        <li><b>slices</b> id: <code>{gpuId}-s{n}</code> · MIG 분할 GPU만 · ownerUserId ∈ 호스팅 보유 users · modelId ∈ models · containerId = <code>cont-{svc약어}-{nn}</code></li>
+        <li><b>requests/events/audit/activation</b>: §5 수량·상태 분포대로, ID는 위 정본 참조</li>
+      </ul>
     </section>
 
     <!-- 6 -->
@@ -344,7 +401,7 @@ ModelImport(safetensors,scan,checksum) · AuditLog(action,target,1년+)</pre>
     <section id="roadmap">
       <h2><span class="num">7</span>구현 로드맵 (단계)</h2>
       <ol class="road">
-        <li><b>셋업</b> — Vite+React+TS, Tailwind v4, React Router, Recharts, lucide · 토큰(index.css) · 폴더 구조</li>
+        <li><b>셋업</b> — Vite+React+TS, Tailwind v4, React Router, Recharts, <code>@heroicons/react/24/solid</code> · 토큰(index.css) · 폴더 구조</li>
         <li><b>공통 셸 · 라우터</b> — Shell/Sidebar(8 대분류·접기)/Header(역할 전환·테마·알림벨) · 28라우트 골격 · RoleContext</li>
         <li><b>공통 컴포넌트 · 차트</b> — Table·Card·Badge·Modal·Drawer·FloatingButtons·CriticalAlert·StepBack + LineChart·ArcGauge·Hexagon·Heatmap</li>
         <li><b>더미 데이터</b> — §13 타입으로 8종 목 데이터 (H100 4개/서버 다수)</li>
@@ -363,11 +420,12 @@ ModelImport(safetensors,scan,checksum) · AuditLog(action,target,1년+)</pre>
 
       <p class="muted"><code>/goal</code> 조건문은 <b>"§8 Goal N DoD를 모두 충족"</b>으로 간결히 걸고, 실제 합격선은 아래 <b>DoD 체크리스트</b>로 판정한다. 각 항목은 <b>검증 가능</b>(파일 존재·빌드·렌더·픽셀값 일치)해야 한다.</p>
 
-      <h3>Goal 1 — 기반 <span class="muted" style="font-size:13px">(or stop after 30 turns)</span></h3>
-      <p class="muted" style="margin:4px 0">조건문 예: <code>app 폴더에서 구현계획 §8 Goal 1 DoD 체크리스트를 모두 충족한다. for_claude/Anclave-시스템정리·구현계획·디자인스펙을 사양으로 따른다. or stop after 30 turns</code></p>
+      <div class="note">ℹ️ <b>/goal 조건문에는 turn 제한을 넣지 않는다</b>(turn 수는 파일/렌더로 검증되는 DoD가 아님). 운영 메모로만: "30턴 초과 시 사람이 진행 상황 보고 중단 여부 판단".</div>
+      <h3>Goal 1 — 기반</h3>
+      <p class="muted" style="margin:4px 0">조건문 예: <code>app 폴더에서 구현계획 §8 Goal 1 DoD 체크리스트를 모두 충족한다. for_claude/Anclave-시스템정리·구현계획·디자인스펙을 사양으로 따른다.</code></p>
       <ul>
         <li>☐ <code>npm run build</code> 성공 (TS 타입에러·빌드에러 0)</li>
-        <li>☐ <code>src/data/</code>: §5 시드 <b>실값 일치</b> — servers 8(각 H100×4) · gpus 32 · slices(MIG, 일부 빈=가용) · users 10(실명) · models 10 · services 7 · requests 25(상태 분포) · events 12(심각도 4분류) · audit 20+ · <b>P3 타입</b>(Agent·BoardPost·AccessPolicy·Capability·InfraIntegration·ActivationStat) 포함</li>
+        <li>☐ <code>src/data/</code>: <b>§5 Canonical ID 정본 표대로</b>(id·이름·관계 일치) — users 10·models 10·services 7·servers 8(각 H100×4)·gpus 32·slices(MIG, 일부 빈=가용)·requests 25(상태 분포)·events 12(심각도 4분류)·audit 20+ · <b>P3 타입</b>(Agent·BoardPost·AccessPolicy·Capability·InfraIntegration·ActivationStat) 포함</li>
         <li>☐ <b>참조 무결성</b>: §5 integrity 충족 — 끊긴 FK 0 (slice.owner∈users · service.model∈models · event.gpuId∈gpus …)</li>
         <li>☐ <code>src/lib/</code>: theme(다크/라이트 토글) · role(A / B=C Context) · routes(28경로↔화면↔역할 맵)</li>
         <li>☐ <code>Shell</code>+<code>Sidebar</code>: 사이드바 = IA 8 대분류 + 접기/펴기 · <b>상단 가로 GNB 없음</b>(디자인스펙 Q2 경고) · 역할별 메뉴 노출 필터</li>
@@ -379,7 +437,7 @@ ModelImport(safetensors,scan,checksum) · AuditLog(action,target,1년+)</pre>
         <li>☐ 역할 전환 시 사이드바 메뉴가 A/B=C에 맞게 바뀜</li>
       </ul>
 
-      <h3>Goal 2 — P1 화면 <span class="muted" style="font-size:13px">(or stop after 30 turns)</span></h3>
+      <h3>Goal 2 — P1 화면</h3>
       <ul>
         <li>☐ <b>4.2 전체 서버 모니터링</b>: 좌 Hexagon(서버 타일+GPU4 미니, 디자인스펙 Q10 밴드색 블루→퍼플·빗금) / 우상 MIG 슬라이스 현황(전체↔서버별 토글) / 우하 이벤트 로그 / CriticalAlert 오버레이 · 서버 타일 클릭→단일</li>
         <li>☐ <b>4.3 단일 서버</b>: 좌 Hexagon(서버 GPU 전체·슬라이스) / 우상 CPU·RAM·GPU KpiStat+LineChart / 우하 GPU 테이블+서비스(사용량순) · GPU 클릭→상세 · FloatingButtons(이벤트=Drawer)·StepBack</li>
@@ -389,9 +447,10 @@ ModelImport(safetensors,scan,checksum) · AuditLog(action,target,1년+)</pre>
         <li>☐ <b>4.10 GPU 승인 관리</b>: Tabs[대기/기 승인] · 검토 Drawer · 승인 시 Hexagon 서버 선택 · 반려 Modal</li>
         <li>☐ <b>4.17 마켓플레이스</b> · <b>4.12 모델 카탈로그</b>: Table+검색·필터(Q20)·순위</li>
         <li>☐ 디자인스펙 Q10·Q5·Q15·Q3·Q11·Q6 픽셀값 적용 · 헥사곤 줌팬 동작 · build 성공 · 콘솔 0</li>
+        <li>☐ <b>Q28 폰트 보정</b>: 폰트 크기는 <b>14px floor 적용 후 값이 정답</b> · 디자인스펙 Q1~Q24의 14px 미만 폰트값(11~13.5px) <b>그대로 사용 금지</b>(간격·아이콘·차트 축 라벨은 예외)</li>
       </ul>
 
-      <h3>Goal 3 — P2 · P3 화면 <span class="muted" style="font-size:13px">(or stop after 35 turns)</span></h3>
+      <h3>Goal 3 — P2 · P3 화면</h3>
       <p class="muted">화면별 DoD(필수 표시·클릭 액션·결과). 상태(빈/로딩/에러)는 §9.3 상태 매트릭스, 역할 접근은 §9.2 접근표 참조.</p>
       <table>
         <colgroup><col style="width:24%"><col style="width:62%"><col style="width:14%"></colgroup>
@@ -449,32 +508,51 @@ ModelImport(safetensors,scan,checksum) · AuditLog(action,target,1년+)</pre>
         <colgroup><col style="width:34%"><col style="width:14%"><col style="width:24%"><col style="width:28%"></colgroup>
         <thead><tr><th>라우트</th><th>A</th><th>B (manager)</th><th>C (user, 호스팅 전)</th></tr></thead>
         <tbody>
-          <tr><td>/resource-map · /:serverId · /:gpuId</td><td>✅</td><td>❌ 권한없음</td><td>❌ 권한없음</td></tr>
-          <tr><td>/admin/* (승인·감사·설정·관제·반입·에이전트)</td><td>✅</td><td>❌ 권한없음</td><td>❌ 권한없음</td></tr>
-          <tr><td>/dashboard (내 할당 자원)</td><td>✅(읽기)</td><td>✅ 첫 진입</td><td>⚠️ "호스팅 후 이용 가능" 빈상태+신청 CTA</td></tr>
-          <tr><td>/requests · /requests/status · /requests/gpu-change</td><td>✅</td><td>✅</td><td>✅ (신청·현황)</td></tr>
-          <tr><td>/api-approvals (API 연동)</td><td>✅</td><td>✅ (소유자)</td><td>✅ (서비스 보유 시)</td></tr>
-          <tr><td>/models · /models/:id · /models/mine</td><td>✅</td><td>✅</td><td>✅</td></tr>
-          <tr><td>/marketplace · /:id · /activation · /events · /board · /notifications</td><td>✅</td><td>✅</td><td>✅</td></tr>
+          <tr><td><code>/resource-map</code> · <code>/resource-map/:serverId</code> · <code>/resource-map/:serverId/:gpuId</code></td><td>✅</td><td>❌ 권한없음</td><td>❌ 권한없음</td></tr>
+          <tr><td><code>/admin/*</code> (승인·감사·설정·관제·반입·에이전트)</td><td>✅</td><td>❌ 권한없음</td><td>❌ 권한없음</td></tr>
+          <tr><td><code>/dashboard</code> (내 할당 자원)</td><td>✅(읽기)</td><td>✅ 첫 진입</td><td>⚠️ "호스팅 후 이용 가능" 빈상태+신청 CTA</td></tr>
+          <tr><td><code>/requests</code> · <code>/requests/status</code> · <code>/requests/gpu-change</code></td><td>✅</td><td>✅</td><td>✅ (신청·현황)</td></tr>
+          <tr><td><code>/api-approvals</code> (API 연동)</td><td>✅</td><td>✅ (소유자)</td><td>❌ 권한없음 (호스팅 전 = 서비스 없음)</td></tr>
+          <tr><td><code>/models</code> · <code>/models/:id</code> · <code>/models/mine</code></td><td>✅</td><td>✅</td><td>✅</td></tr>
+          <tr><td><code>/marketplace</code> · <code>/marketplace/:id</code> · <code>/marketplace/activation</code> · <code>/events</code> · <code>/board</code> · <code>/notifications</code></td><td>✅</td><td>✅</td><td>✅</td></tr>
         </tbody>
       </table>
       <p class="muted" style="font-size:13.5px">사이드바엔 접근 가능한 메뉴만 노출 · 직접 URL 진입 시: 권한없음 화면(아이콘+설명+권한 요청 CTA, Q12) 또는 빈상태 CTA.</p>
 
-      <h3>9.3 화면 상태 매트릭스 (빈 / 로딩 / 에러 · 특수)</h3>
-      <p class="muted">공통: 로딩 = 스켈레톤(Q12) · 데이터 로드 실패 = 에러 화면(아이콘+다시 시도). 아래는 <b>화면별 특수 더미 상태</b>(별도 더미 필요).</p>
+      <h3>9.3 화면 상태 매트릭스 (28화면 전수)</h3>
+      <p class="muted"><b>공통(전 화면)</b>: 로딩 = 스켈레톤(Q12) · 데이터 로드 실패 = 에러 화면(아이콘+다시 시도). A 전용 화면을 B/C가 직접 URL 진입 → 권한없음(§9.2). 아래는 <b>화면별 특수/빈 상태</b>(없으면 "공통만").</p>
       <table>
         <colgroup><col style="width:26%"><col style="width:74%"></colgroup>
-        <thead><tr><th>화면</th><th>특수 / 빈 상태 (더미 준비)</th></tr></thead>
+        <thead><tr><th>화면</th><th>특수 / 빈 상태 (더미 준비 · 없으면 공통만)</th></tr></thead>
         <tbody>
-          <tr><td>4.5 내 할당 자원 (C 접근)</td><td>호스팅 전 → "호스팅 후 이용 가능해요" + 신청 CTA</td></tr>
-          <tr><td>4.6 자원 신청현황</td><td>신청 없음 → "아직 신청한 자원이 없어요" + 신청 CTA · 반려 행 → 사유 표시</td></tr>
-          <tr><td>4.17 마켓 / 4.12 카탈로그</td><td>검색·필터 결과 없음 → "조건에 맞는 결과가 없어요"</td></tr>
-          <tr><td>4.14 신규 모델 반입</td><td>보안 스캔 실패(safetensors 아님 / 악성 감지 / 체크섬 불일치) → 실패 상태·사유</td></tr>
-          <tr><td>4.19 API 연동</td><td>받은 신청 없음 · 발급 key 없음 → 빈상태</td></tr>
+          <tr><td>4.1 로그인</td><td>로그인 실패(잘못된 계정) → 인라인 에러</td></tr>
+          <tr><td>4.2 전체 서버 모니터링</td><td>장애 서버(srv-07 XID)·응답 지연(srv-05) · 빈 슬라이스(가용) 빗금 · 크리티컬 알람 오버레이</td></tr>
+          <tr><td>4.3 단일 서버</td><td>공통만 (해당 서버 GPU 항상 4장)</td></tr>
+          <tr><td>4.4 GPU 상세</td><td>유휴 GPU = 슬라이스 전부 가용(빗금) · 장애 GPU = XID 표시</td></tr>
+          <tr><td>4.5 내 할당 자원</td><td>C(호스팅 전) → "호스팅 후 이용 가능해요" + 신청 CTA</td></tr>
+          <tr><td>4.6 자원 신청현황</td><td>신청 없음 → "아직 신청한 자원이 없어요" + CTA · 반려 행 → 사유</td></tr>
+          <tr><td>4.7 관제 모니터링</td><td>공통만</td></tr>
+          <tr><td>4.8 신청 관리</td><td>신청 내역 없음 → 빈상태 · 마법사 폼 검증 에러(인라인)</td></tr>
+          <tr><td>4.9 게시 승인 관리</td><td>대기 없음 → "처리할 게시 신청이 없어요"</td></tr>
+          <tr><td>4.10 GPU 승인 관리</td><td>대기 없음 → 빈상태 · 기 승인/반려 탭 비어있을 때</td></tr>
+          <tr><td>4.11 변경·확장·이전·회수</td><td>변경 신청 없음 → 빈상태</td></tr>
+          <tr><td>4.12 모델 카탈로그</td><td>검색·필터 결과 없음 → "조건에 맞는 결과가 없어요"</td></tr>
+          <tr><td>4.13 모델 상세</td><td>공통만</td></tr>
+          <tr><td>4.14 신규 모델 반입</td><td>보안 스캔 실패(safetensors 아님 / 악성 / 체크섬 불일치) → 실패·사유 · 업로드 전 빈상태</td></tr>
           <tr><td>4.15 내 모델</td><td>사용 모델 없음 → "쓰는 모델이 없어요" + 카탈로그 링크</td></tr>
-          <tr><td>4.8 신청 관리 · 4.21 이벤트 · 4.24 감사</td><td>내역/이벤트/로그 없음 → 각 빈상태</td></tr>
-          <tr><td>A 전용 화면 (B/C 직접 URL)</td><td>권한 없음 화면 (권한 요청 CTA)</td></tr>
-          <tr><td>4.2~4.4 자원맵</td><td>장애 서버(srv-07 XID)·응답 지연(srv-05) 상태 · 빈 슬라이스(가용) 빗금</td></tr>
+          <tr><td>4.16 데몬·에이전트</td><td>에이전트 없음/오프라인 노드 표시</td></tr>
+          <tr><td>4.17 마켓플레이스</td><td>검색·필터 결과 없음 → 빈상태</td></tr>
+          <tr><td>4.18 서비스 상세</td><td>플레이그라운드 응답 대기(로딩) · 입력 전 안내</td></tr>
+          <tr><td>4.19 API 연동</td><td>받은 신청 없음 · 발급 key 없음 → 빈상태</td></tr>
+          <tr><td>4.20 활성화 대시보드</td><td>활성 데이터 없음(소비자 0) → 빈상태</td></tr>
+          <tr><td>4.21 에러·이벤트 관제</td><td>이벤트 없음 → "이벤트가 없어요" · 필터 결과 없음</td></tr>
+          <tr><td>4.22 알림 센터</td><td>알림 없음 / 모두 읽음 → 빈상태</td></tr>
+          <tr><td>4.23 게시판</td><td>글 없음 → 각 탭 빈상태</td></tr>
+          <tr><td>4.24 감사 로그</td><td>필터 결과 없음 → 빈상태</td></tr>
+          <tr><td>4.25 접근통제</td><td>공통만</td></tr>
+          <tr><td>4.26 능력 탐지·기능 플래그</td><td>미지원 GPU/오케스트레이터 = 지원 매트릭스 ❌ 표시</td></tr>
+          <tr><td>4.27 사용자·역할 관리</td><td>공통만</td></tr>
+          <tr><td>4.28 인프라 연동</td><td>연동 down 상태 = 상태 배지 빨강</td></tr>
         </tbody>
       </table>
     </section>
