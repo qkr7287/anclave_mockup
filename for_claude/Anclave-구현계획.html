@@ -101,7 +101,7 @@
           <tr><td><b>라우팅</b></td><td>React Router v6 — 레이아웃(셸) + 중첩 라우트, 28경로</td></tr>
           <tr><td><b>차트</b></td><td>Recharts(라인·게이지) · 자원맵 헥사곤/히트맵은 <b>SVG 직접</b>(honeycomb 좌표)</td></tr>
           <tr><td><b>상태</b></td><td>로컬 state + Context(역할 A/B=C 전환, 테마). 전역 스토어 불필요(더미)</td></tr>
-          <tr><td><b>아이콘</b></td><td>lucide-react (Q9 filled 계열)</td></tr>
+          <tr><td><b>아이콘</b></td><td><b>Heroicons solid</b> 또는 <b>Phosphor fill</b> (Q9 = <code>fill:currentColor; stroke:none</code> 솔리드 · lucide는 outline이라 부적합)</td></tr>
           <tr><td><b>더미</b></td><td><code>src/data/*</code> — 정적 객체. 실시간 felt은 setInterval 지터(자원맵)</td></tr>
         </tbody>
       </table>
@@ -243,6 +243,16 @@ ModelImport(safetensors,scan,checksum) · AuditLog(action,target,1년+)</pre>
         </tbody>
       </table>
       <div class="note"><b>풍부함 원칙</b> · 모든 테이블·차트가 비어 보이지 않게: 슬라이스는 사용자×모델×컨테이너로 채우고, 사용량·토큰·호출량은 그럴듯한 시계열로, 헬스는 정상 다수 + 장애/경고 소수로 대비. 실시간 felt은 자원맵에서 ±지터.</div>
+
+      <h3>참조 무결성 (seed integrity · DoD 검증 대상)</h3>
+      <p class="muted">더미는 ID로 서로 연결된 <b>정합 데이터</b>여야 한다(끊긴 참조 0). 구현 시 아래를 보장:</p>
+      <ul>
+        <li>모든 <code>slice.ownerUserId ∈ users</code> · <code>slice.modelId ∈ models</code> · <code>slice.containerId</code> 매핑 존재</li>
+        <li><code>service.model ∈ models</code> · <code>service.ownerUserId ∈ users</code></li>
+        <li><code>gpu.assignedUserId ∈ users</code> · <code>gpu.assignedServiceId ∈ services</code> · 서버당 gpus 4장</li>
+        <li><code>gpuRequest.requesterUserId ∈ users</code> · <code>gpuRequest.models ⊂ models</code></li>
+        <li><code>event.gpuId ∈ gpus</code> · <code>event.serverId ∈ servers</code> · <code>auditLog.actorUserId ∈ users</code> · <code>apiRequest.serviceId ∈ services</code> · <code>activationStat.{serviceId,modelId,consumerUserId}</code> 모두 존재</li>
+      </ul>
     </section>
 
     <!-- 6 -->
@@ -256,8 +266,8 @@ ModelImport(safetensors,scan,checksum) · AuditLog(action,target,1년+)</pre>
         <thead><tr><th>화면</th><th>Goal</th><th>레이아웃 · 컴포넌트</th><th>우선·더미</th></tr></thead>
         <tbody>
           <tr><td><b>4.2 전체 서버 모니터링</b><br><code>/resource-map</code></td><td>모든 서버 헬스·MIG 현황·이벤트를 한눈에, 문제 서버 즉시 포착</td><td>좌 Hexagon(서버 타일+GPU4 미니) / 우상 MIG 슬라이스 현황(토글) / 우하 이벤트 로그 / CriticalAlert</td><td><span class="badge b-p1">P1</span> servers·slices·events</td></tr>
-          <tr><td><b>4.3 단일 서버 모니터링</b><br><code>/:serverId</code></td><td>서버 1대 GPU 전체의 슬라이스 분할·할당·KPI 파악</td><td>좌 Hexagon(서버 GPU 전체) / 우상 KpiStat+LineChart(CPU·RAM·GPU) / 우하 Table+서비스 / FloatingButtons·StepBack</td><td><span class="badge b-p1">P1</span> server·gpus</td></tr>
-          <tr><td><b>4.4 GPU 상세 모니터링</b><br><code>/:serverId/:gpuId</code></td><td>GPU 1대 상세·슬라이스·올라간 서비스 관찰</td><td>KpiStat+LineChart(꺾은선) / 슬라이스 분할 / 최근활동 Drawer / 올라간 서비스 / 워크스페이스 버튼</td><td><span class="badge b-p1">P1</span> gpu·slices</td></tr>
+          <tr><td><b>4.3 단일 서버 모니터링</b><br><code>/resource-map/:serverId</code></td><td>서버 1대 GPU 전체의 슬라이스 분할·할당·KPI 파악</td><td>좌 Hexagon(서버 GPU 전체) / 우상 KpiStat+LineChart(CPU·RAM·GPU) / 우하 Table+서비스 / FloatingButtons·StepBack</td><td><span class="badge b-p1">P1</span> server·gpus</td></tr>
+          <tr><td><b>4.4 GPU 상세 모니터링</b><br><code>/resource-map/:serverId/:gpuId</code></td><td>GPU 1대 상세·슬라이스·올라간 서비스 관찰</td><td>KpiStat+LineChart(꺾은선) / 슬라이스 분할 / 최근활동 Drawer / 올라간 서비스 / 워크스페이스 버튼</td><td><span class="badge b-p1">P1</span> gpu·slices</td></tr>
           <tr><td><b>4.5 내 할당 자원</b><br><code>/dashboard</code></td><td>호스팅 보유자 본인이 자기 할당 자원 종합 모니터링</td><td>KpiStat(작업률·VRAM·CPU·MEM) / LineChart(토큰) / 로그 / 콘솔·주피터 버튼 / 빈 상태→신청현황</td><td><span class="badge b-p1">P1</span> 내 gpu·서비스</td></tr>
           <tr><td><b>4.6 자원 신청현황</b><br><code>/requests/status</code></td><td>호스팅 전 사용자가 신청 상태·반려 사유 확인</td><td>Table(대기/승인/반려)+StatusBadge / 반려 사유 모달 / 신청 CTA · EmptyState</td><td><span class="badge b-p2">P2</span> requests</td></tr>
           <tr><td><b>4.7 관제 모니터링</b><br><code>/admin/monitoring</code></td><td>관제실 빅스크린 — 전체 종합 실시간</td><td>대형 그리드 · Heatmap·KpiStat·LineChart 종합 · 빅스크린 레이아웃</td><td><span class="badge b-p3">P3</span> 종합</td></tr>
@@ -356,14 +366,15 @@ ModelImport(safetensors,scan,checksum) · AuditLog(action,target,1년+)</pre>
       <p class="muted" style="margin:4px 0">조건문 예: <code>app 폴더에서 구현계획 §8 Goal 1 DoD 체크리스트를 모두 충족한다. for_claude/Anclave-시스템정리·구현계획·디자인스펙을 사양으로 따른다. or stop after 30 turns</code></p>
       <ul>
         <li>☐ <code>npm run build</code> 성공 (TS 타입에러·빌드에러 0)</li>
-        <li>☐ <code>src/data/</code>: §5 시드 <b>실값 일치</b> — servers 8(각 H100×4) · gpus 32 · slices(MIG, 일부 빈=가용) · users 10(실명) · models 10 · services 7 · requests 25(상태 분포) · events 12(심각도 4분류) · audit 20+</li>
+        <li>☐ <code>src/data/</code>: §5 시드 <b>실값 일치</b> — servers 8(각 H100×4) · gpus 32 · slices(MIG, 일부 빈=가용) · users 10(실명) · models 10 · services 7 · requests 25(상태 분포) · events 12(심각도 4분류) · audit 20+ · <b>P3 타입</b>(Agent·BoardPost·AccessPolicy·Capability·InfraIntegration·ActivationStat) 포함</li>
+        <li>☐ <b>참조 무결성</b>: §5 integrity 충족 — 끊긴 FK 0 (slice.owner∈users · service.model∈models · event.gpuId∈gpus …)</li>
         <li>☐ <code>src/lib/</code>: theme(다크/라이트 토글) · role(A / B=C Context) · routes(28경로↔화면↔역할 맵)</li>
         <li>☐ <code>Shell</code>+<code>Sidebar</code>: 사이드바 = IA 8 대분류 + 접기/펴기 · <b>상단 가로 GNB 없음</b>(디자인스펙 Q2 경고) · 역할별 메뉴 노출 필터</li>
         <li>☐ <code>Header</code>: 검색 인풋 + 알림 벨(드롭다운) + 테마 토글 + 역할 전환(A/B=C) + 프로필 — <b>메뉴 항목 없음</b></li>
         <li>☐ <code>src/components/ui/</code>: Table·Card·Badge·StatusBadge·KpiStat·Tabs·Modal·Drawer·EmptyState·FloatingButtons·CriticalAlert·StepBack·Toast (스텁이라도 존재·import 가능)</li>
         <li>☐ <code>src/components/charts/</code>: LineChart·ArcGauge·Hexagon·Heatmap 스텁</li>
         <li>☐ <code>index.css</code>: 디자인스펙 Q1 다크 토큰 + Q14 라이트 토큰 <b>색값 정확</b>(--bg #0d1117 / --accent #6ea8fe / 라이트 캔버스 #eef1f5 …)</li>
-        <li>☐ <code>App.tsx</code>: 28개 라우트 등록 · 각 화면이 빈 골격이라도 셸 안에서 렌더 · 콘솔 에러 0</li>
+        <li>☐ <code>App.tsx</code>: 28개 라우트 등록(<b>경로 = 시스템정리 §10 · IA.xlsx와 1:1 일치</b>) · 각 화면이 빈 골격이라도 셸 안에서 렌더 · 콘솔 에러 0</li>
         <li>☐ 역할 전환 시 사이드바 메뉴가 A/B=C에 맞게 바뀜</li>
       </ul>
 

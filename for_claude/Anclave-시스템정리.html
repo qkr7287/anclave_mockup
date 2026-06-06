@@ -842,12 +842,18 @@ GPU 승인:   목록 → [승인 → 자원맵 서버 선택][반려]</div>
 <span class="kw">interface</span> <span class="ty">GpuChangeRequest</span> { id; requesterUserId; type:'migrate'|'change'|'expand'|'reclaim'; reason; status; rejectReason?; }
 <span class="kw">interface</span> <span class="ty">PublishRequest</span> { id; requesterUserId; serviceName; serviceUrl; demoUrl; meta; status; rejectReason?; }
 <span class="kw">interface</span> <span class="ty">ApiKeyUsage</span> { keyId; serviceId; calls:number[]; connections; }
-<span class="kw">interface</span> <span class="ty">EventLog</span> { id; severity:'critical'|'warn'|'info'|'recovered'; status:'open'|'resolved'; gpuId?; serverId?; message; createdAt; }
+<span class="kw">interface</span> <span class="ty">EventLog</span> { id; severity:'critical'|'warn'|'info'|'recovered'; status:'open'|'resolved'; gpuId?; serverId?; message; createdAt;
+  assignee?; action?; resolution?; }   <span class="cm">// 상세 드로어용(담당·조치·해결)</span>
 <span class="kw">interface</span> <span class="ty">Notification</span> { id; category:'alloc'|'health'|'reclaim'; message; createdAt; read; }   <span class="cm">// 앱 내 알림 3종 (메일 미사용)</span>
 <span class="kw">interface</span> <span class="ty">User</span> { id; username:'admin'|'manager'|'user'; name; role; email; hasHosting; initialRoute; }
 <span class="kw">interface</span> <span class="ty">ModelImport</span> { id; fileName; format:'safetensors'|'other'; scan:'pass'|'fail'|'pending'; checksum; status; }   <span class="cm">// 폐쇄망 반입 보안 점검</span>
 <span class="kw">interface</span> <span class="ty">ActivationStat</span> { serviceId; modelId; consumerUserId; tokens; calls; period; }   <span class="cm">// 활성화 귀속 = 모델×소비자×시간</span>
-<span class="kw">interface</span> <span class="ty">AuditLog</span> { id; actorUserId; action; target; ip?; createdAt; }   <span class="cm">// 콘솔접속·API호출·권한변경 (1년+ 보관)</span></pre>
+<span class="kw">interface</span> <span class="ty">AuditLog</span> { id; actorUserId; action; target; ip?; createdAt; }   <span class="cm">// 콘솔접속·API호출·권한변경 (1년+ 보관)</span>
+<span class="kw">interface</span> <span class="ty">Agent</span> { id; nodeId; serverId; version; status:'active'|'stale'|'down'; deployedAt; }   <span class="cm">// 4.16 데몬·에이전트</span>
+<span class="kw">interface</span> <span class="ty">BoardPost</span> { id; tab:'notice'|'qna'|'manual'; title; body; authorId; answered; createdAt; }   <span class="cm">// 4.23 게시판</span>
+<span class="kw">interface</span> <span class="ty">AccessPolicy</span> { id; role:'admin'|'user'; resource; allow:boolean; }   <span class="cm">// 4.25 접근통제</span>
+<span class="kw">interface</span> <span class="ty">Capability</span> { gpuGen; migSupported:boolean; orchestrator; enabledFeatures:string[]; }   <span class="cm">// 4.26 능력 탐지·기능 플래그</span>
+<span class="kw">interface</span> <span class="ty">InfraIntegration</span> { id; kind:'dcgm'|'prometheus'|'metrics'|'orchestrator'; endpoint; status:'connected'|'down'; }   <span class="cm">// 4.28 인프라 연동</span></pre>
     </section>
 
     <!-- 14 -->

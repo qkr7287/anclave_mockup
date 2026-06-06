@@ -46,6 +46,7 @@
     <a href="#q7">Q7</a><a href="#q8">Q8</a><a href="#q9">Q9</a><a href="#q10">Q10</a><a href="#q11">Q11</a><a href="#q12">Q12</a>
     <a href="#q13">Q13</a><a href="#q14">Q14</a><a href="#q15">Q15</a><a href="#q16">Q16</a><a href="#q17">Q17</a><a href="#q18">Q18</a>
     <a href="#q19">Q19</a><a href="#q20">Q20</a><a href="#q21">Q21</a><a href="#q22">Q22</a><a href="#q23">Q23</a><a href="#q24">Q24</a>
+    <a href="#q25" style="color:#3fb6a8">Q25</a><a href="#q26" style="color:#3fb6a8">Q26</a><a href="#q27" style="color:#3fb6a8">Q27</a><a href="#q28" style="color:#3fb6a8">Q28</a><a href="#q29" style="color:#3fb6a8">Q29</a>
   </nav>
   <main>
     <h1>Anclave — 디자인 스펙 (구현값)</h1>
@@ -69,7 +70,7 @@
       <div class="note" style="background:rgba(248,81,73,.1);border-color:rgba(248,81,73,.35)">❌ <b style="color:#f85149">상단 가로 GNB(Global Nav Bar) 금지</b> — 전역 메뉴는 <b>오직 좌측 사이드바</b>(IA 8 대분류·접기/펴기). 상단 헤더엔 <b>메뉴 항목을 절대 두지 말 것</b>(검색·알림 벨·테마·역할 전환·프로필만). HyperCube식 상단 가로 탭 메뉴 재현 금지.</div>
       <ul>
         <li>셸: <code>flex column</code> — 헤더 위, 아래 <code>flex row</code>(사이드바+메인)</li>
-        <li><b>헤더</b> <code>height:52px; padding:0 16px; border-bottom:1px solid --border; gap:14px</code> · 로고 <code>800/16px</code>, 닷=accent · 레이아웃: 로고 → flex:1 spacer → 우측(gap:10) 벨·테마·역할칩. 미니 헤더엔 검색 인풋 없음(Q18-A에서)</li>
+        <li><b>헤더</b> <code>height:52px; padding:0 16px; border-bottom:1px solid --border; gap:14px</code> · 로고 <code>800/16px</code>, 닷=accent · 레이아웃: 로고 → <b>검색 인풋(Q18-A 상시·좌측 flex)</b> → 우측(gap:10) 벨·테마·역할칩. (Q2는 기본 레이아웃, 검색은 Q18-A 기준 상시 인풋)</li>
         <li><b>플랫 사이드바</b> <code>width:200px; padding:14px 10px; border-right; gap:2px; overflow:auto</code> · 그룹 헤더 없는 플랫 리스트</li>
         <li><b>메뉴 아이템</b> <code>padding:8px 11px; radius:8px; gap:10px; 13px; color:--muted</code> · 아이콘박스 <code>15×15; radius:4</code> · hover <code>color:--text; bg:rgba(255,255,255,.04)</code></li>
         <li><b>활성 = 배경칠</b> <code>bg:accent-soft(rgba(110,168,254,.12)); color:--text</code>, 아이콘 accent (좌측바 아님)</li>
@@ -136,19 +137,34 @@
 
     <section id="q9"><h2><span class="q">Q9</span>아이콘 <span class="pick">B · filled</span></h2>
       <ul>
-        <li><code>&lt;svg viewBox="0 0 24 24" fill="currentColor" stroke="none"&gt;</code> · 그리드 24×24, 사이드바 18×18 · 솔리드 실루엣(Lucide/Phosphor filled, Heroicons solid 중 통일) · 사이드바 활성 아이콘 accent</li>
+        <li><code>&lt;svg viewBox="0 0 24 24" fill="currentColor" stroke="none"&gt;</code> · 그리드 24×24, 사이드바 18×18 · 솔리드 실루엣(<b>Phosphor fill / Heroicons solid</b> 중 통일 · lucide는 outline이라 부적합) · 사이드바 활성 아이콘 accent</li>
       </ul>
     </section>
 
-    <section id="q10"><h2><span class="q">Q10</span>자원맵 <span class="pick">헥사곤 honeycomb(블루→퍼플) · 타일 A(여유)</span></h2>
+    <section id="q10"><h2><span class="q">Q10</span>자원맵 <span class="pick">헥사곤 honeycomb · 3계층 도형(8서버·32GPU)</span></h2>
+      <div class="note">⚠️ design-workshop q10은 <b>단일 서버 24 GPU 예시</b>였다. 실제 플랫폼은 <b>H100 4장 × 8서버 = 32 GPU</b>이고 자원맵이 <b>Step별로 다른 도형</b>이다. 아래 공통 비주얼 + Step별 도형으로 재정의.</div>
+      <h3>공통 헥사 비주얼 (전 Step)</h3>
       <ul>
-        <li>그리드 <code>1fr 336px</code>(맵+상세) gap16 · 헥사 타일 <code>54×62; clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%); color:#fff</code> · 이름 9.5px/700 op.85, 사용률 13.5px/800</li>
-        <li>행 <code>display:flex; gap:6</code> · <code>.hexrow+.hexrow{margin-top:-15px}</code> · 홀수행 <code>margin-left:30px</code> · 24 GPU 패턴 <code>[5,4,5,4,6]</code></li>
-        <li><b>밴드 그라데</b> <code>linear-gradient(155deg, light, dark)</code>: 유휴&lt;25 <code>#525d72→#3a4252</code> · 25-50 <code>#6f9bf2→#4d72d2</code> · 50-75 <code>#7e88ee→#5d64ca</code> · 75-90 <code>#9f80ea→#7a59ce</code> · &gt;90 <code>#c178e2→#9c51c2</code></li>
+        <li>헥사 타일 <code>clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%); color:#fff</code> · 행 <code>flex; gap:6</code> · <code>.hexrow+.hexrow{margin-top:-15px}</code> · 홀수행 offset <code>margin-left:30px</code></li>
+        <li><b>밴드 그라데</b> <code>linear-gradient(155deg, light, dark)</code> 5밴드: 유휴&lt;25 <code>#525d72→#3a4252</code> · 25-50 <code>#6f9bf2→#4d72d2</code> · 50-75 <code>#7e88ee→#5d64ca</code> · 75-90 <code>#9f80ea→#7a59ce</code> · &gt;90 <code>#c178e2→#9c51c2</code> · 빈/가용=빗금</li>
         <li>범례 스와치 <code>#414a5c · #5b8def · #6b71d8 · #8d6be0 · #b25fd0</code></li>
-        <li>hover <code>scale(1.08) brightness(1.12) z2</code> · 선택 <code>scale(1.16)</code> 흰테두리=drop-shadow ±1.6px ×4 + <code>drop-shadow(0 0 9px rgba(170,200,255,.6)) brightness(1.06)</code> · 비선택 <code>opacity:.6 saturate(.82)</code></li>
-        <li>뷰포트 <code>height:340; overflow:hidden; cursor:grab</code> · 팬=우클릭 드래그, 줌=휠(scale .6~2.2), <code>translate(x,y) scale(s); transform-origin:0 0</code></li>
-        <li>상세 패널: 이름 18px/800+상태배지 · 2×2 지표그리드(soft bg radius9) · VRAM바 <code>repeat(32,1fr) gap2; height:20; radius2</code> 점유 <code>hsl(140-i/32*78, 58%, 53%)</code>(초록→노랑) · MIG 슬라이스 4셀 height26, used=accent-soft+accent border, free=<code>#ffffff08</code>(빗금/dim)</li>
+        <li>hover <code>scale(1.08) brightness(1.12) z2</code> · 선택 <code>scale(1.16)</code> 흰테두리=drop-shadow ±1.6px ×4 + <code>drop-shadow(0 0 9px rgba(170,200,255,.6))</code> · 비선택 <code>opacity:.6 saturate(.82)</code></li>
+        <li>뷰포트 <code>overflow:hidden; cursor:grab</code> · 팬=우클릭 드래그 · 줌=휠(scale .6~2.2) <code>translate(x,y) scale(s); transform-origin:0 0</code></li>
+      </ul>
+      <h3>Step 1 — 전체 서버 (4.2)</h3>
+      <ul>
+        <li><b>서버 타일 8개</b> · 각 타일 안에 <b>GPU 4개 미니 헥사</b>(2×2 honeycomb) · 타일 헤더=서버명+헬스 🟢🔴⚪ · <b>타일 클릭 → 단일</b>(GPU 미니는 표시용)</li>
+        <li>서버 타일은 미니 GPU 4개 수용할 만큼 크게 · 우측 패널(MIG 현황·이벤트 로그)과 <code>1fr</code> 분할</li>
+      </ul>
+      <h3>Step 2 — 단일 서버 (4.3)</h3>
+      <ul>
+        <li><b>해당 서버 GPU 4장</b>을 헥사곤으로 · 각 GPU의 <b>MIG 슬라이스 분할(1g~7g)</b> 표시 · GPU 타일 <code>54×62</code> 여유 · 이름 14px/700·사용률 14px/800(Q28)</li>
+        <li><b>GPU 클릭 → GPU 상세</b> · 빈 슬라이스 빗금(가용)</li>
+      </ul>
+      <h3>Step 3 — GPU 상세 (4.4)</h3>
+      <ul>
+        <li><b>GPU 1장</b> 상세 · 슬라이스 분할(사용자·모델·컨테이너)을 큰 헥사/분할 바 + 상세 패널 동반</li>
+        <li>상세 패널: 이름 18px/800+상태배지 · 2×2 지표그리드(soft bg radius9) · VRAM바 <code>repeat(32,1fr) gap2; height:20; radius2</code> 점유 <code>hsl(140-i/32*78,58%,53%)</code>(초록→노랑) · MIG 슬라이스셀 height26, used=accent-soft+accent border, free=빗금/dim</li>
       </ul>
     </section>
 
@@ -263,8 +279,53 @@
       </ul>
     </section>
 
+    <section id="q25"><h2><span class="q">Q25</span>레이아웃 안정성 <span class="pick">영역 고정 · 오버플로 흡수 · 테이블</span></h2>
+      <ul>
+        <li><b>영역 크기 고정</b>: 카드·패널·차트는 콘텐츠가 늘어도 크기 불변. 넘치면 <code>overflow:auto</code>(내부 스크롤) 또는 말줄임으로 흡수 · 형제 영역 침범·잘림 금지</li>
+        <li><b>Flex/Grid 넘침 차단</b>: 자식에 <code>min-width:0</code>(가로)·<code>min-height:0</code>(세로) · 고정 트랙 <code>px/minmax</code>, 가변 <code>minmax(0,1fr)</code></li>
+        <li><b>텍스트 오버플로</b>: 한 줄 영역 <code>text-overflow:ellipsis; white-space:nowrap; overflow:hidden</code> + <code>title</code>/tooltip · 줄바꿈 영역만 wrap · 글씨 줄여 욱여넣기 금지</li>
+        <li><b>테이블</b>: <code>table-layout:fixed</code> + 컬럼 명시 너비 · <b>헤더 nowrap·크기 고정</b>(축소·2줄 금지) · 셀 ellipsis · 숫자 컬럼 고정폭·우정렬 · 안 맞으면 컬럼 숨김/가로 스크롤(글씨 축소 X)</li>
+        <li><b>반응형</b>: 최소 크기(<code>min-width/min-height</code>) 보장 · 깨지면 스택/숨김 전환(글씨 축소 X)</li>
+      </ul>
+    </section>
+
+    <section id="q26"><h2><span class="q">Q26</span>크리티컬 알람 <span class="pick">정중앙 센터 경고 오버레이</span></h2>
+      <ul>
+        <li>위험(critical) 이벤트 발생 시 <b>화면 정중앙 센터 모달 오버레이</b>(토스트 아님) · dim <code>rgba(5,8,12,.62)</code></li>
+        <li>박스 <code>bg:--card2; border:1px var(--danger); radius:12; box-shadow:0 12px 36px rgba(0,0,0,.5); padding:18</code> · 위험 색·아이콘(danger)·서버명 크게 · "해당 서버 이동" CTA(primary)</li>
+        <li>경고/정보 등 하위 심각도는 토스트(Q12)·이벤트 피드(Q21)로 분리 · 전체 서버 모니터링에 우선 적용</li>
+      </ul>
+    </section>
+
+    <section id="q27"><h2><span class="q">Q27</span>헥사곤 비주얼 <span class="pick">단조롭지 않게 · 의미 있는 장식만</span></h2>
+      <ul>
+        <li>자원맵 헥사곤(Q10)은 <b>입체 그라데(155deg 밴드)·내부 글로우·사용률 색</b>으로 풍성하게</li>
+        <li><b>활성 슬라이스 미세 펄스</b>(숨쉬기, <code>@keyframes</code> opacity .85↔1, ~2s) · 빈 슬라이스 빗금 텍스처 · hover <code>scale(1.08) brightness(1.12)</code> · 선택 확대+발광(Q10 drop-shadow)</li>
+        <li>단 <b>의미 없는 회전·과장 장식 금지</b>(AI 티 금지) · 비주얼은 사용률·상태를 표현하는 선까지 · <code>prefers-reduced-motion</code> 존중</li>
+      </ul>
+    </section>
+
+    <section id="q28"><h2><span class="q">Q28</span>최소 폰트 14px <span class="pick">14px floor · 보정 규칙</span></h2>
+      <div class="note" style="background:rgba(248,81,73,.1);border-color:rgba(248,81,73,.35)">⚠️ <b style="color:#f85149">앱 내 모든 텍스트 ≥ 14px.</b> design-workshop(Q1~Q24)의 픽셀값에는 11~13px 폰트가 많은데, 이는 <b>원본 참고값</b>이다. 구현 시 <b>폰트 크기만 14px floor로 상향</b>한다.</div>
+      <h3>14px floor 보정표 (폰트 크기 → 구현값)</h3>
+      <ul>
+        <li>본문/값 14.5px↑ 유지 · 라벨·캡션·메타·힌트·배지·탭·칩 등 <b>11~13.5px → 모두 14px</b>로 상향</li>
+        <li>큰 지표(KPI 값) 24~32px 유지 · H1 27 / H2 20 / H3 16 유지</li>
+        <li><b>예외(상향 안 함)</b>: 간격·패딩·보더·radius·shadow의 px · 아이콘/도형 크기(svg·헥사곤·게이지) · 차트 축 라벨(데이터viz 내부, 10px 허용) · 이 문서 같은 <b>설계 문서 자체 UI</b></li>
+        <li>대비는 <b>크기를 키워서</b> 확보(핵심 24~32 vs 본문 14~14.5) — 작게 줄여 만들지 않음</li>
+      </ul>
+    </section>
+
+    <section id="q29"><h2><span class="q">Q29</span>모니터링 네비 <span class="pick">Step 뒤로 + 플로팅 · 이벤트=드로어</span></h2>
+      <ul>
+        <li>단일 서버·GPU 상세에 <b>← Step 뒤로가기</b>(전체→단일→GPU 상세) · 상단 좌측</li>
+        <li><b>플로팅 버튼</b>(우하단 고정): 콘솔·주피터·이벤트 로그 — 현재 보는 대상 기준(단일=해당 서버, GPU 상세=해당 GPU)</li>
+        <li><b>콘솔·주피터 = 워크스페이스(새 창/탭)</b> · <b>이벤트 로그 = 우측 슬라이드 드로어</b>(현재 화면 위로 슬라이드, 모니터링 유지)</li>
+      </ul>
+    </section>
+
     <hr class="div">
-    <p class="muted" style="font-size:13px">출처: <code>for_claude/design-workshop/q1~q24.html</code> · 짝 문서: 시스템정리(사양) · 구현계획(가이드) · 본 문서(픽셀 스펙)</p>
+    <p class="muted" style="font-size:13px">출처: <code>for_claude/design-workshop/q1~q24.html</code>(Q1~Q24) + 시스템정리 §9(Q25~Q29) · 짝 문서: 시스템정리(사양) · 구현계획(가이드) · 본 문서(픽셀 스펙)</p>
   </main>
 </div>
 </body>
