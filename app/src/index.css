@@ -1,0 +1,189 @@
+@import "tailwindcss";
+
+/* ============================================================
+   Anclave design tokens — Q1 dark (default) / Q14 light
+   Switched at runtime via document.documentElement[data-theme].
+   @theme inline maps Tailwind color utilities to live CSS vars,
+   so utilities (bg-bg, text-muted, border-line …) follow theme.
+   ============================================================ */
+@theme inline {
+  --color-bg: var(--c-bg);
+  --color-soft: var(--c-soft);
+  --color-card: var(--c-card);
+  --color-card2: var(--c-card2);
+  --color-active: var(--c-active);
+  --color-text: var(--c-text);
+  --color-muted: var(--c-muted);
+  --color-line: var(--c-border);
+  --color-accent: var(--c-accent);
+  --color-onaccent: var(--c-onaccent);
+  --color-accent2: var(--c-accent2);
+  --color-ok: var(--c-ok);
+  --color-warn: var(--c-warn);
+  --color-danger: var(--c-danger);
+  --color-inactive: var(--c-inactive);
+  --color-track: var(--c-track);
+
+  --font-sans: "Pretendard", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Consolas", ui-monospace, monospace;
+}
+
+/* Dark (Q1) — default */
+:root {
+  --c-bg: #0d1117;
+  --c-soft: #161b22;
+  --c-card: #1c2330;
+  --c-card2: #1c2430;
+  --c-active: #222b3a;
+  --c-text: #e6edf3;
+  --c-muted: #8b97a7;
+  --c-border: rgba(255, 255, 255, 0.08);
+  --c-border-s: rgba(255, 255, 255, 0.045);
+  --c-accent: #6ea8fe;
+  --c-onaccent: #08111f;
+  --c-accent2: #3fb6a8;
+  --c-ok: #3fb950;
+  --c-warn: #d29922;
+  --c-danger: #f85149;
+  --c-inactive: #3a4252;
+  --c-track: #2a3343;
+
+  --accent-soft: rgba(110, 168, 254, 0.12);
+  --ok-soft: rgba(63, 185, 80, 0.15);
+  --warn-soft: rgba(210, 153, 34, 0.15);
+  --danger-soft: rgba(248, 81, 73, 0.15);
+  --zebra: rgba(255, 255, 255, 0.045);
+  --th-bg: #0f141b;
+  --toast-bg: #222b38;
+  --dim: rgba(5, 8, 12, 0.62);
+
+  --shadow-card: 0 2px 10px rgba(0, 0, 0, 0.4);
+  --shadow-pop: 0 12px 30px rgba(0, 0, 0, 0.5);
+
+  color-scheme: dark;
+}
+
+/* Light (Q14 · soft gray) */
+:root[data-theme="light"] {
+  --c-bg: #eef1f5;
+  --c-soft: #eef1f6;
+  --c-card: #fbfcfd;
+  --c-card2: #ffffff;
+  --c-active: #e6eefb;
+  --c-text: #222831;
+  --c-muted: #616a74;
+  --c-border: #e4e8ee;
+  --c-border-s: #eef1f5;
+  --c-accent: #2f6fe0;
+  --c-onaccent: #ffffff;
+  --c-accent2: #1f8f82;
+  --c-ok: #1a7f37;
+  --c-warn: #9a6700;
+  --c-danger: #cf222e;
+  --c-inactive: #c2c9d3;
+  --c-track: #dde3ea;
+
+  --accent-soft: #e6eefb;
+  --ok-soft: #ddf5e4;
+  --warn-soft: #fbf0d4;
+  --danger-soft: #fce0e0;
+  --zebra: #f4f6f9;
+  --th-bg: #eef1f6;
+  --toast-bg: #ffffff;
+  --dim: rgba(15, 23, 35, 0.4);
+
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --shadow-pop: 0 12px 30px rgba(0, 0, 0, 0.12);
+
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--c-bg);
+  color: var(--c-text);
+  font-family: var(--font-sans);
+  font-size: 14.5px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Q22 — focus ring 2px, no glow */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 2px;
+}
+
+/* thin scrollbars to match dense dashboard tone */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--c-active) transparent;
+}
+*::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--c-active);
+  border-radius: 6px;
+}
+
+/* ---- Q7 motion keyframes (prefers-reduced-motion gated) ---- */
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+@keyframes pulseSlice {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+.anim-fade {
+  animation: fadeUp 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--c-card) 25%,
+    var(--c-active) 50%,
+    var(--c-card) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: 6px;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
