@@ -102,7 +102,7 @@
 
       <div class="group">① 선행 정독 메시지 — 매 /goal 전 1회 (일반 메시지로 먼저 입력)</div>
       <div class="note">💡 짧은 조건문만으론 문서를 대충 읽고 갈 수 있어서, <b>아래를 먼저 보내 문서를 정독·준수하게</b> 한 뒤 /goal을 건다.</div>
-      <pre class="cmd"><span class="label">먼저 이걸 일반 메시지로 ↓ (Goal N의 N만 바꿔 매 Goal 재사용)</span>이제 Goal N 구현 시작이야. 먼저 for_claude의 Anclave-구현계획·디자인스펙·시스템정리를 꼼꼼히 정독해. §8 Goal N의 작업 순서대로 진행하고 DoD를 모두 충족해. §9 검증 매트릭스와 디자인스펙 전 화면 공통 가드레일(AI 티 금지·여백/정렬/밀도)을 그대로 따르고, 화면·라우트·사이드바 메뉴는 IA 8 대분류 순서로. §5 canonical 시드 정본대로 더미를 써. npm run dev로 서버를 띄워 화면 만들 때마다 크롬(claude-in-chrome)으로 실제 렌더를 보면서 여백·정렬·밀도·AI 티·텍스트 겹침을 눈으로 확인·수정해(코드만 보고 끝내지 말 것). 폭별 스크린샷은 resize_window로 1440/1280/1024 뷰포트를 바꿔 캡처해. 그다음 이어서 거는 /goal 목표를 향해 구현해줘.</pre>
+      <pre class="cmd"><span class="label">먼저 이걸 일반 메시지로 ↓ (Goal N의 N만 바꿔 매 Goal 재사용)</span>이제 Goal N 구현 시작이야. 먼저 for_claude의 Anclave-구현계획·디자인스펙·시스템정리를 꼼꼼히 정독해. §8 Goal N의 작업 순서대로 진행하고 DoD를 모두 충족해. §9 검증 매트릭스와 디자인스펙 전 화면 공통 가드레일(AI 티 금지·여백/정렬/밀도)을 그대로 따르고, 화면·라우트·사이드바 메뉴는 IA 8 대분류 순서로. §5 canonical 시드 정본대로 더미를 써. npm run dev로 서버를 띄워 화면 만들 때마다 크롬(claude-in-chrome)으로 실제 렌더를 보면서 여백·정렬·밀도·AI 티·텍스트 겹침을 눈으로 확인·수정해(코드만 보고 끝내지 말 것). 특히 밀도: 모든 화면 above-fold에 정보영역 4개 이상을 채우고(단일 테이블/단일 차트만 두는 화면 금지), KPI 카드는 숫자만 두지 말고 델타·미니추세·게이지 같은 보조요소를 넣어 높이 96~120px로 압축해. 표의 1줄 DoD만 따르면 휑해지니 §8 공통 밀도 DoD와 동반영역 명시를 반드시 같이 충족해. 폭별 스크린샷은 resize_window로 1440/1280/1024 뷰포트를 바꿔 캡처해. 그다음 이어서 거는 /goal 목표를 향해 구현해줘.</pre>
 
       <div class="group">② /goal 조건문 — Goal 1 (기반 · 셋업·셸·라우터·공통컴포넌트·더미·28라우트 골격)</div>
       <pre class="cmd"><span class="label">/goal</span>app 폴더에서 npm run build가 에러 없이 통과하고 구현계획 §8 Goal 1 DoD를 모두 충족한다. 사양 = for_claude/Anclave-시스템정리·구현계획·디자인스펙. 검증: build exit 0, src/{lib,data,components} 존재, App.tsx의 28개 라우트가 IA.xlsx 화면 IA 순서와 동일, src/data는 §5 canonical 정본+참조무결성 충족, 사이드바=IA 8대분류이며 상단 가로 GNB 없음, 콘솔 에러 0.</pre>
@@ -126,8 +126,9 @@
           <li>☐ DoD 항목별 자체 검증(데이터·라우트·무결성 수치로 표 작성)</li>
           <li>☐ <b>크롬 라이브 검증</b>: <code>npm run dev</code> 띄우고 <b>dev 서버 주소(localhost:5xxx) navigate 1회 허용</b> → claude-in-chrome으로 해당 Goal 화면들 실제 렌더</li>
           <li>☐ <b>콘솔 에러 0</b>(브라우저 콘솔 직접 확인)</li>
-          <li>☐ <b>스크린샷 1440×900·1280×800·1024×768</b>: <b><code>resize_window</code>로 뷰포트를 각 폭으로 바꾼 뒤 캡처</b>(claude-in-chrome 캡처는 창 크기로 정규화되므로, 폭을 직접 바꿔야 폭별 정밀 검증이 됨) · 텍스트 겹침·휑함·정렬 어긋남·카드 높이 튐·AI 티 <b>육안 0</b></li>
-          <li>☐ 통과 → <b>커밋</b> → 다음 Goal</li>
+          <li>☐ <b>밀도 게이트(이진·화면별)</b> — <span style="color:#f85149">1차 실패 지점</span>: 각 화면 above-fold 스크린샷을 <b>실제 첨부</b>하고 <b>정보영역 수를 표로 적는다</b>(예: 4.20 = KPI행/추이/랭킹/분포 = 4). <b>영역 &lt;4 또는 단일 테이블·차트 화면 = 즉시 미충족</b>. KPI 카드는 [지표+델타/스파크/게이지] 갖췄는지·높이 96~120px인지 확인. "휑함 육안 0" 같은 주관 판정 금지 — <b>영역 수·카드 구성으로 센다</b>.</li>
+          <li>☐ <b>폭별 스크린샷 1440·1280·1024</b>: <code>resize_window</code>가 뷰포트를 못 바꾸면(창만 바뀜) <b>창을 해당 폭으로 줄여 캡처</b>하거나 <code>javascript_tool</code>로 <code>document.documentElement.style.width</code> 강제 후 캡처 — 폭별로 텍스트 겹침·정렬 어긋남·카드 높이 튐 0 확인.</li>
+          <li>☐ 통과 → <b>즉시 커밋(필수 — 1차엔 Goal 2·3 미커밋으로 체크포인트 없었음)</b> → 다음 Goal</li>
         </ul>
       </div>
       <div class="step"><div class="n">4</div><div><b>다음 Goal</b> — 게이트 통과·커밋 후 <code>/goal</code> + 다음 조건문(새 조건이면 자동 대체, 또는 <code>/goal clear</code> 후 입력). Goal 3까지 반복.</div></div>
