@@ -25,7 +25,11 @@ interface SliceCfg {
   units: number
   usage: number
   vram: number
-  serviceId?: string // 없으면 빈 슬라이스(가용)
+  serviceId?: string // 지정 시 service owner/model/container 자동
+  // service 없는 개인 워크로드(예: manager 직접 할당) — 명시 owner/model
+  ownerUserId?: string
+  modelId?: string
+  container?: string
 }
 interface GpuCfg {
   mode: 'cluster' | 'mig'
@@ -65,9 +69,9 @@ function buildGpu(serverId: string, idx: number, c: GpuCfg): Gpu {
       units: s.units,
       usage: s.usage,
       vramUtil: s.vram,
-      ownerUserId: service?.ownerUserId,
-      modelId: service?.model,
-      containerId: s.serviceId ? nextContainer(s.serviceId) : undefined,
+      ownerUserId: service?.ownerUserId ?? s.ownerUserId,
+      modelId: service?.model ?? s.modelId,
+      containerId: s.serviceId ? nextContainer(s.serviceId) : s.container,
     }
   })
   const service = c.serviceId ? svc(c.serviceId) : undefined
@@ -211,7 +215,7 @@ const CFG: ServerCfg[] = [
       { mode: 'mig', sm: 38, vram: 34, temp: 53, power: 288, slices: [
         { profile: '2g', units: 2, usage: 46, vram: 42, serviceId: 'svc-doc' },
         { profile: '2g', units: 2, usage: 0, vram: 0 },
-        { profile: '3g', units: 3, usage: 0, vram: 0 },
+        { profile: '3g', units: 3, usage: 39, vram: 36, ownerUserId: 'u-manager', modelId: 'm4', container: 'cont-mgr-03' },
       ] },
       { mode: 'mig', sm: 22, vram: 18, temp: 48, power: 241, slices: [
         { profile: '1g', units: 1, usage: 29, vram: 26, serviceId: 'svc-vqa' },
@@ -256,12 +260,12 @@ const CFG: ServerCfg[] = [
       { mode: 'mig', sm: 64, vram: 60, temp: 61, power: 358, slices: [
         { profile: '3g', units: 3, usage: 63, vram: 59, serviceId: 'svc-qwen' },
         { profile: '2g', units: 2, usage: 50, vram: 47, serviceId: 'svc-llama' },
-        { profile: '2g', units: 2, usage: 0, vram: 0 },
+        { profile: '2g', units: 2, usage: 58, vram: 55, ownerUserId: 'u-manager', modelId: 'm1', container: 'cont-mgr-01' },
       ] },
       { mode: 'mig', sm: 57, vram: 54, temp: 60, power: 340, slices: [
         { profile: '2g', units: 2, usage: 49, vram: 46, serviceId: 'svc-doc' },
         { profile: '3g', units: 3, usage: 58, vram: 55, serviceId: 'svc-code' },
-        { profile: '2g', units: 2, usage: 0, vram: 0 },
+        { profile: '2g', units: 2, usage: 47, vram: 44, ownerUserId: 'u-manager', modelId: 'm7', container: 'cont-mgr-02' },
       ] },
       { mode: 'mig', sm: 44, vram: 41, temp: 57, power: 305, slices: [
         { profile: '1g', units: 1, usage: 36, vram: 33, serviceId: 'svc-stt' },

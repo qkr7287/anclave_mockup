@@ -14,7 +14,7 @@ export function Shell() {
       <Header onToggleSidebar={() => setCollapsed((v) => !v)} />
       <div className="flex flex-1 min-h-0">
         <Sidebar access={access} collapsed={collapsed} />
-        <main className="flex-1 min-w-0 overflow-auto" style={{ padding: '18px 22px' }}>
+        <main className="flex-1 min-w-0 overflow-auto" style={{ padding: '18px 22px 76px' }}>
           <Outlet />
         </main>
       </div>

@@ -14,9 +14,9 @@ interface FloatingButtonsProps {
 // Q29 우하단 플로팅 — 콘솔·주피터(워크스페이스 새 창) · 이벤트 로그(드로어).
 export function FloatingButtons({ onEventLog, target }: FloatingButtonsProps) {
   const btn =
-    'flex items-center gap-2 bg-card2 border border-line rounded-lg px-3 py-2 text-[14px] font-semibold hover:border-accent transition-colors'
+    'flex items-center gap-2 bg-card2 border border-line rounded-lg px-3 py-2 text-[14px] font-semibold hover:border-accent transition-colors shadow-[var(--shadow-pop)]'
   return (
-    <div className="fixed bottom-5 right-6 z-30 flex flex-col items-end gap-2" style={{ boxShadow: 'var(--shadow-pop)' }}>
+    <div className="fixed bottom-5 right-6 z-30 flex flex-row items-center gap-2">
       <button type="button" className={btn} title={target ? `콘솔 — ${target}` : '콘솔'}>
         <CommandLineIcon width={16} height={16} className="text-accent" />
         콘솔

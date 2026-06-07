@@ -28,8 +28,8 @@ export function Drawer({ open, onClose, title, children, width = 380 }: DrawerPr
       role="presentation"
     >
       <aside
-        className="absolute top-0 right-0 bottom-0 bg-card2 border-l border-line flex flex-col"
-        style={{ width, boxShadow: 'var(--shadow-pop)' }}
+        className="absolute top-0 right-0 bg-card2 border-l border-line flex flex-col"
+        style={{ width, height: '100vh', boxShadow: 'var(--shadow-pop)' }}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -40,7 +40,7 @@ export function Drawer({ open, onClose, title, children, width = 380 }: DrawerPr
             <XMarkIcon width={18} height={18} />
           </button>
         </header>
-        <div className="p-4 overflow-y-auto min-w-0" style={{ fontSize: 14 }}>
+        <div className="p-4 overflow-y-auto min-w-0 flex-1" style={{ fontSize: 14 }}>
           {children}
         </div>
       </aside>
