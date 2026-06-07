@@ -20,10 +20,12 @@ export function Button({ variant = 'primary', children, className = '', ...rest 
     variant === 'danger'
       ? { background: 'var(--danger-soft)', color: 'var(--c-danger)' }
       : undefined
+  // Q7 — primary CTA만 sweep(은은한 빛 쓸기). 비활성 시 제외.
+  const sweep = variant === 'primary' && !rest.disabled ? 'btn-sweep' : ''
   return (
     <button
       type="button"
-      className={`inline-flex items-center gap-1.5 font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${STYLE[variant]} ${className}`}
+      className={`inline-flex items-center gap-1.5 font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${STYLE[variant]} ${sweep} ${className}`}
       style={{ padding: '8px 16px', fontSize: 14, ...danger }}
       {...rest}
     >

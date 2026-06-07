@@ -37,7 +37,7 @@
   --c-active: #222b3a;
   --c-text: #e6edf3;
   --c-muted: #8b97a7;
-  --c-border: rgba(255, 255, 255, 0.08);
+  --c-border: rgba(255, 255, 255, 0.07);
   --c-border-s: rgba(255, 255, 255, 0.045);
   --c-accent: #6ea8fe;
   --c-onaccent: #08111f;
@@ -102,6 +102,13 @@
   box-sizing: border-box;
 }
 
+/* SectionGrid — 1024 이하에서 메인/보조 1열 스택(글씨 축소 아님, Q25 반응형) */
+@media (max-width: 1024px) {
+  .section-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
 html,
 body,
 #root {
@@ -164,8 +171,81 @@ body {
     opacity: 0.85;
   }
 }
+@keyframes sweep {
+  to {
+    left: 140%;
+  }
+}
 .anim-fade {
   animation: fadeUp 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+/* Q7 stagger — 자식 진입 지연(.05 / .16s 베이스, n번째 누적) */
+.stagger > * {
+  animation: fadeUp 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.stagger > *:nth-child(1) {
+  animation-delay: 0.04s;
+}
+.stagger > *:nth-child(2) {
+  animation-delay: 0.1s;
+}
+.stagger > *:nth-child(3) {
+  animation-delay: 0.16s;
+}
+.stagger > *:nth-child(4) {
+  animation-delay: 0.22s;
+}
+.stagger > *:nth-child(5) {
+  animation-delay: 0.28s;
+}
+.stagger > *:nth-child(6) {
+  animation-delay: 0.34s;
+}
+/* Q7 shiny 텍스트(핵심 헤딩만) — text→accent→text 그라데 스윕 */
+.shiny {
+  background: linear-gradient(
+    100deg,
+    var(--c-text),
+    var(--c-accent),
+    var(--c-text)
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: shimmer 3s linear infinite;
+}
+/* Q7 hover lift(카드) */
+.hover-lift {
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+.hover-lift:hover {
+  transform: translateY(-4px);
+  border-color: var(--c-accent);
+  box-shadow: 0 8px 22px rgba(110, 168, 254, 0.18);
+}
+/* Q7 primary CTA sweep */
+.btn-sweep {
+  position: relative;
+  overflow: hidden;
+}
+.btn-sweep::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -60%;
+  width: 40%;
+  background: linear-gradient(
+    100deg,
+    transparent,
+    rgba(255, 255, 255, 0.45),
+    transparent
+  );
+  transform: skewX(-18deg);
+  animation: sweep 3.2s ease-in-out infinite;
+  pointer-events: none;
 }
 .skeleton {
   background: linear-gradient(

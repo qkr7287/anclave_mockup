@@ -54,7 +54,8 @@ export function Header({ onToggleSidebar }: HeaderProps) {
       </button>
 
       <div className="font-extrabold" style={{ fontSize: 16 }}>
-        Anclave<span className="text-accent">.</span>
+        <span className="shiny">Anclave</span>
+        <span className="text-accent">.</span>
       </div>
 
       {/* Q18-A 상시 검색 인풋 (탐색 전용) */}

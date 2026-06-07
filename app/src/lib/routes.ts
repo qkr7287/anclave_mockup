@@ -91,3 +91,34 @@ export function buildSidebar(access: Access): SidebarGroup[] {
 
 export const appRoutes = ROUTES.filter((r) => r.key !== 'login')
 export const routeByKey = (key: string) => ROUTES.find((r) => r.key === key)
+
+// pathname → RouteDef (동적 세그먼트 :param 매칭). 가장 구체적인(세그먼트 많은) 매치 우선.
+function pathMatches(pattern: string, pathname: string): boolean {
+  const pa = pattern.split('/').filter(Boolean)
+  const pb = pathname.split('/').filter(Boolean)
+  if (pa.length !== pb.length) return false
+  return pa.every((seg, i) => seg.startsWith(':') || seg === pb[i])
+}
+export function matchRoute(pathname: string): RouteDef | undefined {
+  const matches = ROUTES.filter((r) => pathMatches(r.path, pathname))
+  if (matches.length <= 1) return matches[0]
+  // 동률이면 정적 세그먼트가 많은 쪽(덜 모호한) 우선
+  return matches.sort(
+    (a, b) =>
+      b.path.split('/').filter((s) => !s.startsWith(':')).length -
+      a.path.split('/').filter((s) => !s.startsWith(':')).length,
+  )[0]
+}
+
+// 드릴다운(상세) 라우트에서도 사이드바 부모 메뉴가 하이라이트되도록 매핑.
+const HIGHLIGHT_PARENT: Record<string, string> = {
+  'resource-map-server': 'resource-map',
+  'resource-map-gpu': 'resource-map',
+  'model-detail': 'models',
+  'service-detail': 'marketplace',
+}
+export function sidebarHighlightKey(pathname: string): string | undefined {
+  const m = matchRoute(pathname)
+  if (!m) return undefined
+  return HIGHLIGHT_PARENT[m.key] ?? m.key
+}
