@@ -172,6 +172,7 @@
 
     <section id="q10"><h2><span class="q">Q10</span>자원맵 <span class="pick">헥사곤 honeycomb · 3계층 도형(8서버·32GPU)</span></h2>
       <div class="note">⚠️ design-workshop q10은 <b>단일 서버 24 GPU 예시</b>였다. 실제 플랫폼은 <b>H100 4장 × 8서버 = 32 GPU</b>이고 자원맵이 <b>Step별로 다른 도형</b>이다. 아래 공통 비주얼 + Step별 도형으로 재정의.</div>
+      <div class="note" style="background:rgba(248,81,73,.1);border-color:rgba(248,81,73,.35)">⚠️ <b style="color:#f85149">구현 = hex 라이브러리(react-hexgrid 등)로 honeycomb 레이아웃</b>(워크숍 q10 채택) — 좌표/clip-path를 직접 계산하지 말 것. 아래 밴드색·그라데·hover/선택·범례·줌은 라이브러리 헥사에 그대로 적용. <b>자원맵은 Urban Sound 대시보드(desigin/Urban Sound dashboard _ Fiverr Solutions.jfif)식 단일 패널</b>: 헥사곤이 패널 전체를 채우고 그리드 구분선·범례·줌/미니맵·툴팁이 한 패널 안에. <b style="color:#f85149">서버를 분리된 카드로 쪼개지 말 것.</b></div>
       <h3>공통 헥사 비주얼 (전 Step)</h3>
       <ul>
         <li>헥사 타일 <code>clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%); color:#fff</code> · 행 <code>flex; gap:6</code> · <code>.hexrow+.hexrow{margin-top:-15px}</code> · 홀수행 offset <code>margin-left:30px</code></li>
@@ -182,8 +183,8 @@
       </ul>
       <h3>Step 1 — 전체 서버 (4.2)</h3>
       <ul>
-        <li><b>서버 타일 8개</b> · 각 타일 안에 <b>GPU 4개 미니 헥사</b>(2×2 honeycomb) · 타일 헤더=서버명+헬스 🟢🔴⚪ · <b>타일 클릭 → 단일</b>(GPU 미니는 표시용)</li>
-        <li>서버 타일은 미니 GPU 4개 수용할 만큼 크게 · 우측 패널(MIG 현황·이벤트 로그)과 <code>1fr</code> 분할</li>
+        <li><b>단일 honeycomb 패널에 8서버×GPU4 = 32 헥사</b> — 서버는 <b>분리 카드가 아니라</b> 하나의 연속 클러스터 안에서 그룹(구분선·여백·서버명 라벨·헬스 🟢🔴⚪)으로 구분 · <b>서버 영역 클릭 → 단일</b></li>
+        <li>자원맵 패널이 좌측 큰 공간을 채움(범례·줌·미니맵·hover 툴팁 내장) · 우측 패널(MIG 현황·이벤트 로그)과 분할</li>
       </ul>
       <h3>Step 2 — 단일 서버 (4.3)</h3>
       <ul>

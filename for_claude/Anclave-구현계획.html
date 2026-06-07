@@ -100,7 +100,7 @@
           <tr><td><b>빌드</b></td><td>Vite + React 18 + TypeScript</td></tr>
           <tr><td><b>스타일</b></td><td>Tailwind CSS v4 (<code>@tailwindcss/vite</code>) + CSS 변수 토큰</td></tr>
           <tr><td><b>라우팅</b></td><td>React Router v6 — 레이아웃(셸) + 중첩 라우트, 28경로</td></tr>
-          <tr><td><b>차트</b></td><td>Recharts(라인·게이지) · 자원맵 헥사곤/히트맵은 <b>SVG 직접</b>(honeycomb 좌표)</td></tr>
+          <tr><td><b>차트</b></td><td>Recharts(라인·게이지) · 자원맵 헥사곤/히트맵은 <b>hex 라이브러리</b>(react-hexgrid 등 honeycomb 레이아웃 — 워크숍 q10 채택, SVG 좌표 직접 계산 금지)</td></tr>
           <tr><td><b>상태</b></td><td>로컬 state + Context(역할 A/B=C 전환, 테마). 전역 스토어 불필요(더미)</td></tr>
           <tr><td><b>아이콘</b></td><td><b>Heroicons solid</b> 또는 <b>Phosphor fill</b> (Q9 = <code>fill:currentColor; stroke:none</code> 솔리드 · lucide는 outline이라 부적합)</td></tr>
           <tr><td><b>더미</b></td><td><code>src/data/*</code> — 정적 객체. 실시간 felt은 setInterval 지터(자원맵)</td></tr>
@@ -144,7 +144,7 @@
         <li><b>타이포(Q8·Q28)</b>: H1 27 / H2 20 / H3 16 / Body 14.5 / <b>Caption 14 (최소 14px)</b> · 간격 4px 베이스 · 라운드 버튼8·카드12</li>
         <li><b>레이아웃(Q2)</b>: 플랫 사이드바(접기/펴기) + 미니 헤더 · GNB 없음 · 활성 메뉴 배경칠</li>
         <li><b>데이터viz(Q5·Q15)</b>: 반원 아크 게이지 · 영역 라인(미니멀 축·hover 툴팁) · 히트맵=자원맵 헥사곤 결</li>
-        <li><b>자원맵(Q10·Q27)</b>: 헥사곤 honeycomb · 블루→퍼플 사용률 · 빈 슬라이스 빗금 · 입체 그라데이션·펄스(단조롭지 않게)</li>
+        <li><b>자원맵(Q10·Q27)</b>: <b>hex 라이브러리(react-hexgrid 등) 단일 honeycomb 패널</b>(서버=그룹·구분선, <b>분리 카드 X</b> · Urban Sound 대시보드식: 헥사곤이 패널 전체 채움+범례+줌+미니맵+툴팁) · 블루→퍼플 사용률 · 빈 슬라이스 빗금 · 입체 그라데이션·펄스(단조롭지 않게)</li>
         <li><b>상태(Q12·Q21·Q26)</b>: 스켈레톤 로딩 · 토스트 우상단 · <b>크리티컬 알람=정중앙 센터 오버레이</b> · 이벤트 타임라인(심각도 4분류)</li>
         <li><b>안정성(Q25)</b>: 영역 고정·오버플로 흡수 · 테이블 헤더 nowrap 고정 · <code>min-width:0</code> · 글씨 줄여 욱여넣기 금지</li>
         <li><b>모션(Q7·Q13)</b>: stagger·count-up·hover lift 절제 · 콘텐츠 화면만 은은한 글로우 · 데이터 화면은 Count-Up 정도</li>
@@ -184,7 +184,7 @@
         <tbody>
           <tr><td><b>LineChart</b></td><td>영역 라인·미니멀 축·hover 툴팁(KPI 추이·토큰·호출량)</td></tr>
           <tr><td><b>ArcGauge</b></td><td>반원 아크 게이지(사용률)</td></tr>
-          <tr><td><b>Hexagon</b></td><td>자원맵 — honeycomb 좌표 SVG · 서버 타일+GPU4 / GPU 슬라이스 · 블루→퍼플·빗금</td></tr>
+          <tr><td><b>Hexagon</b></td><td>자원맵 — <b>hex 라이브러리(react-hexgrid 등)</b> 단일 honeycomb 패널(서버=그룹·구분선·라벨, <b>분리 카드 X</b>) / GPU 슬라이스 · 블루→퍼플·빗금 · 범례/줌/미니맵/툴팁 (Urban Sound 대시보드식 · SVG 좌표 직접 계산 금지)</td></tr>
           <tr><td><b>Heatmap</b></td><td>헬스 히트맵(전체 서버)</td></tr>
         </tbody>
       </table>
