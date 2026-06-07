@@ -96,6 +96,7 @@
       <h2><span class="num">1</span>준비 · 복붙 방법</h2>
       <ul>
         <li><b>브랜치</b>: <code>feat/mockup-impl</code>에서 작업. 1차 폐기본은 <code>archive/v1-sparse-impl</code>에 박제(반면교사).</li>
+        <li><b>디자인 원본</b>: 디자인스펙(Q1~Q29)이 1차 사양. 픽셀·뉘앙스가 애매하면 <code>for_claude/design-workshop/qN-*.html</code> 원본 참조(Q1~Q24의 출처). 단 <b>폰트는 14px floor</b> 상향 적용(원본 11~13px는 참고값).</li>
         <li><b>서버</b>: <code>app/</code>에서 <code>npm run dev</code> → 5177. STEP 동안 띄워두고 Claude가 크롬으로 렌더 확인.</li>
         <li><b>STEP 진행</b>: ① 구현 프롬프트 복붙 → Claude 구현·보고 → <b>② 검증·QA 프롬프트 복붙</b> → 발견된 문제 수정 → 사용자 OK → <b>커밋</b> → 다음 STEP.</li>
         <li><b>커밋</b>: STEP 끝마다 즉시. 예 <code>feat(impl): G1 자원맵 3계층(4.2~4.4)</code>. <span style="color:var(--danger)">1차엔 커밋이 없어 되돌릴 체크포인트가 없었다 — 반드시 STEP마다.</span></li>
@@ -118,8 +119,16 @@
         </ul>
       </div>
 
+      <div class="note"><b>★ 생동감(심심하지 않게) — "장식"이 아니라 "허용 수단"으로.</b> AI 티 금지와 양립한다. <b>무미건조 금지 ≠ 장식 추가</b> — 위 금지 항목(orb·aurora·gradient)은 그대로 두고, 생동감은 아래로 낸다:
+        <ul style="margin:8px 0 0">
+          <li><b>밀도 + 데이터 viz</b>: 자원맵 헥사곤(Q10)·아크 게이지·미니 라인차트·히트맵·상태 배지·막대 — 화면이 정보로 꽉 차 살아 보이게.</li>
+          <li><b>허용 모션(Q7 · 전부 <code>prefers-reduced-motion</code> 게이트)</b>: 진입 fadeUp·stagger(자식 .05/.16s)·핵심 지표 count-up(~900ms)·핵심 헤딩 shiny 텍스트·primary CTA 버튼 sweep·hover lift. <b>그 외 효과는 금지(§2 절대 금지).</b></li>
+          <li><b>상태 색</b>(ok/warn/danger)로 정보에 생기. 정확한 값은 디자인스펙 Q7·Q5·Q10·Q15.</li>
+        </ul>
+        <b>"절제하되 죽이지 말 것"</b> — 금지(장식)와 생동(밀도·viz·허용모션)을 헷갈리지 않기.</div>
+
       <p class="muted" style="margin-top:14px">↓ <b>① 구현</b> 프롬프트 끝에 붙는 <b>공통 꼬리말</b>:</p>
-      <pre class="cmd"><span class="label">[공통 꼬리말] — ① 구현용</span>PageShell·공통 컴포넌트 재사용. 디자인스펙 픽셀·가드레일 준수. 각 화면 above-fold 정보영역 ≥4(단일 테이블/차트 금지), KPI 카드는 지표+델타/스파크/게이지 구성. §9.2 역할 접근·§9.3 상태 적용. ★구현하면서 §2 "절대 금지 체크리스트"(레이아웃 안정성·테이블 헤더 nowrap·정렬·AI 티·휑함)를 꼭 다시 보고 위반 0으로 맞춰. 다 만들면 npm run build 통과시키고 npm run dev(5177)로 크롬 1440/1280/1024 렌더를 직접 보며 고친 뒤, 결과 보여주고 멈춰(커밋은 ②검증 후).</pre>
+      <pre class="cmd"><span class="label">[공통 꼬리말] — ① 구현용</span>PageShell·공통 컴포넌트 재사용. 디자인스펙 픽셀·가드레일 준수(무미건조 금지 — Q7 허용 모션·데이터 viz·상태 색으로 생동감, 장식은 X). 각 화면 above-fold 정보영역 ≥4(단일 테이블/차트 금지), KPI 카드는 지표+델타/스파크/게이지 구성. §9.2 역할 접근·§9.3 상태 적용. ★구현하면서 §2 "절대 금지 체크리스트"(레이아웃 안정성·테이블 헤더 nowrap·정렬·AI 티·휑함)를 꼭 다시 보고 위반 0으로 맞춰. 다 만들면 npm run build 통과시키고 npm run dev(5177)로 크롬 1440/1280/1024 렌더를 직접 보며 고친 뒤, 결과 보여주고 멈춰(커밋은 ②검증 후).</pre>
 
       <p class="muted" style="margin-top:14px">↓ <b>② 검증·QA</b> 프롬프트의 공통 골격(각 STEP 카드엔 화면이 채워진 버전이 있다):</p>
       <pre class="cmd qa"><span class="label">[공통 골격] — ② 검증·QA용</span>[화면]을 크롬에서 1440·1280·1024로 직접 렌더해 점검해줘. ① §2 "절대 금지 체크리스트"(레이아웃 안정성·테이블 헤더 nowrap·글씨 욱여넣기·텍스트 겹침·카드 높이 정렬·AI 티·휑함)를 <b>항목별로 하나씩 꼭 다시 보고</b> 위반이 없는지 · ② 밀도(above-fold 영역 ≥4·KPI 카드 구성) · ③ 깨짐·어색함·이상한 곳을 찾아. 발견된 걸 [위치·문제·금지항목 위반여부·수정안] 목록으로 보여주고, 합의되면 고친 뒤 다시 렌더로 확인하고 커밋 제안해.</pre>
