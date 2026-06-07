@@ -124,7 +124,7 @@
           <li><b>이벤트 테이블</b>(상태 닷 + 메시지 + 조치 링크, 여러 행) · 상태 배지·색 곳곳에.</li>
           <li><b>2열 구성 + 각 열 패널 2~3개 적층</b> → above-fold가 화면 끝까지 빈틈없이.</li>
         </ul>
-        <b style="color:#f85149">⚠ 단, 이 레퍼런스의 "상단 가로 탭 nav"는 따라하지 말 것</b> — Anclave는 <b>좌측 아코디언 사이드바·상단 GNB 없음</b>(디자인스펙 Q2). 가져올 건 <b>밀도·패널 구성</b>이지 네비 패턴이 아니다. <br>구조를 더 보려면 <b>소스 참고(읽기만)</b>: <code>HyperCube/frontend/src/lib/components/host-board/</code>(GpuCompareCards·GpuPanel·VramBar·SliceCell·ResourceMap) + <code>routes/gpu-hosting/+page.svelte</code> — Svelte·타 토큰·11px·상단nav는 미적용, <b>밀도 구조만</b> 참고. <br><b style="color:#f85149">★ Figma가 있는 화면은 Figma가 최종 정본</b> — 현재 <b>4.2 자원맵 = Figma '전체 서버 모니터링'</b>(fileKey <code>qAavgdkgwTvKpZj9ZcdeKn</code> · node <code>0-1</code> · <code>desigin/figma-resourcemap-final.png</code>). 그 화면 ①구현·②검증은 <b>Figma MCP로 픽셀 대조</b>(예시 이미지보다 Figma 우선) · <b>주황(orange) 효과 = 호버 예시</b>(상시 아님).</div>
+        <b style="color:#f85149">⚠ 단, 이 레퍼런스의 "상단 가로 탭 nav"는 따라하지 말 것</b> — Anclave는 <b>좌측 아코디언 사이드바·상단 GNB 없음</b>(디자인스펙 Q2). 가져올 건 <b>밀도·패널 구성</b>이지 네비 패턴이 아니다. <br>구조를 더 보려면 <b>소스 참고(읽기만)</b>: <code>HyperCube/frontend/src/lib/components/host-board/</code>(GpuCompareCards·GpuPanel·VramBar·SliceCell·ResourceMap) + <code>routes/gpu-hosting/+page.svelte</code> — Svelte·타 토큰·11px·상단nav는 미적용, <b>밀도 구조만</b> 참고. <br><b style="color:#f85149">★ Figma가 있는 화면은 Figma가 최종 정본</b> — 현재 <b>4.2 자원맵 = Figma '전체 서버 모니터링'</b>(fileKey <code>qAavgdkgwTvKpZj9ZcdeKn</code> · node <code>0-1</code> · <code>desigin/figma-resourcemap-final.png</code>) — <b>셸(로고·헤더·사이드바)도 이 Figma 프레임 그대로</b>. 그 화면 ①구현·②검증은 <b>Figma MCP로 픽셀 대조</b>(예시 이미지보다 Figma 우선) · <b>주황(orange) 효과 = 호버 예시</b>(상시 아님).</div>
 
       <div class="danger"><b>★ 모니터링 페이지 무스크롤 규칙 (4.2·4.3·4.4 자원맵 · 4.7 관제).</b> <b>1920×1080 한 화면에 세로·가로 스크롤 없이 전부</b> 들어오게 — 페이지 <code>height:100vh</code> 고정, 바깥 스크롤 0. 넘치는 콘텐츠(이벤트 로그·테이블 등)는 <b>해당 패널 내부 스크롤(overflow:auto)로만</b> 흡수 — <b>폰트 축소·페이지 스크롤 금지</b>(14px floor·레이아웃 안정성 유지). 1920 무스크롤이 1순위, 1280/1024는 Q16 반응형 reflow 허용. <b>②검증 때 1920×1080에서 스크롤 0인지 꼭 확인.</b></div>
 
@@ -172,6 +172,7 @@
 - ★ components/PageShell — 헤더 + KPI행 슬롯(3~4개) + 섹션 그리드 슬롯(메인/보조). KpiStat 카드는 [지표 24~32px + 델타/스파크/게이지 중 1개+] 강제, 높이 96~120px
 - ★ Sidebar — IA 8 대분류 아코디언: 그룹 헤더 클릭 시 하위 펼침/접힘(chevron ▾/▸), 현재 라우트가 속한 그룹만 기본 펼침, 역할 노출 필터, 상단 가로 GNB 없음
 - Shell·Header(검색·벨·테마·역할전환·프로필 — 메뉴 항목 없음)·App.tsx 28라우트 골격 + 역할 접근 가드(§9.2)
+- ★ 로고·헤더·사이드바 = Figma '전체 서버 모니터링'(fileKey qAavgdkgwTvKpZj9ZcdeKn · node 0-1)의 logo/header/sidebar 노드와 똑같이(Figma MCP로 가져와 매칭) — 로고 워드마크·헤더 레이아웃·사이드바 스타일 Figma 그대로(지금 'Anclave.' 텍스트 로고 ❌)
 [공통 꼬리말]</pre>
         <pre class="cmd qa"><span class="label">② 검증·QA → Claude</span>G0 기반(아코디언 사이드바 동작·PageShell 데모·다크/라이트·역할 전환·28라우트 골격)을 크롬에서 1440·1280·1024로 렌더해 점검해줘. ① §2 "절대 금지 체크리스트"(레이아웃 안정성·테이블 헤더 nowrap·정렬·텍스트 겹침·AI 티·휑함)를 항목별로 꼭 다시 보고 위반 0인지 · ② PageShell KPI 카드가 지표+보조요소 구성·높이 96~120px인지 · 아코디언이 현재 그룹만 펼치는지 · GNB 없는지 · ③ 깨짐·이상을 찾아. [위치·문제·금지위반여부·수정안] 목록으로 보여주고, 합의되면 고쳐 다시 확인 후 커밋 제안해.</pre>
       </div>
