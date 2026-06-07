@@ -222,7 +222,7 @@ ModelImport(safetensors,scan,checksum) · AuditLog(action,target,1년+)</pre>
 
       <div class="note"><b>★ 30서버 규칙 + H100 80GB MIG 프로필</b> (4.2 헬스 스펙트럼·4.3 슬라이스 분할의 근거):
         <ul style="margin:8px 0 0">
-          <li><b>서버 30대</b> · 서버당 GPU <b>2/4/8장 가변</b>(혼합·총 ~120) · 위치=랙A~F·NN · 헬스 = <b>정상 다수 + 경고/위험 소수</b>(헬스 스펙트럼 색: green→amber→red)</li>
+          <li><b>서버 30대</b> · 서버당 GPU <b>2/4/8장 가변</b>(혼합·총 ~120) · 위치=랙A~F·NN · 상태 = <b>정상 다수 + 경고/위험 소수</b>(배지로 표시 · 헥사 색은 서버 고유색 hue + 부하 음영, 상태 아님)</li>
           <li><b>GPU = H100 80GB</b> · MIG 프로필: <code>1g.10gb</code>(최대×7) · <code>1g.20gb</code>(×4) · <code>2g.20gb</code>(×3) · <code>3g.40gb</code>(×2) · <code>4g.40gb</code>(×1) · <code>7g.80gb</code>(미분할·×1) — 한 GPU=컴퓨트 7슬라이스+메모리 80GB 한도</li>
           <li><b>분할 믹스(현실적)</b>: 미분할 7g.80gb · 1g.10gb×7(7분할) · 2g.20gb×2+1g.10gb×3(5분할) · 3g.40gb+2g.20gb+1g.10gb×2 · 4g.40gb+3g.40gb 등 다양 · 일부 슬라이스는 빈(가용)</li>
         </ul></div>
@@ -315,7 +315,7 @@ ModelImport(safetensors,scan,checksum) · AuditLog(action,target,1년+)</pre>
       <ul>
         <li><b>servers</b>: <code>srv-01</code>~<code>srv-30</code> (예시 8 + 규칙 22 · 위치·상태·헬스 다양) · 각 <code>gpus</code> <b>2/4/8장 가변</b></li>
         <li><b>gpus</b> id 규칙: <code>{serverId}-gpu{n}</code> (서버당 2/4/8장) · 총 ~120 · name = H100-{NN} · 80GB</li>
-        <li><b>slices</b> id: <code>{gpuId}-s{n}</code> · MIG 프로필(1g~7g)·미분할 GPU=<code>7g.80gb</code> 단일 · ownerUserId ∈ 호스팅 보유 users · modelId ∈ models · containerId = <code>cont-{svc약어}-{nn}</code> · 일부 빈(가용=빗금) · <b>health(헬스값 — 4.3 슬라이스 색)·requestId∈gpuRequests(신청 연결 — 4.3 호버 요약: 신청명·사용자)</b></li>
+        <li><b>slices</b> id: <code>{gpuId}-s{n}</code> · MIG 프로필(1g~7g)·미분할 GPU=<code>7g.80gb</code> 단일 · ownerUserId ∈ 호스팅 보유 users · modelId ∈ models · containerId = <code>cont-{svc약어}-{nn}</code> · 일부 빈(가용=빗금) · <b>load(부하 — 슬라이스 색 음영)·status(정상/주의/경고 — 배지)·requestId∈gpuRequests(신청 연결 — 호버 요약: 신청명·사용자)</b></li>
         <li><b>requests/events/audit/activation</b>: §5 수량·상태 분포대로, ID는 위 정본 참조</li>
       </ul>
     </section>
@@ -330,7 +330,7 @@ ModelImport(safetensors,scan,checksum) · AuditLog(action,target,1년+)</pre>
         <colgroup><col style="width:13%"><col style="width:27%"><col style="width:40%"><col style="width:20%"></colgroup>
         <thead><tr><th>화면</th><th>Goal</th><th>레이아웃 · 컴포넌트</th><th>우선·더미</th></tr></thead>
         <tbody>
-          <tr><td><b>4.2 전체 서버 모니터링</b><br><code>/resource-map</code></td><td>모든 서버 헬스·MIG 현황·이벤트를 한눈에, 문제 서버 즉시 포착</td><td>좌 단일 honeycomb 패널(30서버·서버 안 GPU 미니헥사로 수 표시·헬스 스펙트럼·tessellated·hex 라이브러리) / 우상 MIG 슬라이스 현황(토글) / 우하 이벤트 로그 / CriticalAlert</td><td><span class="badge b-p1">P1</span> servers·slices·events</td></tr>
+          <tr><td><b>4.2 전체 서버 모니터링</b><br><code>/resource-map</code></td><td>모든 서버 헬스·MIG 현황·이벤트를 한눈에, 문제 서버 즉시 포착</td><td>좌 단일 honeycomb blob(슬라이스 단위·서버=고유색 영역+얇은 테두리+중앙 라벨·헥사 음영=부하·tessellated·hex 라이브러리·기준 자원맵 최종디자인.png) / 우상 MIG 슬라이스 현황(토글) / 우하 이벤트 로그 / CriticalAlert</td><td><span class="badge b-p1">P1</span> servers·slices·events</td></tr>
           <tr><td><b>4.3 단일 서버 모니터링</b><br><code>/resource-map/:serverId</code></td><td>서버 1대 GPU 전체의 슬라이스 분할·할당·KPI 파악</td><td>좌 Hexagon(서버 GPU 전체·각 GPU의 MIG 슬라이스 분할: 미분할+다양 섞여) / 우상 KpiStat+LineChart(CPU·RAM·GPU) / 우하 Table+서비스 / FloatingButtons·StepBack</td><td><span class="badge b-p1">P1</span> server·gpus</td></tr>
           <tr><td><b>4.4 GPU 상세 모니터링</b><br><code>/resource-map/:serverId/:gpuId</code></td><td>GPU 1대 상세·슬라이스·올라간 서비스 관찰</td><td>KpiStat+LineChart(꺾은선) / 슬라이스 분할 / 최근활동 Drawer / 올라간 서비스 / 워크스페이스 버튼</td><td><span class="badge b-p1">P1</span> gpu·slices</td></tr>
           <tr><td><b>4.5 내 할당 자원</b><br><code>/dashboard</code></td><td>호스팅 보유자 본인이 자기 할당 자원 종합 모니터링</td><td>KpiStat(작업률·VRAM·CPU·MEM) / LineChart(토큰) / 로그 / 콘솔·주피터 버튼 / 빈 상태→신청현황</td><td><span class="badge b-p1">P1</span> 내 gpu·서비스</td></tr>
