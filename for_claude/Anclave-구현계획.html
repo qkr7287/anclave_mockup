@@ -233,7 +233,7 @@ ModelImport(safetensors,scan,checksum) · AuditLog(action,target,1년+)</pre>
         <tbody>
           <tr><td><b>사용자(10)</b></td><td><code>admin</code>(최종관리자) · <code>manager</code>(실무·호스팅 보유) · <code>user</code>(호스팅 전) · 김민준 · 이서연 · 박지훈 · 최수아 · 정도윤 · 한예린 · 윤서진</td></tr>
           <tr><td><b>모델(10)</b></td><td>Llama 3 70B · Qwen2.5-72B · DeepSeek-V3 · Mistral Small 24B · Qwen2.5-VL 7B · Gemma2 27B · Qwen2.5-Coder 32B · SDXL(이미지) · Whisper Large v3(STT) · BGE-M3(임베딩) <span class="muted">— 사용량 순위 부여</span></td></tr>
-          <tr><td><b>서비스(7)</b></td><td><code>qwen-agent</code>(LLM·API) · <code>llama-chat</code>(챗·API) · <code>code-assist</code>(코딩·API) · <code>doc-search</code>(RAG·API) · <code>sd-image</code>(이미지) · <code>speech-text</code>(STT·API) · <code>vision-qa</code>(VL) <span class="muted">— 호출량·토큰 풍부</span></td></tr>
+          <tr><td><b>서비스(7)</b></td><td><code>qwen-agent</code>(LLM·API) · <code>llama-chat</code>(챗·API) · <code>code-assist</code>(코딩·API) · <code>doc-search</code>(RAG·API) · <code>sd-image</code>(이미지) · <code>speech-text</code>(STT·API) · <code>vision-qa</code>(VL) <span class="muted">— 호출량·토큰 풍부 · 각 서비스 = <b>올린 사용자(deployerUserId)+사용량</b>(4.3 "올라간 서비스" 패널: 누가·얼마나, 어느 GPU/슬라이스 위)</span></td></tr>
         </tbody>
       </table>
 
@@ -315,7 +315,7 @@ ModelImport(safetensors,scan,checksum) · AuditLog(action,target,1년+)</pre>
       <ul>
         <li><b>servers</b>: <code>srv-01</code>~<code>srv-30</code> (예시 8 + 규칙 22 · 위치·상태·헬스 다양) · 각 <code>gpus</code> <b>2/4/8장 가변</b></li>
         <li><b>gpus</b> id 규칙: <code>{serverId}-gpu{n}</code> (서버당 2/4/8장) · 총 ~120 · name = H100-{NN} · 80GB</li>
-        <li><b>slices</b> id: <code>{gpuId}-s{n}</code> · MIG 프로필(1g~7g)·미분할 GPU=<code>7g.80gb</code> 단일 · ownerUserId ∈ 호스팅 보유 users · modelId ∈ models · containerId = <code>cont-{svc약어}-{nn}</code> · 일부 빈(가용)</li>
+        <li><b>slices</b> id: <code>{gpuId}-s{n}</code> · MIG 프로필(1g~7g)·미분할 GPU=<code>7g.80gb</code> 단일 · ownerUserId ∈ 호스팅 보유 users · modelId ∈ models · containerId = <code>cont-{svc약어}-{nn}</code> · 일부 빈(가용=빗금) · <b>health(헬스값 — 4.3 슬라이스 색)·requestId∈gpuRequests(신청 연결 — 4.3 호버 요약: 신청명·사용자)</b></li>
         <li><b>requests/events/audit/activation</b>: §5 수량·상태 분포대로, ID는 위 정본 참조</li>
       </ul>
     </section>
