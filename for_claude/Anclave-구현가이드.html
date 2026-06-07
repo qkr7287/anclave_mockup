@@ -148,7 +148,7 @@
     <!-- 3 -->
     <section id="steps">
       <h2><span class="num">3</span>단계별 프롬프트 — ① 구현 / ② 검증 (위에서부터 복붙)</h2>
-      <div class="note">각 STEP: <b>①</b>를 보내 만들고 → <b>②</b>를 보내 검수·수정 → 커밋 → 다음. ②는 <b>§2 절대 금지 체크리스트를 꼭 확인</b>하게 되어 있다.</div>
+      <div class="note">각 STEP: <b>①</b>를 보내 만들고 → <b>②</b>를 보내 검수·수정 → 커밋 → 다음. <b>모든 ②검증은 §2 "절대 금지 체크리스트" + 밀도(꽉 참) + 예시 이미지(<code>desigin/예시페이지.png</code>) 밀도 대조를 항상 포함</b>한다 — 아래 카드의 ②는 화면별 강조점이고, §2 ②골격(레퍼런스 대조 포함)을 같이 수행한다.</div>
 
       <div class="stepcard">
         <div class="hd"><span class="tag">STEP 0</span>G0 · 기반 (셸 · 아코디언 사이드바 · PageShell · 컴포넌트 · 더미 · 28라우트 골격)</div>
@@ -195,7 +195,7 @@
 
       <div class="stepcard">
         <div class="hd"><span class="tag">STEP 5</span>G5 · 모델 카탈로그 · 상세 (4.12 · 4.13)</div>
-        <pre class="cmd"><span class="label">① 구현 → Claude</span>G5를 §8 DoD대로 구현해줘. 4.12 모델 카탈로그(Table+검색·필터 Q20·순위, 상단 요약 KPI 동반). 4.13 모델 상세(메타데이터 권장 GPU·라이선스·사용 추이 LineChart·GPU 신청 시 선택). [공통 꼬리말]</pre>
+        <pre class="cmd"><span class="label">① 구현 → Claude</span>G5를 §8 DoD대로 구현해줘. 4.12 모델 카탈로그(Table+검색·필터 Q20·순위, 상단 요약 KPI 동반). 4.13 모델 상세(메타데이터 권장 GPU·라이선스 + 사용 추이 LineChart + 버전/올라간 서비스 테이블 + GPU 신청 시 선택 — above-fold 4영역). [공통 꼬리말]</pre>
         <pre class="cmd qa"><span class="label">② 검증·QA → Claude</span>4.12·4.13을 크롬 1440·1280·1024로 렌더해 점검해줘. ① §2 "절대 금지 체크리스트"를 항목별로 꼭 다시 보고 위반 0인지(카탈로그 테이블 헤더 nowrap·컬럼 안 맞을 때 글씨 축소 금지·정렬·AI 티) · ② 밀도(영역 ≥4·단일 테이블 금지) · ③ 검색/필터·상세 연동·깨짐 찾아. [위치·문제·금지위반·수정안] 목록 보여주고 합의되면 고쳐 다시 확인 후 커밋 제안해.</pre>
       </div>
 
@@ -220,19 +220,19 @@
       <div class="stepcard">
         <div class="hd"><span class="tag">STEP 9</span>G9 · API 연동 · 활성화 (4.19 · 4.20) <span style="color:var(--danger);font-size:12px">★1차 최대 휑함</span></div>
         <div class="scope">4.20은 1차에서 가장 휑했던 화면 — 4영역 강제.</div>
-        <pre class="cmd"><span class="label">① 구현 → Claude</span>G9를 §8 DoD대로 구현해줘. 4.19 API 연동(B: 받은 신청 목록·승인→key 발급/복사·호출량 LineChart). 4.20 활성화 대시보드(Tabs 발행자/소비자/관리자) — ★above-fold 4영역 필수: ① 요약 KPI행(소비자·총 토큰·총 호출 + 각 델타/스파크) ② 토큰·호출 추이 LineChart ③ 상위 서비스·모델 랭킹 테이블 ④ 소비자별/모델별 분포(관리자 귀속). KPI에 숫자만 두고 빈 박스 만드는 거 금지. [공통 꼬리말]</pre>
+        <pre class="cmd"><span class="label">① 구현 → Claude</span>G9를 §8 DoD대로 구현해줘. 4.19 API 연동(B: 상단 요약 KPI(발급 키·대기 신청·총 호출) + 받은 신청 목록·승인→key 발급/복사·호출량 LineChart — 단일 목록 금지). 4.20 활성화 대시보드(Tabs 발행자/소비자/관리자) — ★above-fold 4영역 필수: ① 요약 KPI행(소비자·총 토큰·총 호출 + 각 델타/스파크) ② 토큰·호출 추이 LineChart ③ 상위 서비스·모델 랭킹 테이블 ④ 소비자별/모델별 분포(관리자 귀속). KPI에 숫자만 두고 빈 박스 만드는 거 금지. [공통 꼬리말]</pre>
         <pre class="cmd qa"><span class="label">② 검증·QA → Claude</span>4.19·4.20을 크롬 1440·1280·1024로 렌더해 점검해줘. ★4.20이 1차에서 가장 휑했으니 집중: ① §2 "절대 금지 체크리스트" + 밀도(above-fold 영역 ≥4: KPI행/추이/랭킹/분포가 다 있는지·KPI 카드 빈 박스 아닌지)를 항목별로 꼭 확인 · ② 정렬·헤더·AI 티 위반 0 · ③ 탭(발행/소비/관리자) 전환·깨짐 찾아. [위치·문제·금지위반·수정안] 목록 보여주고 합의되면 고쳐 다시 확인 후 커밋 제안해.</pre>
       </div>
 
       <div class="stepcard">
         <div class="hd"><span class="tag">STEP 10</span>G10 · 이벤트 관제 · 알림 (4.21 · 4.22)</div>
-        <pre class="cmd"><span class="label">① 구현 → Claude</span>G10을 §8 DoD대로 구현해줘. 4.21 에러·이벤트 관제(A·B: 타임라인·심각도 칩 필터 Q21·항목 클릭→상세 드로어·문제 GPU 링크, 상단 심각도별 요약 KPI 동반). 4.22 알림 센터(3종 목록·모두 읽음·항목 클릭→해당 화면). [공통 꼬리말]</pre>
+        <pre class="cmd"><span class="label">① 구현 → Claude</span>G10을 §8 DoD대로 구현해줘. 4.21 에러·이벤트 관제(A·B: 타임라인·심각도 칩 필터 Q21·항목 클릭→상세 드로어·문제 GPU 링크, 상단 심각도별 요약 KPI 동반). 4.22 알림 센터(상단 요약(미읽음 수·종류별) + 3종 탭/필터 + 목록·모두 읽음·항목 클릭→해당 화면 — 단일 목록 금지, 요약+목록 2영역+). [공통 꼬리말]</pre>
         <pre class="cmd qa"><span class="label">② 검증·QA → Claude</span>4.21·4.22를 크롬 1440·1280·1024로 렌더해 점검해줘. ① §2 "절대 금지 체크리스트"를 항목별로 꼭 다시 보고 위반 0인지(타임라인·드로어가 영역 침범/정렬 어긋남 없는지·알림이 휑하지 않은지·AI 티) · ② 밀도(영역 ≥4) · ③ 칩 필터·드로어·모두읽음 동작·깨짐 찾아. [위치·문제·금지위반·수정안] 목록 보여주고 합의되면 고쳐 다시 확인 후 커밋 제안해.</pre>
       </div>
 
       <div class="stepcard">
         <div class="hd"><span class="tag">STEP 11</span>G11 · 관제 빅스크린 (4.7)</div>
-        <pre class="cmd"><span class="label">① 구현 → Claude</span>G11 4.7 관제 모니터링 빅스크린(A)을 §8 DoD대로 구현해줘. 빅스크린 종합: 헬스 Heatmap·부하·알럿 KpiStat·LineChart를 1280px+ 3~4열로 가로 폭 꽉 채워 휑하지 않게(빅스크린일수록 밀도 중요). [공통 꼬리말]</pre>
+        <pre class="cmd"><span class="label">① 구현 → Claude</span>G11 4.7 관제 모니터링 빅스크린(A)을 §8 DoD대로 구현해줘. 빅스크린 종합: 헬스 Heatmap·부하·알럿 KpiStat·LineChart를 1280px+ 3~4열로 가로 폭 꽉 채워 휑하지 않게(빅스크린일수록 밀도 중요). ★이 화면은 desigin/예시페이지.png급 밀도가 직접 매치된다(모니터링 계열): 상단 KPI행(4~6개·게이지+보조수치) + 헬스 Heatmap 패널 + 부하/온도 차트 패널 + 알럿/이벤트 로그 패널을 3~4열로 가로 꽉, 패널은 고정높이+내부스크롤, 빈 공간 0. [공통 꼬리말]</pre>
         <pre class="cmd qa"><span class="label">② 검증·QA → Claude</span>4.7을 크롬 1440·1280·1024로 렌더해 점검해줘. ★빅스크린이라 휑함 집중: ① §2 "절대 금지 체크리스트" + 밀도(3~4열로 가로 폭 꽉·above-fold ≥4·빈 공간 없는지)를 항목별로 꼭 확인 · ② Heatmap·차트 정렬/높이 튐·AI 티 위반 0 · ③ 깨짐 찾아. [위치·문제·금지위반·수정안] 목록 보여주고 합의되면 고쳐 다시 확인 후 커밋 제안해.</pre>
       </div>
 
