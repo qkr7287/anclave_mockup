@@ -102,6 +102,12 @@
         <li><b>커밋</b>: STEP 끝마다 즉시. 예 <code>feat(impl): G1 자원맵 3계층(4.2~4.4)</code>. <span style="color:var(--danger)">1차엔 커밋이 없어 되돌릴 체크포인트가 없었다 — 반드시 STEP마다.</span></li>
         <li><b>한 STEP이 크면</b>(예: G13 5화면) 둘로 쪼개도 된다. <b>작을수록 밀도가 산다.</b></li>
       </ul>
+      <div class="note"><b>★ 퀄리티 끌어올리기 기법 (특히 자원맵·차트 같은 비주얼 화면)</b>:
+        <ul style="margin:8px 0 0">
+          <li><b>① HyperCube 컴포넌트 포팅</b> — 처음부터 짜지 말고, 같은 도메인의 검증된 컴포넌트(<code>HyperCube/frontend/src/lib/components/host-board/</code> ResourceMap·GpuPanel·VramBar·SliceCell)를 React로 번역해 Anclave 토큰·14px만 입힌다. 품질·속도 둘 다 보장.</li>
+          <li><b>② 라이브러리부터 검증</b> — 헥사 라이브러리(honeycomb-grid 등) 설치 후 <b>자명한 벌집을 먼저 렌더</b>해 tessellation이 진짜 되는지 확인하고 본격 구현. 토대 먼저 못 박기.</li>
+          <li><b>③ 비교 루프 2~3회</b> — 한 방에 끝내지 말고, 스크린샷을 레퍼런스 이미지와 <b>나란히 놓고 "뭐가 다른지" 차이를 적어 고치기</b>를 2~3 라운드. (덤: 컴포넌트는 샌드박스 라우트에서 단독 완성 후 조립하면 iterate가 쉽다.)</li>
+        </ul></div>
     </section>
 
     <!-- 2 -->
