@@ -182,8 +182,8 @@
       <table>
         <colgroup><col style="width:20%"><col style="width:80%"></colgroup>
         <tbody>
-          <tr><td><b>LineChart</b></td><td>영역 라인·미니멀 축·hover 툴팁(KPI 추이·토큰·호출량)</td></tr>
-          <tr><td><b>ArcGauge</b></td><td>반원 아크 게이지(사용률)</td></tr>
+          <tr><td><b>LineChart</b></td><td>영역 라인·<b>꺾은선(type=linear·직선 세그먼트, 부드러운 곡선/monotone 금지)</b>·미니멀 축·hover 툴팁(KPI 추이·토큰·호출량) · <b>컨테이너 가로·세로 꽉(ResponsiveContainer 100%/100%)</b></td></tr>
+          <tr><td><b>ArcGauge</b></td><td>반원 아크 게이지(사용률) · <b>컨테이너에 맞게 스케일</b>(shrink-0 고정 소형 X — 카드/패널 공간 차면 키움)</td></tr>
           <tr><td><b>Hexagon</b></td><td>자원맵 — <b>hex 라이브러리(react-hexgrid 등)</b> 단일 honeycomb 패널(서버=그룹·구분선·라벨, <b>분리 카드 X</b>) / GPU 슬라이스 · 블루→퍼플·빗금 · 범례/줌/미니맵/툴팁 (Urban Sound 대시보드식 · SVG 좌표 직접 계산 금지)</td></tr>
           <tr><td><b>Heatmap</b></td><td>헬스 히트맵(전체 서버)</td></tr>
         </tbody>
