@@ -173,7 +173,7 @@
 
     <section id="q10"><h2><span class="q">Q10</span>자원맵 <span class="pick">헥사곤 honeycomb · 3계층 도형(8서버·32GPU)</span></h2>
       <div class="note">⚠️ design-workshop q10은 <b>단일 서버 24 GPU 예시</b>였다. 실제 플랫폼은 <b>H100 4장 × 8서버 = 32 GPU</b>이고 자원맵이 <b>Step별로 다른 도형</b>이다. 아래 공통 비주얼 + Step별 도형으로 재정의.</div>
-      <div class="note" style="background:rgba(248,81,73,.1);border-color:rgba(248,81,73,.35)">⚠️ <b style="color:#f85149">구현 = hex 라이브러리(react-hexgrid 등)로 honeycomb 레이아웃</b>(워크숍 q10 채택) — 좌표/clip-path를 직접 계산하지 말 것. 아래 밴드색·그라데·hover/선택·범례·줌은 라이브러리 헥사에 그대로 적용. <b>자원맵은 Urban Sound 대시보드(desigin/Urban Sound dashboard _ Fiverr Solutions.jfif)식 단일 패널</b>: 헥사곤이 패널 전체를 채우고 그리드 구분선·범례·줌/미니맵·툴팁이 한 패널 안에. <b style="color:#f85149">서버를 분리된 카드로 쪼개지 말 것.</b></div>
+      <div class="note" style="background:rgba(248,81,73,.1);border-color:rgba(248,81,73,.35)">⚠️ <b style="color:#f85149">구현 = hex 라이브러리(react-hexgrid 등)로 honeycomb 레이아웃</b>(워크숍 q10 채택) — 좌표/clip-path를 직접 계산하지 말 것. 아래 밴드색·그라데·hover/선택·범례·줌은 라이브러리 헥사에 그대로 적용. <b>자원맵은 Urban Sound 대시보드(desigin/Urban Sound dashboard _ Fiverr Solutions.jfif)식 단일 패널</b>: 헥사곤이 패널 전체를 채우고 그리드 구분선·범례·줌/미니맵·툴팁이 한 패널 안에. <b style="color:#f85149">헥사는 서로 모서리를 맞대 빈틈없이 붙은 tessellated honeycomb(벌집·간격 0, 띄우지 말 것) · 서버를 분리된 카드로 쪼개지 말 것.</b> 라이브러리가 tessellation·줌·hover를 처리하고, 밴드 그라데·hover/선택 glow·툴팁 비주얼은 퀄리티 높게.</div>
       <h3>공통 헥사 비주얼 (전 Step)</h3>
       <ul>
         <li>헥사 타일 <code>clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%); color:#fff</code> · 행 <code>flex; gap:6</code> · <code>.hexrow+.hexrow{margin-top:-15px}</code> · 홀수행 offset <code>margin-left:30px</code></li>
