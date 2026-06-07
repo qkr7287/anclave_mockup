@@ -1,37 +1,60 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import {
-  Bars3Icon,
   BellIcon,
   CheckIcon,
   MagnifyingGlassIcon,
   MoonIcon,
   SunIcon,
+  PlayIcon,
 } from '@heroicons/react/24/solid'
 import { useTheme } from '../lib/theme'
 import { accessOf, useRole } from '../lib/role'
 import { userById } from '../data/users'
 import { notifications } from '../data/events'
+import { IA_GROUPS, ROUTES } from '../lib/routes'
+import { serverById } from '../data'
 
 const DEMO_IDS = ['u-admin', 'u-manager', 'u-user']
 const ACCESS_LABEL: Record<string, string> = {
-  A: 'A · 최종관리자',
-  B: 'B · 실무관리자',
-  C: 'C · 사용자',
+  A: '최종 관리자',
+  B: '실무 관리자',
+  C: '사용자',
 }
 
-interface HeaderProps {
-  onToggleSidebar: () => void
+interface Crumb { label: string; to?: string }
+
+// 현재 경로 → 브레드크럼(클릭 이동, 현재는 비활성). 자원맵은 전체 서버 > 서버 > GPU 드릴다운.
+function useCrumbs(): Crumb[] {
+  const { pathname } = useLocation()
+  if (pathname.startsWith('/resource-map')) {
+    const [, , serverId, gpuId] = pathname.split('/')
+    const crumbs: Crumb[] = [{ label: '전체 서버', to: '/resource-map' }]
+    if (serverId) {
+      const s = serverById(serverId)
+      crumbs.push({ label: s?.name ?? serverId, to: `/resource-map/${serverId}` })
+      if (gpuId) {
+        const g = s?.gpus.find((x) => x.id === gpuId)
+        crumbs.push({ label: g?.name ?? gpuId, to: `/resource-map/${serverId}/${gpuId}` })
+      }
+    }
+    crumbs[crumbs.length - 1] = { label: crumbs[crumbs.length - 1].label } // 현재 = 비활성
+    return crumbs
+  }
+  const route = [...ROUTES].filter((r) => r.path !== '/' && pathname.startsWith(r.path)).sort((a, b) => b.path.length - a.path.length)[0]
+  const group = route ? IA_GROUPS.find((g) => g.id === route.group) : undefined
+  return [{ label: group?.label ?? '대시보드' }, { label: route?.title ?? '전체 서버 모니터링' }]
 }
 
-// Q2/Q18 미니 헤더 — 로고 · 검색 인풋(상시) · 벨 · 테마 · 역할 전환. 메뉴 항목 없음(GNB 금지).
-export function Header({ onToggleSidebar }: HeaderProps) {
+// Q2/Q18 헤더(Figma) — 좌: 브레드크럼 / 우: 검색·알림·테마·프로필. GNB 없음.
+export function Header() {
   const { theme, toggle } = useTheme()
   const { user, access, setUserId } = useRole()
   const navigate = useNavigate()
   const [bellOpen, setBellOpen] = useState(false)
   const [roleOpen, setRoleOpen] = useState(false)
   const unread = notifications.filter((n) => !n.read).length
+  const crumbs = useCrumbs()
 
   const close = () => {
     setBellOpen(false)
@@ -40,89 +63,82 @@ export function Header({ onToggleSidebar }: HeaderProps) {
 
   return (
     <header
-      className="flex items-center border-b border-line bg-bg shrink-0 relative z-20"
-      style={{ height: 52, padding: '0 14px', gap: 14 }}
+      className="flex items-center justify-between shrink-0 relative z-20"
+      style={{ height: 64, padding: '0 16px', gap: 14, background: 'var(--c-card2)' }}
     >
-      <button
-        type="button"
-        onClick={onToggleSidebar}
-        aria-label="사이드바 접기/펴기"
-        className="flex items-center justify-center rounded-lg border border-line text-muted hover:text-text"
-        style={{ width: 32, height: 32 }}
-      >
-        <Bars3Icon width={17} height={17} />
-      </button>
+      {/* 좌: 브레드크럼(헤더 통합·단계 클릭 이동, 현재=비활성) */}
+      <nav className="flex items-center min-w-0" style={{ gap: 8 }} aria-label="브레드크럼">
+        {crumbs.map((c, i) => {
+          const last = i === crumbs.length - 1
+          return (
+            <span key={i} className="flex items-center min-w-0" style={{ gap: 8 }}>
+              {i > 0 && <PlayIcon width={11} height={11} style={{ color: 'var(--c-muted)' }} className="shrink-0" />}
+              {c.to && !last ? (
+                <button type="button" onClick={() => navigate(c.to!)} className="truncate hover:underline" style={{ fontSize: 16, fontWeight: 500, color: 'var(--c-muted)' }}>{c.label}</button>
+              ) : (
+                <span className="truncate" style={{ fontSize: 16, fontWeight: 500, color: last ? 'var(--c-text)' : 'var(--c-muted)' }}>{c.label}</span>
+              )}
+            </span>
+          )
+        })}
+      </nav>
 
-      <div className="font-extrabold" style={{ fontSize: 16 }}>
-        <span className="shiny">Anclave</span>
-        <span className="text-accent">.</span>
-      </div>
-
-      {/* Q18-A 상시 검색 인풋 (탐색 전용) */}
-      <div
-        className="flex items-center gap-2 bg-soft border border-line rounded-lg min-w-0"
-        style={{ flex: 1, maxWidth: 300, height: 34, padding: '0 11px' }}
-      >
-        <MagnifyingGlassIcon width={15} height={15} className="text-muted shrink-0" />
-        <input
-          className="bg-transparent outline-none w-full min-w-0 text-text placeholder:text-muted"
-          style={{ fontSize: 14 }}
-          placeholder="서비스 · 모델 검색…"
-          aria-label="검색"
-        />
-      </div>
-
-      <div className="flex items-center" style={{ gap: 9, marginLeft: 'auto' }}>
-        {/* 알림 벨 */}
-        <div className="relative">
-          <button
-            type="button"
-            aria-label="알림"
-            onClick={() => {
-              setRoleOpen(false)
-              setBellOpen((v) => !v)
-            }}
-            className="flex items-center justify-center rounded-lg border border-line text-muted hover:text-text relative"
-            style={{ width: 34, height: 34 }}
-          >
-            <BellIcon width={17} height={17} />
-            {unread > 0 && (
-              <span
-                className="absolute rounded-full"
-                style={{ top: 6, right: 7, width: 7, height: 7, background: 'var(--c-danger)', border: '1.5px solid var(--c-bg)' }}
-              />
-            )}
-          </button>
+      {/* 우: 검색 · 알림 · 테마 · 프로필 */}
+      <div className="flex items-center" style={{ gap: 20 }}>
+        <div
+          className="flex items-center gap-2 rounded-md min-w-0"
+          style={{ width: 240, height: 40, padding: '0 12px', background: 'var(--c-soft)', border: '1px solid var(--c-border)' }}
+        >
+          <MagnifyingGlassIcon width={16} height={16} className="shrink-0" style={{ color: 'var(--c-muted)', opacity: 0.5 }} />
+          <input
+            className="bg-transparent outline-none w-full min-w-0 text-text"
+            style={{ fontSize: 14 }}
+            placeholder="서비스 · 모델 검색"
+            aria-label="검색"
+          />
         </div>
+
+        {/* 알림 벨 */}
+        <button
+          type="button"
+          aria-label="알림"
+          onClick={() => { setRoleOpen(false); setBellOpen((v) => !v) }}
+          className="flex items-center justify-center text-muted hover:text-text relative"
+          style={{ width: 24, height: 24 }}
+        >
+          <BellIcon width={20} height={20} />
+          {unread > 0 && (
+            <span className="absolute rounded-full" style={{ top: 0, right: 1, width: 7, height: 7, background: 'var(--c-danger)', border: '1.5px solid var(--c-card2)' }} />
+          )}
+        </button>
 
         {/* 테마 토글 */}
         <button
           type="button"
           onClick={toggle}
           aria-label="테마 전환"
-          className="flex items-center justify-center rounded-lg border border-line text-muted hover:text-text"
-          style={{ width: 34, height: 34 }}
+          className="flex items-center justify-center text-muted hover:text-text"
+          style={{ width: 24, height: 24 }}
         >
-          {theme === 'dark' ? <SunIcon width={17} height={17} /> : <MoonIcon width={17} height={17} />}
+          {theme === 'dark' ? <SunIcon width={20} height={20} /> : <MoonIcon width={20} height={20} />}
         </button>
 
-        {/* 역할/프로필 칩 */}
+        {/* 프로필 (아바타 + 이름/역할) */}
         <button
           type="button"
-          onClick={() => {
-            setBellOpen(false)
-            setRoleOpen((v) => !v)
-          }}
-          className="flex items-center gap-2 rounded-lg border border-line hover:border-accent"
-          style={{ height: 34, padding: '0 11px' }}
+          onClick={() => { setBellOpen(false); setRoleOpen((v) => !v) }}
+          className="flex items-center" style={{ gap: 12 }}
         >
           <span
-            className="flex items-center justify-center rounded-full shrink-0"
-            style={{ width: 20, height: 20, background: 'var(--c-accent)', color: 'var(--c-onaccent)', fontSize: 10, fontWeight: 800 }}
+            className="flex items-center justify-center shrink-0"
+            style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--c-accent)', color: 'var(--c-onaccent)', fontSize: 15, fontWeight: 800 }}
           >
             {user.name.slice(0, 1).toUpperCase()}
           </span>
-          <span style={{ fontSize: 14 }}>{ACCESS_LABEL[access]}</span>
+          <span className="flex flex-col items-start" style={{ gap: 2 }}>
+            <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--c-text)' }}>{user.name}</span>
+            <span style={{ fontSize: 14, color: 'var(--c-muted)' }}>{ACCESS_LABEL[access]}</span>
+          </span>
         </button>
       </div>
 
@@ -133,7 +149,7 @@ export function Header({ onToggleSidebar }: HeaderProps) {
       {bellOpen && (
         <div
           className="absolute bg-card2 border border-line rounded-xl overflow-hidden z-20"
-          style={{ top: 50, right: 14, width: 300, boxShadow: 'var(--shadow-pop)' }}
+          style={{ top: 60, right: 16, width: 300, boxShadow: 'var(--shadow-pop)' }}
         >
           <div className="flex items-center justify-between px-4 py-3 border-b border-line">
             <span className="font-bold" style={{ fontSize: 14 }}>알림</span>
@@ -167,7 +183,7 @@ export function Header({ onToggleSidebar }: HeaderProps) {
       {roleOpen && (
         <div
           className="absolute bg-card2 border border-line rounded-xl overflow-hidden z-20"
-          style={{ top: 50, right: 14, width: 240, boxShadow: 'var(--shadow-pop)' }}
+          style={{ top: 60, right: 16, width: 240, boxShadow: 'var(--shadow-pop)' }}
         >
           <div className="px-4 pt-3 pb-1 text-muted uppercase" style={{ fontSize: 11, letterSpacing: '.5px' }}>
             역할 전환 (A / B=C)

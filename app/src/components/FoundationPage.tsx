@@ -76,7 +76,6 @@ type Kpi = {
   delta?: string
   deltaTone?: 'ok' | 'danger' | 'muted'
   spark?: number[]
-  bar?: number
   gauge?: number
   sub?: string
 }
@@ -90,52 +89,52 @@ const S = {
 
 const KPIS_BY_GROUP: Record<number, Kpi[]> = {
   1: [
-    { label: '서버', value: servers.length, unit: '대', delta: `정상 ${okServers}`, deltaTone: 'ok', bar: (okServers / servers.length) * 100, sub: `랙 A·B·C 분산` },
+    { label: '서버', value: servers.length, unit: '대', delta: `정상 ${okServers}`, deltaTone: 'ok', spark: S.wave, sub: `랙 A·B·C 분산` },
     { label: 'GPU', value: allGpus.length, unit: '장', delta: 'H100', deltaTone: 'muted', spark: S.flat, sub: 'NVLink 클러스터·MIG' },
     { label: '평균 사용률', value: avgGpuUtil, unit: '%', delta: '▲ 3.2%p', deltaTone: 'ok', gauge: avgGpuUtil, sub: `p95 ${p95GpuUtil}%` },
-    { label: '장애 서버', value: dangerServers, unit: '대', delta: dangerServers ? '점검 필요' : '없음', deltaTone: dangerServers ? 'danger' : 'ok', bar: (dangerServers / servers.length) * 100, sub: 'XID·헬스 경보' },
+    { label: '장애 서버', value: dangerServers, unit: '대', delta: dangerServers ? '점검 필요' : '없음', deltaTone: dangerServers ? 'danger' : 'ok', spark: S.wave, sub: 'XID·헬스 경보' },
   ],
   2: [
     { label: '대기 신청', value: pendingReqs, unit: '건', delta: '검토 대기', deltaTone: 'muted', spark: S.wave, sub: 'GPU·API·게시' },
     { label: '승인', value: approvedReqs, unit: '건', delta: '▲ 이번 주', deltaTone: 'ok', spark: S.up, sub: '자원 배치 완료' },
-    { label: '반려', value: rejectedReqs, unit: '건', delta: '사유 첨부', deltaTone: 'danger', bar: 30, sub: '재신청 가능' },
-    { label: '변경·회수', value: gpuChangeRequests.length, unit: '건', delta: '4종', deltaTone: 'muted', bar: 50, sub: 'expand·migrate·reclaim' },
+    { label: '반려', value: rejectedReqs, unit: '건', delta: '사유 첨부', deltaTone: 'danger', spark: S.wave, sub: '재신청 가능' },
+    { label: '변경·회수', value: gpuChangeRequests.length, unit: '건', delta: '4종', deltaTone: 'muted', spark: S.wave, sub: 'expand·migrate·reclaim' },
   ],
   3: [
     { label: '등록 모델', value: models.length, unit: '종', delta: 'LLM·VL·Image', deltaTone: 'muted', spark: S.flat, sub: '폐쇄망 반입' },
-    { label: '서비스', value: services.length, unit: '개', delta: `API ${apiSvc}`, deltaTone: 'ok', bar: (apiSvc / services.length) * 100, sub: '모델 기반' },
+    { label: '서비스', value: services.length, unit: '개', delta: `API ${apiSvc}`, deltaTone: 'ok', spark: S.wave, sub: '모델 기반' },
     { label: '인기 1위', value: models[0]?.name.split(' ')[0] ?? '—', delta: `사용 ${abbr(models[0]?.usageCount ?? 0)}`, deltaTone: 'ok', spark: S.up, sub: models[0]?.name },
     { label: '노드 에이전트', value: agents.length, unit: '대', delta: `온라인 ${onlineAgents}`, deltaTone: 'ok', gauge: (onlineAgents / agents.length) * 100, sub: '자동 배포' },
   ],
   4: [
-    { label: '서비스', value: services.length, unit: '개', delta: `API ${apiSvc}`, deltaTone: 'ok', bar: (apiSvc / services.length) * 100, sub: '마켓 노출' },
+    { label: '서비스', value: services.length, unit: '개', delta: `API ${apiSvc}`, deltaTone: 'ok', spark: S.wave, sub: '마켓 노출' },
     { label: '총 호출', value: abbr(totalCalls), delta: '▲ 12.4%', deltaTone: 'ok', spark: S.up, sub: '최근 7일' },
     { label: '총 토큰', value: abbr(totalTokens), delta: '▲ 8.1%', deltaTone: 'ok', spark: S.wave, sub: '소비자 합산' },
     { label: '소비자', value: new Set(activationStats.map((a) => a.consumerUserId)).size, unit: '명', delta: '활성', deltaTone: 'ok', gauge: 64, sub: '발행자×소비자' },
   ],
   5: [
     { label: '이벤트', value: events.length, unit: '건', delta: '24시간', deltaTone: 'muted', spark: S.wave, sub: '심각도 4분류' },
-    { label: '위험', value: crit, unit: '건', delta: crit ? '확인 필요' : '없음', deltaTone: crit ? 'danger' : 'ok', bar: (crit / events.length) * 100, sub: 'XID·ECC·헬스' },
+    { label: '위험', value: crit, unit: '건', delta: crit ? '확인 필요' : '없음', deltaTone: crit ? 'danger' : 'ok', spark: S.wave, sub: 'XID·ECC·헬스' },
     { label: '복구', value: recovered, unit: '건', delta: '자동 복구', deltaTone: 'ok', spark: S.up, sub: 'self-heal' },
     { label: '안읽음 알림', value: unread, unit: '건', delta: '미확인', deltaTone: 'danger', gauge: (unread / notifications.length) * 100, sub: `전체 ${notifications.length}건` },
   ],
   6: [
     { label: '전체 글', value: boardPosts.length, unit: '건', delta: '공지·문의·매뉴얼', deltaTone: 'muted', spark: S.flat, sub: '공통 게시판' },
-    { label: '공지', value: boardPosts.filter((p) => p.tab === 'notice').length, unit: '건', delta: '최신', deltaTone: 'muted', bar: 40, sub: '운영 공지' },
+    { label: '공지', value: boardPosts.filter((p) => p.tab === 'notice').length, unit: '건', delta: '최신', deltaTone: 'muted', spark: S.wave, sub: '운영 공지' },
     { label: '문의 답변', value: answeredQna, unit: '건', delta: `대기 ${openQna}`, deltaTone: openQna ? 'muted' : 'ok', gauge: answeredQna + openQna ? (answeredQna / (answeredQna + openQna)) * 100 : 0, sub: 'Q&A' },
-    { label: '매뉴얼', value: boardPosts.filter((p) => p.tab === 'manual').length, unit: '건', delta: '도입 가이드', deltaTone: 'muted', bar: 35, sub: '모델 도입 문의' },
+    { label: '매뉴얼', value: boardPosts.filter((p) => p.tab === 'manual').length, unit: '건', delta: '도입 가이드', deltaTone: 'muted', spark: S.wave, sub: '모델 도입 문의' },
   ],
   7: [
     { label: '감사 로그', value: auditLogs.length, unit: '건', delta: '1년+ 보관', deltaTone: 'muted', spark: S.wave, sub: '행위 추적' },
-    { label: '권한 정책', value: accessPolicies.length, unit: '건', delta: '역할별', deltaTone: 'muted', bar: 60, sub: '기본 deny' },
+    { label: '권한 정책', value: accessPolicies.length, unit: '건', delta: '역할별', deltaTone: 'muted', spark: S.wave, sub: '기본 deny' },
     { label: '콘솔 세션', value: auditLogs.filter((a) => a.action.includes('콘솔') || a.action.includes('접속') || a.action.includes('세션')).length, unit: '건', delta: '추적', deltaTone: 'ok', spark: S.up, sub: '워크스페이스' },
     { label: '보관 준수', value: 100, unit: '%', delta: '규정', deltaTone: 'ok', gauge: 100, sub: '1년+ 보존' },
   ],
   8: [
     { label: '노드', value: agents.length, unit: '대', delta: `온라인 ${onlineAgents}`, deltaTone: 'ok', gauge: (onlineAgents / agents.length) * 100, sub: '에이전트' },
-    { label: '인프라 연동', value: infraIntegrations.length, unit: '개', delta: `정상 ${infraUp}`, deltaTone: infraUp === infraIntegrations.length ? 'ok' : 'danger', bar: (infraUp / infraIntegrations.length) * 100, sub: 'DCGM·Prom' },
+    { label: '인프라 연동', value: infraIntegrations.length, unit: '개', delta: `정상 ${infraUp}`, deltaTone: infraUp === infraIntegrations.length ? 'ok' : 'danger', spark: S.wave, sub: 'DCGM·Prom' },
     { label: '기능 플래그', value: flags, unit: '개', delta: 'MIG·재탐지', deltaTone: 'muted', spark: S.flat, sub: '능력 탐지' },
-    { label: '사용자', value: users.length, unit: '명', delta: `호스팅 ${users.filter((u) => u.hasHosting).length}`, deltaTone: 'ok', bar: (users.filter((u) => u.hasHosting).length / users.length) * 100, sub: '역할 관리' },
+    { label: '사용자', value: users.length, unit: '명', delta: `호스팅 ${users.filter((u) => u.hasHosting).length}`, deltaTone: 'ok', spark: S.wave, sub: '역할 관리' },
   ],
 }
 
@@ -268,7 +267,6 @@ export function FoundationPage({ screen, title, desc, group, planned, roles }: F
           delta={k.delta}
           deltaTone={k.deltaTone}
           spark={k.spark}
-          bar={k.bar}
           gauge={k.gauge}
           sub={k.sub}
         />

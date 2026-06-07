@@ -1,85 +1,105 @@
-import type { Gpu, GpuServer, GpuHealth, MigSlice, ServerHealth } from './types'
+import type { Gpu, GpuServer, GpuHealth, MigProfile, MigSlice, ServerHealth } from './types'
+import { MIG_PROFILES } from './types'
 import { services } from './services'
+import { gpuRequests } from './requests'
 
-// ── helpers ────────────────────────────────────────────────
+// 소유자 → 그 사용자의 GPU 신청 id(없으면 첫 신청) — slice.requestId 연결용
+const reqByOwner = (ownerUserId?: string): string => {
+  const r = gpuRequests.find((g) => g.requesterUserId === ownerUserId) ?? gpuRequests[0]
+  return r.id
+}
+
+// ── 결정적 PRNG(빌드·렌더 안정 — Math.random 미사용) ──
+function mulberry32(seed: number) {
+  let a = seed
+  return () => {
+    a |= 0
+    a = (a + 0x6d2b79f5) | 0
+    let t = Math.imul(a ^ (a >>> 15), 1 | a)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+const rnd = mulberry32(20260607)
+const pick = <T,>(arr: T[]): T => arr[Math.floor(rnd() * arr.length)]
+const rint = (lo: number, hi: number) => lo + Math.floor(rnd() * (hi - lo + 1))
+
 const ABBR: Record<string, string> = {
-  'svc-qwen': 'qwen',
-  'svc-llama': 'llama',
-  'svc-code': 'code',
-  'svc-doc': 'doc',
-  'svc-sd': 'sd',
-  'svc-stt': 'stt',
-  'svc-vqa': 'vqa',
+  'svc-qwen': 'qwen', 'svc-llama': 'llama', 'svc-code': 'code', 'svc-doc': 'doc', 'svc-sd': 'sd', 'svc-stt': 'stt', 'svc-vqa': 'vqa',
 }
 const contCount: Record<string, number> = {}
-const svc = (id: string) => services.find((s) => s.id === id)!
-
-function nextContainer(serviceId: string): string {
+const nextContainer = (serviceId: string): string => {
   const a = ABBR[serviceId]
   contCount[a] = (contCount[a] ?? 0) + 1
   return `cont-${a}-${String(contCount[a]).padStart(2, '0')}`
 }
+const svc = (id: string) => services.find((s) => s.id === id)!
 
-interface SliceCfg {
-  profile: string
-  units: number
-  usage: number
-  vram: number
-  serviceId?: string // 없으면 빈 슬라이스(가용)
-}
-interface GpuCfg {
+// ── H100 MIG 분할 믹스(현실적) — units 합 ≤7 · gb 합 ≤80 ──
+const PATTERNS: MigProfile[][] = [
+  ['7g.80gb'], // 미분할
+  ['1g.10gb', '1g.10gb', '1g.10gb', '1g.10gb', '1g.10gb', '1g.10gb', '1g.10gb'], // 7분할
+  ['2g.20gb', '2g.20gb', '1g.10gb', '1g.10gb', '1g.10gb'], // 5분할
+  ['3g.40gb', '2g.20gb', '1g.10gb', '1g.10gb'], // 4분할
+  ['4g.40gb', '3g.40gb'], // 2분할(컴퓨트 가득)
+  ['1g.20gb', '1g.20gb', '1g.20gb', '1g.20gb'], // 메모리형 4분할
+  ['2g.20gb', '2g.20gb', '2g.20gb', '1g.10gb'], // 4분할
+  ['3g.40gb', '3g.40gb'], // 2×3g
+]
+
+let gpuGlobal = 0
+
+interface GpuSpec {
   mode: 'cluster' | 'mig'
   health?: GpuHealth
   xid?: string
-  sm: number
-  vram: number
-  temp: number
-  power: number
   serviceId?: string // cluster GPU 할당
-  slices?: SliceCfg[]
+  pattern?: MigProfile[]
+  fill: number // 슬라이스 점유 비율(0~1)
+  baseUtil: number // 사용률 기준
   activities?: { time: string; type: string; message: string }[]
 }
-interface ServerCfg {
-  id: string
-  name: string
-  rack: string
-  host: string
-  health: ServerHealth
-  note: string
-  temp: number
-  network: string
-  cpuUtil: number
-  memUtil: number
-  gpus: GpuCfg[]
-}
 
-let gpuGlobal = 0
-function buildGpu(serverId: string, idx: number, c: GpuCfg): Gpu {
-  gpuGlobal += 1
-  const id = `${serverId}-gpu${idx}`
-  const slices: MigSlice[] | undefined = c.slices?.map((s, i) => {
-    const service = s.serviceId ? svc(s.serviceId) : undefined
+function buildSlices(gpuId: string, pattern: MigProfile[], fill: number, baseUtil: number): MigSlice[] {
+  return pattern.map((profile, i) => {
+    const cap = MIG_PROFILES[profile]
+    const used = rnd() < fill
+    const service = used ? svc(pick(services).id) : undefined
+    const usage = used ? Math.max(8, Math.min(99, Math.round(baseUtil + rint(-12, 12)))) : 0
+    const health: ServerHealth = !used ? 'inactive' : usage >= 90 ? 'danger' : usage >= 80 ? 'warn' : 'normal'
     return {
-      id: `${id}-s${i + 1}`,
-      profile: s.profile,
-      units: s.units,
-      usage: s.usage,
-      vramUtil: s.vram,
+      id: `${gpuId}-s${i + 1}`,
+      profile,
+      units: cap.units,
+      gb: cap.gb,
+      usage,
+      vramUtil: used ? Math.max(6, usage - rint(0, 8)) : 0,
       ownerUserId: service?.ownerUserId,
       modelId: service?.model,
-      containerId: s.serviceId ? nextContainer(s.serviceId) : undefined,
+      containerId: service ? nextContainer(service.id) : undefined,
+      health,
+      requestId: used ? reqByOwner(service?.ownerUserId) : undefined,
     }
   })
+}
+
+function buildGpu(serverId: string, idx: number, c: GpuSpec): Gpu {
+  gpuGlobal += 1
+  const id = `${serverId}-gpu${idx}`
+  const slices = c.mode === 'mig' ? buildSlices(id, c.pattern ?? ['7g.80gb'], c.fill, c.baseUtil) : undefined
+  const usedSlices = slices?.filter((s) => s.usage > 0) ?? []
+  const smUtil = c.xid ? 0 : c.mode === 'cluster' ? c.baseUtil : usedSlices.length ? Math.round(usedSlices.reduce((a, s) => a + s.usage, 0) / usedSlices.length) : 0
+  const vramUtil = c.xid ? 0 : c.mode === 'cluster' ? Math.max(0, smUtil - rint(0, 6)) : usedSlices.length ? Math.round(usedSlices.reduce((a, s) => a + s.vramUtil, 0) / usedSlices.length) : 0
   const service = c.serviceId ? svc(c.serviceId) : undefined
   return {
     id,
     name: `H100-${String(gpuGlobal).padStart(2, '0')}`,
     serial: `GPU-${serverId.slice(-2)}${idx}-${1000 + gpuGlobal}`,
-    smUtil: c.sm,
-    vramUtil: c.vram,
-    temp: c.temp,
-    power: c.power,
-    health: c.health ?? 'normal',
+    smUtil,
+    vramUtil,
+    temp: c.xid ? 88 : Math.round(46 + smUtil * 0.34),
+    power: c.xid ? 92 : Math.round(160 + smUtil * 5.4),
+    health: c.health ?? (smUtil === 0 && c.mode === 'mig' && !usedSlices.length ? 'inactive' : 'normal'),
     allocMode: c.mode,
     assignedUserId: service?.ownerUserId,
     assignedServiceId: c.serviceId,
@@ -90,229 +110,97 @@ function buildGpu(serverId: string, idx: number, c: GpuCfg): Gpu {
   }
 }
 
-// ── §5 서버 8대 구성 (위치·상태 정본 반영) ──────────────────
-const CFG: ServerCfg[] = [
-  {
-    id: 'srv-01', name: '랙A-01', rack: '랙A-01', host: 'gpu-a01',
-    health: 'normal', note: '클러스터(4장→1팀, 대형 학습)', temp: 64, network: '12.4 Gbps', cpuUtil: 71, memUtil: 66,
-    gpus: [
-      { mode: 'cluster', sm: 94, vram: 91, temp: 72, power: 638, serviceId: 'svc-llama', activities: [{ time: '14:22', type: 'load', message: 'Llama 3 70B 샤드 로드 완료' }, { time: '13:50', type: 'alloc', message: '클러스터 4장 점유 시작' }] },
-      { mode: 'cluster', sm: 92, vram: 90, temp: 71, power: 624, serviceId: 'svc-llama' },
-      { mode: 'cluster', sm: 90, vram: 89, temp: 70, power: 611, serviceId: 'svc-llama' },
-      { mode: 'cluster', sm: 91, vram: 90, temp: 71, power: 629, serviceId: 'svc-llama' },
-    ],
-  },
-  {
-    id: 'srv-02', name: '랙A-02', rack: '랙A-02', host: 'gpu-a02',
-    health: 'normal', note: 'MIG 분할(1g·2g·3g 혼합)', temp: 58, network: '8.1 Gbps', cpuUtil: 54, memUtil: 61,
-    gpus: [
-      { mode: 'mig', sm: 76, vram: 72, temp: 63, power: 402, slices: [
-        { profile: '3g', units: 3, usage: 81, vram: 78, serviceId: 'svc-qwen' },
-        { profile: '2g', units: 2, usage: 64, vram: 60, serviceId: 'svc-doc' },
-        { profile: '2g', units: 2, usage: 0, vram: 0 },
-      ] },
-      { mode: 'mig', sm: 68, vram: 70, temp: 61, power: 388, slices: [
-        { profile: '3g', units: 3, usage: 73, vram: 71, serviceId: 'svc-code' },
-        { profile: '1g', units: 1, usage: 44, vram: 40, serviceId: 'svc-stt' },
-        { profile: '1g', units: 1, usage: 38, vram: 35, serviceId: 'svc-vqa' },
-        { profile: '2g', units: 2, usage: 0, vram: 0 },
-      ] },
-      { mode: 'mig', sm: 59, vram: 55, temp: 59, power: 351, slices: [
-        { profile: '2g', units: 2, usage: 57, vram: 52, serviceId: 'svc-llama' },
-        { profile: '2g', units: 2, usage: 49, vram: 46, serviceId: 'svc-doc' },
-        { profile: '3g', units: 3, usage: 0, vram: 0 },
-      ] },
-      { mode: 'mig', sm: 64, vram: 60, temp: 60, power: 366, slices: [
-        { profile: '1g', units: 1, usage: 41, vram: 38, serviceId: 'svc-sd' },
-        { profile: '3g', units: 3, usage: 70, vram: 66, serviceId: 'svc-qwen' },
-        { profile: '3g', units: 3, usage: 0, vram: 0 },
-      ] },
-    ],
-  },
-  {
-    id: 'srv-03', name: '랙A-03', rack: '랙A-03', host: 'gpu-a03',
-    health: 'normal', note: 'MIG 분할(다수 소형 슬라이스)', temp: 56, network: '6.7 Gbps', cpuUtil: 48, memUtil: 57,
-    gpus: [
-      { mode: 'mig', sm: 62, vram: 58, temp: 58, power: 333, slices: [
-        { profile: '1g', units: 1, usage: 52, vram: 48, serviceId: 'svc-stt' },
-        { profile: '1g', units: 1, usage: 47, vram: 44, serviceId: 'svc-vqa' },
-        { profile: '1g', units: 1, usage: 39, vram: 36, serviceId: 'svc-sd' },
-        { profile: '1g', units: 1, usage: 33, vram: 30, serviceId: 'svc-doc' },
-        { profile: '3g', units: 3, usage: 61, vram: 57, serviceId: 'svc-qwen' },
-      ] },
-      { mode: 'mig', sm: 55, vram: 52, temp: 57, power: 321, slices: [
-        { profile: '1g', units: 1, usage: 44, vram: 41, serviceId: 'svc-vqa' },
-        { profile: '1g', units: 1, usage: 36, vram: 33, serviceId: 'svc-stt' },
-        { profile: '2g', units: 2, usage: 58, vram: 54, serviceId: 'svc-code' },
-        { profile: '3g', units: 3, usage: 0, vram: 0 },
-      ] },
-      { mode: 'mig', sm: 51, vram: 49, temp: 56, power: 310, slices: [
-        { profile: '2g', units: 2, usage: 50, vram: 47, serviceId: 'svc-doc' },
-        { profile: '2g', units: 2, usage: 43, vram: 40, serviceId: 'svc-llama' },
-        { profile: '3g', units: 3, usage: 55, vram: 51, serviceId: 'svc-qwen' },
-      ] },
-      { mode: 'mig', sm: 46, vram: 44, temp: 55, power: 298, slices: [
-        { profile: '1g', units: 1, usage: 31, vram: 28, serviceId: 'svc-sd' },
-        { profile: '1g', units: 1, usage: 28, vram: 25, serviceId: 'svc-vqa' },
-        { profile: '1g', units: 1, usage: 0, vram: 0 },
-        { profile: '1g', units: 1, usage: 0, vram: 0 },
-        { profile: '3g', units: 3, usage: 49, vram: 46, serviceId: 'svc-code' },
-      ] },
-    ],
-  },
-  {
-    id: 'srv-04', name: '랙B-01', rack: '랙B-01', host: 'gpu-b01',
-    health: 'normal', note: '혼재(2장 클러스터 + 2장 MIG)', temp: 61, network: '9.3 Gbps', cpuUtil: 63, memUtil: 60,
-    gpus: [
-      { mode: 'cluster', sm: 86, vram: 84, temp: 69, power: 588, serviceId: 'svc-qwen', activities: [{ time: '12:10', type: 'alloc', message: '2장 클러스터 점유' }] },
-      { mode: 'cluster', sm: 84, vram: 83, temp: 68, power: 571, serviceId: 'svc-qwen' },
-      { mode: 'mig', sm: 60, vram: 56, temp: 60, power: 344, slices: [
-        { profile: '3g', units: 3, usage: 66, vram: 62, serviceId: 'svc-doc' },
-        { profile: '2g', units: 2, usage: 51, vram: 48, serviceId: 'svc-stt' },
-        { profile: '2g', units: 2, usage: 0, vram: 0 },
-      ] },
-      { mode: 'mig', sm: 53, vram: 50, temp: 58, power: 327, slices: [
-        { profile: '2g', units: 2, usage: 47, vram: 44, serviceId: 'svc-vqa' },
-        { profile: '2g', units: 2, usage: 42, vram: 39, serviceId: 'svc-sd' },
-        { profile: '3g', units: 3, usage: 58, vram: 54, serviceId: 'svc-code' },
-      ] },
-    ],
-  },
-  {
-    id: 'srv-05', name: '랙B-02', rack: '랙B-02', host: 'gpu-b02',
-    health: 'warn', note: 'MIG 분할(추론 서비스 다수) · 응답 지연', temp: 74, network: '4.2 Gbps', cpuUtil: 88, memUtil: 83,
-    gpus: [
-      { mode: 'mig', sm: 91, vram: 88, temp: 78, power: 441, slices: [
-        { profile: '3g', units: 3, usage: 93, vram: 90, serviceId: 'svc-llama' },
-        { profile: '2g', units: 2, usage: 87, vram: 84, serviceId: 'svc-qwen' },
-        { profile: '2g', units: 2, usage: 82, vram: 80, serviceId: 'svc-code' },
-      ] },
-      { mode: 'mig', sm: 88, vram: 85, temp: 77, power: 433, slices: [
-        { profile: '2g', units: 2, usage: 84, vram: 81, serviceId: 'svc-doc' },
-        { profile: '2g', units: 2, usage: 79, vram: 76, serviceId: 'svc-vqa' },
-        { profile: '3g', units: 3, usage: 90, vram: 87, serviceId: 'svc-stt' },
-      ] },
-      { mode: 'mig', sm: 85, vram: 82, temp: 76, power: 421, slices: [
-        { profile: '1g', units: 1, usage: 76, vram: 72, serviceId: 'svc-sd' },
-        { profile: '3g', units: 3, usage: 89, vram: 86, serviceId: 'svc-qwen' },
-        { profile: '3g', units: 3, usage: 83, vram: 80, serviceId: 'svc-code' },
-      ] },
-      { mode: 'mig', sm: 82, vram: 80, temp: 75, power: 414, slices: [
-        { profile: '2g', units: 2, usage: 80, vram: 77, serviceId: 'svc-doc' },
-        { profile: '2g', units: 2, usage: 74, vram: 70, serviceId: 'svc-llama' },
-        { profile: '3g', units: 3, usage: 86, vram: 83, serviceId: 'svc-qwen' },
-      ] },
-    ],
-  },
-  {
-    id: 'srv-06', name: '랙B-03', rack: '랙B-03', host: 'gpu-b03',
-    health: 'normal', note: '일부 유휴(빈 슬라이스 = 가용)', temp: 49, network: '3.1 Gbps', cpuUtil: 32, memUtil: 41,
-    gpus: [
-      { mode: 'mig', sm: 38, vram: 34, temp: 53, power: 288, slices: [
-        { profile: '2g', units: 2, usage: 46, vram: 42, serviceId: 'svc-doc' },
-        { profile: '2g', units: 2, usage: 0, vram: 0 },
-        { profile: '3g', units: 3, usage: 0, vram: 0 },
-      ] },
-      { mode: 'mig', sm: 22, vram: 18, temp: 48, power: 241, slices: [
-        { profile: '1g', units: 1, usage: 29, vram: 26, serviceId: 'svc-vqa' },
-        { profile: '2g', units: 2, usage: 0, vram: 0 },
-        { profile: '1g', units: 1, usage: 0, vram: 0 },
-        { profile: '3g', units: 3, usage: 0, vram: 0 },
-      ] },
-      { mode: 'mig', health: 'inactive', sm: 0, vram: 0, temp: 39, power: 78, slices: [
-        { profile: '7g', units: 7, usage: 0, vram: 0 },
-      ] },
-      { mode: 'mig', sm: 31, vram: 27, temp: 50, power: 262, slices: [
-        { profile: '3g', units: 3, usage: 41, vram: 38, serviceId: 'svc-code' },
-        { profile: '2g', units: 2, usage: 0, vram: 0 },
-        { profile: '2g', units: 2, usage: 0, vram: 0 },
-      ] },
-    ],
-  },
-  {
-    id: 'srv-07', name: '랙C-01', rack: '랙C-01', host: 'gpu-c01',
-    health: 'danger', note: '1장 XID 에러(드라이버) · 점검', temp: 81, network: '5.6 Gbps', cpuUtil: 59, memUtil: 64,
-    gpus: [
-      { mode: 'mig', health: 'danger', xid: 'XID 79', sm: 0, vram: 0, temp: 88, power: 96, activities: [{ time: '15:02', type: 'error', message: 'XID 79 — GPU 응답 없음(드라이버)' }, { time: '15:03', type: 'health', message: '헬스 danger 전환, 점검 모드' }], slices: [
-        { profile: '7g', units: 7, usage: 0, vram: 0 },
-      ] },
-      { mode: 'mig', sm: 67, vram: 63, temp: 66, power: 372, slices: [
-        { profile: '3g', units: 3, usage: 68, vram: 64, serviceId: 'svc-qwen' },
-        { profile: '2g', units: 2, usage: 55, vram: 51, serviceId: 'svc-doc' },
-        { profile: '2g', units: 2, usage: 0, vram: 0 },
-      ] },
-      { mode: 'mig', sm: 61, vram: 58, temp: 64, power: 351, slices: [
-        { profile: '2g', units: 2, usage: 52, vram: 49, serviceId: 'svc-stt' },
-        { profile: '2g', units: 2, usage: 48, vram: 45, serviceId: 'svc-vqa' },
-        { profile: '3g', units: 3, usage: 60, vram: 56, serviceId: 'svc-code' },
-      ] },
-      { mode: 'cluster', sm: 79, vram: 76, temp: 70, power: 542, serviceId: 'svc-code' },
-    ],
-  },
-  {
-    id: 'srv-08', name: '랙C-02', rack: '랙C-02', host: 'gpu-c02',
-    health: 'normal', note: 'MIG 분할 + 신규 할당 대기', temp: 57, network: '7.4 Gbps', cpuUtil: 51, memUtil: 55,
-    gpus: [
-      { mode: 'mig', sm: 64, vram: 60, temp: 61, power: 358, slices: [
-        { profile: '3g', units: 3, usage: 63, vram: 59, serviceId: 'svc-qwen' },
-        { profile: '2g', units: 2, usage: 50, vram: 47, serviceId: 'svc-llama' },
-        { profile: '2g', units: 2, usage: 0, vram: 0 },
-      ] },
-      { mode: 'mig', sm: 57, vram: 54, temp: 60, power: 340, slices: [
-        { profile: '2g', units: 2, usage: 49, vram: 46, serviceId: 'svc-doc' },
-        { profile: '3g', units: 3, usage: 58, vram: 55, serviceId: 'svc-code' },
-        { profile: '2g', units: 2, usage: 0, vram: 0 },
-      ] },
-      { mode: 'mig', sm: 44, vram: 41, temp: 57, power: 305, slices: [
-        { profile: '1g', units: 1, usage: 36, vram: 33, serviceId: 'svc-stt' },
-        { profile: '1g', units: 1, usage: 32, vram: 29, serviceId: 'svc-vqa' },
-        { profile: '2g', units: 2, usage: 0, vram: 0 },
-        { profile: '3g', units: 3, usage: 0, vram: 0 },
-      ] },
-      { mode: 'mig', sm: 12, vram: 9, temp: 47, power: 198, slices: [
-        { profile: '7g', units: 7, usage: 0, vram: 0 },
-      ] },
-    ],
-  },
-]
+// ── 서버 헬스 분포 + GPU 수(2/4/8) ──
+// srv-01~08: events/audit가 참조하는 GPU 보존 위해 4장 고정 · 특정 상태 유지.
+const RACK = ['A', 'B', 'C', 'D', 'E', 'F']
+const SERVER_N = 30
 
-// ── build servers ──────────────────────────────────────────
-export const servers: GpuServer[] = CFG.map((cfg) => {
-  const gpus = cfg.gpus.map((g, i) => buildGpu(cfg.id, i, g))
+// 위험 3 (srv-07·16·24) · 경고 다수 · 나머지 정상 — 더 다양하게
+const DANGER_SERVERS = new Set([6, 15, 23])
+const WARN_SERVERS = new Set([4, 10, 18, 26])
+function serverHealth(i: number): ServerHealth {
+  if (DANGER_SERVERS.has(i)) return 'danger'
+  if (WARN_SERVERS.has(i)) return 'warn'
+  const r = rnd()
+  if (r < 0.12) return 'warn'
+  return 'normal'
+}
+function gpuCount(i: number): 2 | 4 | 8 {
+  if (i < 8) return 4 // srv-01~08 고정
+  return pick([2, 4, 4, 4, 8, 8]) as 2 | 4 | 8
+}
+
+function buildServer(i: number): GpuServer {
+  const id = `srv-${String(i + 1).padStart(2, '0')}`
+  const rack = RACK[Math.floor(i / 5) % RACK.length]
+  const num = String((i % 5) + 1).padStart(2, '0')
+  const name = `랙${rack}-${num}`
+  const host = `gpu-${rack.toLowerCase()}${num}`
+  const health = serverHealth(i)
+  const count = gpuCount(i)
+
+  // 서버 부하 성향 — 더 다양하게(낮음~높음 폭 넓게)
+  const loadBase = health === 'warn' ? rint(86, 96) : health === 'danger' ? rint(20, 45) : rint(14, 82)
+  const cpuUtil = Math.min(98, health === 'warn' ? rint(85, 95) : rint(22, 80))
+  const memUtil = Math.min(98, Math.max(10, cpuUtil - rint(-8, 12)))
+  const XIDS = ['XID 79', 'XID 48', 'XID 63']
+  const xidCode = XIDS[[6, 15, 23].indexOf(i)] ?? 'XID 79'
+
+  const gpus: Gpu[] = []
+  for (let g = 0; g < count; g++) {
+    // 클러스터/MIG/유휴/장애 믹스
+    let spec: GpuSpec
+    if (health === 'danger' && g === 0) {
+      spec = { mode: 'mig', health: 'danger', xid: xidCode, pattern: ['7g.80gb'], fill: 0, baseUtil: 0, activities: [{ time: '15:02', type: 'error', message: `${xidCode} — GPU 응답 없음(드라이버)` }, { time: '15:03', type: 'health', message: '헬스 danger 전환, 점검 모드' }] }
+    } else if (i === 0) {
+      // srv-01 = 4장 클러스터(대형 학습)
+      spec = { mode: 'cluster', serviceId: 'svc-llama', fill: 1, baseUtil: rint(88, 95), activities: g === 0 ? [{ time: '14:22', type: 'load', message: 'Llama 3 70B 샤드 로드 완료' }, { time: '13:50', type: 'alloc', message: '클러스터 4장 점유 시작' }] : undefined }
+    } else if (i === 5 && g === 2) {
+      // srv-06 유휴 GPU
+      spec = { mode: 'mig', health: 'inactive', pattern: ['7g.80gb'], fill: 0, baseUtil: 0 }
+    } else {
+      const cluster = rnd() < 0.18
+      if (cluster) {
+        spec = { mode: 'cluster', serviceId: pick(services.filter((s) => s.hasApi)).id, fill: 1, baseUtil: Math.min(96, loadBase + rint(-4, 8)) }
+      } else {
+        const idle = health === 'normal' && rnd() < 0.18
+        spec = { mode: 'mig', pattern: pick(PATTERNS), fill: idle ? rint(0, 1) / 2 + 0.15 : health === 'warn' ? 0.95 : 0.72, baseUtil: idle ? rint(8, 24) : loadBase }
+      }
+    }
+    gpus.push(buildGpu(id, g, spec))
+  }
+
   const userIds = new Set<string>()
   const serviceIds = new Set<string>()
-  gpus.forEach((g) => {
-    if (g.assignedUserId) userIds.add(g.assignedUserId)
-    if (g.assignedServiceId) serviceIds.add(g.assignedServiceId)
-    g.slices?.forEach((s) => {
+  gpus.forEach((gp) => {
+    if (gp.assignedUserId) userIds.add(gp.assignedUserId)
+    if (gp.assignedServiceId) serviceIds.add(gp.assignedServiceId)
+    gp.slices?.forEach((s) => {
       if (s.ownerUserId) userIds.add(s.ownerUserId)
-      if (s.containerId) {
-        const sid = services.find((sv) => sv.ownerUserId === s.ownerUserId && sv.model === s.modelId)
-        if (sid) serviceIds.add(sid.id)
+      if (s.ownerUserId && s.modelId) {
+        const sv = services.find((x) => x.ownerUserId === s.ownerUserId && x.model === s.modelId)
+        if (sv) serviceIds.add(sv.id)
       }
     })
   })
+
+  const avgUtil = Math.round(gpus.reduce((a, gp) => a + gp.smUtil, 0) / gpus.length)
+  const note =
+    health === 'danger' ? '장애 GPU 포함 · 점검' : health === 'warn' ? '추론 부하 높음 · 응답 지연' : count === 8 ? '고밀도 노드(8 GPU)' : count === 2 ? '소형 노드(2 GPU)' : 'MIG·클러스터 혼재'
+
   return {
-    id: cfg.id,
-    name: cfg.name,
-    rack: cfg.rack,
-    host: cfg.host,
-    temp: cfg.temp,
-    network: cfg.network,
-    cpuUtil: cfg.cpuUtil,
-    memUtil: cfg.memUtil,
-    health: cfg.health,
-    note: cfg.note,
-    hostedUserIds: [...userIds],
-    hostedServiceIds: [...serviceIds],
+    id, name, rack: name, host,
+    temp: Math.round(48 + avgUtil * 0.3),
+    network: `${(rint(30, 124) / 10).toFixed(1)} Gbps`,
+    cpuUtil, memUtil, health, note,
+    hostedUserIds: [...userIds], hostedServiceIds: [...serviceIds],
     gpus,
   }
-})
+}
 
+export const servers: GpuServer[] = Array.from({ length: SERVER_N }, (_, i) => buildServer(i))
 export const allGpus: Gpu[] = servers.flatMap((s) => s.gpus)
 export const allSlices: MigSlice[] = allGpus.flatMap((g) => g.slices ?? [])
 
-export const serverById = (id: string): GpuServer | undefined =>
-  servers.find((s) => s.id === id)
-export const gpuById = (id: string): Gpu | undefined =>
-  allGpus.find((g) => g.id === id)
+export const serverById = (id: string): GpuServer | undefined => servers.find((s) => s.id === id)
+export const gpuById = (id: string): Gpu | undefined => allGpus.find((g) => g.id === id)

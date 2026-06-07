@@ -52,20 +52,35 @@ export interface Service {
   description: string
   manualUrl?: string
   ownerUserId: string
+  deployerUserId?: string // 올린 사용자(4.3 올라간 서비스) — 기본 ownerUserId
   tags: string[]
   usageCount: number
   usageRank: number
 }
 
+// H100 80GB MIG 프로필 — units(컴퓨트 슬라이스, GPU당 최대 7) + gb(메모리, 최대 80)
+export type MigProfile = '1g.10gb' | '1g.20gb' | '2g.20gb' | '3g.40gb' | '4g.40gb' | '7g.80gb'
+export const MIG_PROFILES: Record<MigProfile, { units: number; gb: number }> = {
+  '1g.10gb': { units: 1, gb: 10 },
+  '1g.20gb': { units: 1, gb: 20 },
+  '2g.20gb': { units: 2, gb: 20 },
+  '3g.40gb': { units: 3, gb: 40 },
+  '4g.40gb': { units: 4, gb: 40 },
+  '7g.80gb': { units: 7, gb: 80 },
+}
+
 export interface MigSlice {
   id: string
-  profile: string // '1g' | '2g' | '3g' | '7g'
-  units: number // MIG 단위(H100 = 7)
+  profile: MigProfile
+  units: number // 컴퓨트 슬라이스(프로필대로)
+  gb: number // 메모리 GB(프로필대로)
   usage: number // 사용률 %
   vramUtil: number
   ownerUserId?: string
   modelId?: string
   containerId?: string
+  health?: ServerHealth // 4.3 슬라이스 색(헬스 스펙트럼)
+  requestId?: string // gpuRequests 연결 — 4.3 호버(신청명·사용자)
 }
 
 export interface GpuActivity {

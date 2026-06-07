@@ -7,10 +7,8 @@ interface KpiStatProps {
   value: ReactNode | number
   unit?: string
   delta?: string
-  deltaTone?: 'ok' | 'danger' | 'muted'
-  /** 0~100 진행 바(보조요소 1종) */
-  bar?: number
-  /** 미니 스파크라인 데이터(보조요소 1종) */
+  deltaTone?: 'ok' | 'danger' | 'muted' | 'warn'
+  /** 미니 스파크라인 데이터(보조요소 1종). 프로젝트 정책: 가로 채움 막대 금지 → 숫자/스파크/게이지만 */
   spark?: number[]
   /** 우측 미니 반원 게이지(0~100, 보조요소 1종) */
   gauge?: number
@@ -53,12 +51,14 @@ function useCountUp(target: number): number {
   return v
 }
 
-function toneColor(tone: 'ok' | 'danger' | 'muted'): string {
+function toneColor(tone: 'ok' | 'danger' | 'muted' | 'warn'): string {
   return tone === 'ok'
     ? 'var(--c-ok)'
     : tone === 'danger'
       ? 'var(--c-danger)'
-      : 'var(--c-accent)'
+      : tone === 'warn'
+        ? 'var(--c-warn)'
+        : 'var(--c-accent)'
 }
 
 function Spark({ data, color }: { data: number[]; color: string }) {
@@ -80,20 +80,20 @@ function Spark({ data, color }: { data: number[]; color: string }) {
   )
 }
 
-// Q5 미니 반원 게이지 — KpiStat 우측. r=26, viewBox 0 0 72 42.
+// Q5 반원 아크 게이지 — 컨테이너를 꽉 채움(라인차트처럼 responsive). viewBox 0 0 72 44.
 function MiniGauge({ value, color }: { value: number; color: string }) {
-  const r = 26
+  const r = 30
   const cx = 36
-  const cy = 36
+  const cy = 38
   const ratio = Math.min(1, Math.max(0, value / 100))
   const theta = Math.PI * (1 - ratio)
   const ex = cx + r * Math.cos(theta)
   const ey = cy - r * Math.sin(theta)
   return (
-    <svg viewBox="0 0 72 42" style={{ width: 64, height: 38, display: 'block' }} aria-hidden>
-      <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`} fill="none" stroke="var(--c-track)" strokeWidth={7} strokeLinecap="round" />
-      <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${ex} ${ey}`} fill="none" stroke={color} strokeWidth={7} strokeLinecap="round" />
-      <text x={cx} y={cy - 4} textAnchor="middle" style={{ fontSize: 15, fontWeight: 800, fill: 'var(--c-text)' }}>
+    <svg viewBox="0 0 72 44" preserveAspectRatio="xMidYMid meet" style={{ width: '100%', height: '100%', display: 'block' }} aria-hidden>
+      <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`} fill="none" stroke="var(--c-track)" strokeWidth={8} strokeLinecap="round" />
+      <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${ex} ${ey}`} fill="none" stroke={color} strokeWidth={8} strokeLinecap="round" />
+      <text x={cx} y={cy - 6} textAnchor="middle" style={{ fontSize: 17, fontWeight: 800, fill: 'var(--c-text)' }}>
         {Math.round(value)}
       </text>
     </svg>
@@ -108,7 +108,6 @@ export function KpiStat({
   unit,
   delta,
   deltaTone = 'muted',
-  bar,
   spark,
   gauge,
   gaugeColor,
@@ -121,9 +120,30 @@ export function KpiStat({
   const shown: ReactNode = isNum ? Math.round(counted).toLocaleString('en-US') : (value as ReactNode)
 
   const deltaColor =
-    deltaTone === 'ok' ? 'var(--c-ok)' : deltaTone === 'danger' ? 'var(--c-danger)' : 'var(--c-muted)'
+    deltaTone === 'ok' ? 'var(--c-ok)' : deltaTone === 'danger' ? 'var(--c-danger)' : deltaTone === 'warn' ? 'var(--c-warn)' : 'var(--c-muted)'
   const auxColor = toneColor(deltaTone)
   const gColor = gaugeColor ?? auxColor
+
+  // 게이지 모드 — 카드를 행으로, 게이지가 우측에서 세로 꽉 채움
+  if (gauge != null) {
+    return (
+      <div className="bg-card2 border border-line rounded-xl min-w-0 flex items-stretch gap-2 hover-lift"
+        style={{ padding: '12px 14px', boxShadow: 'var(--shadow-card)', minHeight: 96, maxHeight: 120, overflow: 'hidden' }}>
+        <div className="flex flex-col justify-center min-w-0 flex-1">
+          <span className="text-muted font-semibold truncate" style={{ fontSize: 14, lineHeight: 1.2 }}>{label}</span>
+          <div className="flex items-baseline gap-1.5" style={{ marginTop: 2 }}>
+            <span style={{ fontSize: 27, fontWeight: 800, letterSpacing: '-0.5px', lineHeight: 1.05 }}>{shown}</span>
+            {unit && <span className="text-muted" style={{ fontSize: 14 }}>{unit}</span>}
+          </div>
+          {sub && <span className="text-muted truncate" style={{ fontSize: 14, lineHeight: 1.25, marginTop: 1 }}>{sub}</span>}
+        </div>
+        <div className="shrink-0 flex flex-col items-center justify-center" style={{ width: 78 }}>
+          <div className="flex-1 min-h-0 w-full flex items-center"><MiniGauge value={gauge} color={gColor} /></div>
+          {delta && <span className="font-semibold shrink-0" style={{ fontSize: 14, color: deltaColor, lineHeight: 1.1 }}>{delta}</span>}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div
@@ -134,39 +154,22 @@ export function KpiStat({
         <div className="flex flex-col min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
             <span className="text-muted font-semibold truncate" style={{ fontSize: 14, lineHeight: 1.2 }}>{label}</span>
-            {icon && !gauge && <span className="text-muted shrink-0">{icon}</span>}
+            {icon && <span className="text-muted shrink-0">{icon}</span>}
           </div>
           <div className="flex items-baseline gap-1.5" style={{ marginTop: 3 }}>
             <span style={{ fontSize: 27, fontWeight: 800, letterSpacing: '-0.5px', lineHeight: 1.05 }}>{shown}</span>
             {unit && <span className="text-muted" style={{ fontSize: 14 }}>{unit}</span>}
-            {delta && !gauge && (
+            {delta && (
               <span className="ml-auto shrink-0 font-semibold" style={{ fontSize: 14, color: deltaColor }}>{delta}</span>
             )}
           </div>
           {sub && <span className="text-muted truncate" style={{ fontSize: 14, lineHeight: 1.25, marginTop: 1 }}>{sub}</span>}
         </div>
-        {gauge != null && (
-          <div className="shrink-0 flex flex-col items-center">
-            <MiniGauge value={gauge} color={gColor} />
-            {delta && <span className="font-semibold" style={{ fontSize: 14, color: deltaColor, lineHeight: 1.1 }}>{delta}</span>}
-          </div>
-        )}
       </div>
 
-      {/* 하단 보조요소 — 게이지 모드가 아니면 스파크 > 바 > aux */}
-      {gauge == null && (
-        <div className="mt-auto" style={{ paddingTop: 6 }}>
-          {spark && spark.length > 1 ? (
-            <Spark data={spark} color={auxColor} />
-          ) : bar != null ? (
-            <div className="rounded-full overflow-hidden" style={{ height: 6, background: 'var(--c-soft)' }}>
-              <div className="h-full rounded-full" style={{ width: `${Math.min(100, Math.max(0, bar))}%`, background: auxColor }} />
-            </div>
-          ) : (
-            aux
-          )}
-        </div>
-      )}
+      <div className="mt-auto" style={{ paddingTop: 6 }}>
+        {spark && spark.length > 1 ? <Spark data={spark} color={auxColor} /> : aux}
+      </div>
     </div>
   )
 }

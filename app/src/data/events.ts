@@ -1,8 +1,10 @@
 import type { EventLog, Notification } from './types'
 
-// §5 이벤트 12 — XID/HW 에러 2 · 헬스 경고 3 · 슬라이스 할당/회수 4 · 복구 3 (심각도 4분류)
+// §5 이벤트 — XID/HW 에러(위험 서버 3대) · 헬스 경고 · 슬라이스 할당/회수 · 복구 (심각도 4분류)
 export const events: EventLog[] = [
   { id: 'ev-01', severity: 'critical', status: 'open', serverId: 'srv-07', gpuId: 'srv-07-gpu0', message: 'XID 79 — GPU 응답 없음(드라이버). 점검 모드 전환', createdAt: '2026-06-06 15:02', read: false, assignee: 'admin', action: '드라이버 재설치 예정' },
+  { id: 'ev-13', severity: 'critical', status: 'open', serverId: 'srv-16', gpuId: 'srv-16-gpu0', message: 'XID 48 — DBE(더블비트) 메모리 오류. 점검 모드 전환', createdAt: '2026-06-06 13:55', read: false, assignee: 'admin', action: 'GPU 교체 검토' },
+  { id: 'ev-14', severity: 'critical', status: 'open', serverId: 'srv-24', gpuId: 'srv-24-gpu0', message: 'XID 63 — Row-remapping 실패. GPU 응답 없음', createdAt: '2026-06-06 13:12', read: false, assignee: 'admin' },
   { id: 'ev-02', severity: 'critical', status: 'open', serverId: 'srv-05', gpuId: 'srv-05-gpu0', message: 'ECC 정정 불가 오류 임계 초과 경보', createdAt: '2026-06-06 14:48', read: false, assignee: 'admin' },
   { id: 'ev-03', severity: 'warn', status: 'open', serverId: 'srv-05', message: '서버 응답 지연 — 평균 레이턴시 780ms 초과', createdAt: '2026-06-06 14:30', read: false },
   { id: 'ev-04', severity: 'warn', status: 'open', serverId: 'srv-05', gpuId: 'srv-05-gpu1', message: 'GPU 온도 77°C — 경고 임계 근접', createdAt: '2026-06-06 14:10', read: true },

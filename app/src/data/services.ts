@@ -11,5 +11,8 @@ export const services: Service[] = [
   { id: 'svc-vqa', name: 'vision-qa', kind: '이미지 Q&A', hasApi: false, model: 'm5', serviceUrl: 'http://svc.anclave.local/vision-qa', testUrl: 'http://svc.anclave.local/vision-qa/playground', description: 'Qwen2.5-VL 기반 이미지 질의응답.', ownerUserId: 'u-lee', tags: ['Vision-Language'], usageCount: 22100, usageRank: 7 },
 ]
 
+// 올린 사용자(deployer) = 소유자(시드). 4.3 "올라간 서비스" 패널에서 누가·사용량 표시.
+services.forEach((s) => { s.deployerUserId = s.ownerUserId })
+
 export const serviceById = (id: string): Service | undefined =>
   services.find((s) => s.id === id)

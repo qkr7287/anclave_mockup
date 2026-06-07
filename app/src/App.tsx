@@ -7,14 +7,8 @@ import { appRoutes } from './lib/routes'
 import { useRole } from './lib/role'
 
 import { Login } from './screens/auth/Login'
-import {
-  ResourceMap,
-  ServerDetail,
-  GpuDetail,
-  MyResources,
-  RequestStatus,
-  AdminMonitoring,
-} from './screens/dashboard'
+import { ResourceMap, ServerDetail, GpuDetail } from './screens/resourcemap'
+import { MyResources, RequestStatus, AdminMonitoring } from './screens/dashboard'
 import {
   Requests,
   ApprovalsPublish,

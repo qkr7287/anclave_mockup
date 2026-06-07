@@ -4,16 +4,16 @@ import { Header } from './Header'
 import { Sidebar } from './Sidebar'
 import { useRole } from '../lib/role'
 
-// 공통 셸 — 헤더(위) + 사이드바 + 메인(Outlet). GNB 없음.
+// 공통 셸(Figma) — 좌: 사이드바(로고+메뉴, 전체 높이) / 우: 헤더 + 메인. GNB 없음.
 export function Shell() {
   const { access } = useRole()
   const [collapsed, setCollapsed] = useState(false)
 
   return (
-    <div className="flex flex-col h-full">
-      <Header onToggleSidebar={() => setCollapsed((v) => !v)} />
-      <div className="flex flex-1 min-h-0">
-        <Sidebar access={access} collapsed={collapsed} />
+    <div className="flex h-full">
+      <Sidebar access={access} collapsed={collapsed} onToggle={() => setCollapsed((v) => !v)} />
+      <div className="flex flex-col flex-1 min-w-0">
+        <Header />
         <main className="flex-1 min-w-0 overflow-auto" style={{ padding: '18px 22px' }}>
           <Outlet />
         </main>

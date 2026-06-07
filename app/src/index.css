@@ -30,25 +30,26 @@
 
 /* Dark (Q1) — default */
 :root {
-  --c-bg: #0d1117;
-  --c-soft: #161b22;
-  --c-card: #1c2330;
-  --c-card2: #1c2430;
-  --c-active: #222b3a;
-  --c-text: #e6edf3;
-  --c-muted: #8b97a7;
-  --c-border: rgba(255, 255, 255, 0.07);
-  --c-border-s: rgba(255, 255, 255, 0.045);
-  --c-accent: #6ea8fe;
-  --c-onaccent: #08111f;
-  --c-accent2: #3fb6a8;
+  /* Figma node 0-1 다크 팔레트 — 블루블랙 통일(bg/panel/card) */
+  --c-bg: #060a13;
+  --c-soft: #131a35;
+  --c-card: #0d1120;
+  --c-card2: #0d1120;
+  --c-active: #131a35;
+  --c-text: #f9f9f9;
+  --c-muted: #525872;
+  --c-border: rgba(165, 172, 186, 0.1);
+  --c-border-s: rgba(165, 172, 186, 0.06);
+  --c-accent: #2d85ff;
+  --c-onaccent: #061018;
+  --c-accent2: #12b39c;
   --c-ok: #3fb950;
   --c-warn: #d29922;
   --c-danger: #f85149;
   --c-inactive: #3a4252;
-  --c-track: #2a3343;
+  --c-track: #1b2340;
 
-  --accent-soft: rgba(110, 168, 254, 0.12);
+  --accent-soft: rgba(45, 133, 255, 0.12);
   --ok-soft: rgba(63, 185, 80, 0.15);
   --warn-soft: rgba(210, 153, 34, 0.15);
   --danger-soft: rgba(248, 81, 73, 0.15);
@@ -96,6 +97,11 @@
   --shadow-pop: 0 12px 30px rgba(0, 0, 0, 0.12);
 
   color-scheme: light;
+}
+
+/* 라이트 모드 — 흰 워드마크 로고를 어둡게(가독성) */
+:root[data-theme="light"] img[alt="ANCLAVE"] {
+  filter: brightness(0) saturate(100%) opacity(0.82);
 }
 
 * {

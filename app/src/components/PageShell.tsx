@@ -10,26 +10,46 @@ interface PageShellProps {
   kpis?: ReactNode
   /** 본문(섹션 그리드 슬롯) */
   children?: ReactNode
+  /** 무스크롤 모드(모니터링) — 100vh 고정, 본문 flex-1, 내부 스크롤만 */
+  fill?: boolean
+  /** 헤더 위 추가 영역(StepBack 등) */
+  pre?: ReactNode
+  /** 제목 헤더 생략(전역 헤더 브레드크럼과 중복 제거 — Figma 매칭) */
+  bare?: boolean
 }
 
 // 밀도 페이지 템플릿 — 모든 화면이 재사용해 above-fold 영역 ≥4를 기본 충족(편차 차단).
 // 헤더(H2 18px + 화면번호 + 설명 + 액션) → KPI행 슬롯 → 섹션 그리드 슬롯.
-export function PageShell({ screen, title, desc, actions, kpis, children }: PageShellProps) {
+export function PageShell({ title, desc, actions, kpis, children, fill, pre, bare }: PageShellProps) {
+  if (fill) {
+    return (
+      <div className="flex flex-col min-w-0 h-full" style={{ gap: 12, overflow: 'hidden' }}>
+        {pre && <div className="shrink-0">{pre}</div>}
+        {!bare && (
+          <header className="flex items-start justify-between gap-3 min-w-0 shrink-0">
+            <div className="flex flex-col min-w-0" style={{ gap: 2 }}>
+              <h2 className="font-bold truncate" style={{ fontSize: 18 }}>{title}</h2>
+              {desc && <p className="text-muted truncate" style={{ fontSize: 14 }}>{desc}</p>}
+            </div>
+            {actions && <div className="flex items-center gap-2 shrink-0">{actions}</div>}
+          </header>
+        )}
+        {kpis && (
+          <div className="grid stagger shrink-0" style={{ gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(176px, 1fr))' }}>
+            {kpis}
+          </div>
+        )}
+        <div className="flex-1 min-h-0 min-w-0">{children}</div>
+      </div>
+    )
+  }
   return (
     <div className="anim-fade flex flex-col min-w-0" style={{ gap: 16 }}>
       <header className="flex items-start justify-between gap-3 min-w-0">
         <div className="flex flex-col min-w-0" style={{ gap: 4 }}>
-          <div className="flex items-center" style={{ gap: 8 }}>
-            <h2 className="font-bold truncate" style={{ fontSize: 18 }}>
-              {title}
-            </h2>
-            <span
-              className="text-muted font-mono shrink-0"
-              style={{ fontSize: 14, padding: '1px 7px', borderRadius: 6, background: 'var(--c-soft)' }}
-            >
-              {screen}
-            </span>
-          </div>
+          <h2 className="font-bold truncate" style={{ fontSize: 18 }}>
+            {title}
+          </h2>
           {desc && (
             <p className="text-muted" style={{ fontSize: 14 }}>
               {desc}
