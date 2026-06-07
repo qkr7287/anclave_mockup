@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anclave — 구현 가이드 (대화형 · 단계별 프롬프트)</title>
+<style>
+  :root{
+    --bg:#0d1117; --soft:#161b22; --card:#1c2330; --border:rgba(255,255,255,.08);
+    --text:#e6edf3; --muted:#8b97a7; --accent:#6ea8fe; --accent2:#3fb6a8;
+    --ok:#3fb950; --warn:#d29922; --danger:#f85149; --chip:#222b3a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:"Pretendard","Segoe UI",system-ui,sans-serif;line-height:1.65;font-size:15px}
+  code{font-family:"JetBrains Mono","Consolas",monospace;font-size:13px;color:var(--accent2);
+    background:rgba(63,182,168,.08);padding:1px 5px;border-radius:5px}
+  .layout{display:grid;grid-template-columns:240px 1fr;max-width:1240px;margin:0 auto}
+  nav.side{position:sticky;top:0;height:100vh;overflow:auto;padding:24px 16px;
+    border-right:1px solid var(--border);background:var(--soft)}
+  nav.side .brand{font-weight:800;font-size:18px;margin-bottom:2px}
+  nav.side .brand span{color:var(--accent)}
+  nav.side .sub{color:var(--muted);font-size:14px;margin-bottom:18px}
+  nav.side a{display:block;color:var(--muted);padding:5px 10px;border-radius:8px;font-size:14px}
+  nav.side a:hover{background:var(--chip);color:var(--text)}
+  nav.side a.s{color:var(--accent2);font-weight:600}
+  main{padding:40px 48px;min-width:0}
+  h1{font-size:27px;margin:0 0 4px}
+  .lead{color:var(--muted);margin:4px 0 26px;max-width:840px}
+  section{margin:0 0 40px;scroll-margin-top:20px}
+  h2{font-size:20px;margin:0 0 14px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+  h2 .num{color:var(--accent);font-weight:700;margin-right:8px}
+  h3{font-size:15.5px;margin:18px 0 8px;color:var(--accent2)}
+  p{margin:8px 0} .muted{color:var(--muted)}
+  ul,ol{margin:8px 0;padding-left:20px} li{margin:5px 0}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:14px;table-layout:fixed;
+    background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:top;word-break:keep-all;overflow-wrap:anywhere}
+  th{background:var(--soft);color:var(--muted);font-weight:600;font-size:13px;white-space:nowrap}
+  tr:last-child td{border-bottom:none}
+  pre.cmd{background:#0f141b;border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:8px;
+    padding:14px 16px;overflow:auto;font-family:"JetBrains Mono","Consolas",monospace;font-size:13px;line-height:1.6;white-space:pre-wrap;word-break:break-all;margin:8px 0}
+  .cmd .label{display:block;color:var(--accent);font-weight:700;font-size:12px;margin-bottom:6px;font-family:"Pretendard",sans-serif}
+  .note{background:rgba(110,168,254,.08);border:1px solid rgba(110,168,254,.3);border-radius:9px;padding:11px 14px;font-size:14px;margin:12px 0}
+  .warn{background:rgba(210,153,34,.1);border:1px solid rgba(210,153,34,.32);border-radius:9px;padding:11px 14px;font-size:14px;margin:12px 0}
+  .danger{background:rgba(248,81,73,.1);border:1px solid rgba(248,81,73,.35);border-radius:9px;padding:11px 14px;font-size:14px;margin:12px 0}
+  .step{display:flex;gap:12px;align-items:flex-start;margin:10px 0}
+  .step .n{flex-shrink:0;width:26px;height:26px;border-radius:50%;background:var(--accent);color:#08111f;
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px}
+  .group{font-size:13px;color:var(--accent2);font-weight:700;margin:18px 0 4px;text-transform:uppercase;letter-spacing:.5px}
+  kbd{background:var(--chip);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:12px;font-family:monospace}
+  .stepcard{border:1px solid var(--border);background:var(--soft);border-radius:11px;padding:14px 16px;margin:14px 0}
+  .stepcard .hd{font-weight:700;font-size:15px;margin-bottom:2px}
+  .stepcard .hd .tag{display:inline-block;background:var(--accent);color:#08111f;font-size:11px;font-weight:700;border-radius:5px;padding:1px 7px;margin-right:8px;vertical-align:middle}
+  .stepcard .scope{color:var(--muted);font-size:13px;margin-bottom:6px}
+</style>
+</head>
+<body>
+<div class="layout">
+  <nav class="side">
+    <div class="brand">Anclave<span>.</span></div>
+    <div class="sub">구현 가이드 · 단계별 프롬프트</div>
+    <a href="#what">0 · 이 방식(대화형)이란</a>
+    <a href="#prep">1 · 준비 · 복붙 방법</a>
+    <a href="#common">2 · 매 프롬프트 공통 규칙</a>
+    <a class="s" href="#steps">3 · 단계별 프롬프트 (복붙)</a>
+    <a href="#gate">4 · 단계 공통 검증 게이트</a>
+    <a href="#trouble">5 · 막힘 · 되돌리기</a>
+    <a href="#map">6 · STEP ↔ 화면 ↔ DoD</a>
+  </nav>
+  <main>
+    <h1>Anclave — 구현 가이드 (대화형 · 단계별 프롬프트)</h1>
+    <p class="lead">1차 자동(<code>/goal</code>) 구현이 휑함·편차로 폐기된 뒤, <b>Claude와 대화형으로 화면을 화면마다 크롬 렌더로 확인하며</b> 만드는 방식으로 전환했다. 아래 STEP 0~14의 프롬프트를 <b>위에서부터 하나씩 복붙</b>하면 28화면 목업이 완성된다. 작업 사양 자체는 <code>Anclave-구현계획</code>(§8 DoD)·<code>Anclave-디자인스펙</code>(Q1~Q29·가드레일)·<code>Anclave-시스템정리</code>가 들고 있고, 이 문서는 <b>실행 순서와 복붙 프롬프트</b>만 담는다.</p>
+
+    <!-- 0 -->
+    <section id="what">
+      <h2><span class="num">0</span>이 방식(대화형)이란 · 왜 /goal 대신</h2>
+      <p>이 가이드의 프롬프트는 <b>Claude에게 보내는 일반 메시지</b>다(<code>/goal</code> 명령 아님). Claude가 한 STEP을 구현하고 → <code>npm run dev</code>(5177)로 직접 크롬 렌더를 보며 밀도·정렬·AI 티를 잡고 → 결과를 보여주면, 사용자가 확인하고 다음 STEP으로 넘어간다.</p>
+      <table>
+        <colgroup><col style="width:20%"><col style="width:40%"><col style="width:40%"></colgroup>
+        <thead><tr><th></th><th>자동 /goal (1차 방식)</th><th>대화형 (이 가이드)</th></tr></thead>
+        <tbody>
+          <tr><td><b>완료 판정</b></td><td>Haiku 심판이 DoD 판정 → <span style="color:var(--danger)">밀도·미감을 주관적으로 통과시킴(1차 휑함 원인)</span></td><td>사람+Claude가 매 화면 크롬으로 눈 검증 → 휑함 즉시 차단</td></tr>
+          <tr><td><b>단위</b></td><td>큰 Goal에 화면 몰림</td><td>STEP당 화면 1~5개</td></tr>
+          <tr><td><b>장점</b></td><td>무인 반복</td><td>퀄리티·제어·되돌리기</td></tr>
+          <tr><td><b>단점</b></td><td>주관 품질 못 잡음</td><td>사람 확인 필요</td></tr>
+        </tbody>
+      </table>
+      <div class="note">1차 실패의 진짜 원인은 "/goal이 나빠서"가 아니라 <b>큰 단위 + 주관적 DoD + 강제 템플릿 없음 + 사람 리뷰 없음 + 커밋 없음</b>이었다. 앞 4개는 이미 고쳤고(작은 STEP·객관 DoD·<code>PageShell</code>·브랜치/커밋), 남은 <b>사람 리뷰</b>를 이 대화형 방식이 채운다. <b>품질이 결정되는 STEP 0(기반·템플릿)을 제대로 잡는 게 핵심</b> — 모든 화면이 여기서 상속한다.</div>
+    </section>
+
+    <!-- 1 -->
+    <section id="prep">
+      <h2><span class="num">1</span>준비 · 복붙 방법</h2>
+      <ul>
+        <li><b>브랜치</b>: <code>feat/mockup-impl</code>에서 작업(확정 문서 + Goal1 baseline에서 분기). 1차 폐기본은 <code>archive/v1-sparse-impl</code>에 박제(반면교사).</li>
+        <li><b>서버</b>: <code>app/</code>에서 <code>npm run dev</code> → 5177. 같은 STEP 동안 띄워두고 Claude가 크롬으로 렌더 확인.</li>
+        <li><b>복붙 순서</b>: §3 STEP 0부터 <b>하나씩</b>. 각 STEP <pre>박스를 통째 복사해 Claude에 보낸다. Claude가 구현·렌더 확인·결과 보고 → 사용자 OK → <b>커밋</b> → 다음 STEP.</li>
+        <li><b>커밋</b>: STEP 끝마다 즉시. 메시지 예 <code>feat(impl): G1 자원맵 3계층(4.2~4.4)</code>. <span style="color:var(--danger)">1차엔 커밋을 안 해 되돌릴 체크포인트가 없었다 — 반드시 STEP마다 커밋.</span></li>
+        <li><b>한 STEP이 크면</b>(예: G13 5화면) 둘로 쪼개도 된다. <b>작을수록 밀도가 산다.</b></li>
+      </ul>
+    </section>
+
+    <!-- 2 -->
+    <section id="common">
+      <h2><span class="num">2</span>매 프롬프트 공통 규칙 <span class="muted" style="font-size:13px">(STEP 프롬프트 끝 "공통 꼬리말"에 이미 녹아 있음)</span></h2>
+      <div class="danger"><b>★ 밀도 게이트(이진) — 1차 실패 지점.</b> 모든 화면 <b>above-fold(스크롤 전)에 정보영역 ≥4</b> · <b>단일 테이블/단일 차트만 있는 화면 금지</b>(요약 KPI행·필터·보조 패널 동반) · <b>KPI 카드</b>는 [지표 24~32px + 델타/스파크/게이지 중 1개+], 높이 96~120px, 숫자만 덩그러니 금지.</div>
+      <ul>
+        <li><b>가드레일</b>: AI 티 금지(카드 좌측 accent bar·orb·무의미 gradient·장식 SVG 없음) · 절제된 구분(배경 톤·구분선 우선) · 디자인스펙 픽셀값 정확.</li>
+        <li><b>안정성</b>: 텍스트 겹침 0 · 가로 스크롤은 표 내부만 · 같은 행 카드 높이 정렬 · 테이블 <code>table-layout:fixed</code>·헤더 nowrap.</li>
+        <li><b>재사용</b>: 새 화면은 <code>PageShell</code>(KPI행+섹션 슬롯)과 공통 컴포넌트/차트를 재사용 — 직접 레이아웃 새로 짜지 말 것(편차 차단).</li>
+        <li><b>검증</b>: <code>npm run build</code> exit 0 · 콘솔 0 · 크롬 1440/1280/1024 렌더 육안(겹침·휑함·정렬·높이 튐 0) · 다크/라이트 · 역할(§9.2)·상태(§9.3).</li>
+      </ul>
+      <p class="muted">↓ STEP마다 붙는 <b>공통 꼬리말</b>(프롬프트에 포함됨):</p>
+      <pre class="cmd"><span class="label">공통 꼬리말</span>PageShell·공통 컴포넌트 재사용. 디자인스펙 픽셀·가드레일(AI 티 금지) 준수. 각 화면 above-fold 정보영역 ≥4(단일 테이블/차트 금지), KPI 카드는 지표+델타/스파크/게이지 구성. §9.2 역할 접근·§9.3 상태 적용. 다 만들면 npm run build 통과시키고 npm run dev(5177)로 크롬에서 1440/1280/1024 렌더를 직접 보며 겹침·휑함·정렬·높이 튐을 0으로 고쳐. 그 다음 결과(스크린샷/요약) 보여주고 커밋 제안해.</pre>
+    </section>
+
+    <!-- 3 -->
+    <section id="steps">
+      <h2><span class="num">3</span>단계별 프롬프트 (위에서부터 복붙)</h2>
+
+      <div class="stepcard">
+        <div class="hd"><span class="tag">STEP 0</span>G0 · 기반 (셸 · 아코디언 사이드바 · PageShell · 컴포넌트 · 더미 · 28라우트 골격)</div>
+        <div class="scope">가장 중요한 STEP. 모든 화면이 여기서 상속한다 — 픽셀 단위로 제대로.</div>
+        <pre class="cmd"><span class="label">복붙 → Claude</span>feat/mockup-impl 브랜치에서 G0 기반을 구현해줘. 사양은 for_claude/Anclave-구현계획 §8 "Goal 1(G0)" DoD + 디자인스펙 Q1(다크 토큰)·Q2(아코디언 사이드바)·Q3·Q8·Q14(라이트 토큰)·가드레일 + 시스템정리 IA·§13 스키마. 더미는 §5 canonical 시드 정본대로 풍부하게.
+만들 것:
+- Vite+React19+TS+Tailwind v4 셋업, index.css 디자인 토큰(Q1 다크 + Q14 라이트, 색값 정확)
+- src/lib: theme(토글)·role(A/B=C Context+localStorage)·routes(28경로 IA 순서)
+- src/data: §5 canonical 시드 전부(users·models·services·servers·gpus·slices·requests·events·audit·activation + P3 타입) + verifyIntegrity() 끊긴 FK 0
+- components/ui 13종 + charts 4종(LineChart·ArcGauge·Hexagon·Heatmap) — 실제 동작
+- ★ components/PageShell — 헤더 + KPI행 슬롯(3~4개) + 섹션 그리드 슬롯(메인/보조). KpiStat 카드는 [지표 24~32px + 델타/스파크/게이지 중 1개+] 강제, 높이 96~120px
+- ★ Sidebar — IA 8 대분류 아코디언: 그룹 헤더 클릭 시 하위 펼침/접힘(chevron ▾/▸), 현재 라우트가 속한 그룹만 기본 펼침, 역할 노출 필터, 상단 가로 GNB 없음
+- Shell·Header(검색·벨·테마·역할전환·프로필 — 메뉴 항목 없음)·App.tsx 28라우트 골격 + 역할 접근 가드(§9.2, 직접 URL·새로고침에도 동작)
+끝나면 npm run build 통과 + npm run dev(5177)로 크롬에서 아코디언 동작·PageShell 데모·다크/라이트·역할 전환을 직접 확인하고, 결과 보여준 뒤 커밋 제안해.</pre>
+      </div>
+
+      <div class="stepcard">
+        <div class="hd"><span class="tag">STEP 1</span>G1 · 자원맵 3계층 (4.2 · 4.3 · 4.4)</div>
+        <div class="scope">헥사곤·드릴다운 — P1 핵심. 자원맵 부품(Hexagon·ArcGauge·LineChart) 먼저 완성.</div>
+        <pre class="cmd"><span class="label">복붙 → Claude</span>G1 자원맵 3계층을 구현계획 §8 DoD(4.2~4.4)대로 구현해줘. 4.2 전체 서버(서버 타일+GPU4 미니 헥사곤·Q10 밴드색 블루→퍼플·빗금 / MIG 슬라이스 현황 전체↔서버별 토글 / 이벤트 로그 / CriticalAlert 오버레이, 타일 클릭→단일). 4.3 단일 서버(좌 Hexagon 서버 GPU 전체 / 우상 CPU·RAM·GPU KpiStat+LineChart / 우하 GPU 테이블+서비스, GPU 클릭→상세 · StepBack·FloatingButtons=이벤트 Drawer). 4.4 GPU 상세(KPI 꺾은선·VRAM 32셀·슬라이스 분할(사용자·모델·컨테이너)·올라간 서비스·워크스페이스 버튼·StepBack). 헥사곤 줌/팬 동작, 디자인스펙 Q10·Q5·Q15 픽셀. [공통 꼬리말]</pre>
+      </div>
+
+      <div class="stepcard">
+        <div class="hd"><span class="tag">STEP 2</span>G2 · 내 할당 자원 · 신청현황 (4.5 · 4.6)</div>
+        <pre class="cmd"><span class="label">복붙 → Claude</span>G2를 §8 DoD대로 구현해줘. 4.5 내 할당 자원(KPI 6·토큰 LineChart·워크로드/로그·콘솔/주피터 버튼, C(호스팅 전)는 빈 상태→신청하러 가기). 4.6 자원 신청현황(내 신청 대기/승인/반려 목록·반려 클릭→사유·신청 CTA, 상단 요약 KPI 동반). 둘 다 B=C 역할. [공통 꼬리말]</pre>
+      </div>
+
+      <div class="stepcard">
+        <div class="hd"><span class="tag">STEP 3</span>G3 · 신청 관리 · 변경/회수 (4.8 · 4.11)</div>
+        <pre class="cmd"><span class="label">복붙 → Claude</span>G3를 §8 DoD + §9.1 상태전이대로 구현해줘. 4.8 신청 관리(Tabs[API/GPU 번들/게시]·GPU 세로 마법사 Q6·공문 첨부·내 신청 Table+StatusBadge). 4.11 변경·확장·이전·회수(신청 폼·승인 4케이스 expand/migrate/change/reclaim 결과+자원맵 전/후·유휴 직접 회수). [공통 꼬리말]</pre>
+      </div>
+
+      <div class="stepcard">
+        <div class="hd"><span class="tag">STEP 4</span>G4 · 게시 승인 · GPU 승인 (4.9 · 4.10)</div>
+        <pre class="cmd"><span class="label">복붙 → Claude</span>G4를 §8 DoD + §9.1대로 구현해줘(A 역할). 4.9 게시 승인(대기 목록·행 클릭→상세 드로어·승인=마켓 노출/반려=사유→앱 알림). 4.10 GPU 승인(Tabs[대기/기승인]·검토 Drawer·승인 시 Hexagon 서버 선택·반려 Modal·승인 시 토스트+대기수 감소). [공통 꼬리말]</pre>
+      </div>
+
+      <div class="stepcard">
+        <div class="hd"><span class="tag">STEP 5</span>G5 · 모델 카탈로그 · 상세 (4.12 · 4.13)</div>
+        <pre class="cmd"><span class="label">복붙 → Claude</span>G5를 §8 DoD대로 구현해줘. 4.12 모델 카탈로그(Table+검색·필터 Q20·순위, 상단 요약 KPI 동반). 4.13 모델 상세(메타데이터 권장 GPU·라이선스·사용 추이 LineChart·GPU 신청 시 선택). [공통 꼬리말]</pre>
+      </div>
+
+      <div class="stepcard">
+        <div class="hd"><span class="tag">STEP 6</span>G6 · 모델 반입 · 내 모델 (4.14 · 4.15)</div>
+        <pre class="cmd"><span class="label">복붙 → Claude</span>G6를 §8 DoD대로 구현해줘. 4.14 신규 모델 반입(A·폐쇄망 오프라인: 업로드 영역→보안 점검 스텝 safetensors·modelscan·picklescan·체크섬 진행률→메타→버전). 4.15 내 모델(B=C: 내가 쓰는 모델 목록·도입은 게시판 문의 링크·빈상태, 상단 요약 KPI 동반 — 단일 테이블 금지). [공통 꼬리말]</pre>
+      </div>
+
+      <div class="stepcard">
+        <div class="hd"><span class="tag">STEP 7</span>G7 · 데몬 · 에이전트 (4.16)</div>
+        <pre class="cmd"><span class="label">복붙 → Claude</span>G7 4.16 데몬·에이전트 관리(A)를 §8 DoD대로 구현해줘. 노드별 에이전트 테이블(상태·버전)·자동 배포 표시. 단일 테이블이 되지 않게 상단 요약 KPI(노드·온라인·버전 분포)와 보조(최근 배포/이벤트) 영역을 동반해 above-fold 4영역. [공통 꼬리말]</pre>
+      </div>
+
+      <div class="stepcard">
+        <div class="hd"><span class="tag">STEP 8</span>G8 · 마켓 · 서비스 상세 (4.17 · 4.18)</div>
+        <pre class="cmd"><span class="label">복붙 → Claude</span>G8를 §8 DoD대로 구현해줘. 4.17 마켓플레이스(Table·검색·카테고리 필터·순위·API 요청, 상단 요약 KPI 동반). 4.18 서비스(AI) 상세(메타·매뉴얼·key 사용량 LineChart·플레이그라운드 입력→더미 응답). [공통 꼬리말]</pre>
+      </div>
+
+      <div class="stepcard">
+        <div class="hd"><span class="tag">STEP 9</span>G9 · API 연동 · 활성화 (4.19 · 4.20) <span style="color:var(--danger);font-size:12px">★동반영역 필수</span></div>
+        <div class="scope">4.20은 1차에서 가장 휑했던 화면 — 4영역 강제.</div>
+        <pre class="cmd"><span class="label">복붙 → Claude</span>G9를 §8 DoD대로 구현해줘. 4.19 API 연동(B: 받은 신청 목록·승인→key 발급/복사·호출량 LineChart). 4.20 활성화 대시보드(Tabs 발행자/소비자/관리자) — ★above-fold 4영역 필수: ① 요약 KPI행(소비자·총 토큰·총 호출 + 각 델타/스파크) ② 토큰·호출 추이 LineChart ③ 상위 서비스·모델 랭킹 테이블 ④ 소비자별/모델별 분포(관리자 귀속). KPI 1개에 숫자만 두고 빈 박스 만드는 거 금지. [공통 꼬리말]</pre>
+      </div>
+
+      <div class="stepcard">
+        <div class="hd"><span class="tag">STEP 10</span>G10 · 이벤트 관제 · 알림 (4.21 · 4.22)</div>
+        <pre class="cmd"><span class="label">복붙 → Claude</span>G10을 §8 DoD대로 구현해줘. 4.21 에러·이벤트 관제(A·B: 타임라인·심각도 칩 필터 Q21·항목 클릭→상세 드로어·문제 GPU 링크, 상단 심각도별 요약 KPI 동반). 4.22 알림 센터(3종 목록·모두 읽음·항목 클릭→해당 화면). [공통 꼬리말]</pre>
+      </div>
+
+      <div class="stepcard">
+        <div class="hd"><span class="tag">STEP 11</span>G11 · 관제 빅스크린 (4.7)</div>
+        <pre class="cmd"><span class="label">복붙 → Claude</span>G11 4.7 관제 모니터링 빅스크린(A)을 §8 DoD대로 구현해줘. 빅스크린 종합: 헬스 Heatmap·부하·알럿 KpiStat·LineChart를 1280px+ 3~4열로 가로 폭 꽉 채워 휑하지 않게(빅스크린일수록 밀도 중요). [공통 꼬리말]</pre>
+      </div>
+
+      <div class="stepcard">
+        <div class="hd"><span class="tag">STEP 12</span>G12 · 게시판 · 공지 (4.23)</div>
+        <pre class="cmd"><span class="label">복붙 → Claude</span>G12 4.23 게시판·공지(공통)를 §8 DoD대로 구현해줘. Tabs(공지/문의·Q&A/매뉴얼)·글쓰기·상세 모달·답변됨 배지. 단일 목록이 되지 않게 상단 요약(공지·문의·답변 대기 수)과 사이드 보조 영역 동반. [공통 꼬리말]</pre>
+      </div>
+
+      <div class="stepcard">
+        <div class="hd"><span class="tag">STEP 13</span>G13 · 관리자 화면군 (4.24·4.25·4.26·4.27·4.28) <span style="color:var(--danger);font-size:12px">★동반영역 필수</span></div>
+        <div class="scope">1차에서 가장 휑했던 군 — 화면마다 동반영역 명시. 크면 4.24·4.25 / 4.26·4.27·4.28 둘로 쪼개도 됨.</div>
+        <pre class="cmd"><span class="label">복붙 → Claude</span>G13 관리자 화면군(A)을 §8 DoD + "동반영역 명시"대로 구현해줘. 각 화면 above-fold 4영역 필수: 4.24 감사 로그(요약 KPI[행위·사용자·오늘 건수]+행위 테이블[시간·사용자·행위·대상]+검색·필터+1년+ 보관 표시). 4.25 접근통제(요약[정책 수·역할별 허용/거부]+역할별 정책 2열+최근 권한 변경 로그). 4.26 능력탐지(요약 KPI[지원 세대·MIG 지원율·켜진 플래그]+지원 매트릭스 테이블+기능 플래그 그리드+최근 탐지/변경 로그). 4.27 사용자·역할(요약[사용자·역할 분포·호스팅 보유]+사용자 테이블·역할 셀렉트+권한 요약 패널+알림 채널). 4.28 인프라 연동(요약[연동 수·정상·끊김]+연동 카드 그리드+최근 헬스체크 로그). 어느 화면도 단일 테이블/카드 그리드만 두지 말 것. [공통 꼬리말]</pre>
+      </div>
+
+      <div class="stepcard">
+        <div class="hd"><span class="tag">STEP 14</span>G14 · 로그인 + 전체 폴리시 (4.1 + 마감)</div>
+        <pre class="cmd"><span class="label">복붙 → Claude</span>G14를 구현해줘. 4.1 로그인(공통: 3계정 선택→역할별 첫 화면·디자인스펙 Q13 라디얼 글로우·gradient 로고). 그다음 전체 폴리시 마감: 28화면 다크/라이트 전수 점검·반응형 Q16(1024/768 자동 전환)·빈/로딩/에러 상태(§9.3 매트릭스 전수)·마이크로카피 Q17·접근성 Q22. 마지막에 28라우트 전부 렌더·콘솔 0·build exit 0을 표로 자체 검증해서 보여줘. [공통 꼬리말]</pre>
+      </div>
+    </section>
+
+    <!-- 4 -->
+    <section id="gate">
+      <h2><span class="num">4</span>단계 공통 검증 게이트 <span class="muted" style="font-size:13px">(STEP 끝마다 · 통과해야 커밋·다음)</span></h2>
+      <ul>
+        <li>☐ <code>npm run build</code> exit 0 · 콘솔 에러 0</li>
+        <li>☐ <b>밀도 게이트(이진)</b>: 각 화면 above-fold 정보영역 <b>≥4</b>(단일 테이블/차트 화면 = 미충족) · KPI 카드 = 지표+델타/스파크/게이지·높이 96~120px. <span style="color:var(--danger)">"휑함 육안 0" 같은 주관 판정 금지 — 영역 수·카드 구성으로 센다.</span></li>
+        <li>☐ <b>크롬 렌더 1440/1280/1024</b>: 텍스트 겹침·정렬 어긋남·카드 높이 튐 0 · 가로 스크롤은 표 내부만</li>
+        <li>☐ 가드레일(AI 티 금지) · 다크/라이트 · 역할 가드(§9.2) · 상태(§9.3)</li>
+        <li>☐ 통과 → <b>커밋</b>(<code>feat(impl): G_ …</code>) → 다음 STEP</li>
+      </ul>
+    </section>
+
+    <!-- 5 -->
+    <section id="trouble">
+      <h2><span class="num">5</span>막힘 · 되돌리기</h2>
+      <ul>
+        <li><b>밀도가 또 안 나오면</b> — 그 화면을 <code>PageShell</code> 슬롯에 다시 얹고, "above-fold 4영역 중 빈 곳에 무엇을 넣을지" 구체 지시(요약 KPI·랭킹·로그·분포).</li>
+        <li><b>한 STEP이 무거우면</b> — 화면 단위로 쪼개 다시 요청(작을수록 밀도가 산다).</li>
+        <li><b>되돌리기</b> — STEP마다 커밋했으니 <code>git reset --hard</code>로 직전 STEP 복귀. 1차 폐기본 참고: <code>git checkout archive/v1-sparse-impl &amp;&amp; cd app &amp;&amp; npm run dev</code>.</li>
+        <li><b>중간 힌트</b> — 구현 도중 일반 메시지로 수정 지시를 줘도 된다(맥락 유지됨).</li>
+      </ul>
+    </section>
+
+    <!-- 6 -->
+    <section id="map">
+      <h2><span class="num">6</span>STEP ↔ 화면 ↔ DoD 매핑</h2>
+      <table>
+        <colgroup><col style="width:12%"><col style="width:30%"><col style="width:58%"></colgroup>
+        <thead><tr><th>STEP</th><th>화면</th><th>판정 기준 (구현계획)</th></tr></thead>
+        <tbody>
+          <tr><td><b>0 · G0</b></td><td>기반 28라우트 골격</td><td>§8 공통 DoD + Goal 1(G0) DoD · §5 시드 · Q2 아코디언 · PageShell</td></tr>
+          <tr><td><b>1 · G1</b></td><td>4.2·4.3·4.4</td><td>§8 4.2~4.4 · Q10·Q5·Q15</td></tr>
+          <tr><td><b>2 · G2</b></td><td>4.5·4.6</td><td>§8 4.5 · §8표 4.6</td></tr>
+          <tr><td><b>3 · G3</b></td><td>4.8·4.11</td><td>§8 4.8 · §8표 4.11 · §9.1</td></tr>
+          <tr><td><b>4 · G4</b></td><td>4.9·4.10</td><td>§8 4.10 · §8표 4.9 · §9.1</td></tr>
+          <tr><td><b>5 · G5</b></td><td>4.12·4.13</td><td>§8 4.12 · §8표 4.13</td></tr>
+          <tr><td><b>6 · G6</b></td><td>4.14·4.15</td><td>§8표 4.14·4.15</td></tr>
+          <tr><td><b>7 · G7</b></td><td>4.16</td><td>§8표 4.16</td></tr>
+          <tr><td><b>8 · G8</b></td><td>4.17·4.18</td><td>§8 4.17 · §8표 4.18</td></tr>
+          <tr><td><b>9 · G9</b></td><td>4.19·4.20</td><td>§8표 4.19·4.20 + 동반영역</td></tr>
+          <tr><td><b>10 · G10</b></td><td>4.21·4.22</td><td>§8표 4.21·4.22</td></tr>
+          <tr><td><b>11 · G11</b></td><td>4.7</td><td>§8표 4.7</td></tr>
+          <tr><td><b>12 · G12</b></td><td>4.23</td><td>§8표 4.23</td></tr>
+          <tr><td><b>13 · G13</b></td><td>4.24·4.25·4.26·4.27·4.28</td><td>§8표 해당 행 + 동반영역(빨강 박스)</td></tr>
+          <tr><td><b>14 · G14</b></td><td>4.1 + 폴리시</td><td>§8표 4.1 · §9.3 · Q16·Q17·Q22</td></tr>
+        </tbody>
+      </table>
+      <div class="note">짝 문서: <b>시스템정리</b>(사양·IA·스키마) · <b>구현계획</b>(§8 DoD·§9 매트릭스·§5 시드·"실행 단위" 표) · <b>디자인스펙</b>(Q1~Q29 픽셀+가드레일). 이 가이드는 실행 순서·복붙 프롬프트만 담고, 합격선은 구현계획 §8이 판정한다.</div>
+    </section>
+  </main>
+</div>
+</body>
+</html>
