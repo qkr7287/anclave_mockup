@@ -37,8 +37,8 @@ type Icon = ComponentType<SVGProps<SVGSVGElement>>
 
 // ───────────────────────── Figma 팔레트(테마 인지) ─────────────────────────
 interface Palette {
-  filter: string; panel: string; card: string; inset: string; chip: string
-  border: string; divider: string; heading: string; text: string; muted: string; chipText: string
+  filter: string; panel: string; card: string; modalCard: string; inset: string; chip: string
+  border: string; borderStrong: string; divider: string; heading: string; text: string; muted: string; chipText: string
   accent: string; accentSoft: string
   ok: string; okSoft: string; warn: string; warnSoft: string; danger: string; dangerSoft: string
   dim: string; shadow: string
@@ -46,18 +46,19 @@ interface Palette {
 function usePalette(): Palette {
   const { theme } = useTheme()
   if (theme !== 'light') {
+    // 표면 명도 단계를 벌려 섹션 구분을 또렷하게(패널 < 모달 < 인셋·칩).
     return {
-      filter: '#1A2332', panel: '#181F2D', card: '#161E2E', inset: '#1B2433', chip: '#1F2736',
-      border: '#28313F', divider: '#293245', heading: '#F0F2F7', text: '#E7EAF1', muted: '#8B94A3', chipText: '#AEB8C7',
-      accent: '#2D85FF', accentSoft: 'rgba(45,133,255,0.14)',
-      ok: '#2EBD4D', okSoft: 'rgba(47,212,90,0.13)', warn: '#E0A82E', warnSoft: 'rgba(224,168,46,0.14)',
-      danger: '#FB6B4F', dangerSoft: 'rgba(251,107,79,0.14)',
-      dim: 'rgba(6,10,18,0.68)', shadow: '0 28px 70px rgba(0,0,0,0.6)',
+      filter: '#19212F', panel: '#171F2C', card: '#161E2C', modalCard: '#1D2738', inset: '#243044', chip: '#26334A',
+      border: '#34415A', borderStrong: '#41506C', divider: '#303C53', heading: '#F4F6FA', text: '#DDE2EC', muted: '#9AA4B6', chipText: '#C2CADA',
+      accent: '#3B8DFF', accentSoft: 'rgba(59,141,255,0.16)',
+      ok: '#34C759', okSoft: 'rgba(52,199,89,0.16)', warn: '#E8B033', warnSoft: 'rgba(232,176,51,0.16)',
+      danger: '#FF6B57', dangerSoft: 'rgba(255,107,87,0.16)',
+      dim: 'rgba(4,7,13,0.72)', shadow: '0 30px 80px rgba(0,0,0,0.62)',
     }
   }
   return {
-    filter: 'var(--c-card2)', panel: 'var(--c-card2)', card: 'var(--c-card2)', inset: 'var(--c-soft)', chip: 'var(--c-soft)',
-    border: 'var(--c-border)', divider: 'var(--c-border)', heading: 'var(--c-text)', text: 'var(--c-text)', muted: 'var(--c-muted)', chipText: 'var(--c-muted)',
+    filter: 'var(--c-card2)', panel: 'var(--c-card2)', card: 'var(--c-card2)', modalCard: 'var(--c-card2)', inset: 'var(--c-soft)', chip: 'var(--c-soft)',
+    border: 'var(--c-border)', borderStrong: 'var(--c-border)', divider: 'var(--c-border)', heading: 'var(--c-text)', text: 'var(--c-text)', muted: 'var(--c-muted)', chipText: 'var(--c-muted)',
     accent: 'var(--c-accent)', accentSoft: 'var(--accent-soft)',
     ok: 'var(--c-ok)', okSoft: 'var(--ok-soft)', warn: 'var(--c-warn)', warnSoft: 'var(--warn-soft)', danger: 'var(--c-danger)', dangerSoft: 'var(--danger-soft)',
     dim: 'var(--dim)', shadow: 'var(--shadow-pop)',
@@ -597,7 +598,7 @@ function BulletList({ items }: { items: ReactNode[] }) {
   )
 }
 
-function ServiceDetailCard({ service: s, narrow }: { service: Service; narrow: boolean }) {
+function ServiceDetailCard({ service: s, narrow, reserveClose }: { service: Service; narrow: boolean; reserveClose?: boolean }) {
   const p = usePalette()
   const tone = toneOf(s.status)
   const apiAvailable = hasApiOf(s)
@@ -614,7 +615,7 @@ function ServiceDetailCard({ service: s, narrow }: { service: Service; narrow: b
     <div className="flex flex-col" style={{ gap: narrow ? 18 : 22 }}>
       {/* 헤더 */}
       <div className="flex flex-col" style={{ gap: 18 }}>
-        <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="flex items-start justify-between gap-4 flex-wrap" style={{ paddingRight: reserveClose ? 44 : 0 }}>
           <div className="flex items-start gap-3.5 min-w-0">
             <Logo id={s.id} hue={s.hue} icon={s.icon} size={52} />
             <div className="flex flex-col min-w-0" style={{ gap: 10 }}>
@@ -728,16 +729,16 @@ function DetailModal({ service, onClose }: { service: Service; onClose: () => vo
     <div className="fixed inset-0 z-50 flex items-start justify-center"
       style={{ background: p.dim, backdropFilter: 'blur(3px)', padding: '4vh 16px', overflowY: 'auto', animation: 'mkFadeIn .18s ease both' }}
       onClick={onClose} role="presentation">
-      <style>{`@keyframes mkFadeIn{from{opacity:0}to{opacity:1}}@keyframes mkPopIn{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:none}}`}</style>
+      <style>{`@keyframes mkFadeIn{from{opacity:0}to{opacity:1}}@keyframes mkPopIn{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:none}}.mk-close:hover{filter:brightness(1.35)}`}</style>
       <div className="w-full rounded-2xl relative"
-        style={{ maxWidth: 900, background: p.card, border: `1px solid ${p.border}`, boxShadow: p.shadow, animation: 'mkPopIn .24s cubic-bezier(.2,.7,.2,1) both' }}
+        style={{ maxWidth: 900, background: p.modalCard, border: `1px solid ${p.borderStrong}`, boxShadow: `${p.shadow}, inset 0 1px 0 rgba(255,255,255,0.05)`, animation: 'mkPopIn .24s cubic-bezier(.2,.7,.2,1) both' }}
         onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={`${service.name} 상세`}>
-        <button type="button" onClick={onClose} aria-label="닫기" className="absolute flex items-center justify-center rounded-lg z-10"
-          style={{ top: 16, right: 16, width: 32, height: 32, color: p.muted, background: p.inset, border: `1px solid ${p.border}` }}>
+        <button type="button" onClick={onClose} aria-label="닫기" className="mk-close absolute flex items-center justify-center rounded-lg z-10 transition"
+          style={{ top: 16, right: 16, width: 32, height: 32, color: p.text, background: p.inset, border: `1px solid ${p.borderStrong}` }}>
           <XMarkIcon width={17} height={17} />
         </button>
         <div style={{ padding: narrow ? 20 : 28 }}>
-          <ServiceDetailCard service={service} narrow={narrow} />
+          <ServiceDetailCard service={service} narrow={narrow} reserveClose />
         </div>
       </div>
     </div>
@@ -796,7 +797,7 @@ export function ServiceDetail() {
       <button type="button" onClick={() => navigate('/marketplace')} className="flex items-center gap-1.5 self-start" style={{ fontSize: 13.5, color: p.muted }}>
         <ChevronRightIcon width={15} height={15} style={{ transform: 'rotate(180deg)' }} /> 마켓플레이스로
       </button>
-      <div className="w-full mx-auto rounded-2xl" style={{ maxWidth: 900, background: p.card, border: `1px solid ${p.border}`, boxShadow: '0 2px 10px rgba(0,0,0,0.18)', padding: narrow ? 20 : 28 }}>
+      <div className="w-full mx-auto rounded-2xl" style={{ maxWidth: 900, background: p.modalCard, border: `1px solid ${p.borderStrong}`, boxShadow: '0 2px 10px rgba(0,0,0,0.18)', padding: narrow ? 20 : 28 }}>
         <ServiceDetailCard service={service} narrow={narrow} />
       </div>
     </div>
