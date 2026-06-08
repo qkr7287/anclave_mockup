@@ -915,5 +915,53 @@ GPU 승인:   목록 → [승인 → 자원맵 서버 선택][반려]</div>
     r.setAttribute('data-theme', r.getAttribute('data-theme')==='light'?'':'light');
   }
 </script>
+
+<!-- ===== 구현 체크 기능 (localStorage 저장) ===== -->
+<style>
+  .impl-check{margin-right:8px;width:16px;height:16px;vertical-align:-2px;cursor:pointer;accent-color:#2f81f7;flex:0 0 auto}
+  .card.impl-done{outline:1px solid rgba(63,185,80,.55);background:rgba(63,185,80,.07)}
+  .card.impl-done > h4{opacity:.9}
+  #impl-progress{position:fixed;right:18px;bottom:18px;z-index:99999;background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:10px 16px;font:600 14px/1.3 system-ui,sans-serif;color:#e6edf3;box-shadow:0 6px 20px rgba(0,0,0,.45);display:flex;gap:12px;align-items:center}
+  #impl-progress b{color:#3fb950;font-size:16px}
+  #impl-progress button{background:transparent;border:1px solid #30363d;border-radius:6px;color:#8b949e;font:500 13px system-ui;padding:3px 9px;cursor:pointer}
+  #impl-progress button:hover{color:#e6edf3;border-color:#8b949e}
+  @media print{#impl-progress{display:none}}
+</style>
+<script>
+(function(){
+  var KEY='anclave-impl-check';
+  var saved={};try{saved=JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){}
+  var screens=[];
+  [].slice.call(document.querySelectorAll('.card')).forEach(function(card){
+    var h=card.querySelector('h4');if(!h)return;
+    var m=(h.textContent||'').match(/^\s*(4\.\d+)\b/);if(!m)return;
+    var id=m[1];screens.push(id);
+    var cb=document.createElement('input');
+    cb.type='checkbox';cb.className='impl-check';cb.title='구현 완료 체크';
+    cb.checked=!!saved[id];
+    if(cb.checked)card.classList.add('impl-done');
+    cb.addEventListener('change',function(){
+      saved[id]=cb.checked;localStorage.setItem(KEY,JSON.stringify(saved));
+      card.classList.toggle('impl-done',cb.checked);update();
+    });
+    h.insertBefore(cb,h.firstChild);
+  });
+  var bar=document.createElement('div');bar.id='impl-progress';
+  var txt=document.createElement('span');
+  var reset=document.createElement('button');reset.textContent='초기화';
+  reset.addEventListener('click',function(){
+    if(!confirm('구현 체크를 모두 해제할까요?'))return;
+    saved={};localStorage.removeItem(KEY);
+    document.querySelectorAll('.impl-check').forEach(function(c){c.checked=false;c.closest('.card').classList.remove('impl-done')});
+    update();
+  });
+  bar.appendChild(txt);bar.appendChild(reset);document.body.appendChild(bar);
+  function update(){
+    var done=screens.filter(function(id){return saved[id]}).length;
+    txt.innerHTML='구현 <b>'+done+'</b> / '+screens.length+' 화면';
+  }
+  update();
+})();
+</script>
 </body>
 </html>
