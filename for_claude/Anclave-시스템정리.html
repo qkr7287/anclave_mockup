@@ -931,7 +931,10 @@ GPU 승인:   목록 → [승인 → 자원맵 서버 선택][반려]</div>
 <script>
 (function(){
   var KEY='anclave-impl-check';
-  var saved={};try{saved=JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){}
+  // 베이크된 팀 진행상황(기본값) — 처음 여는 브라우저(localStorage 비어있음)는 이걸 봄. 갱신은 오케스트레이터가 다시 구움.
+  var DEFAULT_STATE={"4.1":2,"4.2":2,"4.3":2,"4.4":2,"4.6":1,"4.17":1};
+  var ls=null;try{ls=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){}
+  var saved=(ls&&Object.keys(ls).length)?ls:JSON.parse(JSON.stringify(DEFAULT_STATE));
   Object.keys(saved).forEach(function(k){if(saved[k]===true)saved[k]=2});
   // 공유 링크(?s=...)로 들어오면 그 상태를 적용·저장 (다른 사람이 내 진행상황을 그대로 봄)
   var ms=location.search.match(/[?&]s=([^&]+)/);
