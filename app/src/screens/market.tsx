@@ -232,6 +232,105 @@ const SERVICES: Service[] = [
     features: ['실시간 이상 점수', '임계값 자동 학습', '기여 피처 설명(XAI)', '계절성 보정', '알림 webhook 연동'],
     opsNotes: ['2024-05-22: 정기 점검 — 모델 재학습 진행 중', '2024-05-07: 계절성 보정 로직 추가', '점검 중에는 탐지가 지연될 수 있습니다.'],
   },
+  {
+    id: 'ocr-extract', name: 'ocr-extract', kind: '문서 OCR', provider: 'Google', model: 'Vision OCR', api: 'REST API',
+    owner: '이수민', rating: 4.5, status: '정상', hue: 96, icon: DocumentTextIcon,
+    responseTime: '0.68s', tier: 'Standard', monthlyReq: '321K', usage: '321K', usageNum: 321000, delta: '▲ 7%', up: true,
+    reqFull: '321,400건', success: '99.50%', deltaPct: '+7.0%', lastCall: '11초 전', tags: ['OCR', '문서', '추출'],
+    desc: '이미지·스캔 문서에서 텍스트와 표를 추출합니다.',
+    overview: 'Google Vision OCR 기반으로 이미지·스캔 PDF에서 텍스트·표·레이아웃을 고정확도로 추출합니다. 손글씨와 다국어를 지원합니다.',
+    apiDesc: '이미지/PDF를 업로드하면 좌표·신뢰도를 포함한 텍스트 블록 JSON을 반환합니다. 표는 셀 단위로 구조화됩니다.',
+    features: ['인쇄·손글씨 인식', '표 구조 추출', '다국어 OCR', '좌표·신뢰도 반환'],
+    opsNotes: ['2024-05-19: 표 추출 정확도 개선', '2024-05-08: 손글씨 모델 업데이트'],
+  },
+  {
+    id: 'recommend-engine', name: 'recommend-engine', kind: '추천', provider: 'Meta', model: 'DLRM', api: 'gRPC',
+    owner: '최예린', rating: 4.3, status: '정상', hue: 330, icon: DocumentChartBarIcon,
+    responseTime: '0.42s', tier: 'Enterprise', monthlyReq: '2.10M', usage: '2.10M', usageNum: 2100000, delta: '▲ 11%', up: true,
+    reqFull: '2,104,800건', success: '99.68%', deltaPct: '+11.2%', lastCall: '1초 전', tags: ['추천', '개인화', '랭킹'],
+    desc: '사용자 행동 기반 실시간 개인화 추천을 제공합니다.',
+    overview: 'DLRM 기반 추천 엔진으로 사용자·아이템 임베딩과 실시간 피처로 개인화 랭킹을 산출합니다. A/B 테스트를 지원합니다.',
+    apiDesc: 'gRPC로 사용자 컨텍스트를 전송하면 점수화된 추천 리스트를 반환합니다. 후보 생성·랭킹 단계를 분리 제공합니다.',
+    features: ['실시간 개인화 랭킹', '후보 생성 + 리랭킹', 'A/B 테스트 슬롯', '콜드스타트 대응'],
+    opsNotes: ['2024-05-20: 피처 스토어 지연 단축', '2024-05-10: 콜드스타트 정책 개선'],
+  },
+  {
+    id: 'chatbot-cs', name: 'chatbot-cs', kind: '상담 챗봇', provider: 'OpenAI', model: 'GPT-4o mini', api: 'REST API',
+    owner: '박지호', rating: 4.6, status: '정상', hue: 204, icon: ChatBubbleLeftRightIcon,
+    responseTime: '0.78s', tier: 'Standard', monthlyReq: '1.42M', usage: '1.42M', usageNum: 1420000, delta: '▲ 14%', up: true,
+    reqFull: '1,421,300건', success: '99.59%', deltaPct: '+14.0%', lastCall: '3초 전', tags: ['챗봇', '상담', 'CS'],
+    desc: '고객 상담을 자동화하는 대화형 CS 챗봇입니다.',
+    overview: 'GPT-4o mini 기반 상담 챗봇으로 FAQ·주문조회·에스컬레이션을 자동 처리합니다. 사내 지식베이스에 연결됩니다.',
+    apiDesc: '세션 기반 대화 엔드포인트로 컨텍스트를 유지합니다. 핸드오프 시 상담원 라우팅 이벤트를 발생시킵니다.',
+    features: ['멀티턴 상담', 'FAQ·주문조회 연동', '상담원 핸드오프', '감정 기반 에스컬레이션'],
+    opsNotes: ['2024-05-18: 핸드오프 정확도 개선', '2024-05-09: 지식베이스 동기화 자동화'],
+  },
+  {
+    id: 'fraud-detect', name: 'fraud-detect', kind: '이상거래 탐지', provider: 'AWS', model: 'Fraud Detector', api: 'gRPC',
+    owner: '한도윤', rating: 4.2, status: '주의', hue: 12, icon: ShieldExclamationIcon,
+    responseTime: '0.55s', tier: 'Enterprise', monthlyReq: '724K', usage: '724K', usageNum: 724000, delta: '▼ 3%', up: false,
+    reqFull: '724,600건', success: '98.40%', deltaPct: '-3.1%', lastCall: '5초 전', tags: ['이상거래', '리스크', '결제'],
+    desc: '결제·계정 이벤트의 이상거래를 실시간 탐지합니다.',
+    overview: 'AWS Fraud Detector 기반으로 결제·로그인 이벤트의 리스크 점수를 실시간 산출합니다. 룰과 ML을 결합합니다.',
+    apiDesc: 'gRPC 스트림으로 이벤트를 전송하면 리스크 점수·사유를 반환합니다. 임계값과 룰을 콘솔에서 관리합니다.',
+    features: ['실시간 리스크 점수', '룰 + ML 결합', '사유 설명(reason codes)', '임계값 정책 관리'],
+    opsNotes: ['2024-05-21: 오탐 룰 튜닝 중(모니터링)', '2024-05-07: 디바이스 핑거프린트 추가'],
+  },
+  {
+    id: 'embed-multilingual', name: 'embed-multilingual', kind: '임베딩', provider: 'BAAI', model: 'BGE-M3', api: 'REST API',
+    owner: '김민준', rating: 4.7, status: '정상', hue: 268, icon: CircleStackIcon,
+    responseTime: '0.31s', tier: 'Standard', monthlyReq: '3.05M', usage: '3.05M', usageNum: 3050000, delta: '▲ 21%', up: true,
+    reqFull: '3,051,200건', success: '99.91%', deltaPct: '+21.4%', lastCall: '1초 전', tags: ['임베딩', '다국어', '벡터'],
+    desc: '다국어 문장 임베딩 벡터를 고속으로 생성합니다.',
+    overview: 'BGE-M3 기반 다국어 임베딩으로 100개 언어의 문장·문서를 dense·sparse 벡터로 변환합니다. 검색·클러스터링에 사용됩니다.',
+    apiDesc: '텍스트 배열을 전송하면 정규화된 임베딩 벡터를 반환합니다. dense/sparse/ColBERT 출력을 선택할 수 있습니다.',
+    features: ['100개 언어 임베딩', 'dense·sparse 동시 출력', '배치 고속 처리', '정규화 옵션'],
+    opsNotes: ['2024-05-20: 배치 처리량 40% 증가', '2024-05-11: sparse 출력 추가'],
+  },
+  {
+    id: 'tabular-forecast', name: 'tabular-forecast', kind: '수요 예측', provider: 'Amazon', model: 'Chronos', api: 'REST API',
+    owner: '윤서연', rating: 4.4, status: '정상', hue: 56, icon: DocumentChartBarIcon,
+    responseTime: '1.22s', tier: 'Standard', monthlyReq: '184K', usage: '184K', usageNum: 184000, delta: '▲ 4%', up: true,
+    reqFull: '184,200건', success: '99.22%', deltaPct: '+4.3%', lastCall: '38초 전', tags: ['예측', '시계열', '수요'],
+    desc: '시계열 데이터로 수요·트래픽을 예측합니다.',
+    overview: 'Chronos 기반 시계열 예측으로 수요·트래픽·재고를 확률 구간과 함께 예측합니다. 계절성과 외생 변수를 반영합니다.',
+    apiDesc: '시계열과 예측 구간을 전송하면 점추정과 분위수 예측을 반환합니다. 외생 변수를 함께 넘길 수 있습니다.',
+    features: ['확률 구간 예측', '계절성·휴일 반영', '외생 변수 지원', '백테스트 리포트'],
+    opsNotes: ['2024-05-19: 분위수 예측 정확도 개선', '2024-05-10: 휴일 캘린더 확장'],
+  },
+  {
+    id: 'moderation-guard', name: 'moderation-guard', kind: '콘텐츠 검수', provider: 'OpenAI', model: 'Omni-Moderation', api: 'REST API',
+    owner: '정우성', rating: 4.5, status: '정상', hue: 160, icon: ShieldExclamationIcon,
+    responseTime: '0.36s', tier: 'Developer', monthlyReq: '612K', usage: '612K', usageNum: 612000, delta: '▲ 6%', up: true,
+    reqFull: '612,800건', success: '99.74%', deltaPct: '+6.2%', lastCall: '7초 전', tags: ['검수', '안전', '필터'],
+    desc: '텍스트·이미지의 유해 콘텐츠를 분류·차단합니다.',
+    overview: 'Omni-Moderation 기반으로 텍스트·이미지의 유해성(폭력·혐오·성적 등)을 다중 카테고리로 분류합니다. 정책 임계값을 지원합니다.',
+    apiDesc: '콘텐츠를 전송하면 카테고리별 점수와 차단 여부를 반환합니다. 정책 프로파일을 적용할 수 있습니다.',
+    features: ['멀티 카테고리 분류', '텍스트·이미지 동시 검수', '정책 임계값', '근거 스니펫 반환'],
+    opsNotes: ['2024-05-18: 이미지 검수 모델 추가', '2024-05-09: 한국어 비속어 사전 확장'],
+  },
+  {
+    id: 'pdf-parser', name: 'pdf-parser', kind: '문서 파싱', provider: 'Unstructured', model: 'Layout v2', api: '콘솔',
+    owner: '박지호', rating: 4.3, status: '정상', hue: 36, icon: DocumentTextIcon,
+    responseTime: '1.48s', tier: 'Standard', monthlyReq: '128K', usage: '128K', usageNum: 128000, delta: '▲ 2%', up: true,
+    reqFull: '128,400건', success: '99.05%', deltaPct: '+2.1%', lastCall: '24초 전', tags: ['파싱', '문서', '레이아웃'],
+    desc: '문서를 구조화 청크로 파싱하는 워크스페이스입니다.',
+    overview: 'Layout v2 기반 문서 파싱으로 PDF·PPT·HWP를 제목·표·이미지 등 구조화 요소로 분해합니다. 콘솔에서 일괄 처리합니다.',
+    apiDesc: '',
+    features: ['레이아웃 인식 분해', '표·이미지 추출', '청크 메타데이터', 'RAG 인덱싱 연동'],
+    opsNotes: ['2024-05-17: HWP 파서 추가', '2024-05-08: 청크 경계 정확도 개선'],
+  },
+  {
+    id: 'voice-clone', name: 'voice-clone', kind: '음성 클로닝', provider: 'ElevenLabs', model: 'Voice v3', api: 'REST API',
+    owner: '정우성', rating: 4.4, status: '점검 중', hue: 312, icon: SpeakerWaveIcon,
+    responseTime: '1.05s', tier: 'Premium', monthlyReq: '74K', usage: '74K', usageNum: 74000, delta: '▼ 2%', up: false,
+    reqFull: '74,200건', success: '98.30%', deltaPct: '-2.0%', lastCall: '점검 중', tags: ['음성', '클로닝', 'TTS'],
+    desc: '소량 샘플로 개인 음성을 복제합니다.',
+    overview: 'Voice v3 기반 음성 클로닝으로 30초 샘플에서 화자 음색을 복제합니다. 동의 절차와 워터마크를 적용합니다.',
+    apiDesc: '샘플 오디오로 voice를 생성한 뒤 합성 엔드포인트에서 사용합니다. 동의 토큰이 필요합니다.',
+    features: ['소량 샘플 클로닝', '감정·억양 제어', '동의 절차·워터마크', '스트리밍 합성'],
+    opsNotes: ['2024-05-22: 정기 점검 — 음색 안정화 작업', '2024-05-09: 워터마크 강화'],
+  },
 ]
 const serviceById = (id?: string) => SERVICES.find((s) => s.id === id) ?? SERVICES[0]
 
@@ -442,40 +541,38 @@ function FilterPanel({ f, set, onReset, fill }: { f: Filters; set: (patch: Parti
   )
 }
 
-// 카드 메타: 라벨(plain) + 값 pill (Figma: m 프레임 = 라벨 + chip)
-function CardMeta({ label, value }: { label: string; value: string }) {
-  const p = usePalette()
-  return (
-    <span className="flex items-center" style={{ gap: 6 }}>
-      <span style={{ fontSize: 13, fontWeight: 500, color: p.muted }}>{label}</span>
-      <span className="rounded-md whitespace-nowrap" style={{ padding: '4px 9px', fontSize: 12, fontWeight: 500, background: p.chip, color: p.chipText }}>{value}</span>
-    </span>
-  )
-}
-
-// AI 목록 항목 = 독립 카드(Figma: row · gap16 · padding 20/24/20/20 · bg · 1px border · radius14)
+// AI 목록 항목 = 세로형 그리드 카드(로고+상태 / 이름·제공사 / 설명 2줄 / 칩 / 푸터)
 function ServiceCard({ s, onOpen }: { s: Service; onOpen: (s: Service) => void }) {
   const p = usePalette()
+  const tone = toneOf(s.status)
   return (
     <button type="button" onClick={() => onOpen(s)}
-      className="flex w-full items-center text-left rounded-2xl transition-colors"
-      style={{ gap: 16, padding: '20px 24px 20px 20px', background: p.filter, border: `1px solid ${p.border}` }}
+      className="flex flex-col text-left rounded-2xl transition-colors h-full"
+      style={{ padding: 18, gap: 13, background: p.filter, border: `1px solid ${p.border}` }}
       onMouseEnter={(e) => { e.currentTarget.style.borderColor = p.accent; e.currentTarget.style.background = p.inset }}
       onMouseLeave={(e) => { e.currentTarget.style.borderColor = p.border; e.currentTarget.style.background = p.filter }}>
-      <Logo id={s.id} hue={s.hue} icon={s.icon} size={52} radius={12} />
-      <div className="flex flex-col min-w-0 flex-1" style={{ gap: 9 }}>
-        <span style={{ fontSize: 17, fontWeight: 600, color: p.heading, letterSpacing: '-0.2px' }}>{s.name}</span>
-        <div className="flex flex-wrap items-center" style={{ rowGap: 8, columnGap: 14 }}>
-          <CardMeta label="종류" value={s.kind} />
-          <CardMeta label="API 여부" value={hasApiOf(s) ? 'API' : '미제공'} />
-          <CardMeta label="모델" value={s.model} />
+      <div className="flex items-start gap-3">
+        <Logo id={s.id} hue={s.hue} icon={s.icon} size={48} radius={12} />
+        <div className="flex flex-col min-w-0 flex-1" style={{ gap: 2 }}>
+          <span className="truncate" style={{ fontSize: 16, fontWeight: 700, color: p.heading, letterSpacing: '-0.2px' }}>{s.name}</span>
+          <span className="truncate" style={{ fontSize: 12.5, color: p.muted }}>{s.provider} · {s.model}</span>
         </div>
-        <p className="truncate" style={{ fontSize: 14, color: p.muted }}>{s.desc}</p>
+        <StatusBadge status={s.status} tone={tone} />
       </div>
-      <div className="flex flex-col items-end shrink-0" style={{ gap: 2, minWidth: 92 }}>
-        <span style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.4px', color: p.heading }}>{s.usage}</span>
-        <span style={{ fontSize: 12, color: p.muted }}>API 호출</span>
-        <span style={{ fontSize: 12.5, fontWeight: 700, color: deltaColor(p, s.up) }}>{s.delta}</span>
+      <p style={{ fontSize: 13.5, lineHeight: 1.55, color: p.muted, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', minHeight: '2.6em' }}>{s.desc}</p>
+      <div className="flex flex-wrap items-center" style={{ gap: 6 }}>
+        <span className="rounded-md whitespace-nowrap" style={{ padding: '3px 9px', fontSize: 12, fontWeight: 500, background: p.chip, color: p.chipText }}>{s.kind}</span>
+        <span className="rounded-md whitespace-nowrap" style={{ padding: '3px 9px', fontSize: 12, fontWeight: 500, background: p.chip, color: hasApiOf(s) ? p.chipText : p.muted }}>{hasApiOf(s) ? s.api : '미제공'}</span>
+      </div>
+      <div className="mt-auto flex items-end justify-between gap-2" style={{ paddingTop: 12, borderTop: `1px solid ${p.divider}` }}>
+        <div className="flex flex-col">
+          <span style={{ fontSize: 19, fontWeight: 800, letterSpacing: '-0.4px', color: p.heading }}>{s.usage}</span>
+          <span style={{ fontSize: 11.5, color: p.muted }}>API 호출</span>
+        </div>
+        <div className="flex flex-col items-end" style={{ gap: 3 }}>
+          <span className="flex items-center" style={{ gap: 2, fontSize: 12.5, fontWeight: 700, color: p.warn }}><StarIcon width={13} height={13} /> {s.rating.toFixed(1)}</span>
+          <span style={{ fontSize: 12.5, fontWeight: 700, color: deltaColor(p, s.up) }}>{s.delta}</span>
+        </div>
       </div>
     </button>
   )
@@ -517,7 +614,9 @@ function AIList({ services, total, sort, onSort, onOpen, onReset, fill }: {
           </button>
         </div>
       ) : (
-        <div className={`flex flex-col ${fill ? 'flex-1 min-h-0 overflow-auto' : ''}`} style={{ gap: 14, paddingRight: fill ? 4 : 0 }}>
+        <div className={`grid ${fill ? 'flex-1 min-h-0 overflow-auto' : ''}`}
+          style={{ gap: 14, paddingRight: fill ? 4 : 0, alignContent: 'start',
+            gridTemplateColumns: fill ? 'repeat(3, minmax(0, 1fr))' : 'repeat(auto-fill, minmax(230px, 1fr))' }}>
           {services.map((s) => <ServiceCard key={s.id} s={s} onOpen={onOpen} />)}
         </div>
       )}
@@ -791,7 +890,7 @@ export function Marketplace() {
   const results = useMemo(() => applyFilters(filters, sort), [filters, sort])
 
   return (
-    <div className="anim-fade flex flex-col min-w-0 w-full mx-auto" style={{ gap: 14, maxWidth: 1560, height: fill ? '100%' : 'auto', overflow: fill ? 'hidden' : 'visible' }}>
+    <div className="anim-fade flex flex-col min-w-0" style={{ gap: 14, height: fill ? '100%' : 'auto', overflow: fill ? 'hidden' : 'visible' }}>
       {/* 상단 검색바(동작) */}
       <div className="shrink-0 flex items-center gap-3 rounded-xl" style={{ padding: '11px 14px', background: p.card, border: `1px solid ${p.border}` }}>
         <span className="flex items-center gap-2.5 flex-1 min-w-0">
