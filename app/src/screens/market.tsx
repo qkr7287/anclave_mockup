@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { ComponentType, CSSProperties, ReactNode, SVGProps } from 'react'
+import type { ComponentType, ReactNode, SVGProps } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Button } from '../components/ui'
 import { useTheme } from '../lib/theme'
@@ -360,17 +360,10 @@ function FilterGroup({ label, children }: { label: string; children: ReactNode }
   )
 }
 
-function Panel({ children, style, bg }: { children: ReactNode; style?: CSSProperties; bg: string }) {
-  const p = usePalette()
-  return (
-    <section className="rounded-xl min-w-0" style={{ background: bg, border: `1px solid ${p.border}`, boxShadow: '0 2px 10px rgba(0,0,0,0.18)', ...style }}>
-      {children}
-    </section>
-  )
-}
+const PANEL_SHADOW = '0 2px 10px rgba(0,0,0,0.18)'
 
 // 4.17 좌 — AI 탐색 가이드(필터, 실제 동작)
-function FilterPanel({ f, set, onReset }: { f: Filters; set: (patch: Partial<Filters>) => void; onReset: () => void }) {
+function FilterPanel({ f, set, onReset, fill }: { f: Filters; set: (patch: Partial<Filters>) => void; onReset: () => void; fill: boolean }) {
   const p = usePalette()
   const toggleStatus = (st: string) => {
     const next = new Set(f.statuses)
@@ -378,8 +371,9 @@ function FilterPanel({ f, set, onReset }: { f: Filters; set: (patch: Partial<Fil
     set({ statuses: next })
   }
   return (
-    <Panel bg={p.filter} style={{ padding: 20 }}>
-      <div className="flex flex-col" style={{ gap: 18 }}>
+    <section className={`rounded-xl min-w-0 flex flex-col ${fill ? 'h-full min-h-0' : ''}`}
+      style={{ background: p.filter, border: `1px solid ${p.border}`, boxShadow: PANEL_SHADOW }}>
+      <div className={`flex flex-col ${fill ? 'flex-1 min-h-0 overflow-auto' : ''}`} style={{ gap: 18, padding: 20 }}>
         <div className="flex flex-col" style={{ gap: 6 }}>
           <div className="flex items-center justify-between gap-2">
             <h3 style={{ fontSize: 16, fontWeight: 700, color: p.heading }}>AI 탐색 가이드</h3>
@@ -420,18 +414,19 @@ function FilterPanel({ f, set, onReset }: { f: Filters; set: (patch: Partial<Fil
           </span>
         </FilterGroup>
       </div>
-    </Panel>
+    </section>
   )
 }
 
-// 4.17 중앙 — AI 목록(행 클릭 → 상세 모달)
-function AIList({ services, total, sort, onSort, onOpen, onReset }: {
-  services: Service[]; total: number; sort: SortKey; onSort: (s: SortKey) => void; onOpen: (s: Service) => void; onReset: () => void
+// 4.17 중앙 — AI 목록(행 클릭 → 상세 모달). fill 시 헤더 고정 + 목록 내부 스크롤.
+function AIList({ services, total, sort, onSort, onOpen, onReset, fill }: {
+  services: Service[]; total: number; sort: SortKey; onSort: (s: SortKey) => void; onOpen: (s: Service) => void; onReset: () => void; fill: boolean
 }) {
   const p = usePalette()
   return (
-    <Panel bg={p.card}>
-      <header className="flex items-center justify-between gap-3" style={{ padding: '13px 16px', borderBottom: `1px solid ${p.border}` }}>
+    <section className={`rounded-xl min-w-0 flex flex-col ${fill ? 'h-full min-h-0' : ''}`}
+      style={{ background: p.card, border: `1px solid ${p.border}`, boxShadow: PANEL_SHADOW }}>
+      <header className="shrink-0 flex items-center justify-between gap-3" style={{ padding: '13px 16px', borderBottom: `1px solid ${p.border}` }}>
         <div className="flex items-center gap-2 min-w-0">
           <h3 style={{ fontSize: 15, fontWeight: 700, color: p.heading }}>AI 목록</h3>
           <span className="rounded-full" style={{ padding: '1px 8px', fontSize: 12, fontWeight: 700, color: p.accent, background: p.accentSoft }}>{services.length}{services.length !== total ? `/${total}` : ''}</span>
@@ -449,7 +444,7 @@ function AIList({ services, total, sort, onSort, onOpen, onReset }: {
       </header>
 
       {services.length === 0 ? (
-        <div className="flex flex-col items-center justify-center text-center" style={{ padding: '56px 20px', gap: 10 }}>
+        <div className={`flex flex-col items-center justify-center text-center ${fill ? 'flex-1 min-h-0' : ''}`} style={{ padding: '56px 20px', gap: 10 }}>
           <span className="flex items-center justify-center rounded-full" style={{ width: 48, height: 48, background: p.inset, color: p.muted }}>
             <MagnifyingGlassIcon width={22} height={22} />
           </span>
@@ -460,7 +455,7 @@ function AIList({ services, total, sort, onSort, onOpen, onReset }: {
           </button>
         </div>
       ) : (
-        <ul>
+        <ul className={fill ? 'flex-1 min-h-0 overflow-auto' : ''}>
           {services.map((s) => (
             <li key={s.id}>
               <button type="button" onClick={() => onOpen(s)}
@@ -489,7 +484,7 @@ function AIList({ services, total, sort, onSort, onOpen, onReset }: {
           ))}
         </ul>
       )}
-    </Panel>
+    </section>
   )
 }
 
@@ -524,8 +519,8 @@ function RankCard({ item }: { item: RankItem }) {
   )
 }
 
-// 4.17·4.18 우 — 실시간 서비스 랭킹(검색 동작)
-function RankingPanel() {
+// 4.17·4.18 우 — 실시간 서비스 랭킹(검색 동작). fill 시 헤더·버튼 고정 + 카드 내부 스크롤.
+function RankingPanel({ fill }: { fill: boolean }) {
   const p = usePalette()
   const [q, setQ] = useState('')
   const list = useMemo(() => {
@@ -533,8 +528,9 @@ function RankingPanel() {
     return v ? RANKING.filter((r) => `${r.name} ${r.model}`.toLowerCase().includes(v)) : RANKING
   }, [q])
   return (
-    <Panel bg={p.panel} style={{ padding: 16 }}>
-      <div className="flex flex-col" style={{ gap: 14 }}>
+    <section className={`rounded-xl min-w-0 flex flex-col ${fill ? 'h-full min-h-0' : ''}`}
+      style={{ background: p.panel, border: `1px solid ${p.border}`, boxShadow: PANEL_SHADOW, padding: 16, gap: 14 }}>
+      <div className="shrink-0 flex flex-col" style={{ gap: 14 }}>
         <div className="flex items-center justify-between gap-2">
           <h3 style={{ fontSize: 15, fontWeight: 700, color: p.heading }}>실시간 서비스 랭킹</h3>
           <span className="inline-flex items-center gap-1.5 rounded-full" style={{ padding: '3px 9px', fontSize: 11.5, fontWeight: 700, color: p.ok, background: p.okSoft }}>
@@ -549,18 +545,18 @@ function RankingPanel() {
           <span style={{ fontWeight: 600, color: p.text }}>필터</span>
           <span className="flex items-center gap-1 truncate" style={{ color: p.muted }}>종류 · API · 모델 · 소유자 · 상태 <ChevronDownIcon width={14} height={14} className="shrink-0" /></span>
         </span>
-        <div className="flex items-center justify-between gap-2" style={{ marginTop: 2 }}>
+        <div className="flex items-center justify-between gap-2">
           <span style={{ fontSize: 13.5, fontWeight: 700, color: p.text }}>최대 사용량 서비스 순위</span>
           <span className="flex items-center gap-1" style={{ fontSize: 11.5, color: p.muted }}><ArrowPathIcon width={12} height={12} /> 1분 전 업데이트</span>
         </div>
-        <div className="flex flex-col" style={{ gap: 10 }}>
-          {list.length === 0
-            ? <p className="text-center" style={{ fontSize: 13, color: p.muted, padding: '18px 0' }}>검색 결과가 없어요.</p>
-            : list.map((r) => <RankCard key={r.rank} item={r} />)}
-        </div>
-        <Button variant="outline" className="justify-center w-full">전체 랭킹 보기 <ChevronRightIcon width={14} height={14} /></Button>
       </div>
-    </Panel>
+      <div className={`flex flex-col ${fill ? 'flex-1 min-h-0 overflow-auto' : ''}`} style={{ gap: 10 }}>
+        {list.length === 0
+          ? <p className="text-center" style={{ fontSize: 13, color: p.muted, padding: '18px 0' }}>검색 결과가 없어요.</p>
+          : list.map((r) => <RankCard key={r.rank} item={r} />)}
+      </div>
+      <Button variant="outline" className="justify-center w-full shrink-0">전체 랭킹 보기 <ChevronRightIcon width={14} height={14} /></Button>
+    </section>
   )
 }
 
@@ -749,18 +745,19 @@ function DetailModal({ service, onClose }: { service: Service; onClose: () => vo
 export function Marketplace() {
   const p = usePalette()
   const narrow = useNarrow()
+  const fill = !narrow // 넓은 화면: 무스크롤 fill(3패널 같은 높이·하단 정렬·목록 내부 스크롤)
   const [filters, setFilters] = useState<Filters>(emptyFilters)
-  const [sort, setSort] = useState<SortKey>('usage')
+  const [sort, setSort] = useState<SortKey>('recent') // 기본 = Figma 노출 순서(시드순)
   const [selected, setSelected] = useState<Service | null>(null)
   const set = (patch: Partial<Filters>) => setFilters((prev) => ({ ...prev, ...patch }))
   const reset = () => setFilters(emptyFilters())
   const results = useMemo(() => applyFilters(filters, sort), [filters, sort])
 
   return (
-    <div className="anim-fade flex flex-col min-w-0" style={{ gap: 16 }}>
+    <div className="anim-fade flex flex-col min-w-0" style={{ gap: 14, height: fill ? '100%' : 'auto', overflow: fill ? 'hidden' : 'visible' }}>
       {/* 상단 검색바(동작) */}
-      <div className="flex items-center gap-3 rounded-xl" style={{ padding: '10px 12px', background: p.card, border: `1px solid ${p.border}` }}>
-        <span className="flex items-center gap-2 flex-1 min-w-0">
+      <div className="shrink-0 flex items-center gap-3 rounded-xl" style={{ padding: '11px 14px', background: p.card, border: `1px solid ${p.border}` }}>
+        <span className="flex items-center gap-2.5 flex-1 min-w-0">
           <MagnifyingGlassIcon width={18} height={18} className="shrink-0" style={{ color: p.muted }} />
           <input value={filters.query} onChange={(e) => set({ query: e.target.value })}
             className="bg-transparent outline-none w-full min-w-0" style={{ fontSize: 14.5, color: p.text }} placeholder="AI 서비스를 검색해 보세요" aria-label="AI 서비스 검색" />
@@ -773,11 +770,12 @@ export function Marketplace() {
         <Button className="shrink-0"><MagnifyingGlassIcon width={15} height={15} /> 검색</Button>
       </div>
 
-      {/* 좌 필터 · 중앙 목록 · 우 랭킹 */}
-      <div className="grid items-start min-w-0" style={{ gap: 16, gridTemplateColumns: narrow ? '1fr' : '252px minmax(0, 1fr) 332px' }}>
-        <FilterPanel f={filters} set={set} onReset={reset} />
-        <AIList services={results} total={SERVICES.length} sort={sort} onSort={setSort} onOpen={setSelected} onReset={reset} />
-        <RankingPanel />
+      {/* 좌 필터 · 중앙 목록 · 우 랭킹 — 같은 높이로 하단까지 채움 */}
+      <div className="grid min-w-0"
+        style={{ gap: 16, gridTemplateColumns: narrow ? '1fr' : '316px minmax(0, 1fr) 340px', flex: fill ? '1 1 0%' : undefined, minHeight: 0 }}>
+        <FilterPanel f={filters} set={set} onReset={reset} fill={fill} />
+        <AIList services={results} total={SERVICES.length} sort={sort} onSort={setSort} onOpen={setSelected} onReset={reset} fill={fill} />
+        <RankingPanel fill={fill} />
       </div>
 
       {selected && <DetailModal service={selected} onClose={() => setSelected(null)} />}
