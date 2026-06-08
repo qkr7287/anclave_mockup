@@ -739,16 +739,6 @@ function ServiceDetailCard({ service: s, narrow, reserveClose }: { service: Serv
   const p = usePalette()
   const tone = toneOf(s.status)
   const apiAvailable = hasApiOf(s)
-  const [keyIssued, setKeyIssued] = useState(false)
-  const [copied, setCopied] = useState(false)
-  const apiKey = `sk-anc-${s.id.replace(/[^a-z0-9]/gi, '').slice(0, 10)}-Kq7Xb2Lm9Fd`
-  const maskedKey = `${apiKey.slice(0, 15)}••••••••${apiKey.slice(-4)}`
-  const copyKey = () => {
-    navigator.clipboard?.writeText(apiKey).then(() => {
-      setCopied(true)
-      window.setTimeout(() => setCopied(false), 1500)
-    }).catch(() => {})
-  }
   const usageStats: [string, string][] = [
     ['월간 요청 수', s.reqFull],
     ['평균 응답시간', s.responseTime.replace('s', '초')],
@@ -842,42 +832,21 @@ function ServiceDetailCard({ service: s, narrow, reserveClose }: { service: Serv
 
       {divider}
 
-      {/* 소유자 안내 + API 키 요청 / 발급 결과 */}
-      {keyIssued ? (
-        <div className="flex flex-col rounded-xl" style={{ padding: '14px 16px', gap: 11, background: p.inset, border: `1px solid ${p.accent}66` }}>
-          <div className="flex items-center justify-between gap-2">
-            <span className="flex items-center gap-2" style={{ fontSize: 14, fontWeight: 700, color: p.heading }}>
-              <span className="flex items-center justify-center rounded-md shrink-0" style={{ width: 22, height: 22, background: p.accentSoft, color: p.accent }}>
-                <KeyIcon width={13} height={13} />
-              </span>
-              API 키가 발급되었습니다
-            </span>
-            <span className="inline-flex items-center gap-1.5" style={{ fontSize: 12, fontWeight: 700, color: p.ok }}>
-              <span className="rounded-full" style={{ width: 6, height: 6, background: 'currentColor' }} /> 활성
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <code className="flex-1 min-w-0 truncate rounded-lg" style={{ padding: '9px 12px', background: p.card, border: `1px solid ${p.border}`, fontFamily: 'var(--font-mono)', fontSize: 13, color: p.text }}>{maskedKey}</code>
-            <Button variant="outline" onClick={copyKey} className="shrink-0">{copied ? '복사됨' : '복사'}</Button>
-          </div>
-          <span style={{ fontSize: 12.5, color: p.muted }}>이 키로 <b style={{ color: p.text }}>{s.name}</b> 서비스를 호출할 수 있어요. 키는 안전하게 보관하세요.</span>
-        </div>
-      ) : (
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <span className="flex items-center gap-2" style={{ fontSize: 13.5, color: p.muted }}>
-            <span className="flex items-center justify-center rounded-full shrink-0" style={{ width: 18, height: 18, background: p.accentSoft, color: p.accent }}>
-              <CheckIcon width={11} height={11} strokeWidth={3} />
-            </span>
-            소유자 <b style={{ color: p.text }}>{s.owner}</b> 님이 GPU에 배포한 서비스 · 내부 사용자에게만 제공
+      {/* 소유자 안내 + 액션(API 키 요청 = 버튼만, 발급은 추후) */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <span className="flex items-center gap-2" style={{ fontSize: 13.5, color: p.muted }}>
+          <span className="flex items-center justify-center rounded-full shrink-0" style={{ width: 18, height: 18, background: p.accentSoft, color: p.accent }}>
+            <CheckIcon width={11} height={11} strokeWidth={3} />
           </span>
-          <div className="flex items-center gap-2.5 shrink-0">
-            <Button variant="outline">서비스 문의</Button>
-            {apiAvailable
-              ? <Button onClick={() => setKeyIssued(true)}><KeyIcon width={15} height={15} /> API 키 요청</Button>
-              : <Button>워크스페이스 열기</Button>}
-          </div>
+          소유자 <b style={{ color: p.text }}>{s.owner}</b> 님이 GPU에 배포한 서비스 · 내부 사용자에게만 제공
+        </span>
+        <div className="flex items-center gap-2.5 shrink-0">
+          <Button variant="outline">서비스 문의</Button>
+          {apiAvailable
+            ? <Button><KeyIcon width={15} height={15} /> API 키 요청</Button>
+            : <Button>워크스페이스 열기</Button>}
         </div>
-      )}
+      </div>
     </div>
   )
 }
@@ -908,7 +877,7 @@ function DetailModal({ service, onClose }: { service: Service; onClose: () => vo
           <XMarkIcon width={17} height={17} />
         </button>
         <div style={{ padding: narrow ? 20 : 28 }}>
-          <ServiceDetailCard key={service.id} service={service} narrow={narrow} reserveClose />
+          <ServiceDetailCard service={service} narrow={narrow} reserveClose />
         </div>
       </div>
     </div>
