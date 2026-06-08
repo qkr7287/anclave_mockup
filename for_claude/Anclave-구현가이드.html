@@ -155,6 +155,41 @@
       <pre class="cmd qa"><span class="label">[공통 골격] — ② 검증·QA용</span>[화면]을 크롬에서 1440·1280·1024로 직접 렌더해 점검해줘. ① §2 "절대 금지 체크리스트"(레이아웃 안정성·테이블 헤더 nowrap·글씨 욱여넣기·텍스트 겹침·카드 높이 정렬·AI 티·휑함·<b>차트/맵·게이지 컨테이너 꽉(빈 공간 0)·라인 꺾은선·프로그레스 바 금지</b>)를 <b>항목별로 하나씩 꼭 다시 보고</b> 위반이 없는지 · ② 밀도(above-fold 영역 ≥4 + <b>"꽉 찼는지" — 큰 빈 카드로 면적만 채운 거 아닌지, 잘 만든 SaaS 콘솔만큼 빈틈없는지</b>·KPI 카드 구성) · ★③ <b>레퍼런스 대조</b>: 이 화면을 <code>desigin/예시페이지.png</code>(및 그 소스 HyperCube host-board)와 나란히 놓고 <b>같은 밀도·완성도 수준인지</b> 비교 — 레이아웃 복사 점검이 아니라 <b>밀도·craft 수준</b>(패널 꽉 참·미니카드 그리드·작은 gap·카드당 5~6필드·상태 viz). 못 미치면 부족분을 구체적으로 적고 보강. · ④ 깨짐·어색함·이상한 곳을 찾아. 발견된 걸 [위치·문제·금지항목 위반여부·수정안] 목록으로 보여주고, 합의되면 고친 뒤 다시 렌더로 확인하고 커밋 제안해.</pre>
     </section>
 
+    <!-- 병렬 -->
+    <section id="parallel">
+      <h2><span class="num" style="color:var(--warn)">∥</span>병렬 작업 규칙 <span class="muted" style="font-size:13px;font-weight:400">— worktree · 파일 오너십 · 머지</span></h2>
+      <div class="card">
+        <p><b>왜</b>: STEP을 여러 Claude Code 세션으로 동시에 굽는다. 충돌의 적은 <b>공유 파일 동시 수정</b> → git worktree(폴더 분리) + 브랜치 + Claude Code <code>deny</code>로 막는다. <b>한 STEP = 한 worktree = 한 세션 = 한 브랜치</b>, 세션은 <b>자기 화면 파일만</b> 수정.</p>
+        <h4 style="color:var(--danger)">① 동결(공유) — 페이지 세션 수정 금지(deny로 잠금)</h4>
+        <p><code>app/src/components/**</code> · <code>app/src/data/**</code> · <code>app/src/lib/**</code> · <code>app/src/App.tsx</code> · <code>app/src/index.css</code> — 변경 필요 시 <b>오케스트레이터(메인 세션) 경유</b> → 기반에 먼저 머지 후 각 worktree <code>git rebase feat/mockup-impl</code>.</p>
+        <h4>② STEP ↔ 소유 화면 파일 (이 파일만 수정)</h4>
+        <table style="font-size:14px;border-collapse:collapse;width:100%">
+          <tr><td><b>G2</b> 내 할당·신청</td><td><code>screens/dashboard.tsx</code></td><td>4.5·4.6</td>
+              <td><b>G9</b> API·활성화</td><td><code>screens/activation.tsx</code></td><td>4.19·4.20</td></tr>
+          <tr><td><b>G3</b> 신청·변경</td><td><code>screens/allocation.tsx</code></td><td>4.8·4.11</td>
+              <td><b>G10</b> 이벤트·알림</td><td><code>screens/events.tsx</code></td><td>4.21·4.22</td></tr>
+          <tr><td><b>G4</b> 게시·GPU 승인</td><td><code>screens/approvals.tsx</code></td><td>4.9·4.10</td>
+              <td><b>G11</b> 관제</td><td><code>screens/monitoring.tsx</code></td><td>4.7</td></tr>
+          <tr><td><b>G5</b> 모델 카탈로그</td><td><code>screens/catalog.tsx</code></td><td>4.12·4.13</td>
+              <td><b>G12</b> 게시판</td><td><code>screens/board.tsx</code></td><td>4.23</td></tr>
+          <tr><td><b>G6</b> 반입·내 모델</td><td><code>screens/mymodels.tsx</code></td><td>4.14·4.15</td>
+              <td><b>G13</b> 관리자군</td><td><code>screens/audit.tsx</code>+<code>system.tsx</code></td><td>4.24~4.28</td></tr>
+          <tr><td><b>G7</b> 에이전트</td><td><code>screens/agents.tsx</code></td><td>4.16</td>
+              <td><b>G14</b> 로그인·마감</td><td><code>screens/auth/Login.tsx</code></td><td>4.1</td></tr>
+          <tr><td><b>G8</b> 마켓·서비스</td><td><code>screens/market.tsx</code></td><td>4.17·4.18</td>
+              <td colspan="3" class="muted">G1 자원맵 = <code>screens/resourcemap.tsx</code> (완료)</td></tr>
+        </table>
+        <h4>③ 셋업 (오케스트레이터)</h4>
+        <pre class="cmd">git worktree add ../anclave-g&lt;n&gt; -b feat/g&lt;n&gt;-xxx feat/mockup-impl
+# 그 폴더 .claude/settings.local.json 에 공유파일 deny 작성
+cd ../anclave-g&lt;n&gt;/app &amp;&amp; npm install
+npm run dev -- --port 517&lt;n&gt;        # 세션마다 dev 포트 분리</pre>
+        <p class="muted" style="font-size:13px">deny 예: <code>{"permissions":{"deny":["Edit(/app/src/components/**)","Edit(/app/src/data/**)","Edit(/app/src/lib/**)","Edit(/app/src/App.tsx)","Edit(/app/src/index.css)"]}}</code> — <code>Edit</code>이 Write/MultiEdit까지 잠금.</p>
+        <h4>④ 세션 실행 / 머지백</h4>
+        <p>각 worktree 폴더에서 Claude Code 세션을 열고 "STEP N 구현"(이 가이드 STEP N 참고) → ①구현→②검증→<b>자기 브랜치 커밋</b>. ②검증 통과 시 오케스트레이터가 <code>feat/g&lt;n&gt;-xxx → feat/mockup-impl</code> 머지(다른 화면 파일이라 충돌 0). 가이드(localhost:8765)는 <b>단일 SSOT</b> — 피드백은 오케스트레이터에게.</p>
+      </div>
+    </section>
+
     <!-- 3 -->
     <section id="steps">
       <h2><span class="num">3</span>단계별 프롬프트 — ① 구현 / ② 검증 (위에서부터 복붙)</h2>
