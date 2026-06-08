@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Anclave — 병렬 작업 실행 가이드</title>
+<style>
+  :root{--bg:#0a0e17;--panel:#0f1422;--panel2:#141b2d;--bd:#222c44;--tx:#e6edf3;--mut:#8b97ad;--blue:#3b82f6;--green:#3fb950;--amber:#e3b341;--red:#f85149;--code:#0b1020}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.7 system-ui,'Malgun Gothic',sans-serif;padding:0 0 80px}
+  header{background:linear-gradient(135deg,#0d1424,#0a0e17);border-bottom:1px solid var(--bd);padding:28px 32px}
+  header h1{margin:0;font-size:24px}
+  header p{margin:6px 0 0;color:var(--mut)}
+  main{max-width:920px;margin:0 auto;padding:0 24px}
+  section{margin-top:34px}
+  h2{font-size:19px;border-left:3px solid var(--blue);padding-left:12px;margin:0 0 14px}
+  h3{font-size:16px;margin:22px 0 8px;color:#cdd9ec}
+  .card{background:var(--panel);border:1px solid var(--bd);border-radius:12px;padding:18px 20px;margin:14px 0}
+  .step{display:flex;gap:14px;align-items:flex-start;margin:16px 0}
+  .step .n{flex:0 0 30px;height:30px;border-radius:50%;background:var(--blue);color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:14px}
+  .step .b{flex:1}
+  code{background:var(--code);border:1px solid var(--bd);border-radius:5px;padding:1px 6px;font-family:'Cascadia Code',Consolas,monospace;font-size:13px;color:#9cdcfe}
+  pre{background:var(--code);border:1px solid var(--bd);border-radius:10px;padding:14px 16px;overflow:auto;position:relative}
+  pre code{background:none;border:none;padding:0;color:#d4d4d4;display:block;white-space:pre-wrap;word-break:break-word}
+  .prompt{background:#0c1626;border-color:#1d3a5f}
+  .prompt code{color:#cfe3ff}
+  table{width:100%;border-collapse:collapse;font-size:14px;margin:10px 0}
+  th,td{border:1px solid var(--bd);padding:8px 10px;text-align:left}
+  th{background:var(--panel2);color:#cdd9ec}
+  .tag{display:inline-block;background:var(--panel2);border:1px solid var(--bd);border-radius:5px;padding:1px 7px;font-size:12px;color:var(--mut)}
+  .ok{color:var(--green)}.warn{color:var(--amber)}.bad{color:var(--red)}
+  .note{border-left:3px solid var(--amber);background:rgba(227,179,65,.07);padding:10px 14px;border-radius:0 8px 8px 0;margin:12px 0}
+  .good{border-left:3px solid var(--green);background:rgba(63,185,80,.07);padding:10px 14px;border-radius:0 8px 8px 0;margin:12px 0}
+  .copy{position:absolute;top:8px;right:8px;background:#1c2742;border:1px solid var(--bd);color:#cfe3ff;border-radius:6px;font-size:12px;padding:3px 10px;cursor:pointer}
+  .copy:active{background:var(--blue)}
+  b{color:#fff}
+  ul{margin:8px 0;padding-left:22px}li{margin:4px 0}
+  .kbd{background:#1c2742;border:1px solid var(--bd);border-bottom-width:2px;border-radius:5px;padding:1px 7px;font-size:12px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Anclave — 병렬 작업 실행 가이드 <span class="tag">파일럿 G2·G5·G8</span></h1>
+  <p>STEP을 여러 Claude Code 세션으로 동시에 굽기 · 공유 파일은 자동 잠금(deny) · 따라만 하면 됨</p>
+</header>
+<main>
+
+<section>
+  <h2>0 · 한 줄 개념</h2>
+  <div class="card">
+    <ul>
+      <li><b>worktree</b> = 같은 저장소에서 <b>폴더만 따로</b> 만든 것. 폴더가 다르니 동시에 작업해도 안 부딪힘.</li>
+      <li><b>브랜치</b> = 각 폴더가 자기 브랜치라, 끝나면 합치기(머지) 전까진 서로·기반에 영향 0.</li>
+      <li><b>deny</b> = 그 폴더에서 <b>공유 파일을 못 고치게</b> 잠근 설정. <span class="ok">이미 넣어놨고, 폴더 열면 자동 적용.</span></li>
+    </ul>
+    <div class="good"><b>네가 할 일은 딱 하나</b> — 아래 3개 폴더에서 각각 Claude Code 세션을 열고, 정해진 프롬프트를 붙여넣기. 끝.</div>
+  </div>
+</section>
+
+<section>
+  <h2>1 · 지금 준비된 것 (내가 셋업 완료)</h2>
+  <table>
+    <tr><th>STEP</th><th>폴더 (worktree)</th><th>브랜치</th><th>고칠 파일 (이것만)</th><th>dev 포트</th></tr>
+    <tr><td><b>G2</b> 내 할당·신청</td><td><code>..\anclave-g2</code></td><td><code>feat/g2-dashboard</code></td><td><code>src/screens/dashboard.tsx</code></td><td>5182</td></tr>
+    <tr><td><b>G5</b> 모델 카탈로그</td><td><code>..\anclave-g5</code></td><td><code>feat/g5-catalog</code></td><td><code>src/screens/catalog.tsx</code></td><td>5185</td></tr>
+    <tr><td><b>G8</b> 마켓·서비스</td><td><code>..\anclave-g8</code></td><td><code>feat/g8-market</code></td><td><code>src/screens/market.tsx</code></td><td>5188</td></tr>
+  </table>
+  <p class="tag">전체 경로 예: <code>C:\Users\agics\Desktop\workspace\01. git\anclave-g2</code> (메인 <code>anclave_mockup</code> 옆)</p>
+  <div class="good">각 폴더에 <b>deny 잠금 + npm 설치까지 완료</b>. 바로 세션만 열면 됩니다.</div>
+</section>
+
+<section>
+  <h2>2 · deny는 어떻게 "적용"되나? <span class="tag">제일 헷갈리는 부분</span></h2>
+  <div class="card">
+    <p><b>적용 버튼 같은 건 없습니다.</b> 각 worktree 폴더 안에 이 파일이 들어있고:</p>
+    <pre><code>..\anclave-g2\.claude\settings.local.json</code></pre>
+    <p><b>그 폴더를 열어 Claude Code 세션을 시작하면 자동으로 읽힙니다.</b> 그 세션은 아래 공유 파일을 <span class="bad">고칠 수 없게</span> 됩니다(읽기는 가능):</p>
+    <pre><code>app/src/components/**   ← Shell·Header·Sidebar·UI·차트 등
+app/src/data/**         ← 더미 시드
+app/src/lib/**          ← theme·role·routes
+app/src/App.tsx         ← 라우팅
+app/src/index.css       ← 디자인 토큰</code></pre>
+    <h3>잘 잠겼는지 확인하는 법</h3>
+    <p>세션을 연 뒤 시험삼아 이렇게 시켜보세요:</p>
+    <pre class="prompt"><button class="copy">복사</button><code>components/Shell.tsx 에 주석 한 줄 추가해봐</code></pre>
+    <div class="good"><b class="ok">정상</b> = "권한이 거부되었다(denied)"며 못 고침. → 잠금 OK. <br><b class="bad">문제</b> = 그냥 고쳐버림. → <code>.claude/settings.local.json</code>이 그 폴더에 있는지·세션 cwd가 그 폴더인지 확인.</div>
+  </div>
+</section>
+
+<section>
+  <h2>3 · 세션 여는 법 (폴더마다 1번씩)</h2>
+  <div class="card">
+    <div class="step"><div class="n">1</div><div class="b"><b>새 터미널</b>(PowerShell)을 연다.</div></div>
+    <div class="step"><div class="n">2</div><div class="b">그 폴더로 이동:<pre class="prompt" style="margin-top:8px"><button class="copy">복사</button><code>cd "C:\Users\agics\Desktop\workspace\01. git\anclave-g2"</code></pre></div></div>
+    <div class="step"><div class="n">3</div><div class="b">Claude Code 실행:<pre class="prompt" style="margin-top:8px"><button class="copy">복사</button><code>claude</code></pre><span class="tag">VS Code/IDE를 쓰면 그 폴더를 열고 Claude Code 패널을 켜도 됨 — 핵심은 "cwd = 그 폴더".</span></div></div>
+    <div class="step"><div class="n">4</div><div class="b">아래 <b>4번 섹션의 해당 프롬프트</b>를 붙여넣기.</div></div>
+    <div class="step"><div class="n">5</div><div class="b">G5·G8도 각각 새 터미널 → 그 폴더 → <code>claude</code> → 프롬프트. <b>3개 동시에 돌아갑니다.</b></div></div>
+    <div class="note"><b>가이드는 메인에서 하나만 서빙</b>: <code>localhost:8765</code>의 구현가이드.html을 모든 세션이 같이 봅니다(단일 기준). 메인 문서서버는 끄지 마세요.</div>
+  </div>
+</section>
+
+<section>
+  <h2>4 · 세션별 프롬프트 (복붙)</h2>
+
+  <h3>G2 — 폴더 <code>anclave-g2</code></h3>
+  <pre class="prompt"><button class="copy">복사</button><code>이 worktree(feat/g2-dashboard)에서 G2를 구현해줘. localhost:8765 의 Anclave-구현가이드.html STEP 2(G2 · 내 할당 자원·신청현황 4.5·4.6) ①구현을 정독해. src/screens/dashboard.tsx 만 수정해(MyResources=4.5, RequestStatus=4.6). 공유 파일(components·data·lib·App·css)은 deny로 잠겨 있으니 읽기만 하고, 변경이 필요하면 구현하지 말고 나한테 알려줘. §2 절대금지·밀도·꽉참·14px floor 지켜. 끝나면 npm run dev -- --port 5182 로 크롬에서 ②검증한 뒤 이 브랜치에 커밋해.</code></pre>
+
+  <h3>G5 — 폴더 <code>anclave-g5</code></h3>
+  <pre class="prompt"><button class="copy">복사</button><code>이 worktree(feat/g5-catalog)에서 G5를 구현해줘. localhost:8765 의 Anclave-구현가이드.html STEP 5(G5 · 모델 카탈로그·상세 4.12·4.13) ①구현을 정독해. src/screens/catalog.tsx 만 수정해(ModelCatalog=4.12, ModelDetail=4.13). 공유 파일은 deny로 잠겨 있으니 읽기만 하고, 변경이 필요하면 나한테 알려줘. §2 절대금지·밀도·꽉참·14px floor 지켜. 끝나면 npm run dev -- --port 5185 로 크롬 ②검증 후 이 브랜치에 커밋해.</code></pre>
+
+  <h3>G8 — 폴더 <code>anclave-g8</code></h3>
+  <pre class="prompt"><button class="copy">복사</button><code>이 worktree(feat/g8-market)에서 G8을 구현해줘. localhost:8765 의 Anclave-구현가이드.html STEP 8(G8 · 마켓·서비스 상세 4.17·4.18) ①구현을 정독해. src/screens/market.tsx 만 수정해(Marketplace=4.17, ServiceDetail=4.18). 공유 파일은 deny로 잠겨 있으니 읽기만 하고, 변경이 필요하면 나한테 알려줘. §2 절대금지·밀도·꽉참·14px floor 지켜. 끝나면 npm run dev -- --port 5188 로 크롬 ②검증 후 이 브랜치에 커밋해.</code></pre>
+</section>
+
+<section>
+  <h2>5 · 끝난 뒤 — 합치기(머지)는 내가</h2>
+  <div class="card">
+    <ol style="padding-left:20px">
+      <li>세션이 자기 브랜치에 커밋·②검증까지 끝내면 → <b>나(이 메인 세션)한테 "G2 끝났어"라고 알려줘.</b></li>
+      <li>내가 <code>feat/g2-dashboard → feat/mockup-impl</code>로 머지. <span class="ok">서로 다른 파일이라 충돌 0.</span></li>
+      <li>머지 끝나면 나머지 worktree는 최신 기반을 당겨옴:<pre style="margin-top:8px"><code>git -C ..\anclave-g5 rebase feat/mockup-impl</code></pre>(이것도 내가 해줄게.)</li>
+    </ol>
+    <div class="note"><b>공유 파일을 고쳐야 한다고 세션이 말하면</b> → 그 세션은 deny로 못 고치니, 그 내용을 <b>나한테 전달</b>해줘. 내가 메인에서 고쳐 기반에 반영 → 각 worktree rebase. (예: 새 공통 컴포넌트·data 필드·디자인 토큰)</div>
+  </div>
+</section>
+
+<section>
+  <h2>6 · 문제 해결</h2>
+  <table>
+    <tr><th>증상</th><th>해결</th></tr>
+    <tr><td>deny가 안 먹고 공유 파일이 고쳐짐</td><td>세션 cwd가 그 worktree 폴더인지 확인. <code>.claude/settings.local.json</code>이 그 폴더에 있는지 확인.</td></tr>
+    <tr><td><code>npm run dev</code> 포트 충돌</td><td>포트를 바꿔(5182→5183 등). 또는 이미 떠있는 dev 서버를 끄기.</td></tr>
+    <tr><td>가이드(localhost:8765)가 안 열림</td><td>메인 <code>anclave_mockup</code>의 문서서버가 떠 있어야 함. 꺼졌으면 다시 켜기.</td></tr>
+    <tr><td>세션이 다른 화면 파일을 건드림</td><td>자기 브랜치라 기반엔 영향 없음. 프롬프트에 "자기 파일만"을 다시 강조하거나 나한테 말해.</td></tr>
+    <tr><td>worktree 지우고 싶음</td><td>내가 <code>git worktree remove ..\anclave-g2</code>로 정리.</td></tr>
+  </table>
+</section>
+
+<section>
+  <h2>7 · 더 추가하기</h2>
+  <div class="card">
+    <p>파일럿 3개가 잘 돌면, 나머지 STEP도 같은 식으로 늘립니다. 나한테 이렇게만 말하면 됩니다:</p>
+    <pre class="prompt"><button class="copy">복사</button><code>G3·G4·G10 도 워크트리 만들어줘</code></pre>
+    <p>그러면 내가 폴더·브랜치·deny·npm설치까지 만들고, 세션 프롬프트를 이 가이드에 추가해줄게.</p>
+    <p class="tag">병렬 가능한 전체: G2 G3 G4 G5 G6 G7 G8 G9 G10 G11 G12 G13 (G14 로그인·마감은 마지막에 단독).</p>
+  </div>
+</section>
+
+</main>
+<script>
+  document.querySelectorAll('.copy').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      var code=btn.parentElement.querySelector('code').innerText;
+      navigator.clipboard.writeText(code).then(function(){
+        var t=btn.textContent;btn.textContent='복사됨!';setTimeout(function(){btn.textContent=t},1200);
+      });
+    });
+  });
+</script>
+</body>
+</html>
