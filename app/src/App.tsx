@@ -58,6 +58,12 @@ function HomeRedirect() {
   return <Navigate to={user.initialRoute} replace />
 }
 
+// 로그인 안 했으면 /login으로. 했으면 셸(사이드바·헤더 + Outlet) 렌더.
+function RequireAuth() {
+  const { authed } = useRole()
+  return authed ? <Shell /> : <Navigate to="/login" replace />
+}
+
 function NotFound() {
   return (
     <div className="flex items-center justify-center" style={{ minHeight: 360 }}>
@@ -78,7 +84,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
-      <Route path="/" element={<Shell />}>
+      <Route path="/" element={<RequireAuth />}>
         <Route index element={<HomeRedirect />} />
         {appRoutes.map((r) => {
           const Screen = REGISTRY[r.key]

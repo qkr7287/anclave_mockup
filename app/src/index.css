@@ -49,6 +49,18 @@
   --c-inactive: #3a4252;
   --c-track: #1b2340;
 
+  /* 자원맵 honeycomb — 부하 6단계(저→고) + 그리드/헥사 경계/빗금선 */
+  --hex-b0: #1e222a;
+  --hex-b1: #c1ddfa;
+  --hex-b2: #5c9ffa;
+  --hex-b3: #206de7;
+  --hex-b4: #1b3a91;
+  --hex-b5: #142153;
+  --hex-grid: rgba(165, 172, 186, 0.1);
+  --hex-stroke: rgba(13, 17, 23, 0.55);
+  --hex-hatch: rgba(255, 255, 255, 0.08);
+  --mig-arc2: #1b5099; /* MIG 도넛 게이지 그라데이션 끝 stop(다크) */
+
   --accent-soft: rgba(45, 133, 255, 0.12);
   --ok-soft: rgba(63, 185, 80, 0.15);
   --warn-soft: rgba(210, 153, 34, 0.15);
@@ -83,6 +95,18 @@
   --c-danger: #cf222e;
   --c-inactive: #c2c9d3;
   --c-track: #dde3ea;
+
+  /* 자원맵 honeycomb(라이트) — 진한 남색 대신 밝은→선명한 블루 램프 · 헥사 경계=흰틈 · 그리드 또렷 */
+  --hex-b0: #d6dfea;
+  --hex-b1: #bad2f2;
+  --hex-b2: #8db6f0;
+  --hex-b3: #5694ec;
+  --hex-b4: #2e6fdd;
+  --hex-b5: #1b50b8;
+  --hex-grid: #c3cedc;
+  --hex-stroke: rgba(255, 255, 255, 0.78);
+  --hex-hatch: rgba(40, 60, 100, 0.13);
+  --mig-arc2: #6fa6f2; /* MIG 도넛 끝 stop(라이트) — 진한 남청 대신 밝은 블루 */
 
   --accent-soft: #e6eefb;
   --ok-soft: #ddf5e4;

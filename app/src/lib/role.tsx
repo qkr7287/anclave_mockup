@@ -16,22 +16,38 @@ interface RoleCtx {
   user: User
   access: Access
   isAdmin: boolean
+  authed: boolean
   setUserId: (id: string) => void
+  login: (id: string) => void
+  logout: () => void
 }
 
 const Ctx = createContext<RoleCtx | null>(null)
 
 const KEY = 'anclave-user'
+const AUTH_KEY = 'anclave-authed'
 
 export function RoleProvider({ children }: { children: ReactNode }) {
-  // 기본 진입 = admin(A). 헤더에서 manager(B)/user(C)로 전환해 여정 시연.
-  // 새로고침/직접 URL 진입에도 역할 유지(§9.2 접근 가드가 reload에도 동작).
+  // 로그인 후 역할 유지(새로고침·직접 URL에도). authed=false면 /login으로 게이트(App.tsx).
   const [userId, setUserIdState] = useState<string>(
     () => localStorage.getItem(KEY) ?? 'u-admin',
+  )
+  const [authed, setAuthed] = useState<boolean>(
+    () => localStorage.getItem(AUTH_KEY) === '1',
   )
   const setUserId = (id: string) => {
     localStorage.setItem(KEY, id)
     setUserIdState(id)
+  }
+  const login = (id: string) => {
+    localStorage.setItem(KEY, id)
+    localStorage.setItem(AUTH_KEY, '1')
+    setUserIdState(id)
+    setAuthed(true)
+  }
+  const logout = () => {
+    localStorage.removeItem(AUTH_KEY)
+    setAuthed(false)
   }
   const user = userById(userId) ?? users[0]
 
@@ -40,9 +56,12 @@ export function RoleProvider({ children }: { children: ReactNode }) {
       user,
       access: accessOf(user),
       isAdmin: user.role === 'admin',
+      authed,
       setUserId,
+      login,
+      logout,
     }),
-    [user],
+    [user, authed],
   )
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>

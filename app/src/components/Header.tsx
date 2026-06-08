@@ -49,7 +49,7 @@ function useCrumbs(): Crumb[] {
 // Q2/Q18 헤더(Figma) — 좌: 브레드크럼 / 우: 검색·알림·테마·프로필. GNB 없음.
 export function Header() {
   const { theme, toggle } = useTheme()
-  const { user, access, setUserId } = useRole()
+  const { user, access, setUserId, logout } = useRole()
   const navigate = useNavigate()
   const [bellOpen, setBellOpen] = useState(false)
   const [roleOpen, setRoleOpen] = useState(false)
@@ -223,6 +223,7 @@ export function Header() {
               type="button"
               onClick={() => {
                 close()
+                logout()
                 navigate('/login')
               }}
               className="w-full text-left px-4 py-2.5 hover:bg-[var(--accent-soft)]"

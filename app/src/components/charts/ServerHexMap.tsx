@@ -8,13 +8,14 @@ import { MagnifyingGlassPlusIcon, MagnifyingGlassMinusIcon, ArrowsPointingOutIco
 const DIM = 14
 const Hex = defineHex({ dimensions: DIM, orientation: Orientation.POINTY })
 // Figma 사용률 6단계: 0-15 회색 → 16-30 밝은 블루 → 76-100 짙은 남청(부하↑ 진함)
+// 색은 테마 변수(--hex-b0~5) — 라이트/다크에서 톤이 자동으로 바뀜(라이트: 진한 남색 대신 밝은→선명 블루)
 export const LOAD_BANDS = [
-  { max: 16, color: '#1E222A', label: '0 - 15' },
-  { max: 31, color: '#C1DDFA', label: '16 - 30' },
-  { max: 46, color: '#5C9FFA', label: '31 - 45' },
-  { max: 61, color: '#206DE7', label: '46 - 60' },
-  { max: 76, color: '#1B3A91', label: '61 - 75' },
-  { max: 101, color: '#142153', label: '76 - 100' },
+  { max: 16, color: 'var(--hex-b0)', label: '0 - 15' },
+  { max: 31, color: 'var(--hex-b1)', label: '16 - 30' },
+  { max: 46, color: 'var(--hex-b2)', label: '31 - 45' },
+  { max: 61, color: 'var(--hex-b3)', label: '46 - 60' },
+  { max: 76, color: 'var(--hex-b4)', label: '61 - 75' },
+  { max: 101, color: 'var(--hex-b5)', label: '76 - 100' },
 ]
 const blueShade = (load: number) => (LOAD_BANDS.find((b) => load < b.max) ?? LOAD_BANDS[5]).color
 const HOVER_ORANGE = '#F59B02'
@@ -178,20 +179,20 @@ export function ServerHexMap({ regions, bare = false }: ServerHexMapProps) {
         <defs>
           <pattern id="shm-hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
             <rect width="5" height="5" fill="var(--c-soft)" />
-            <line x1="0" y1="0" x2="0" y2="5" stroke="rgba(255,255,255,.08)" strokeWidth="2" />
+            <line x1="0" y1="0" x2="0" y2="5" stroke="var(--hex-hatch)" strokeWidth="2" />
           </pattern>
         </defs>
         <g transform={`translate(${view.x}, ${view.y}) scale(${S})`}>
           {/* 1) 단일 블루 히트맵 벌집 — 부하 음영, 미할당 빗금, faint 빈 헥사로 육각 모양 */}
           {cells.map((c) => {
             const a = at(c)
-            if (!a) return <polygon key={c.key} points={pts(c)} fill="none" stroke="var(--c-border)" strokeWidth={0.7} />
+            if (!a) return <polygon key={c.key} points={pts(c)} fill="none" stroke="var(--hex-grid)" strokeWidth={0.7} />
             const reg = regions[a.ri]
             const bay = reg.bays[a.bay]
             const fill = bay.idle ? 'url(#shm-hatch)' : bay.fill ?? blueShade(bay.util)
             return (
               <polygon key={c.key} data-hex points={pts(c)} fill={fill}
-                stroke="rgba(13,17,23,.55)" strokeWidth={0.4}
+                stroke="var(--hex-stroke)" strokeWidth={0.4}
                 style={{ cursor: reg.onClick ? 'pointer' : 'default' }}
                 onClick={reg.onClick}
                 onMouseEnter={(e) => setHover({ x: e.clientX, y: e.clientY, ri: a.ri, bayTip: bay.tip })}

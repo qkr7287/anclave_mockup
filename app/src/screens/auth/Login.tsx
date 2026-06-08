@@ -1,23 +1,55 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { accessOf, useRole } from '../../lib/role'
+import { useRole } from '../../lib/role'
 import { userById } from '../../data/users'
 
-const DEMO = [
-  { id: 'u-admin', desc: '전체 자원맵 · 승인 · 시스템 설정' },
-  { id: 'u-manager', desc: '호스팅 후(B) · 내 할당 자원 대시보드' },
-  { id: 'u-user', desc: '호스팅 전(C) · 마켓에서 신청부터' },
+// 더미 로그인 계정 3종 (공통 비번)
+const CREDENTIALS: Record<string, { pw: string; id: string }> = {
+  admin: { pw: 'agics12!@', id: 'u-admin' },
+  user1: { pw: 'agics12!@', id: 'u-manager' },
+  user2: { pw: 'agics12!@', id: 'u-user' },
+}
+const HINTS = [
+  { u: 'admin', label: '최종관리자', desc: '전체 자원맵 · 승인 · 시스템 설정' },
+  { u: 'user1', label: '실무관리자', desc: 'GPU 보유 — 내 할당 자원 대시보드' },
+  { u: 'user2', label: '사용자', desc: '신청 전 — 마켓에서 신청부터' },
 ]
-const ACCESS_LABEL: Record<string, string> = { A: 'A · 최종관리자', B: 'B · 실무관리자', C: 'C · 사용자' }
 
-// 4.1 로그인 — Q13 라디얼 글로우 배경 + gradient 로고 + 3계정 선택.
+// 4.1 로그인 — 라디얼 글로우 배경 + gradient 로고 + 아이디/비번.
 export function Login() {
   const navigate = useNavigate()
-  const { setUserId } = useRole()
+  const { login } = useRole()
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
 
-  const pick = (id: string) => {
-    const u = userById(id)!
-    setUserId(id)
-    navigate(u.initialRoute)
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const cred = CREDENTIALS[username.trim()]
+    if (!cred || cred.pw !== password) {
+      setError('아이디 또는 비밀번호가 올바르지 않아요.')
+      return
+    }
+    login(cred.id)
+    navigate(userById(cred.id)!.initialRoute)
+  }
+
+  const fill = (u: string) => {
+    setUsername(u)
+    setPassword('agics12!@')
+    setError('')
+  }
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    height: 42,
+    padding: '0 12px',
+    fontSize: 14,
+    color: '#e6edf3',
+    background: 'rgba(12,16,22,.7)',
+    border: '1px solid #2a3344',
+    borderRadius: 8,
+    outline: 'none',
   }
 
   return (
@@ -30,7 +62,7 @@ export function Login() {
     >
       <div
         className="rounded-2xl border border-line"
-        style={{ width: 320, background: 'rgba(22,28,38,.82)', backdropFilter: 'blur(8px)', padding: '24px 22px', boxShadow: '0 20px 50px rgba(0,0,0,.5)' }}
+        style={{ width: 340, background: 'rgba(22,28,38,.82)', backdropFilter: 'blur(8px)', padding: '26px 24px', boxShadow: '0 20px 50px rgba(0,0,0,.5)' }}
       >
         <div
           className="font-extrabold"
@@ -42,39 +74,55 @@ export function Login() {
           폐쇄망 GPU 호스팅 · AI 마켓플레이스
         </p>
 
-        <div className="flex flex-col mt-5" style={{ gap: 8 }}>
-          {DEMO.map((d) => {
-            const u = userById(d.id)!
-            return (
+        <form onSubmit={submit} className="flex flex-col mt-5" style={{ gap: 10 }}>
+          <input
+            style={inputStyle}
+            placeholder="아이디 (admin / user1 / user2)"
+            value={username}
+            onChange={(e) => { setUsername(e.target.value); setError('') }}
+            aria-label="아이디"
+            autoFocus
+          />
+          <input
+            style={inputStyle}
+            type="password"
+            placeholder="비밀번호"
+            value={password}
+            onChange={(e) => { setPassword(e.target.value); setError('') }}
+            aria-label="비밀번호"
+          />
+          {error && (
+            <span style={{ fontSize: 14, color: '#f85149' }}>{error}</span>
+          )}
+          <button
+            type="submit"
+            className="font-semibold transition-colors"
+            style={{ height: 42, borderRadius: 8, background: '#3b82f6', color: '#fff', fontSize: 15 }}
+          >
+            로그인
+          </button>
+        </form>
+
+        <div style={{ borderTop: '1px solid #2a3344', marginTop: 18, paddingTop: 14 }}>
+          <p style={{ fontSize: 14, color: '#616a74', marginBottom: 8 }}>데모 계정 — 클릭하면 자동 입력</p>
+          <div className="flex flex-col" style={{ gap: 6 }}>
+            {HINTS.map((h) => (
               <button
-                key={d.id}
+                key={h.u}
                 type="button"
-                onClick={() => pick(d.id)}
+                onClick={() => fill(h.u)}
                 className="text-left rounded-lg border border-line hover:border-accent transition-colors"
-                style={{ padding: '11px 12px', background: 'rgba(28,36,48,.6)' }}
+                style={{ padding: '8px 11px', background: 'rgba(28,36,48,.5)' }}
               >
                 <div className="flex items-center gap-2">
-                  <span
-                    className="flex items-center justify-center rounded-full shrink-0"
-                    style={{ width: 22, height: 22, background: '#6ea8fe', color: '#08111f', fontSize: 14, fontWeight: 800 }}
-                  >
-                    {u.name.slice(0, 1).toUpperCase()}
-                  </span>
-                  <span className="font-semibold" style={{ fontSize: 14, color: '#e6edf3' }}>
-                    {u.name}
-                  </span>
-                  <span className="ml-auto" style={{ fontSize: 14, color: '#6ea8fe' }}>
-                    {ACCESS_LABEL[accessOf(u)]}
-                  </span>
+                  <span className="font-mono font-semibold" style={{ fontSize: 14, color: '#cfe3ff' }}>{h.u}</span>
+                  <span className="ml-auto" style={{ fontSize: 14, color: '#6ea8fe' }}>{h.label}</span>
                 </div>
-                <div style={{ fontSize: 14, color: '#8b97a7', marginTop: 4 }}>{d.desc}</div>
+                <div style={{ fontSize: 14, color: '#8b97a7', marginTop: 2 }}>{h.desc}</div>
               </button>
-            )
-          })}
+            ))}
+          </div>
         </div>
-        <p style={{ fontSize: 14, color: '#616a74', marginTop: 14 }}>
-          데모 계정 — 클릭하면 역할별 첫 화면으로 이동해요.
-        </p>
       </div>
     </div>
   )

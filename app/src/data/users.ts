@@ -3,8 +3,8 @@ import type { User } from './types'
 // §5 Canonical 시드 정본 (users 10) — id·name·role·hosting·initialRoute 그대로.
 export const users: User[] = [
   { id: 'u-admin', username: 'admin', name: 'admin', role: 'admin', email: 'admin@anclave.local', hasHosting: true, initialRoute: '/resource-map' },
-  { id: 'u-manager', username: 'manager', name: 'manager', role: 'user', email: 'manager@anclave.local', hasHosting: true, initialRoute: '/dashboard' },
-  { id: 'u-user', username: 'user', name: 'user', role: 'user', email: 'user@anclave.local', hasHosting: false, initialRoute: '/marketplace' },
+  { id: 'u-manager', username: 'user1', name: 'user1', role: 'user', email: 'user1@anclave.local', hasHosting: true, initialRoute: '/dashboard' },
+  { id: 'u-user', username: 'user2', name: 'user2', role: 'user', email: 'user2@anclave.local', hasHosting: false, initialRoute: '/marketplace' },
   { id: 'u-kim', username: 'kim', name: '김민준', role: 'user', email: 'kim@anclave.local', hasHosting: true, initialRoute: '/dashboard' },
   { id: 'u-lee', username: 'lee', name: '이서연', role: 'user', email: 'lee@anclave.local', hasHosting: true, initialRoute: '/dashboard' },
   { id: 'u-park', username: 'park', name: '박지훈', role: 'user', email: 'park@anclave.local', hasHosting: true, initialRoute: '/dashboard' },

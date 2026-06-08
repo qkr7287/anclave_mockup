@@ -134,7 +134,7 @@ function MigDonut({ used, total }: { used: number; total: number }) {
         <defs>
           <linearGradient id="mig-arc" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="var(--c-accent)" />
-            <stop offset="100%" stopColor="#1B5099" />
+            <stop offset="100%" stopColor="var(--mig-arc2)" />
           </linearGradient>
         </defs>
         <circle cx="84" cy="84" r={r} fill="none" stroke="var(--c-bg)" strokeWidth="16" />
