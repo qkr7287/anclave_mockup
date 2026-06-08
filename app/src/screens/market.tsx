@@ -791,7 +791,7 @@ export function Marketplace() {
   const results = useMemo(() => applyFilters(filters, sort), [filters, sort])
 
   return (
-    <div className="anim-fade flex flex-col min-w-0" style={{ gap: 14, height: fill ? '100%' : 'auto', overflow: fill ? 'hidden' : 'visible' }}>
+    <div className="anim-fade flex flex-col min-w-0 w-full mx-auto" style={{ gap: 14, maxWidth: 1560, height: fill ? '100%' : 'auto', overflow: fill ? 'hidden' : 'visible' }}>
       {/* 상단 검색바(동작) */}
       <div className="shrink-0 flex items-center gap-3 rounded-xl" style={{ padding: '11px 14px', background: p.card, border: `1px solid ${p.border}` }}>
         <span className="flex items-center gap-2.5 flex-1 min-w-0">
