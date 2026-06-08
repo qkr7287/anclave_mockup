@@ -99,7 +99,11 @@ export function Sidebar({ access, collapsed, onToggle }: SidebarProps) {
       style={{ width: collapsed ? 64 : 270, background: 'var(--c-card2)', padding: '24px 0', gap: 36, transition: 'width .15s' }}>
       {/* 로고 */}
       <div className="flex items-center justify-between shrink-0" style={{ padding: '0 16px' }}>
-        {!collapsed && <img src={logoUrl} alt="ANCLAVE" style={{ height: 24 }} />}
+        {!collapsed && (
+          <NavLink to="/" aria-label="홈으로" className="shrink-0" title="홈으로">
+            <img src={logoUrl} alt="ANCLAVE" style={{ height: 24, display: 'block' }} />
+          </NavLink>
+        )}
         <button type="button" onClick={onToggle} aria-label="사이드바 접기/펴기"
           className="flex items-center justify-center text-muted hover:text-text" style={{ width: 28, height: 28 }}>
           <ChevronDoubleLeftIcon width={18} height={18} style={{ transform: collapsed ? 'rotate(180deg)' : 'none' }} />
