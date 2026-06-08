@@ -250,7 +250,12 @@ const RANKING: RankItem[] = [
   { rank: 3, name: '분석/요약 서비스', model: 'Claude 3.5 Sonnet', usage: '1.23M', delta: '▲ 5.2%', up: true, chips: ['API', 'Claude 3.5', '종합형'], status: '정상', tone: 'ok', icon: DocumentChartBarIcon, hue: 28, seed: 'rank-analysis' },
   { rank: 4, name: '자연어 번역 서비스', model: 'AWS Bedrock', usage: '856K', delta: '▲ 3.1%', up: true, chips: ['API', 'Claude', '개발형'], status: '정상', tone: 'ok', icon: LanguageIcon, hue: 150, seed: 'rank-translate' },
   { rank: 5, name: '검색 서비스', model: 'Gemini 1.5 Pro', usage: '642K', delta: '▼ 2.6%', up: false, chips: ['API', 'Gemini 1.5 Pro', '개발형'], status: '불안정', tone: 'danger', icon: MagnifyingGlassIcon, hue: 196, seed: 'rank-search' },
+  { rank: 6, name: '코드 어시스턴트', model: 'Qwen2.5-Coder', usage: '512K', delta: '▲ 9.3%', up: true, chips: ['API', 'Qwen2.5', '개발형'], status: '정상', tone: 'ok', icon: CodeBracketSquareIcon, hue: 256, seed: 'rank-code' },
+  { rank: 7, name: '지식 검색 서비스', model: 'BGE-M3 + Reranker', usage: '388K', delta: '▲ 4.4%', up: true, chips: ['API', 'BGE-M3', '개발형'], status: '정상', tone: 'ok', icon: CircleStackIcon, hue: 320, seed: 'rank-rag' },
 ]
+
+// 필터 태그 예시 — 전 서비스 태그 풀(클릭 시 태그 필터)
+const ALL_TAGS = [...new Set(SERVICES.flatMap((s) => s.tags))].slice(0, 18)
 
 // ───────────────────────── 필터 상태 ─────────────────────────
 type ApiMode = 'all' | 'yes' | 'no'
@@ -411,32 +416,89 @@ function FilterPanel({ f, set, onReset, fill }: { f: Filters; set: (patch: Parti
           <span className="flex items-center gap-2 rounded-lg" style={{ padding: '8px 11px', background: p.chip, border: `1px solid ${p.border}` }}>
             <input value={f.tag} onChange={(e) => set({ tag: e.target.value })}
               className="bg-transparent outline-none w-full min-w-0" style={{ fontSize: 14, color: p.text }} placeholder="태그 선택 또는 입력" aria-label="태그 필터" />
+            {f.tag && (
+              <button type="button" onClick={() => set({ tag: '' })} aria-label="태그 지우기" className="shrink-0" style={{ color: p.muted }}>
+                <XMarkIcon width={14} height={14} />
+              </button>
+            )}
           </span>
+          <div className="flex flex-wrap" style={{ gap: 7, marginTop: 2 }}>
+            {ALL_TAGS.map((t) => {
+              const on = f.tag.toLowerCase() === t.toLowerCase()
+              return (
+                <button key={t} type="button" onClick={() => set({ tag: on ? '' : t })}
+                  className="rounded-full whitespace-nowrap transition-colors"
+                  style={{ padding: '4px 10px', fontSize: 12.5, fontWeight: 500,
+                    background: on ? p.accentSoft : p.chip, color: on ? p.accent : p.chipText,
+                    border: `1px solid ${on ? p.accent : p.border}` }}>
+                  #{t}
+                </button>
+              )
+            })}
+          </div>
         </FilterGroup>
       </div>
     </section>
   )
 }
 
-// 4.17 중앙 — AI 목록(행 클릭 → 상세 모달). fill 시 헤더 고정 + 목록 내부 스크롤.
+// 카드 메타: 라벨(plain) + 값 pill (Figma: m 프레임 = 라벨 + chip)
+function CardMeta({ label, value }: { label: string; value: string }) {
+  const p = usePalette()
+  return (
+    <span className="flex items-center" style={{ gap: 6 }}>
+      <span style={{ fontSize: 13, fontWeight: 500, color: p.muted }}>{label}</span>
+      <span className="rounded-md whitespace-nowrap" style={{ padding: '4px 9px', fontSize: 12, fontWeight: 500, background: p.chip, color: p.chipText }}>{value}</span>
+    </span>
+  )
+}
+
+// AI 목록 항목 = 독립 카드(Figma: row · gap16 · padding 20/24/20/20 · bg · 1px border · radius14)
+function ServiceCard({ s, onOpen }: { s: Service; onOpen: (s: Service) => void }) {
+  const p = usePalette()
+  return (
+    <button type="button" onClick={() => onOpen(s)}
+      className="flex w-full items-center text-left rounded-2xl transition-colors"
+      style={{ gap: 16, padding: '20px 24px 20px 20px', background: p.filter, border: `1px solid ${p.border}` }}
+      onMouseEnter={(e) => { e.currentTarget.style.borderColor = p.accent; e.currentTarget.style.background = p.inset }}
+      onMouseLeave={(e) => { e.currentTarget.style.borderColor = p.border; e.currentTarget.style.background = p.filter }}>
+      <Logo id={s.id} hue={s.hue} icon={s.icon} size={52} radius={12} />
+      <div className="flex flex-col min-w-0 flex-1" style={{ gap: 9 }}>
+        <span style={{ fontSize: 17, fontWeight: 600, color: p.heading, letterSpacing: '-0.2px' }}>{s.name}</span>
+        <div className="flex flex-wrap items-center" style={{ rowGap: 8, columnGap: 14 }}>
+          <CardMeta label="종류" value={s.kind} />
+          <CardMeta label="API 여부" value={hasApiOf(s) ? 'API' : '미제공'} />
+          <CardMeta label="모델" value={s.model} />
+        </div>
+        <p className="truncate" style={{ fontSize: 14, color: p.muted }}>{s.desc}</p>
+      </div>
+      <div className="flex flex-col items-end shrink-0" style={{ gap: 2, minWidth: 92 }}>
+        <span style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.4px', color: p.heading }}>{s.usage}</span>
+        <span style={{ fontSize: 12, color: p.muted }}>API 호출</span>
+        <span style={{ fontSize: 12.5, fontWeight: 700, color: deltaColor(p, s.up) }}>{s.delta}</span>
+      </div>
+    </button>
+  )
+}
+
+// 4.17 중앙 — AI 목록(카드 스택, 외곽 패널 없음). fill 시 헤더 고정 + 카드 내부 스크롤.
 function AIList({ services, total, sort, onSort, onOpen, onReset, fill }: {
   services: Service[]; total: number; sort: SortKey; onSort: (s: SortKey) => void; onOpen: (s: Service) => void; onReset: () => void; fill: boolean
 }) {
   const p = usePalette()
   return (
-    <section className={`rounded-xl min-w-0 flex flex-col ${fill ? 'h-full min-h-0' : ''}`}
-      style={{ background: p.card, border: `1px solid ${p.border}`, boxShadow: PANEL_SHADOW }}>
-      <header className="shrink-0 flex items-center justify-between gap-3" style={{ padding: '13px 16px', borderBottom: `1px solid ${p.border}` }}>
-        <div className="flex items-center gap-2 min-w-0">
-          <h3 style={{ fontSize: 15, fontWeight: 700, color: p.heading }}>AI 목록</h3>
-          <span className="rounded-full" style={{ padding: '1px 8px', fontSize: 12, fontWeight: 700, color: p.accent, background: p.accentSoft }}>{services.length}{services.length !== total ? `/${total}` : ''}</span>
-          <span className="truncate" style={{ fontSize: 12.5, color: p.muted }}>· 탐색 · 검색 · 태그</span>
+    <section className={`min-w-0 flex flex-col ${fill ? 'h-full min-h-0' : ''}`}>
+      <header className="shrink-0 flex items-center justify-between gap-3" style={{ paddingBottom: 12 }}>
+        <div className="flex items-baseline gap-2 min-w-0">
+          <h3 style={{ fontSize: 18, fontWeight: 700, color: p.heading }}>AI 목록</h3>
+          <span className="rounded-full self-center" style={{ padding: '1px 8px', fontSize: 12, fontWeight: 700, color: p.accent, background: p.accentSoft }}>{services.length}{services.length !== total ? `/${total}` : ''}</span>
+          <span className="truncate" style={{ fontSize: 13, color: p.muted }}>탐색 · 검색 · 태그</span>
         </div>
         <span className="relative flex items-center shrink-0">
           <select value={sort} onChange={(e) => onSort(e.target.value as SortKey)}
             className="appearance-none outline-none cursor-pointer" style={{ padding: '4px 22px 4px 8px', fontSize: 13, color: p.muted, background: 'transparent', border: `1px solid ${p.border}`, borderRadius: 8 }}>
-            <option value="usage" style={{ color: '#111' }}>사용량순</option>
             <option value="recent" style={{ color: '#111' }}>최신순</option>
+            <option value="usage" style={{ color: '#111' }}>사용량순</option>
             <option value="name" style={{ color: '#111' }}>이름순</option>
           </select>
           <ChevronDownIcon width={13} height={13} className="absolute right-2 pointer-events-none" style={{ color: p.muted }} />
@@ -444,7 +506,7 @@ function AIList({ services, total, sort, onSort, onOpen, onReset, fill }: {
       </header>
 
       {services.length === 0 ? (
-        <div className={`flex flex-col items-center justify-center text-center ${fill ? 'flex-1 min-h-0' : ''}`} style={{ padding: '56px 20px', gap: 10 }}>
+        <div className={`flex flex-col items-center justify-center text-center rounded-2xl ${fill ? 'flex-1 min-h-0' : ''}`} style={{ padding: '56px 20px', gap: 10, background: p.filter, border: `1px solid ${p.border}` }}>
           <span className="flex items-center justify-center rounded-full" style={{ width: 48, height: 48, background: p.inset, color: p.muted }}>
             <MagnifyingGlassIcon width={22} height={22} />
           </span>
@@ -455,34 +517,9 @@ function AIList({ services, total, sort, onSort, onOpen, onReset, fill }: {
           </button>
         </div>
       ) : (
-        <ul className={fill ? 'flex-1 min-h-0 overflow-auto' : ''}>
-          {services.map((s) => (
-            <li key={s.id}>
-              <button type="button" onClick={() => onOpen(s)}
-                className="group flex w-full items-start gap-3 text-left transition-colors"
-                style={{ padding: '13px 16px', borderBottom: `1px solid ${p.divider}` }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = p.accentSoft)}
-                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
-                <Logo id={s.id} hue={s.hue} icon={s.icon} size={42} />
-                <div className="flex flex-col min-w-0 flex-1" style={{ gap: 7 }}>
-                  <div className="flex items-center flex-wrap gap-2">
-                    <span style={{ fontSize: 15, fontWeight: 700, color: p.heading }}>{s.name}</span>
-                    <MetaChip label="종류" value={s.kind} />
-                    <MetaChip label="API 여부" value={hasApiOf(s) ? 'API' : '미제공'} />
-                    <MetaChip label="모델" value={s.model} />
-                  </div>
-                  <p className="truncate" style={{ fontSize: 13.5, color: p.muted }}>{s.desc}</p>
-                </div>
-                <div className="flex flex-col items-end shrink-0" style={{ gap: 2, minWidth: 88 }}>
-                  <span style={{ fontSize: 16, fontWeight: 800, letterSpacing: '-0.3px', color: p.heading }}>{s.usage}</span>
-                  <span style={{ fontSize: 12, color: p.muted }}>API 호출</span>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: deltaColor(p, s.up) }}>{s.delta}</span>
-                </div>
-                <ChevronRightIcon width={16} height={16} className="self-center shrink-0 transition-transform group-hover:translate-x-0.5" style={{ color: p.muted }} />
-              </button>
-            </li>
-          ))}
-        </ul>
+        <div className={`flex flex-col ${fill ? 'flex-1 min-h-0 overflow-auto' : ''}`} style={{ gap: 14, paddingRight: fill ? 4 : 0 }}>
+          {services.map((s) => <ServiceCard key={s.id} s={s} onOpen={onOpen} />)}
+        </div>
       )}
     </section>
   )
