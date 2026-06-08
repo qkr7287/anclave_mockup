@@ -633,10 +633,11 @@ function RankCard({ item, onOpen }: { item: RankItem; onOpen: (s: Service) => vo
   const medalFg = item.rank <= 3 ? '#10131c' : p.muted
   return (
     <button type="button" onClick={() => onOpen(serviceById(item.serviceId))}
-      className="rounded-xl w-full text-left transition-colors" style={{ background: p.inset, border: `1px solid ${p.border}` }}
+      className="rounded-xl w-full text-left transition-colors flex flex-col"
+      style={{ background: p.inset, border: `1px solid ${p.border}`, flexGrow: 1, flexShrink: 0, flexBasis: 'auto' }}
       onMouseEnter={(e) => { e.currentTarget.style.borderColor = p.accent; e.currentTarget.style.background = p.chip }}
       onMouseLeave={(e) => { e.currentTarget.style.borderColor = p.border; e.currentTarget.style.background = p.inset }}>
-      <div className="flex items-center gap-2.5" style={{ padding: '11px 12px 9px' }}>
+      <div className="flex flex-1 items-center gap-2.5" style={{ padding: '11px 12px 9px' }}>
         <span className="flex items-center justify-center shrink-0" style={{ width: 22, height: 22, borderRadius: 999, background: medal, color: medalFg, fontSize: 12.5, fontWeight: 800 }}>{item.rank}</span>
         <Logo id={item.seed} hue={item.hue} icon={item.icon} size={30} />
         <div className="flex flex-col min-w-0 flex-1">
