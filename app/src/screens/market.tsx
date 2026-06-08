@@ -341,16 +341,17 @@ const STATUSES = ['정상', '주의', '불안정', '점검 중']
 
 interface RankItem {
   rank: number; name: string; model: string; usage: string; delta: string; up: boolean
-  chips: [string, string, string]; status: string; tone: Tone; icon: Icon; hue: number; seed: string
+  chips: [string, string, string]; status: string; tone: Tone; icon: Icon; hue: number; seed: string; serviceId: string
 }
+// serviceId = 클릭 시 열 대표 서비스(상세 모달 재사용)
 const RANKING: RankItem[] = [
-  { rank: 1, name: '챗봇 서비스', model: 'OpenAI GPT-4o', usage: '2.48M', delta: '▲ 12.4%', up: true, chips: ['API', 'GPT-4o', '종합형'], status: '정상', tone: 'ok', icon: ChatBubbleLeftRightIcon, hue: 212, seed: 'rank-chatbot' },
-  { rank: 2, name: '이미지 생성 서비스', model: 'Midjourney v6', usage: '1.78M', delta: '▼ 8.7%', up: false, chips: ['API', 'Midjourney v6', '종합형'], status: '주의', tone: 'warn', icon: PhotoIcon, hue: 286, seed: 'rank-image' },
-  { rank: 3, name: '분석/요약 서비스', model: 'Claude 3.5 Sonnet', usage: '1.23M', delta: '▲ 5.2%', up: true, chips: ['API', 'Claude 3.5', '종합형'], status: '정상', tone: 'ok', icon: DocumentChartBarIcon, hue: 28, seed: 'rank-analysis' },
-  { rank: 4, name: '자연어 번역 서비스', model: 'AWS Bedrock', usage: '856K', delta: '▲ 3.1%', up: true, chips: ['API', 'Claude', '개발형'], status: '정상', tone: 'ok', icon: LanguageIcon, hue: 150, seed: 'rank-translate' },
-  { rank: 5, name: '검색 서비스', model: 'Gemini 1.5 Pro', usage: '642K', delta: '▼ 2.6%', up: false, chips: ['API', 'Gemini 1.5 Pro', '개발형'], status: '불안정', tone: 'danger', icon: MagnifyingGlassIcon, hue: 196, seed: 'rank-search' },
-  { rank: 6, name: '코드 어시스턴트', model: 'Qwen2.5-Coder', usage: '512K', delta: '▲ 9.3%', up: true, chips: ['API', 'Qwen2.5', '개발형'], status: '정상', tone: 'ok', icon: CodeBracketSquareIcon, hue: 256, seed: 'rank-code' },
-  { rank: 7, name: '지식 검색 서비스', model: 'BGE-M3 + Reranker', usage: '388K', delta: '▲ 4.4%', up: true, chips: ['API', 'BGE-M3', '개발형'], status: '정상', tone: 'ok', icon: CircleStackIcon, hue: 320, seed: 'rank-rag' },
+  { rank: 1, name: '챗봇 서비스', model: 'OpenAI GPT-4o', usage: '2.48M', delta: '▲ 12.4%', up: true, chips: ['API', 'GPT-4o', '종합형'], status: '정상', tone: 'ok', icon: ChatBubbleLeftRightIcon, hue: 212, seed: 'rank-chatbot', serviceId: 'chatbot-cs' },
+  { rank: 2, name: '이미지 생성 서비스', model: 'Midjourney v6', usage: '1.78M', delta: '▼ 8.7%', up: false, chips: ['API', 'Midjourney v6', '종합형'], status: '주의', tone: 'warn', icon: PhotoIcon, hue: 286, seed: 'rank-image', serviceId: 'image-gen-studio' },
+  { rank: 3, name: '분석/요약 서비스', model: 'Claude 3.5 Sonnet', usage: '1.23M', delta: '▲ 5.2%', up: true, chips: ['API', 'Claude 3.5', '종합형'], status: '정상', tone: 'ok', icon: DocumentChartBarIcon, hue: 28, seed: 'rank-analysis', serviceId: 'doc-summary' },
+  { rank: 4, name: '자연어 번역 서비스', model: 'AWS Bedrock', usage: '856K', delta: '▲ 3.1%', up: true, chips: ['API', 'Claude', '개발형'], status: '정상', tone: 'ok', icon: LanguageIcon, hue: 150, seed: 'rank-translate', serviceId: 'translate-pro' },
+  { rank: 5, name: '검색 서비스', model: 'Gemini 1.5 Pro', usage: '642K', delta: '▼ 2.6%', up: false, chips: ['API', 'Gemini 1.5 Pro', '개발형'], status: '불안정', tone: 'danger', icon: MagnifyingGlassIcon, hue: 196, seed: 'rank-search', serviceId: 'vector-search' },
+  { rank: 6, name: '코드 어시스턴트', model: 'Qwen2.5-Coder', usage: '512K', delta: '▲ 9.3%', up: true, chips: ['API', 'Qwen2.5', '개발형'], status: '정상', tone: 'ok', icon: CodeBracketSquareIcon, hue: 256, seed: 'rank-code', serviceId: 'code-copilot' },
+  { rank: 7, name: '지식 검색 서비스', model: 'BGE-M3 + Reranker', usage: '388K', delta: '▲ 4.4%', up: true, chips: ['API', 'BGE-M3', '개발형'], status: '정상', tone: 'ok', icon: CircleStackIcon, hue: 320, seed: 'rank-rag', serviceId: 'rag-knowledge' },
 ]
 
 // 필터 태그 예시 — 전 서비스 태그 풀(클릭 시 태그 필터)
@@ -625,12 +626,15 @@ function AIList({ services, total, sort, onSort, onOpen, onReset, fill }: {
 }
 
 // 랭킹 카드
-function RankCard({ item }: { item: RankItem }) {
+function RankCard({ item, onOpen }: { item: RankItem; onOpen: (s: Service) => void }) {
   const p = usePalette()
   const medal = item.rank === 1 ? '#F4C71A' : item.rank === 2 ? '#C7CFDB' : item.rank === 3 ? '#E08A4C' : p.chip
   const medalFg = item.rank <= 3 ? '#10131c' : p.muted
   return (
-    <div className="rounded-xl" style={{ background: p.inset, border: `1px solid ${p.border}` }}>
+    <button type="button" onClick={() => onOpen(serviceById(item.serviceId))}
+      className="rounded-xl w-full text-left transition-colors" style={{ background: p.inset, border: `1px solid ${p.border}` }}
+      onMouseEnter={(e) => { e.currentTarget.style.borderColor = p.accent; e.currentTarget.style.background = p.chip }}
+      onMouseLeave={(e) => { e.currentTarget.style.borderColor = p.border; e.currentTarget.style.background = p.inset }}>
       <div className="flex items-center gap-2.5" style={{ padding: '11px 12px 9px' }}>
         <span className="flex items-center justify-center shrink-0" style={{ width: 22, height: 22, borderRadius: 999, background: medal, color: medalFg, fontSize: 12.5, fontWeight: 800 }}>{item.rank}</span>
         <Logo id={item.seed} hue={item.hue} icon={item.icon} size={30} />
@@ -651,12 +655,12 @@ function RankCard({ item }: { item: RankItem }) {
         </div>
         <StatusBadge status={item.status} tone={item.tone} />
       </div>
-    </div>
+    </button>
   )
 }
 
 // 4.17·4.18 우 — 실시간 서비스 랭킹(검색 동작). fill 시 헤더·버튼 고정 + 카드 내부 스크롤.
-function RankingPanel({ fill }: { fill: boolean }) {
+function RankingPanel({ fill, onOpen }: { fill: boolean; onOpen: (s: Service) => void }) {
   const p = usePalette()
   const [q, setQ] = useState('')
   const list = useMemo(() => {
@@ -689,7 +693,7 @@ function RankingPanel({ fill }: { fill: boolean }) {
       <div className={`flex flex-col ${fill ? 'flex-1 min-h-0 overflow-auto' : ''}`} style={{ gap: 10 }}>
         {list.length === 0
           ? <p className="text-center" style={{ fontSize: 13, color: p.muted, padding: '18px 0' }}>검색 결과가 없어요.</p>
-          : list.map((r) => <RankCard key={r.rank} item={r} />)}
+          : list.map((r) => <RankCard key={r.rank} item={r} onOpen={onOpen} />)}
       </div>
       <Button variant="outline" className="justify-center w-full shrink-0">전체 랭킹 보기 <ChevronRightIcon width={14} height={14} /></Button>
     </section>
@@ -911,7 +915,7 @@ export function Marketplace() {
         style={{ gap: 16, gridTemplateColumns: narrow ? '1fr' : '316px minmax(0, 1fr) 340px', flex: fill ? '1 1 0%' : undefined, minHeight: 0 }}>
         <FilterPanel f={filters} set={set} onReset={reset} fill={fill} />
         <AIList services={results} total={SERVICES.length} sort={sort} onSort={setSort} onOpen={setSelected} onReset={reset} fill={fill} />
-        <RankingPanel fill={fill} />
+        <RankingPanel fill={fill} onOpen={setSelected} />
       </div>
 
       {selected && <DetailModal service={selected} onClose={() => setSelected(null)} />}
