@@ -933,6 +933,9 @@ GPU 승인:   목록 → [승인 → 자원맵 서버 선택][반려]</div>
   var KEY='anclave-impl-check';
   var saved={};try{saved=JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){}
   Object.keys(saved).forEach(function(k){if(saved[k]===true)saved[k]=2});
+  // 공유 링크(?s=...)로 들어오면 그 상태를 적용·저장 (다른 사람이 내 진행상황을 그대로 봄)
+  var ms=location.search.match(/[?&]s=([^&]+)/);
+  if(ms){try{saved=JSON.parse(decodeURIComponent(ms[1]));localStorage.setItem(KEY,JSON.stringify(saved))}catch(e){}}
   var LBL=['○ 미시작','◐ 진행중','● 완료'];
   var screens=[];
   function apply(card,s){card.classList.toggle('impl-wip',s===1);card.classList.toggle('impl-done',s===2)}
@@ -963,7 +966,12 @@ GPU 승인:   목록 → [승인 → 자원맵 서버 선택][반려]</div>
     document.querySelectorAll('.impl-chip').forEach(function(c){c.setAttribute('data-s',0);c.textContent=LBL[0];var cd=c.closest('.card');cd.classList.remove('impl-wip','impl-done')});
     update();
   });
-  bar.appendChild(txt);bar.appendChild(reset);document.body.appendChild(bar);
+  var share=document.createElement('button');share.textContent='공유 링크';share.title='현재 체크 상태가 담긴 링크를 복사 (같은 네트워크에서 열면 그대로 보임)';
+  share.addEventListener('click',function(){
+    var url=location.origin+location.pathname+'?s='+encodeURIComponent(JSON.stringify(saved));
+    navigator.clipboard.writeText(url).then(function(){var t=share.textContent;share.textContent='복사됨!';setTimeout(function(){share.textContent=t},1400)});
+  });
+  bar.appendChild(txt);bar.appendChild(share);bar.appendChild(reset);document.body.appendChild(bar);
   function update(){
     var done=0,wip=0;
     screens.forEach(function(id){var s=saved[id]||0;if(s===2)done++;else if(s===1)wip++});
