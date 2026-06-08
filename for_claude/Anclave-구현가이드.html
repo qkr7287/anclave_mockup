@@ -165,7 +165,7 @@
         <h4>② STEP ↔ 소유 화면 파일 (이 파일만 수정)</h4>
         <table style="font-size:14px;border-collapse:collapse;width:100%">
           <tr><td><b>G2</b> 내 할당·신청</td><td><code>screens/dashboard.tsx</code></td><td>4.5·4.6</td>
-              <td><b>G9</b> API·활성화</td><td><code>screens/activation.tsx</code></td><td>4.19·4.20</td></tr>
+              <td><b>G9</b> API 연동</td><td><code>screens/activation.tsx</code></td><td>4.19</td></tr>
           <tr><td><b>G3</b> 신청·변경</td><td><code>screens/allocation.tsx</code></td><td>4.8·4.11</td>
               <td><b>G10</b> 이벤트·알림</td><td><code>screens/events.tsx</code></td><td>4.21·4.22</td></tr>
           <tr><td><b>G4</b> 게시·GPU 승인</td><td><code>screens/approvals.tsx</code></td><td>4.9·4.10</td>
@@ -284,10 +284,10 @@ npm run dev -- --port 517&lt;n&gt;        # 세션마다 dev 포트 분리</pre>
       </div>
 
       <div class="stepcard">
-        <div class="hd"><span class="tag">STEP 9</span>G9 · API 연동 · 활성화 (4.19 · 4.20) <span style="color:var(--danger);font-size:12px">★1차 최대 휑함</span></div>
-        <div class="scope">4.20은 1차에서 가장 휑했던 화면 — 4영역 강제.</div>
-        <pre class="cmd"><span class="label">① 구현 → Claude</span>G9를 §8 DoD대로 구현해줘. 4.19 API 연동(B: 상단 요약 KPI(발급 키·대기 신청·총 호출) + 받은 신청 목록·승인→key 발급/복사·호출량 LineChart — 단일 목록 금지). 4.20 활성화 대시보드(Tabs 발행자/소비자/관리자) — ★above-fold 4영역 필수: ① 요약 KPI행(소비자·총 토큰·총 호출 + 각 델타/스파크) ② 토큰·호출 추이 LineChart ③ 상위 서비스·모델 랭킹 테이블 ④ 소비자별/모델별 분포(관리자 귀속). KPI에 숫자만 두고 빈 박스 만드는 거 금지. [공통 꼬리말]</pre>
-        <pre class="cmd qa"><span class="label">② 검증·QA → Claude</span>4.19·4.20을 크롬 1440·1280·1024로 렌더해 점검해줘. ★4.20이 1차에서 가장 휑했으니 집중: ① §2 "절대 금지 체크리스트" + 밀도(above-fold 영역 ≥4: KPI행/추이/랭킹/분포가 다 있는지·KPI 카드 빈 박스 아닌지)를 항목별로 꼭 확인 · ② 정렬·헤더·AI 티 위반 0 · ③ 탭(발행/소비/관리자) 전환·깨짐 찾아. [위치·문제·금지위반·수정안] 목록 보여주고 합의되면 고쳐 다시 확인 후 커밋 제안해.</pre>
+        <div class="hd"><span class="tag">STEP 9</span>G9 · API 연동 (4.19)</div>
+        <div class="scope">단일 목록 금지 — 요약 KPI·호출량 차트 동반으로 밀도 충분히. (4.20 활성화 대시보드는 제거됨)</div>
+        <pre class="cmd"><span class="label">① 구현 → Claude</span>G9를 §8 DoD대로 구현해줘. 4.19 API 연동(B: 상단 요약 KPI(발급 키·대기 신청·총 호출 + 각 델타/스파크) + 받은 신청 목록·승인→key 발급/복사·호출량 LineChart·사용 가이드 — 단일 목록 금지, above-fold 영역 ≥4). (★4.20 "활성화 대시보드"는 제거됨) [공통 꼬리말]</pre>
+        <pre class="cmd qa"><span class="label">② 검증·QA → Claude</span>4.19를 크롬 1440·1280·1024로 렌더해 점검해줘. ① §2 "절대 금지 체크리스트" + 밀도(above-fold 영역 ≥4: 요약 KPI행/신청 목록/호출량 차트/사용 가이드가 다 있는지·KPI 카드 빈 박스 아닌지)를 항목별로 꼭 확인 · ② 정렬·헤더·AI 티 위반 0 · ③ 승인→key 발급/복사·깨짐 찾아. [위치·문제·금지위반·수정안] 목록 보여주고 합의되면 고쳐 다시 확인 후 커밋 제안해.</pre>
       </div>
 
       <div class="stepcard">
@@ -361,7 +361,7 @@ npm run dev -- --port 517&lt;n&gt;        # 세션마다 dev 포트 분리</pre>
           <tr><td><b>6 · G6</b></td><td>4.14</td><td>§8표 4.14 (4.15 제거)</td></tr>
           <tr><td><b>7 · G7</b></td><td>4.16</td><td>§8표 4.16</td></tr>
           <tr><td><b>8 · G8</b></td><td>4.17·4.18</td><td>§8 4.17 · §8표 4.18</td></tr>
-          <tr><td><b>9 · G9</b></td><td>4.19·4.20</td><td>§8표 4.19·4.20 + 동반영역</td></tr>
+          <tr><td><b>9 · G9</b></td><td>4.19</td><td>§8표 4.19 (4.20 제거)</td></tr>
           <tr><td><b>10 · G10</b></td><td>4.21·4.22</td><td>§8표 4.21·4.22</td></tr>
           <tr><td><b>11 · G11</b></td><td>4.7</td><td>§8표 4.7</td></tr>
           <tr><td><b>12 · G12</b></td><td>4.23</td><td>§8표 4.23</td></tr>

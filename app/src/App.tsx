@@ -16,7 +16,7 @@ import { ModelCatalog, ModelDetail } from './screens/catalog'
 import { ModelImportNew } from './screens/mymodels'
 import { Agents } from './screens/agents'
 import { Marketplace, ServiceDetail } from './screens/market'
-import { ApiApprovals, Activation } from './screens/activation'
+import { ApiApprovals } from './screens/activation'
 import { Events, Notifications } from './screens/events'
 import { Board } from './screens/board'
 import { AuditLogScreen, AccessControl } from './screens/audit'
@@ -41,7 +41,6 @@ const REGISTRY: Record<string, ComponentType> = {
   marketplace: Marketplace,
   'service-detail': ServiceDetail,
   'api-approvals': ApiApprovals,
-  activation: Activation,
   events: Events,
   notifications: Notifications,
   board: Board,

@@ -55,7 +55,6 @@ export const ROUTES: RouteDef[] = [
   { key: 'marketplace', path: '/marketplace', screen: '4.17', title: '마켓플레이스', access: ['A', 'B', 'C'], group: 4, menu: ['A', 'B', 'C'], icon: 'bag' },
   { key: 'service-detail', path: '/marketplace/:id', screen: '4.18', title: '서비스 상세', access: ['A', 'B', 'C'] },
   { key: 'api-approvals', path: '/api-approvals', screen: '4.19', title: 'API 연동', access: ['A', 'B'], group: 4, menu: ['A', 'B'], icon: 'key' },
-  { key: 'activation', path: '/marketplace/activation', screen: '4.20', title: '활성화 대시보드', access: ['A', 'B', 'C'], group: 4, menu: ['A', 'B', 'C'], icon: 'bolt' },
 
   // ⑤ 이벤트 · 알림
   { key: 'events', path: '/events', screen: '4.21', title: '에러 · 이벤트 관제', access: ['A', 'B', 'C'], group: 5, menu: ['A', 'B', 'C'], icon: 'alert' },
