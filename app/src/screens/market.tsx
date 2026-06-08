@@ -27,6 +27,7 @@ import {
   ChevronRightIcon,
   ArrowPathIcon,
   XMarkIcon,
+  KeyIcon,
 } from '@heroicons/react/24/outline'
 
 // G8 · 4.17 마켓플레이스 · 4.18 서비스(AI) 상세 — Figma 매칭(fileKey iqVQ2GEDCRj9cK3EBOwBJV,
@@ -467,7 +468,7 @@ function FilterGroup({ label, children }: { label: string; children: ReactNode }
 
 const PANEL_SHADOW = '0 2px 10px rgba(0,0,0,0.18)'
 
-// 4.17 좌 — AI 탐색 가이드(필터, 실제 동작)
+// 4.17 좌 — 서비스 탐색 가이드(필터, 실제 동작)
 function FilterPanel({ f, set, onReset, fill }: { f: Filters; set: (patch: Partial<Filters>) => void; onReset: () => void; fill: boolean }) {
   const p = usePalette()
   const toggleStatus = (st: string) => {
@@ -481,7 +482,7 @@ function FilterPanel({ f, set, onReset, fill }: { f: Filters; set: (patch: Parti
       <div className={`flex flex-col ${fill ? 'flex-1 min-h-0 overflow-auto' : ''}`} style={{ gap: 18, padding: 20 }}>
         <div className="flex flex-col" style={{ gap: 6 }}>
           <div className="flex items-center justify-between gap-2">
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: p.heading }}>AI 탐색 가이드</h3>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: p.heading }}>서비스 탐색 가이드</h3>
             {filtersActive(f) && (
               <button type="button" onClick={onReset} className="flex items-center gap-1 shrink-0" style={{ fontSize: 12.5, color: p.accent }}>
                 <ArrowPathIcon width={12} height={12} /> 초기화
@@ -489,7 +490,7 @@ function FilterPanel({ f, set, onReset, fill }: { f: Filters; set: (patch: Parti
             )}
           </div>
           <p style={{ fontSize: 13, lineHeight: 1.55, color: p.muted }}>
-            다양한 AI 서비스를 탐색하고 비교해 보세요. 필터와 태그를 활용해 필요한 서비스를 빠르게 찾을 수 있습니다.
+            동료가 할당받은 GPU에 배포한 AI 서비스를 탐색·비교하고, 호출에 필요한 API 키를 요청해 보세요.
           </p>
         </div>
 
@@ -542,7 +543,7 @@ function FilterPanel({ f, set, onReset, fill }: { f: Filters; set: (patch: Parti
   )
 }
 
-// AI 목록 항목 = 세로형 그리드 카드(로고+상태 / 이름·제공사 / 설명 2줄 / 칩 / 푸터)
+// 서비스 목록 항목 = 세로형 그리드 카드(로고+상태 / 이름·제공사 / 설명 2줄 / 칩 / 푸터)
 function ServiceCard({ s, onOpen }: { s: Service; onOpen: (s: Service) => void }) {
   const p = usePalette()
   const tone = toneOf(s.status)
@@ -579,7 +580,7 @@ function ServiceCard({ s, onOpen }: { s: Service; onOpen: (s: Service) => void }
   )
 }
 
-// 4.17 중앙 — AI 목록(카드 스택, 외곽 패널 없음). fill 시 헤더 고정 + 카드 내부 스크롤.
+// 4.17 중앙 — 서비스 목록(카드 스택, 외곽 패널 없음). fill 시 헤더 고정 + 카드 내부 스크롤.
 function AIList({ services, total, sort, onSort, onOpen, onReset, fill }: {
   services: Service[]; total: number; sort: SortKey; onSort: (s: SortKey) => void; onOpen: (s: Service) => void; onReset: () => void; fill: boolean
 }) {
@@ -588,7 +589,7 @@ function AIList({ services, total, sort, onSort, onOpen, onReset, fill }: {
     <section className={`min-w-0 flex flex-col ${fill ? 'h-full min-h-0' : ''}`}>
       <header className="shrink-0 flex items-center justify-between gap-3" style={{ paddingBottom: 12 }}>
         <div className="flex items-baseline gap-2 min-w-0">
-          <h3 style={{ fontSize: 18, fontWeight: 700, color: p.heading }}>AI 목록</h3>
+          <h3 style={{ fontSize: 18, fontWeight: 700, color: p.heading }}>서비스 목록</h3>
           <span className="rounded-full self-center" style={{ padding: '1px 8px', fontSize: 12, fontWeight: 700, color: p.accent, background: p.accentSoft }}>{services.length}{services.length !== total ? `/${total}` : ''}</span>
           <span className="truncate" style={{ fontSize: 13, color: p.muted }}>탐색 · 검색 · 태그</span>
         </div>
@@ -738,6 +739,16 @@ function ServiceDetailCard({ service: s, narrow, reserveClose }: { service: Serv
   const p = usePalette()
   const tone = toneOf(s.status)
   const apiAvailable = hasApiOf(s)
+  const [keyIssued, setKeyIssued] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const apiKey = `sk-anc-${s.id.replace(/[^a-z0-9]/gi, '').slice(0, 10)}-Kq7Xb2Lm9Fd`
+  const maskedKey = `${apiKey.slice(0, 15)}••••••••${apiKey.slice(-4)}`
+  const copyKey = () => {
+    navigator.clipboard?.writeText(apiKey).then(() => {
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1500)
+    }).catch(() => {})
+  }
   const usageStats: [string, string][] = [
     ['월간 요청 수', s.reqFull],
     ['평균 응답시간', s.responseTime.replace('s', '초')],
@@ -831,19 +842,42 @@ function ServiceDetailCard({ service: s, narrow, reserveClose }: { service: Serv
 
       {divider}
 
-      {/* 안내 + 액션 한 행(Figma) */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <span className="flex items-center gap-2" style={{ fontSize: 13.5, color: p.muted }}>
-          <span className="flex items-center justify-center rounded-full shrink-0" style={{ width: 18, height: 18, background: p.accentSoft, color: p.accent }}>
-            <CheckIcon width={11} height={11} strokeWidth={3} />
-          </span>
-          이 서비스는 기업 내부 사용자에게만 제공됩니다.
-        </span>
-        <div className="flex items-center gap-2.5 shrink-0">
-          <Button variant="outline">서비스 문의</Button>
-          <Button>설정 관리</Button>
+      {/* 소유자 안내 + API 키 요청 / 발급 결과 */}
+      {keyIssued ? (
+        <div className="flex flex-col rounded-xl" style={{ padding: '14px 16px', gap: 11, background: p.inset, border: `1px solid ${p.accent}66` }}>
+          <div className="flex items-center justify-between gap-2">
+            <span className="flex items-center gap-2" style={{ fontSize: 14, fontWeight: 700, color: p.heading }}>
+              <span className="flex items-center justify-center rounded-md shrink-0" style={{ width: 22, height: 22, background: p.accentSoft, color: p.accent }}>
+                <KeyIcon width={13} height={13} />
+              </span>
+              API 키가 발급되었습니다
+            </span>
+            <span className="inline-flex items-center gap-1.5" style={{ fontSize: 12, fontWeight: 700, color: p.ok }}>
+              <span className="rounded-full" style={{ width: 6, height: 6, background: 'currentColor' }} /> 활성
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <code className="flex-1 min-w-0 truncate rounded-lg" style={{ padding: '9px 12px', background: p.card, border: `1px solid ${p.border}`, fontFamily: 'var(--font-mono)', fontSize: 13, color: p.text }}>{maskedKey}</code>
+            <Button variant="outline" onClick={copyKey} className="shrink-0">{copied ? '복사됨' : '복사'}</Button>
+          </div>
+          <span style={{ fontSize: 12.5, color: p.muted }}>이 키로 <b style={{ color: p.text }}>{s.name}</b> 서비스를 호출할 수 있어요. 키는 안전하게 보관하세요.</span>
         </div>
-      </div>
+      ) : (
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <span className="flex items-center gap-2" style={{ fontSize: 13.5, color: p.muted }}>
+            <span className="flex items-center justify-center rounded-full shrink-0" style={{ width: 18, height: 18, background: p.accentSoft, color: p.accent }}>
+              <CheckIcon width={11} height={11} strokeWidth={3} />
+            </span>
+            소유자 <b style={{ color: p.text }}>{s.owner}</b> 님이 GPU에 배포한 서비스 · 내부 사용자에게만 제공
+          </span>
+          <div className="flex items-center gap-2.5 shrink-0">
+            <Button variant="outline">서비스 문의</Button>
+            {apiAvailable
+              ? <Button onClick={() => setKeyIssued(true)}><KeyIcon width={15} height={15} /> API 키 요청</Button>
+              : <Button>워크스페이스 열기</Button>}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -874,7 +908,7 @@ function DetailModal({ service, onClose }: { service: Service; onClose: () => vo
           <XMarkIcon width={17} height={17} />
         </button>
         <div style={{ padding: narrow ? 20 : 28 }}>
-          <ServiceDetailCard service={service} narrow={narrow} reserveClose />
+          <ServiceDetailCard key={service.id} service={service} narrow={narrow} reserveClose />
         </div>
       </div>
     </div>
@@ -900,7 +934,7 @@ export function Marketplace() {
         <span className="flex items-center gap-2.5 flex-1 min-w-0">
           <MagnifyingGlassIcon width={18} height={18} className="shrink-0" style={{ color: p.muted }} />
           <input value={filters.query} onChange={(e) => set({ query: e.target.value })}
-            className="bg-transparent outline-none w-full min-w-0" style={{ fontSize: 14.5, color: p.text }} placeholder="AI 서비스를 검색해 보세요" aria-label="AI 서비스 검색" />
+            className="bg-transparent outline-none w-full min-w-0" style={{ fontSize: 14.5, color: p.text }} placeholder="서비스를 검색해 보세요" aria-label="서비스 검색" />
           {filters.query && (
             <button type="button" onClick={() => set({ query: '' })} aria-label="검색어 지우기" className="shrink-0" style={{ color: p.muted }}>
               <XMarkIcon width={16} height={16} />
