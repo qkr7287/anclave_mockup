@@ -918,11 +918,15 @@ GPU 승인:   목록 → [승인 → 자원맵 서버 선택][반려]</div>
 
 <!-- ===== 구현 체크 기능 (localStorage 저장) ===== -->
 <style>
-  .impl-check{margin-right:8px;width:16px;height:16px;vertical-align:-2px;cursor:pointer;accent-color:#2f81f7;flex:0 0 auto}
+  .impl-chip{display:inline-flex;align-items:center;gap:5px;margin-right:9px;padding:2px 10px;border-radius:20px;font:600 12px system-ui,sans-serif;cursor:pointer;border:1px solid #30363d;background:#161b22;color:#8b949e;user-select:none;vertical-align:1px}
+  .impl-chip[data-s="1"]{color:#e3b341;border-color:rgba(227,179,65,.5);background:rgba(227,179,65,.12)}
+  .impl-chip[data-s="2"]{color:#3fb950;border-color:rgba(63,185,80,.5);background:rgba(63,185,80,.12)}
+  .card.impl-wip{outline:1px solid rgba(227,179,65,.5);background:rgba(227,179,65,.06)}
   .card.impl-done{outline:1px solid rgba(63,185,80,.55);background:rgba(63,185,80,.07)}
-  .card.impl-done > h4{opacity:.9}
+  .card.impl-wip > h4,.card.impl-done > h4{opacity:.92}
   #impl-progress{position:fixed;right:18px;bottom:18px;z-index:99999;background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:10px 16px;font:600 14px/1.3 system-ui,sans-serif;color:#e6edf3;box-shadow:0 6px 20px rgba(0,0,0,.45);display:flex;gap:12px;align-items:center}
-  #impl-progress b{color:#3fb950;font-size:16px}
+  #impl-progress .done{color:#3fb950;font-size:16px}
+  #impl-progress .wip{color:#e3b341;font-size:16px}
   #impl-progress button{background:transparent;border:1px solid #30363d;border-radius:6px;color:#8b949e;font:500 13px system-ui;padding:3px 9px;cursor:pointer}
   #impl-progress button:hover{color:#e6edf3;border-color:#8b949e}
   @media print{#impl-progress{display:none}}
@@ -931,34 +935,41 @@ GPU 승인:   목록 → [승인 → 자원맵 서버 선택][반려]</div>
 (function(){
   var KEY='anclave-impl-check';
   var saved={};try{saved=JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){}
+  Object.keys(saved).forEach(function(k){if(saved[k]===true)saved[k]=2});
+  var LBL=['○ 미시작','◐ 진행중','● 완료'];
   var screens=[];
+  function apply(card,s){card.classList.toggle('impl-wip',s===1);card.classList.toggle('impl-done',s===2)}
   [].slice.call(document.querySelectorAll('.card')).forEach(function(card){
     var h=card.querySelector('h4');if(!h)return;
     var m=(h.textContent||'').match(/^\s*(4\.\d+)\b/);if(!m)return;
     var id=m[1];screens.push(id);
-    var cb=document.createElement('input');
-    cb.type='checkbox';cb.className='impl-check';cb.title='구현 완료 체크';
-    cb.checked=!!saved[id];
-    if(cb.checked)card.classList.add('impl-done');
-    cb.addEventListener('change',function(){
-      saved[id]=cb.checked;localStorage.setItem(KEY,JSON.stringify(saved));
-      card.classList.toggle('impl-done',cb.checked);update();
+    var s=saved[id]||0;
+    var chip=document.createElement('span');
+    chip.className='impl-chip';chip.setAttribute('data-s',s);chip.textContent=LBL[s];
+    chip.title='클릭: 미시작 → 진행중 → 완료';
+    apply(card,s);
+    chip.addEventListener('click',function(){
+      s=(s+1)%3;
+      if(s===0)delete saved[id];else saved[id]=s;
+      localStorage.setItem(KEY,JSON.stringify(saved));
+      chip.setAttribute('data-s',s);chip.textContent=LBL[s];apply(card,s);update();
     });
-    h.insertBefore(cb,h.firstChild);
+    h.insertBefore(chip,h.firstChild);
   });
   var bar=document.createElement('div');bar.id='impl-progress';
   var txt=document.createElement('span');
   var reset=document.createElement('button');reset.textContent='초기화';
   reset.addEventListener('click',function(){
-    if(!confirm('구현 체크를 모두 해제할까요?'))return;
+    if(!confirm('진행 상태를 모두 초기화할까요?'))return;
     saved={};localStorage.removeItem(KEY);
-    document.querySelectorAll('.impl-check').forEach(function(c){c.checked=false;c.closest('.card').classList.remove('impl-done')});
+    document.querySelectorAll('.impl-chip').forEach(function(c){c.setAttribute('data-s',0);c.textContent=LBL[0];var cd=c.closest('.card');cd.classList.remove('impl-wip','impl-done')});
     update();
   });
   bar.appendChild(txt);bar.appendChild(reset);document.body.appendChild(bar);
   function update(){
-    var done=screens.filter(function(id){return saved[id]}).length;
-    txt.innerHTML='구현 <b>'+done+'</b> / '+screens.length+' 화면';
+    var done=0,wip=0;
+    screens.forEach(function(id){var s=saved[id]||0;if(s===2)done++;else if(s===1)wip++});
+    txt.innerHTML='완료 <b class="done">'+done+'</b> · 진행 <b class="wip">'+wip+'</b> / '+screens.length;
   }
   update();
 })();
