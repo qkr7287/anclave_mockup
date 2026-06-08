@@ -172,7 +172,7 @@
               <td><b>G11</b> 관제</td><td><code>screens/monitoring.tsx</code></td><td>4.7</td></tr>
           <tr><td><b>G5</b> 모델 카탈로그</td><td><code>screens/catalog.tsx</code></td><td>4.12·4.13</td>
               <td><b>G12</b> 게시판</td><td><code>screens/board.tsx</code></td><td>4.23</td></tr>
-          <tr><td><b>G6</b> 반입·내 모델</td><td><code>screens/mymodels.tsx</code></td><td>4.14·4.15</td>
+          <tr><td><b>G6</b> 신규 모델 반입</td><td><code>screens/mymodels.tsx</code></td><td>4.14</td>
               <td><b>G13</b> 관리자군</td><td><code>screens/audit.tsx</code>+<code>system.tsx</code></td><td>4.24~4.28</td></tr>
           <tr><td><b>G7</b> 에이전트</td><td><code>screens/agents.tsx</code></td><td>4.16</td>
               <td><b>G14</b> 로그인·마감</td><td><code>screens/auth/Login.tsx</code></td><td>4.1</td></tr>
@@ -266,9 +266,9 @@ npm run dev -- --port 517&lt;n&gt;        # 세션마다 dev 포트 분리</pre>
       </div>
 
       <div class="stepcard">
-        <div class="hd"><span class="tag">STEP 6</span>G6 · 모델 반입 · 내 모델 (4.14 · 4.15)</div>
-        <pre class="cmd"><span class="label">① 구현 → Claude</span>G6를 §8 DoD대로 구현해줘. 4.14 신규 모델 반입(A·폐쇄망: 업로드 영역→보안 점검 스텝 safetensors·modelscan·picklescan·체크섬 진행률→메타→버전). 4.15 내 모델(B=C: 내가 쓰는 모델 목록·도입은 게시판 문의 링크·빈상태, 상단 요약 KPI 동반 — 단일 테이블 금지). [공통 꼬리말]</pre>
-        <pre class="cmd qa"><span class="label">② 검증·QA → Claude</span>4.14·4.15를 크롬 1440·1280·1024로 렌더해 점검해줘. ① §2 "절대 금지 체크리스트"를 항목별로 꼭 다시 보고 위반 0인지(보안 점검 스텝·진행률이 영역 침범/정렬 어긋남 없는지·내 모델이 휑하지 않은지·AI 티) · ② 밀도(영역 ≥4) · ③ 스텝 진행·빈상태·깨짐 찾아. [위치·문제·금지위반·수정안] 목록 보여주고 합의되면 고쳐 다시 확인 후 커밋 제안해.</pre>
+        <div class="hd"><span class="tag">STEP 6</span>G6 · 신규 모델 반입 (4.14)</div>
+        <pre class="cmd"><span class="label">① 구현 → Claude</span>G6를 §8 DoD대로 구현해줘. 4.14 신규 모델 반입(A·폐쇄망: 업로드 영역→보안 점검 스텝 safetensors·modelscan·picklescan·체크섬 진행률→메타→버전), 상단 요약 KPI·보조 패널 동반으로 밀도 충분히(단일 카드 금지). (★4.15 "내 모델"은 제거됨 — 사용자 미보유) [공통 꼬리말]</pre>
+        <pre class="cmd qa"><span class="label">② 검증·QA → Claude</span>4.14를 크롬 1440·1280·1024로 렌더해 점검해줘. ① §2 "절대 금지 체크리스트"를 항목별로 꼭 다시 보고 위반 0인지(보안 점검 스텝·진행률이 영역 침범/정렬 어긋남 없는지·AI 티) · ② 밀도(영역 ≥4) · ③ 스텝 진행·빈상태·깨짐 찾아. [위치·문제·금지위반·수정안] 목록 보여주고 합의되면 고쳐 다시 확인 후 커밋 제안해.</pre>
       </div>
 
       <div class="stepcard">
@@ -358,7 +358,7 @@ npm run dev -- --port 517&lt;n&gt;        # 세션마다 dev 포트 분리</pre>
           <tr><td><b>3 · G3</b></td><td>4.8·4.11</td><td>§8 4.8 · §8표 4.11 · §9.1</td></tr>
           <tr><td><b>4 · G4</b></td><td>4.9·4.10</td><td>§8 4.10 · §8표 4.9 · §9.1</td></tr>
           <tr><td><b>5 · G5</b></td><td>4.12·4.13</td><td>§8 4.12 · §8표 4.13</td></tr>
-          <tr><td><b>6 · G6</b></td><td>4.14·4.15</td><td>§8표 4.14·4.15</td></tr>
+          <tr><td><b>6 · G6</b></td><td>4.14</td><td>§8표 4.14 (4.15 제거)</td></tr>
           <tr><td><b>7 · G7</b></td><td>4.16</td><td>§8표 4.16</td></tr>
           <tr><td><b>8 · G8</b></td><td>4.17·4.18</td><td>§8 4.17 · §8표 4.18</td></tr>
           <tr><td><b>9 · G9</b></td><td>4.19·4.20</td><td>§8표 4.19·4.20 + 동반영역</td></tr>

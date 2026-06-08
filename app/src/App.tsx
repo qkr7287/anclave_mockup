@@ -13,7 +13,7 @@ import { AdminMonitoring } from './screens/monitoring'
 import { Requests, GpuChange } from './screens/allocation'
 import { ApprovalsPublish, ApprovalsGpu } from './screens/approvals'
 import { ModelCatalog, ModelDetail } from './screens/catalog'
-import { ModelImportNew, MyModels } from './screens/mymodels'
+import { ModelImportNew } from './screens/mymodels'
 import { Agents } from './screens/agents'
 import { Marketplace, ServiceDetail } from './screens/market'
 import { ApiApprovals, Activation } from './screens/activation'
@@ -37,7 +37,6 @@ const REGISTRY: Record<string, ComponentType> = {
   models: ModelCatalog,
   'model-detail': ModelDetail,
   'models-new': ModelImportNew,
-  'models-mine': MyModels,
   agents: Agents,
   marketplace: Marketplace,
   'service-detail': ServiceDetail,

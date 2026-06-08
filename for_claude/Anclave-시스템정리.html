@@ -298,9 +298,8 @@
           <div class="meta">폐쇄망 오프라인 반입 · <code>/admin/models/new</code></div>
           <ul><li>격리 업로드 영역 → <b>반입 보안 점검</b>: 포맷 검사(<b>safetensors 강제</b>) · 악성 스캔(modelscan·picklescan) · 체크섬·서명 봉인</li>
             <li>→ 메타데이터 등록 → 버전 관리 → 카탈로그 노출</li></ul></div>
-        <div class="card"><h4>4.15 내 모델 <span class="badge b-b">B = C</span> <span class="badge b-new">IA 신규</span></h4>
-          <div class="meta">내가 사용 중인 모델 · <code>/models/mine</code></div>
-          <ul><li>내가 쓰는 모델 목록 · 신규 모델 도입은 <b>게시판 문의</b>로 요청</li></ul></div>
+        <div class="card" style="opacity:.6"><h4><s>4.15 내 모델</s> <span class="badge b-warn">제거됨 · 사용자 미보유</span></h4>
+          <div class="meta">화면에서 제외 — 모델 도입은 <b>게시판 문의</b>로 일원화</div></div>
         <div class="card"><h4>4.16 데몬 · 에이전트 관리 <span class="badge b-a">A</span> <span class="badge b-warn">주의</span> <span class="badge b-new">IA 신규</span></h4>
           <div class="meta">노드 에이전트 · <code>/admin/agents</code></div>
           <ul><li>노드 합류 시 <b>자동 배포</b> · 최소권한 · 감사 · 에이전트 상태/버전</li></ul></div>
@@ -942,6 +941,7 @@ GPU 승인:   목록 → [승인 → 자원맵 서버 선택][반려]</div>
   [].slice.call(document.querySelectorAll('.card')).forEach(function(card){
     var h=card.querySelector('h4');if(!h)return;
     var m=(h.textContent||'').match(/^\s*(4\.\d+)\b/);if(!m)return;
+    if((h.textContent||'').includes('제거됨'))return;
     var id=m[1];screens.push(id);
     var s=saved[id]||0;
     var chip=document.createElement('span');
