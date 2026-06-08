@@ -8,26 +8,15 @@ import { useRole } from './lib/role'
 
 import { Login } from './screens/auth/Login'
 import { ResourceMap, ServerDetail, GpuDetail } from './screens/resourcemap'
-import { MyResources, RequestStatus, AdminMonitoring } from './screens/dashboard'
-import {
-  Requests,
-  ApprovalsPublish,
-  ApprovalsGpu,
-  GpuChange,
-} from './screens/allocation'
-import {
-  ModelCatalog,
-  ModelDetail,
-  ModelImportNew,
-  MyModels,
-  Agents,
-} from './screens/models'
-import {
-  Marketplace,
-  ServiceDetail,
-  ApiApprovals,
-  Activation,
-} from './screens/market'
+import { MyResources, RequestStatus } from './screens/dashboard'
+import { AdminMonitoring } from './screens/monitoring'
+import { Requests, GpuChange } from './screens/allocation'
+import { ApprovalsPublish, ApprovalsGpu } from './screens/approvals'
+import { ModelCatalog, ModelDetail } from './screens/catalog'
+import { ModelImportNew, MyModels } from './screens/mymodels'
+import { Agents } from './screens/agents'
+import { Marketplace, ServiceDetail } from './screens/market'
+import { ApiApprovals, Activation } from './screens/activation'
 import { Events, Notifications } from './screens/events'
 import { Board } from './screens/board'
 import { AuditLogScreen, AccessControl } from './screens/audit'

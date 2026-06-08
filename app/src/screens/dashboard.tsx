@@ -1,6 +1,6 @@
 import { FoundationPage } from '../components/FoundationPage'
 
-// ① 대시보드 · 관제 — 4.2~4.4(자원맵 3계층)은 screens/resourcemap.tsx.
+// G2 · 대시보드 — 4.5 내 할당 자원 · 4.6 자원 신청현황. (4.2~4.4=resourcemap · 4.7=monitoring)
 
 export function MyResources() {
   return (
@@ -24,19 +24,6 @@ export function RequestStatus() {
       group={1}
       roles={['A', 'B', 'C']}
       planned={['신청 테이블(대기/승인/반려) + 상태 배지', '반려 사유 모달', '신청하러 가기 CTA · 빈상태']}
-    />
-  )
-}
-
-export function AdminMonitoring() {
-  return (
-    <FoundationPage
-      screen="4.7"
-      title="관제 모니터링"
-      desc="관제실 빅스크린 — 전체 종합 실시간 (A 전용)."
-      group={1}
-      roles={['A']}
-      planned={['헬스 히트맵', 'KpiStat 종합', '부하·알럿 라인차트', '빅스크린 그리드 레이아웃']}
     />
   )
 }
