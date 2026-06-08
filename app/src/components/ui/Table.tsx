@@ -56,7 +56,7 @@ export function Table<T>({
                     textAlign: c.align ?? 'left',
                     fontSize: 14,
                     color: 'var(--c-muted)',
-                    padding: '9px 16px',
+                    padding: '9px 12px',
                     borderBottom: '2px solid var(--c-border)',
                   }}
                 >
@@ -91,7 +91,7 @@ export function Table<T>({
                       style={{
                         textAlign: c.align ?? 'left',
                         fontSize: 14,
-                        padding: '10px 16px',
+                        padding: '10px 12px',
                         borderBottom: '1px solid var(--c-border-s)',
                       }}
                     >

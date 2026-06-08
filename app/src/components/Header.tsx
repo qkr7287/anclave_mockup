@@ -172,7 +172,7 @@ export function Header() {
                 />
                 <span className="flex-1 min-w-0">
                   <span className="block" style={{ fontSize: 14 }}>{n.message}</span>
-                  <span className="text-muted block" style={{ fontSize: 11 }}>{n.createdAt}</span>
+                  <span className="text-muted block" style={{ fontSize: 14 }}>{n.createdAt}</span>
                 </span>
               </button>
             ))}
@@ -185,7 +185,7 @@ export function Header() {
           className="absolute bg-card2 border border-line rounded-xl overflow-hidden z-20"
           style={{ top: 60, right: 16, width: 240, boxShadow: 'var(--shadow-pop)' }}
         >
-          <div className="px-4 pt-3 pb-1 text-muted uppercase" style={{ fontSize: 11, letterSpacing: '.5px' }}>
+          <div className="px-4 pt-3 pb-1 text-muted uppercase" style={{ fontSize: 14, letterSpacing: '.5px' }}>
             역할 전환 (A / B=C)
           </div>
           {DEMO_IDS.map((id) => {
@@ -206,13 +206,13 @@ export function Header() {
               >
                 <span
                   className="flex items-center justify-center rounded-full shrink-0"
-                  style={{ width: 20, height: 20, background: 'var(--c-accent)', color: 'var(--c-onaccent)', fontSize: 10, fontWeight: 800 }}
+                  style={{ width: 22, height: 22, background: 'var(--c-accent)', color: 'var(--c-onaccent)', fontSize: 14, fontWeight: 800 }}
                 >
                   {u.name.slice(0, 1).toUpperCase()}
                 </span>
                 <span className="flex-1 min-w-0">
                   <span className="block truncate">{u.name}</span>
-                  <span className="text-muted block" style={{ fontSize: 11 }}>{ACCESS_LABEL[a]}</span>
+                  <span className="text-muted block" style={{ fontSize: 14 }}>{ACCESS_LABEL[a]}</span>
                 </span>
                 {on && <CheckIcon width={15} height={15} className="text-accent shrink-0" />}
               </button>

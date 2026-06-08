@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 
 interface PageShellProps {
   screen: string // 4.x
-  title: string
+  title?: string // bare 모드(전역 브레드크럼 사용)에선 생략
   desc?: string
   /** 헤더 우측 액션(버튼 등) */
   actions?: ReactNode

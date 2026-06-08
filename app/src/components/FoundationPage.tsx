@@ -288,7 +288,7 @@ export function FoundationPage({ screen, title, desc, group, planned, roles }: F
                   >
                     <span
                       className="flex items-center justify-center rounded-md shrink-0 font-bold"
-                      style={{ width: 22, height: 22, fontSize: 12, background: 'var(--accent-soft)', color: 'var(--c-accent)' }}
+                      style={{ width: 24, height: 24, fontSize: 14, background: 'var(--accent-soft)', color: 'var(--c-accent)' }}
                     >
                       {i + 1}
                     </span>

@@ -38,9 +38,11 @@ export interface ServerRegion {
 
 interface ServerHexMapProps {
   regions: ServerRegion[]
+  /** 클린 모드(Figma 단일 서버) — 줌 버튼·미니맵 숨김, 팬/줌 비활성(fit 고정) */
+  bare?: boolean
 }
 
-export function ServerHexMap({ regions }: ServerHexMapProps) {
+export function ServerHexMap({ regions, bare = false }: ServerHexMapProps) {
   const ref = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ w: 800, h: 520 })
   const [hover, setHover] = useState<{ x: number; y: number; ri: number; bayTip: string } | null>(null)
@@ -124,7 +126,9 @@ export function ServerHexMap({ regions }: ServerHexMapProps) {
   const dataW = dMaxX - dMinX || 1, dataH = dMaxY - dMinY || 1
   const { w, h } = size
   const fit = Math.min((w * 0.9) / dataW, (h * 0.84) / dataH)
-  const S = fit * zoom
+  // bare(단일 서버): 헥사 크기 상한 — GPU 적은 서버에서 과확대 방지(서버 간 헥사 크기 일관)
+  const BARE_HEX_CAP = 2.6
+  const S = (bare ? Math.min(fit, BARE_HEX_CAP) : fit) * zoom
   const dataCx = (dMinX + dMaxX) / 2, dataCy = (dMinY + dMaxY) / 2
 
   // pan 클램프 — 그리드가 늘 뷰포트를 덮게(가장자리 안 보이게)
@@ -168,8 +172,8 @@ export function ServerHexMap({ regions }: ServerHexMapProps) {
   const hoverO = hover ? overlays[hover.ri] : null
 
   return (
-    <div ref={ref} className="relative w-full h-full overflow-hidden" style={{ background: 'transparent', cursor: drag.current ? 'grabbing' : 'grab', touchAction: 'none' }}
-      onWheel={onWheel} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerLeave={() => { onUp(); setHover(null) }}>
+    <div ref={ref} className="relative w-full h-full overflow-hidden" style={{ background: 'transparent', cursor: bare ? 'default' : drag.current ? 'grabbing' : 'grab', touchAction: 'none' }}
+      onWheel={bare ? undefined : onWheel} onPointerDown={bare ? undefined : onDown} onPointerMove={bare ? undefined : onMove} onPointerUp={bare ? undefined : onUp} onPointerLeave={() => { if (!bare) onUp(); setHover(null) }}>
       <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" style={{ width: '100%', height: '100%', display: 'block' }} role="img" aria-label="자원맵 단일 벌집">
         <defs>
           <pattern id="shm-hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
@@ -229,13 +233,13 @@ export function ServerHexMap({ regions }: ServerHexMapProps) {
       {/* 중앙→가장자리 fade(vignette) — 컨테이너 고정, 팬/줌 무관 유지 */}
       <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 70% 70% at 50% 50%, transparent 55%, var(--c-bg) 100%)' }} />
 
-      <div className="absolute z-10 flex flex-col gap-1" style={{ right: 10, top: 10 }}>
+      {!bare && <div className="absolute z-10 flex flex-col gap-1" style={{ right: 10, top: 10 }}>
         <button type="button" aria-label="확대" onClick={() => setZ(zoom + 0.2)} className={ctrl} style={{ width: 28, height: 28 }}><MagnifyingGlassPlusIcon width={15} height={15} /></button>
         <button type="button" aria-label="축소" onClick={() => setZ(zoom - 0.2)} className={ctrl} style={{ width: 28, height: 28 }}><MagnifyingGlassMinusIcon width={15} height={15} /></button>
         <button type="button" aria-label="원위치" onClick={reset} className={ctrl} style={{ width: 28, height: 28 }}><ArrowsPointingOutIcon width={15} height={15} /></button>
-      </div>
+      </div>}
       {/* 좌하단 미니맵 — 전체 blob 개요 + 현재 뷰포트 사각형 */}
-      <div className="absolute z-10 rounded-md border border-line overflow-hidden pointer-events-none" style={{ left: 10, bottom: 10, width: 116, height: 78, background: 'var(--c-card2)' }}>
+      {!bare && <div className="absolute z-10 rounded-md border border-line overflow-hidden pointer-events-none" style={{ left: 10, bottom: 10, width: 116, height: 78, background: 'var(--c-card2)' }}>
         <svg viewBox={`0 0 ${gW} ${gH}`} preserveAspectRatio="xMidYMid meet" style={{ width: '100%', height: '100%', display: 'block' }}>
           {dataCells.map((c) => {
             const a = at(c)!
@@ -244,7 +248,7 @@ export function ServerHexMap({ regions }: ServerHexMapProps) {
           })}
           <rect x={-view.x / S} y={-view.y / S} width={w / S} height={h / S} fill="none" stroke="var(--c-accent)" strokeWidth={Math.max(2, gW / 90)} />
         </svg>
-      </div>
+      </div>}
       {/* 사용률 6단계 범례 — 맵 하단 중앙 floating(Figma) */}
       <div className="absolute z-10 left-1/2 -translate-x-1/2 flex items-center rounded-lg pointer-events-none" style={{ bottom: 12, gap: 18, padding: '8px 16px', background: 'rgba(27,35,64,0.5)', backdropFilter: 'blur(10px)' }}>
         {LOAD_BANDS.map((b) => (

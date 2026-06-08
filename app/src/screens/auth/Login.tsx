@@ -56,14 +56,14 @@ export function Login() {
                 <div className="flex items-center gap-2">
                   <span
                     className="flex items-center justify-center rounded-full shrink-0"
-                    style={{ width: 22, height: 22, background: '#6ea8fe', color: '#08111f', fontSize: 11, fontWeight: 800 }}
+                    style={{ width: 22, height: 22, background: '#6ea8fe', color: '#08111f', fontSize: 14, fontWeight: 800 }}
                   >
                     {u.name.slice(0, 1).toUpperCase()}
                   </span>
                   <span className="font-semibold" style={{ fontSize: 14, color: '#e6edf3' }}>
                     {u.name}
                   </span>
-                  <span className="ml-auto" style={{ fontSize: 11, color: '#6ea8fe' }}>
+                  <span className="ml-auto" style={{ fontSize: 14, color: '#6ea8fe' }}>
                     {ACCESS_LABEL[accessOf(u)]}
                   </span>
                 </div>
@@ -72,7 +72,7 @@ export function Login() {
             )
           })}
         </div>
-        <p style={{ fontSize: 11, color: '#616a74', marginTop: 14 }}>
+        <p style={{ fontSize: 14, color: '#616a74', marginTop: 14 }}>
           데모 계정 — 클릭하면 역할별 첫 화면으로 이동해요.
         </p>
       </div>

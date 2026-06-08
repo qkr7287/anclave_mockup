@@ -108,7 +108,7 @@ export function Sidebar({ access, collapsed, onToggle }: SidebarProps) {
 
       {/* OVERVIEW */}
       <div className="flex flex-col" style={{ padding: '0 16px', gap: collapsed ? 4 : 8 }}>
-        {!collapsed && <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '-0.4px', color: 'var(--c-muted)' }}>OVERVIEW</span>}
+        {!collapsed && <span style={{ fontSize: 14, fontWeight: 600, letterSpacing: '-0.4px', color: 'var(--c-muted)' }}>OVERVIEW</span>}
         {overview.map(renderGroup)}
       </div>
 
@@ -116,7 +116,7 @@ export function Sidebar({ access, collapsed, onToggle }: SidebarProps) {
 
       {/* SETTING */}
       <div className="flex flex-col" style={{ padding: '0 16px', gap: collapsed ? 4 : 8 }}>
-        {!collapsed && <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '-0.4px', color: 'var(--c-muted)' }}>SETTING</span>}
+        {!collapsed && <span style={{ fontSize: 14, fontWeight: 600, letterSpacing: '-0.4px', color: 'var(--c-muted)' }}>SETTING</span>}
         {setting.map(renderGroup)}
       </div>
     </nav>
