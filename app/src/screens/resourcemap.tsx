@@ -18,17 +18,15 @@ import { servers, serverById, allGpus, userById, modelById, gpuRequests } from '
 import type { Gpu, MigSlice, EventLog, Service, GpuServer } from '../data/types'
 import {
   serverAvgUtil,
-  serverActiveGpus,
   gpuServices,
   serviceOfSlice,
   serverEvents,
   gpuEvents,
   vramUsedMb,
+  vramTotalMb,
   fmtNum,
   trend,
   HOUR_LABELS,
-  H100_VRAM_MB,
-  MIG_UNITS,
 } from '../lib/metrics'
 import { events as allEvents } from '../data'
 
@@ -48,7 +46,8 @@ function ServerHoneycomb({ onSelect }: { onSelect: (id: string) => void }) {
     s.gpus.forEach((g) => {
       if (g.xid) { bays.push({ util: 0, danger: true, idle: true, tip: `${g.name} · ${g.xid} · GPU 응답 없음` }); return }
       if (g.allocMode === 'cluster' || !g.slices || g.slices.length === 0) {
-        bays.push({ util: g.smUtil, tip: `${g.name} · NVLink 클러스터 · 부하 ${g.smUtil}%` }); return
+        const idle = g.health === 'inactive'
+        bays.push({ util: g.smUtil, idle, tip: `${g.name} · GPU 단일(${g.vramGb}GB) · ${idle ? '유휴' : `부하 ${g.smUtil}%`}` }); return
       }
       g.slices.forEach((sl) => {
         const used = sl.usage > 0 || !!sl.ownerUserId
@@ -123,9 +122,9 @@ function EventList({ rows }: { rows: EventLog[] }) {
   )
 }
 
-// MIG 도넛 링(Figma) — 트랙 + 블루 그라데이션 호 + 중앙 수치
-function MigDonut({ used, total }: { used: number; total: number }) {
-  const pct = total ? used / total : 0
+// 도넛 링 — 트랙 + 블루 그라데이션 호. pct=true면 중앙에 백분율(사용률), 아니면 수치(used/total)
+function MigDonut({ used, total, pct }: { used: number; total: number; pct?: boolean }) {
+  const ratio = total ? used / total : 0
   const r = 64
   const circ = 2 * Math.PI * r
   return (
@@ -139,79 +138,142 @@ function MigDonut({ used, total }: { used: number; total: number }) {
         </defs>
         <circle cx="84" cy="84" r={r} fill="none" stroke="var(--c-bg)" strokeWidth="16" />
         <circle cx="84" cy="84" r={r} fill="none" stroke="url(#mig-arc)" strokeWidth="16" strokeLinecap="round"
-          strokeDasharray={circ} strokeDashoffset={circ * (1 - pct)} transform="rotate(-90 84 84)" />
+          strokeDasharray={circ} strokeDashoffset={circ * (1 - ratio)} transform="rotate(-90 84 84)" />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="font-bold tabular-nums" style={{ fontSize: 36, lineHeight: 1 }}>{used}</span>
-        <span className="tabular-nums" style={{ fontSize: 18, color: 'var(--c-muted)', marginTop: 4 }}>/ {total}</span>
+        {pct ? (
+          <>
+            <span className="font-bold tabular-nums" style={{ fontSize: 40, lineHeight: 1 }}>{Math.round(ratio * 100)}<span style={{ fontSize: 20, color: 'var(--c-muted)' }}>%</span></span>
+            <span className="tabular-nums" style={{ fontSize: 14, color: 'var(--c-muted)', marginTop: 5 }}>사용 {used} / {total}</span>
+          </>
+        ) : (
+          <>
+            <span className="font-bold tabular-nums" style={{ fontSize: 36, lineHeight: 1 }}>{used}</span>
+            <span className="tabular-nums" style={{ fontSize: 18, color: 'var(--c-muted)', marginTop: 4 }}>/ {total}</span>
+          </>
+        )}
       </div>
     </div>
   )
 }
 
-// 슬라이스 점유 세그먼트 셀(채움=블루·빈=다크)
-function SegCells({ used, total }: { used: number; total: number }) {
-  const N = 18
-  const filled = total ? Math.max(used > 0 ? 1 : 0, Math.round((used / total) * N)) : 0
+// 작은 할당 공간 박스(미니) — 패널 목록용
+function MiniBox({ state }: { state: BoxState }) {
+  return <span className="rounded-[3px] shrink-0" style={{ width: 14, height: 14, ...BOX_STYLE[state] }} />
+}
+
+const RES_STATE: Record<BoxState, { label: string; fg: string }> = {
+  used: { label: '사용 중', fg: 'var(--c-muted)' },
+  free: { label: '가용', fg: 'var(--c-accent)' },
+  down: { label: '확인 필요', fg: 'var(--c-danger)' },
+}
+
+// 자원 타입 칩(MIG·단일) — 일관 스타일
+function ResTypeChip({ type }: { type: 'MIG' | '단일' }) {
+  const accent = type === 'MIG'
   return (
-    <div className="flex items-center" style={{ gap: 2, flex: 1, minWidth: 0 }}>
-      {Array.from({ length: N }, (_, i) => (
-        <span key={i} className="rounded-[2px]" style={{ flex: 1, height: 9, background: i < filled ? 'var(--c-accent)' : 'var(--c-bg)' }} />
-      ))}
-    </div>
+    <span className="rounded shrink-0 font-bold whitespace-nowrap" style={{
+      fontSize: 11, letterSpacing: '0.3px', padding: '1.5px 7px', lineHeight: 1.45,
+      background: accent ? 'var(--accent-soft)' : 'transparent',
+      border: `1px solid ${accent ? 'var(--c-accent)' : 'var(--c-border)'}`,
+      color: accent ? 'var(--c-accent)' : 'var(--c-muted)',
+    }}>{type}</span>
+  )
+}
+
+// 상태 표기 — 박스 + 라벨(일관 색)
+function ResStatus({ state }: { state: BoxState }) {
+  const s = RES_STATE[state]
+  return (
+    <span className="inline-flex items-center shrink-0" style={{ gap: 6 }}>
+      <MiniBox state={state} />
+      <span className="font-semibold whitespace-nowrap" style={{ fontSize: 13, color: s.fg }}>{s.label}</span>
+    </span>
   )
 }
 
 function SliceStatus() {
-  const [scope, setScope] = useState<string>('all')
-  const gpus = scope === 'all' ? allGpus : serverById(scope)?.gpus ?? []
-  const migGpus = gpus.filter((g) => g.allocMode === 'mig')
-  const slices = migGpus.flatMap((g) => g.slices ?? [])
-  const totalUnits = migGpus.length * MIG_UNITS
-  const usedUnits = slices.filter((s) => s.usage > 0 || s.ownerUserId).reduce((a, s) => a + s.units, 0)
-  const pct = totalUnits ? (usedUnits / totalUnits) * 100 : 0
-  const byProfile = [{ p: '1g', u: 1 }, { p: '2g', u: 2 }, { p: '3g', u: 3 }, { p: '4g', u: 4 }, { p: '7g', u: 7 }].map(({ p, u }) => {
-    const ps = slices.filter((s) => s.units === u)
-    return { p, total: ps.length, used: ps.filter((s) => s.usage > 0 || s.ownerUserId).length }
-  }).filter((b) => b.total > 0)
+  // 모든 할당 공간 = 단일 GPU(1칸) + MIG GPU 인스턴스(슬라이스). 장애 GPU = 확인 필요(down).
+  const sliceState = (sl: MigSlice): BoxState => (sl.usage > 0 || sl.ownerUserId ? 'used' : 'free')
+  const items = allGpus.map((g) => {
+    if (g.xid) return { gpu: g, type: '단일' as const, slices: null, boxes: ['down' as BoxState] }
+    if (g.migCapable && g.slices) {
+      const sl = g.slices.map((s) => ({ gb: s.gb, state: sliceState(s) }))
+      return { gpu: g, type: 'MIG' as const, slices: sl, boxes: sl.map((x) => x.state) }
+    }
+    return { gpu: g, type: '단일' as const, slices: null, boxes: [g.assignedServiceId ? ('used' as BoxState) : ('free' as BoxState)] }
+  })
+  const allBoxes = items.flatMap((it) => it.boxes)
+  const total = allBoxes.length
+  const free = allBoxes.filter((b) => b === 'free').length
+  const used = allBoxes.filter((b) => b === 'used').length
+  const down = allBoxes.filter((b) => b === 'down').length
+  // MIG GPU 먼저, 그다음 단일
+  const ordered = [...items].sort((a, b) => (a.type === 'MIG' ? -1 : 0) - (b.type === 'MIG' ? -1 : 0))
   return (
     <section className="bg-card2 border border-line rounded-xl overflow-hidden flex flex-col shrink-0" style={{ boxShadow: 'var(--shadow-card)' }}>
-      {/* 헤더 + 드롭다운 */}
       <header className="flex items-center justify-between gap-3" style={{ padding: 16 }}>
-        <h3 className="font-bold truncate" style={{ fontSize: 16 }}>MIG 슬라이스 현황</h3>
-        <div className="flex items-center justify-between rounded border border-line" style={{ width: 120, padding: '2px 6px 2px 12px' }}>
-          <select value={scope} onChange={(e) => setScope(e.target.value)} className="bg-transparent text-text outline-none w-full" style={{ fontSize: 14, fontWeight: 600 }} aria-label="슬라이스 범위">
-            <option value="all">전체 서버</option>
-            {servers.filter((s) => s.gpus.some((g) => g.allocMode === 'mig')).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
-        </div>
+        <h3 className="font-bold truncate" style={{ fontSize: 16 }}>할당 가능한 공간</h3>
+        <span className="text-muted shrink-0 tabular-nums" style={{ fontSize: 14 }}>전체 공간 {total}</span>
       </header>
-      {/* 서브패널 2개 */}
       <div className="flex" style={{ gap: 16, padding: '0 16px 16px' }}>
-        {/* 좌: 도넛 + 점유율 pill */}
-        <div className="shrink-0 flex flex-col items-center justify-between rounded-[10px]" style={{ background: 'var(--c-soft)', padding: '18px 16px', gap: 14 }}>
-          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--c-muted)' }}>MIG 슬라이스 현황</span>
-          <MigDonut used={usedUnits} total={totalUnits} />
-          <span className="inline-flex items-center rounded-full border border-line" style={{ gap: 12, padding: '4px 16px' }}>
-            <span className="rounded-full" style={{ width: 8, height: 8, background: 'var(--c-accent)' }} />
-            <span style={{ fontSize: 14, fontWeight: 500 }}>점유율</span>
-            <span className="font-semibold" style={{ fontSize: 14, color: 'var(--c-accent)' }}>{pct.toFixed(1)}%</span>
+        {/* 좌: 사용률(MIG 인스턴스 + 단일 GPU 전체 중 사용 %) + 노는 가용 칸 수 */}
+        <div className="shrink-0 flex flex-col items-center rounded-[10px]" style={{ background: 'var(--c-soft)', padding: '14px 14px', gap: 11, width: 196 }}>
+          <span className="font-semibold text-center" style={{ fontSize: 14, color: 'var(--c-muted)' }}>사용률</span>
+          <MigDonut used={used} total={total} pct />
+          <span className="inline-flex items-center rounded-full border border-line" style={{ gap: 9, padding: '4px 14px' }}>
+            <span className="rounded-[3px]" style={{ width: 12, height: 12, ...BOX_STYLE.free }} />
+            <span style={{ fontSize: 14, fontWeight: 500 }}>가용</span>
+            <span className="font-semibold tabular-nums" style={{ fontSize: 14, color: 'var(--c-accent)' }}>{free}칸</span>
+            <span className="text-muted" style={{ fontSize: 13 }}>놀고 있음</span>
           </span>
+          <div className="flex items-center flex-wrap justify-center" style={{ gap: '4px 12px', fontSize: 13 }}>
+            <span className="inline-flex items-center" style={{ gap: 5 }}><MiniBox state="used" /><span className="text-muted">사용 {used}</span></span>
+            <span className="inline-flex items-center" style={{ gap: 5 }}><MiniBox state="free" /><span className="text-muted">가용 {free}</span></span>
+            {down > 0 && <span className="inline-flex items-center" style={{ gap: 5 }}><MiniBox state="down" /><span className="text-muted">확인 {down}</span></span>}
+          </div>
         </div>
-        {/* 우: 슬라이스별 점유 현황 */}
-        <div className="flex flex-col flex-1 min-w-0 rounded-[10px]" style={{ background: 'var(--c-soft)', padding: '18px 16px', gap: 12 }}>
-          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--c-muted)' }}>슬라이스별 점유 현황</span>
-          <div className="flex flex-col flex-1" style={{ gap: 10 }}>
-            {byProfile.map((b) => (
-              <div key={b.p} className="flex items-center bg-card2 rounded" style={{ gap: 12, padding: '0 16px', flex: 1, minHeight: 36 }}>
-                <span className="shrink-0 font-semibold" style={{ fontSize: 14, width: 18, color: 'var(--c-accent)' }}>{b.p}</span>
-                <SegCells used={b.used} total={b.total} />
-                <span className="shrink-0 tabular-nums text-right" style={{ width: 62 }}>
-                  <span className="font-semibold" style={{ fontSize: 16, color: 'var(--c-accent)' }}>{b.used}</span>
-                  <span style={{ fontSize: 14, color: 'var(--c-muted)' }}> / {b.total}</span>
-                </span>
-              </div>
-            ))}
+        {/* 우: 자원 목록(트리) — MIG GPU = 헤더 + 인스턴스 하위행 / 단일 GPU = 평행행 */}
+        <div className="flex flex-col flex-1 min-w-0 rounded-[10px]" style={{ background: 'var(--c-soft)', padding: '14px 14px', gap: 8 }}>
+          <span className="font-semibold" style={{ fontSize: 14, color: 'var(--c-muted)' }}>자원 목록 · MIG · 단일</span>
+          <div className="flex flex-col overflow-auto" style={{ gap: 7, maxHeight: 306, paddingRight: 2 }}>
+            {ordered.map((it) => {
+              const tot = it.boxes.length
+              const fr = it.boxes.filter((b) => b === 'free').length
+              const isMig = it.type === 'MIG' && !!it.slices
+              return (
+                <div key={it.gpu.id} className="bg-card2 border border-line rounded-lg shrink-0" style={{ padding: isMig ? '9px 12px 11px' : '0 12px', minHeight: isMig ? undefined : 40 }}>
+                  {/* 헤더 — GPU 글리프 · 모델 · 타입칩 / VRAM · 요약(MIG=가용 N/M · 단일=상태) */}
+                  <div className="flex items-center justify-between gap-2 min-w-0" style={{ minHeight: isMig ? undefined : 40 }}>
+                    <span className="flex items-center min-w-0" style={{ gap: 8 }}>
+                      <CpuChipIcon width={15} height={15} style={{ color: 'var(--c-muted)' }} className="shrink-0" />
+                      <span className="font-bold truncate" style={{ fontSize: 14 }}>{it.gpu.model}</span>
+                      <ResTypeChip type={it.type} />
+                    </span>
+                    <span className="flex items-center shrink-0" style={{ gap: 10 }}>
+                      <span className="text-muted tabular-nums" style={{ fontSize: 12 }}>{it.gpu.vramGb}GB</span>
+                      {isMig
+                        ? <span className="font-semibold tabular-nums whitespace-nowrap" style={{ fontSize: 13 }}><span style={{ color: fr > 0 ? 'var(--c-accent)' : 'var(--c-muted)' }}>가용 {fr}</span><span className="text-muted"> / {tot}</span></span>
+                        : <ResStatus state={it.boxes[0]} />}
+                    </span>
+                  </div>
+                  {/* MIG 인스턴스 하위행 — 좌측 가이드라인 트리 */}
+                  {isMig && (
+                    <div className="flex flex-col" style={{ gap: 5, marginTop: 9, marginLeft: 7, paddingLeft: 12, borderLeft: '1.5px solid var(--c-border)' }}>
+                      {it.slices!.map((sl, i) => (
+                        <div key={i} className="flex items-center justify-between gap-2 min-w-0">
+                          <span className="flex items-center min-w-0" style={{ gap: 7 }}>
+                            <MiniBox state={sl.state} />
+                            <span className="truncate" style={{ fontSize: 13 }}>{sl.gb}GB <span className="text-muted">인스턴스</span></span>
+                          </span>
+                          <span className="shrink-0 font-semibold" style={{ fontSize: 13, color: RES_STATE[sl.state].fg }}>{RES_STATE[sl.state].label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </div>
         </div>
       </div>
@@ -219,11 +281,18 @@ function SliceStatus() {
   )
 }
 
-// Figma KPI 카드 — 제목/값/링크 + 델타·아이콘 배지
+// Figma KPI 카드 — 제목/값/링크 + 상태 배지(의미 기반 톤: danger=빨강·warn=노랑·ok=초록·neutral=중립)
+type KpiTone = 'ok' | 'warn' | 'danger' | 'neutral'
+const KPI_TONE: Record<KpiTone, { fg: string; bg: string }> = {
+  ok: { fg: 'var(--c-accent2)', bg: 'var(--ok-soft)' },
+  warn: { fg: 'var(--c-warn)', bg: 'var(--warn-soft)' },
+  danger: { fg: 'var(--c-danger)', bg: 'var(--danger-soft)' },
+  neutral: { fg: 'var(--c-accent)', bg: 'var(--accent-soft)' },
+}
 function ServerKpi({ title, value, unit, link, delta, deltaTone, icon }: {
-  title: string; value: ReactNode; unit: string; link: string; delta: string; deltaTone: 'up' | 'down' | 'danger'; icon: ReactNode
+  title: string; value: ReactNode; unit: string; link: string; delta?: string; deltaTone: KpiTone; icon: ReactNode
 }) {
-  const dc = deltaTone === 'down' ? 'var(--c-danger)' : deltaTone === 'danger' ? 'var(--c-danger)' : 'var(--c-accent2)'
+  const t = KPI_TONE[deltaTone]
   return (
     <div className="bg-card2 border border-line rounded-xl flex justify-between min-w-0 hover-lift" style={{ padding: '16px 20px', boxShadow: 'var(--shadow-card)' }}>
       <div className="flex flex-col min-w-0" style={{ gap: 12 }}>
@@ -235,8 +304,8 @@ function ServerKpi({ title, value, unit, link, delta, deltaTone, icon }: {
         <span className="text-muted truncate" style={{ fontSize: 14, textDecoration: 'underline' }}>{link}</span>
       </div>
       <div className="flex flex-col items-end justify-between shrink-0">
-        <span className="font-semibold" style={{ fontSize: 14, color: dc }}>{delta}</span>
-        <span className="flex items-center justify-center rounded-md" style={{ width: 44, height: 44, background: deltaTone === 'up' ? 'var(--ok-soft)' : 'var(--danger-soft)', color: dc }}>{icon}</span>
+        {delta ? <span className="font-semibold" style={{ fontSize: 14, color: t.fg }}>{delta}</span> : <span aria-hidden />}
+        <span className="flex items-center justify-center rounded-md" style={{ width: 44, height: 44, background: t.bg, color: t.fg }}>{icon}</span>
       </div>
     </div>
   )
@@ -312,7 +381,7 @@ function GpuServicePanel({ gpu }: { gpu: Gpu }) {
   // 비중 = 이 GPU 서비스 호출 총합 대비 점유율(합이 100%를 넘지 않게)
   const totalCalls = ranked.reduce((a, s) => a + s.usageCount, 0) || 1
   const slicesOf = (s: Service) => gpu.allocMode === 'cluster'
-    ? ['7g.80gb · 클러스터']
+    ? [`단일 · ${gpu.vramGb}GB`]
     : (gpu.slices ?? []).filter((sl) => serviceOfSlice(sl)?.id === s.id).map((sl) => sl.profile)
   return (
     // paddingBottom = 우하단 FloatingButtons 클리어런스(마지막 카드 콘텐츠 안 가림)
@@ -382,6 +451,145 @@ function GpuServicePanel({ gpu }: { gpu: Gpu }) {
   )
 }
 
+// ───────────────────────── 4.2 자원 뷰 — 서버 폴더(박스) ↔ MIG 육각 탭 ─────────────────────────
+
+type BoxState = 'used' | 'free' | 'down'
+const BOX_STYLE: Record<BoxState, CSSProperties> = {
+  used: { background: 'var(--c-accent)', border: '1.5px solid var(--c-accent)' },
+  free: { background: 'transparent', border: '1.5px solid var(--c-border)' },
+  down: { backgroundImage: 'repeating-linear-gradient(45deg, rgba(120,140,170,.22) 0 5px, rgba(120,140,170,.04) 5px 10px)', border: '1.5px dashed var(--c-danger)' },
+}
+const BOX_LABEL: Record<BoxState, string> = { used: '사용 중', free: '할당 가능', down: '확인 필요' }
+
+// 할당 공간 박스 — 정사각(MIG 유닛) 또는 와이드(GPU 단일)
+function AllocBox({ state, tip, wide }: { state: BoxState; tip: string; wide?: boolean }) {
+  const st = BOX_STYLE[state]
+  if (wide) {
+    const fg = state === 'used' ? 'var(--c-onaccent)' : state === 'down' ? 'var(--c-danger)' : 'var(--c-muted)'
+    return (
+      <div title={tip} className="flex items-center justify-center rounded-md w-full font-semibold" style={{ height: 34, ...st, color: fg, fontSize: 13 }}>
+        {BOX_LABEL[state]}
+      </div>
+    )
+  }
+  return <span title={tip} className="rounded-[5px] shrink-0" style={{ width: 22, height: 22, ...st }} />
+}
+
+// GPU 1장의 할당 박스(MIG=유닛 다수 · 단일=1칸 · 장애=확인 필요)
+function gpuAllocBoxes(g: Gpu): { boxes: { state: BoxState; tip: string }[]; wide: boolean } {
+  if (g.xid) return { boxes: [{ state: 'down', tip: `${g.model} · 장애 ${g.xid}` }], wide: true }
+  if (g.migCapable && g.slices) {
+    const boxes: { state: BoxState; tip: string }[] = []
+    g.slices.forEach((sl) => {
+      const used = sl.usage > 0 || !!sl.ownerUserId
+      const sv = serviceOfSlice(sl)
+      for (let u = 0; u < sl.units; u++) boxes.push({ state: used ? 'used' : 'free', tip: `${sl.profile} · ${used ? (sv?.name ?? '할당됨') : '할당 가능(가용)'}` })
+    })
+    return { boxes, wide: false }
+  }
+  const used = !!g.assignedServiceId
+  return { boxes: [{ state: used ? 'used' : 'free', tip: `${g.model} 단일 · ${used ? (gpuServices(g)[0]?.name ?? '할당됨') : '할당 가능(가용)'}` }], wide: true }
+}
+
+// 서버 = 폴더, 안에 GPU별 할당 가능 공간을 박스로. GPU 여러 장이면 GPU별로 묶어 표시.
+function ServerFolder({ server, onSelect }: { server: GpuServer; onSelect: (id: string) => void }) {
+  const multi = server.gpus.length > 1
+  const per = server.gpus.map((g) => ({ g, ...gpuAllocBoxes(g) }))
+  const allBoxes = per.flatMap((p) => p.boxes)
+  const usedCount = allBoxes.filter((b) => b.state === 'used').length
+  const total = allBoxes.length
+  // GPU 여러 장이면 외부 그리드에서 장수만큼 칸을 차지(최대 4칸, 그리드 폭 초과 시 자동 클램프)
+  const span = multi ? Math.min(server.gpus.length, 4) : 1
+  return (
+    <button type="button" onClick={() => onSelect(server.id)}
+      className="bg-card2 border border-line rounded-xl flex flex-col text-left min-w-0 hover-lift"
+      style={{ padding: 14, gap: 12, minHeight: 124, boxShadow: 'var(--shadow-card)', gridColumn: `span ${span}` }}>
+      <div className="flex items-center justify-between gap-2 min-w-0">
+        <span className="flex items-center gap-2 min-w-0">
+          <ServerIcon width={17} height={17} style={{ color: 'var(--c-accent)' }} className="shrink-0" />
+          <span className="font-bold shrink-0" style={{ fontSize: 15 }}>{server.name}</span>
+          <span className="text-muted truncate" style={{ fontSize: 13 }}>{multi ? `GPU ${server.gpus.length}장` : per[0].g.model}</span>
+        </span>
+        <span className="text-muted shrink-0 tabular-nums" style={{ fontSize: 13 }}>사용 {usedCount} / {total}</span>
+      </div>
+      {multi ? (
+        // GPU 여러 장 — 폴더가 넓어진 만큼 GPU별 칸을 구분선으로 나눠 표시(단일 GPU 폴더와 동일 박스 크기)
+        <div className="grid flex-1" style={{ gridTemplateColumns: `repeat(${server.gpus.length}, minmax(0, 1fr))` }}>
+          {per.map(({ g, boxes, wide }, idx) => {
+            const u = boxes.filter((b) => b.state === 'used').length
+            return (
+              <div key={g.id} className="flex flex-col min-w-0" style={{ gap: 7, paddingLeft: idx ? 14 : 0, paddingRight: idx < per.length - 1 ? 14 : 0, borderLeft: idx ? '1px solid var(--c-border)' : undefined }}>
+                <div className="flex items-center justify-between gap-1.5 min-w-0">
+                  <span className="flex items-center gap-1.5 min-w-0">
+                    <CpuChipIcon width={14} height={14} style={{ color: 'var(--c-muted)' }} className="shrink-0" />
+                    <span className="font-semibold truncate" style={{ fontSize: 13 }}>{g.model}</span>
+                  </span>
+                  <span className="text-muted shrink-0 tabular-nums" style={{ fontSize: 12 }}>{u}/{boxes.length}</span>
+                </div>
+                <div className="flex flex-wrap items-start" style={{ gap: 5 }}>
+                  {boxes.map((b, i) => <AllocBox key={i} state={b.state} tip={b.tip} wide={wide} />)}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-start" style={{ gap: 5 }}>
+          {per[0].boxes.map((b, i) => <AllocBox key={i} state={b.state} tip={b.tip} wide={per[0].wide} />)}
+        </div>
+      )}
+    </button>
+  )
+}
+
+function LegendBox({ state, label }: { state: BoxState; label: string }) {
+  return (
+    <span className="inline-flex items-center" style={{ gap: 7 }}>
+      <span className="rounded-[4px]" style={{ width: 14, height: 14, ...BOX_STYLE[state] }} />
+      <span className="text-muted" style={{ fontSize: 13 }}>{label}</span>
+    </span>
+  )
+}
+
+// 작은 육각형 글리프(탭 아이콘)
+function HexGlyph({ size = 15 }: { size?: number }) {
+  return <svg width={size} height={size} viewBox="0 0 14 13" aria-hidden><polygon points="7,0 13,3.5 13,9.5 7,13 1,9.5 1,3.5" fill="none" stroke="currentColor" strokeWidth="1.4" /></svg>
+}
+
+// 서버 폴더(박스) ↔ MIG 육각 탭 래퍼
+function ServerResourceView({ onSelect }: { onSelect: (id: string) => void }) {
+  const [view, setView] = useState<'folder' | 'hex'>('folder')
+  const tab = (active: boolean): CSSProperties => ({
+    fontSize: 14, fontWeight: 600, padding: '7px 15px', borderRadius: 9,
+    border: `1px solid ${active ? 'var(--c-accent)' : 'var(--c-border)'}`,
+    background: active ? 'var(--accent-soft)' : 'transparent',
+    color: active ? 'var(--c-accent)' : 'var(--c-muted)',
+  })
+  return (
+    <div className="flex flex-col h-full min-h-0 min-w-0">
+      <div className="flex items-center shrink-0" style={{ gap: 8, marginBottom: 6 }}>
+        <button type="button" onClick={() => setView('folder')} style={tab(view === 'folder')}>서버별 할당 보기</button>
+        <button type="button" onClick={() => setView('hex')} className="inline-flex items-center" style={{ ...tab(view === 'hex'), gap: 7 }}><HexGlyph /> MIG 육각 보기</button>
+      </div>
+      {view === 'folder' ? (
+        // 패딩: hover-lift(translateY -4px + 그림자)가 스크롤 컨테이너 상단/측면에서 잘리지 않게 여유
+        <div className="flex-1 min-h-0 overflow-auto min-w-0 flex flex-col" style={{ padding: '12px 8px 8px' }}>
+          <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(244px, 1fr))', gap: 14, alignContent: 'start' }}>
+            {servers.map((s) => <ServerFolder key={s.id} server={s} onSelect={onSelect} />)}
+          </div>
+          <div className="flex items-center flex-wrap shrink-0" style={{ gap: 18, marginTop: 'auto', paddingTop: 12, borderTop: '1px solid var(--c-border)' }}>
+            <LegendBox state="used" label="사용 중" />
+            <LegendBox state="free" label="할당 가능" />
+            <LegendBox state="down" label="확인 필요" />
+          </div>
+        </div>
+      ) : (
+        <div className="flex-1 min-h-0 min-w-0"><ServerHoneycomb onSelect={onSelect} /></div>
+      )}
+    </div>
+  )
+}
+
 // ───────────────────────── 4.2 전체 서버 ─────────────────────────
 
 export function ResourceMap() {
@@ -394,6 +602,7 @@ export function ResourceMap() {
   const dismissAlert = () => { sessionStorage.setItem('anclave-crit-dismissed', '1'); setAlertOpen(false) }
 
   const activeGpus = allGpus.filter((g) => g.health !== 'inactive' && !g.xid).length
+  const downGpus = allGpus.length - activeGpus // 유휴+장애 = 비가동(많을수록 위험)
   const avgUtil = Math.round(allGpus.reduce((a, g) => a + g.smUtil, 0) / allGpus.length)
   const critEvents = allEvents.filter((e) => e.severity === 'critical').length
 
@@ -403,18 +612,18 @@ export function ResourceMap() {
         fill
         bare
         screen="4.2"
-        title="전체 서버 모니터링"
+        title="전체 서버 현황"
         kpis={
           <>
-            <ServerKpi title="총 서버 수" value={servers.length} unit="대" link="서버 관리 전체보기" delta="↗ 16.24%" deltaTone="up" icon={<ServerIcon width={22} height={22} />} />
-            <ServerKpi title="가동 GPU" value={activeGpus} unit={`/ ${allGpus.length}`} link="가동 GPU 전체보기" delta="↘ -3.57%" deltaTone="down" icon={<CpuChipIcon width={22} height={22} />} />
-            <ServerKpi title="평균 사용률" value={avgUtil} unit="%" link="평균 사용률 추이" delta="↗ 3.2%" deltaTone="up" icon={<ChartBarSquareIcon width={22} height={22} />} />
-            <ServerKpi title="위험 이벤트" value={critEvents} unit="건" link="위험 이벤트 전체보기" delta="확인 필요" deltaTone="danger" icon={<ExclamationTriangleIcon width={22} height={22} />} />
+            <ServerKpi title="총 서버 수" value={servers.length} unit="대" link="서버 관리 전체보기" deltaTone="neutral" icon={<ServerIcon width={22} height={22} />} />
+            <ServerKpi title="가동 GPU" value={activeGpus} unit={`/ ${allGpus.length}`} link="가동 GPU 전체보기" delta={downGpus > 0 ? `${downGpus} 비가동` : '전체 가동'} deltaTone={downGpus > 0 ? 'danger' : 'ok'} icon={<CpuChipIcon width={22} height={22} />} />
+            <ServerKpi title="평균 사용률" value={avgUtil} unit="%" link="평균 사용률 추이" delta={avgUtil >= 85 ? '높음' : avgUtil >= 70 ? '주의' : '적정'} deltaTone={avgUtil >= 85 ? 'danger' : avgUtil >= 70 ? 'warn' : 'ok'} icon={<ChartBarSquareIcon width={22} height={22} />} />
+            <ServerKpi title="위험 이벤트" value={critEvents} unit="건" link="위험 이벤트 전체보기" delta={critEvents > 0 ? '확인 필요' : '없음'} deltaTone={critEvents > 0 ? 'danger' : 'ok'} icon={<ExclamationTriangleIcon width={22} height={22} />} />
           </>
         }
       >
         <div className="grid h-full min-h-0" style={{ gridTemplateColumns: '1.7fr 1fr', gap: 18 }}>
-          <ServerHoneycomb onSelect={(id) => navigate(`/resource-map/${id}`)} />
+          <ServerResourceView onSelect={(id) => navigate(`/resource-map/${id}`)} />
           <div className="flex flex-col min-h-0 h-full" style={{ gap: 12 }}>
             <SliceStatus />
             <Card fill flush title="이벤트 로그" action={<button type="button" onClick={() => setDrawer(true)} className="text-accent" style={{ fontSize: 14 }}>전체 보기</button>}>
@@ -437,49 +646,50 @@ export function ResourceMap() {
 
 // ───────────────────────── 4.3 단일 서버 (Figma '단일 서버 모니터링' node 6:3653 픽셀 매칭) ─────────────────────────
 
-// 180° 반달(반원) 게이지 — 서버 현황(CPU 사용량·RAM 사용량·GPU 평균) · Figma node 6:3653
-function RingGauge({ value, title, sub }: { value: number; title: string; sub: ReactNode }) {
-  const W = 184, H = 104
-  const cx = W / 2, cy = 92, r = 76, sw = 14
-  const START = 270, SWEEP = 180 // 상단 반원(반달)
-  const ratio = Math.min(1, Math.max(0, value / 100))
-  // deg: 0=상단(12시), 시계방향 증가
-  const pt = (deg: number): [number, number] => {
-    const rad = (deg * Math.PI) / 180
-    return [cx + r * Math.sin(rad), cy - r * Math.cos(rad)]
-  }
-  const arc = (fromDeg: number, toDeg: number) => {
-    const [x1, y1] = pt(fromDeg)
-    const [x2, y2] = pt(toDeg)
-    const large = toDeg - fromDeg > 180 ? 1 : 0
-    return `M ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 ${large} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`
-  }
-  const gid = `rg-${title.replace(/\s/g, '')}`
-  return (
-    <div className="flex flex-col items-center min-w-0" style={{ gap: 8 }}>
-      <span className="font-semibold truncate max-w-full" style={{ fontSize: 16, color: '#5B6480' }}>{title}</span>
-      <div className="relative" style={{ width: W, height: H }}>
-        <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H}>
-          <defs>
-            <linearGradient id={gid} x1="0" y1="1" x2="1" y2="0">
-              <stop offset="0%" stopColor="#206DE7" />
-              <stop offset="100%" stopColor="#5C9FFA" />
-            </linearGradient>
-          </defs>
-          <path d={arc(START, START + SWEEP)} fill="none" stroke="var(--c-track)" strokeWidth={sw} strokeLinecap="round" />
-          <path d={arc(START, START + SWEEP * ratio)} fill="none" stroke={`url(#${gid})`} strokeWidth={sw} strokeLinecap="round" />
-        </svg>
-        {/* 숫자 — 반원 안쪽 하단 중앙 */}
-        <div className="absolute inset-x-0 flex items-baseline justify-center" style={{ top: cy - 40 }}>
-          <span className="font-bold tabular-nums" style={{ fontSize: 36, lineHeight: 1 }}>{Math.round(value)}</span>
-          <span style={{ fontSize: 18, color: '#5B6480', marginLeft: 1 }}>%</span>
-        </div>
-      </div>
-      <span className="inline-flex items-center rounded-full border border-line whitespace-nowrap" style={{ gap: 7, padding: '4px 13px', fontSize: 14 }}>
-        <span className="rounded-full shrink-0" style={{ width: 7, height: 7, background: 'var(--c-accent)' }} />
-        {sub}
-      </span>
+// GPU 정보 + 작업률·VRAM·온도 — 서버의 GPU(들) 통합 값을 텍스트로(게이지·그래프 없음, GPU 카드 스타일)
+function GpuSummaryPanel({ server, onOpen }: { server: GpuServer; onOpen: () => void }) {
+  const gpus = server.gpus
+  const n = gpus.length
+  const smUtil = Math.round(gpus.reduce((a, g) => a + g.smUtil, 0) / n)
+  const vramUtil = Math.round(gpus.reduce((a, g) => a + g.vramUtil, 0) / n)
+  const maxTemp = Math.max(...gpus.map((g) => g.temp))
+  const totalPower = gpus.reduce((a, g) => a + g.power, 0)
+  const totalVramGb = gpus.reduce((a, g) => a + g.vramGb, 0)
+  const usedVramGb = Math.round(gpus.reduce((a, g) => a + (g.vramUtil / 100) * g.vramGb, 0) * 10) / 10
+  const models = [...new Set(gpus.map((g) => g.model))]
+  const g0 = gpus[0]
+  const tempColor = maxTemp > 80 ? 'var(--c-danger)' : maxTemp > 70 ? 'var(--c-warn)' : 'var(--c-text)'
+  const utilColor = smUtil > 85 ? 'var(--c-warn)' : 'var(--c-text)'
+  const Stat = ({ k, v, c }: { k: string; v: ReactNode; c?: string }) => (
+    <div className="flex items-center justify-between gap-2 min-w-0">
+      <span className="text-muted shrink-0" style={{ fontSize: 14 }}>{k}</span>
+      <span className="font-bold tabular-nums truncate" style={{ fontSize: 18, color: c ?? 'var(--c-text)' }}>{v}</span>
     </div>
+  )
+  return (
+    <Card fill title="GPU 정보" action={<button type="button" onClick={onOpen} className="text-accent" style={{ fontSize: 13 }}>상세 →</button>}>
+      <div className="flex flex-col h-full min-h-0" style={{ gap: 10 }}>
+        {/* 모델 · 모드 */}
+        <div className="flex items-center justify-between gap-2 min-w-0 shrink-0">
+          <span className="flex items-center min-w-0" style={{ gap: 8 }}>
+            <CpuChipIcon width={18} height={18} style={{ color: 'var(--c-muted)' }} className="shrink-0" />
+            <span className="font-bold truncate" style={{ fontSize: 15 }}>{models.join(', ')}</span>
+            {n > 1 && <span className="text-muted shrink-0" style={{ fontSize: 13 }}>×{n}</span>}
+          </span>
+          <span className="rounded shrink-0 font-semibold" style={{ fontSize: 12, padding: '1.5px 8px', border: `1px solid ${g0.migCapable ? 'var(--c-accent)' : 'var(--c-border)'}`, color: g0.migCapable ? 'var(--c-accent)' : 'var(--c-muted)' }}>{g0.migCapable ? 'MIG' : '단일'}</span>
+        </div>
+        {/* 통합 지표 — 텍스트(2열). 남는 높이를 행에 균등 분배 */}
+        <div className="grid flex-1 min-h-0" style={{ gridTemplateColumns: '1fr 1fr', gridAutoRows: 'minmax(0, 1fr)', columnGap: 20 }}>
+          <Stat k="작업률" v={`${smUtil}%`} c={utilColor} />
+          <Stat k="VRAM" v={`${vramUtil}%`} />
+          <Stat k="온도" v={`${maxTemp}°C`} c={tempColor} />
+          <Stat k="전력" v={`${totalPower} W`} />
+          <Stat k="VRAM 사용" v={`${usedVramGb} / ${totalVramGb}GB`} />
+          <Stat k="아키텍처" v={g0.arch} />
+        </div>
+        {n > 1 && <span className="text-muted shrink-0" style={{ fontSize: 12 }}>* {n}장 통합 — 작업률·VRAM=평균 · 온도=최고 · 전력=합</span>}
+      </div>
+    </Card>
   )
 }
 
@@ -505,7 +715,7 @@ function LoadTrend({ cpu, mem, gpu }: { cpu: number[]; mem: number[]; gpu: numbe
 // 상단 GPU 카드 — 아이콘·이름·상태 / 모드·작업률·VRAM·온도(Figma Card General · node 6:3811)
 function ServerGpuCard({ gpu, onClick }: { gpu: Gpu; onClick: () => void }) {
   const danger = !!gpu.xid
-  const tempHot = gpu.temp > 80
+  const tempColor = gpu.temp > 80 ? 'var(--c-danger)' : gpu.temp > 70 ? '#FCBB2A' : '#919BC7'
   const Row = ({ k, children }: { k: string; children: ReactNode }) => (
     <div className="flex items-center justify-between gap-2 min-w-0">
       <span className="shrink-0" style={{ fontSize: 15, color: '#5B6480' }}>{k}</span>
@@ -526,25 +736,12 @@ function ServerGpuCard({ gpu, onClick }: { gpu: Gpu; onClick: () => void }) {
           : <span className="rounded-full shrink-0 font-medium" style={{ fontSize: 13, padding: '2px 10px', color: '#5FF1EE', background: '#063240', border: '1px solid rgba(95,241,238,0.5)' }}>정상</span>}
       </div>
       <div className="flex flex-col" style={{ gap: 10 }}>
-        <Row k="모드"><span className="rounded shrink-0 font-semibold" style={{ fontSize: 14, padding: '2px 10px', border: '1px solid var(--c-border)', color: gpu.allocMode === 'cluster' ? 'var(--c-accent)' : '#919BC7' }}>{gpu.allocMode === 'cluster' ? 'NVLink' : 'MIG'}</span></Row>
+        <Row k="모드"><span className="rounded shrink-0 font-semibold" style={{ fontSize: 14, padding: '2px 10px', border: '1px solid var(--c-border)', color: gpu.migCapable ? 'var(--c-accent)' : '#919BC7' }}>{gpu.migCapable ? 'MIG' : '단일'}</span></Row>
         <Row k="작업률"><span className="font-semibold tabular-nums" style={{ fontSize: 16, color: '#919BC7' }}>{gpu.smUtil}%</span></Row>
         <Row k="VRAM"><span className="font-semibold tabular-nums" style={{ fontSize: 16, color: '#919BC7' }}>{gpu.vramUtil}%</span></Row>
-        <Row k="온도"><span className="font-semibold tabular-nums" style={{ fontSize: 16, color: tempHot ? '#FCBB2A' : '#919BC7' }}>{gpu.temp}°C</span></Row>
+        <Row k="온도"><span className="font-semibold tabular-nums" style={{ fontSize: 16, color: tempColor }}>{gpu.temp}°C</span></Row>
       </div>
     </button>
-  )
-}
-
-// 서버 섀시 최대 GPU 슬롯 — 2/4장 노드=4슬롯, 8장 노드=8슬롯. 카드 행을 이 칸수로 등분.
-const gpuSlotCount = (count: number) => (count <= 4 ? 4 : 8)
-
-// 빈 GPU 슬롯 — 장착 안 된 베이(빗금·점선)
-function EmptyGpuSlot() {
-  return (
-    <div className="rounded-[10px] flex flex-col items-center justify-center text-center min-w-0" style={{ border: '1px dashed var(--c-border)', backgroundImage: MIG_HATCH, gap: 5 }}>
-      <CpuChipIcon width={20} height={20} style={{ color: 'var(--c-muted)', opacity: 0.5 }} />
-      <span className="text-muted font-medium" style={{ fontSize: 13 }}>빈 슬롯</span>
-    </div>
   )
 }
 
@@ -580,9 +777,9 @@ function ServiceAllocTable({ server, onGpu }: { server: GpuServer; onGpu: (g: Gp
           const s = seedOf(g.id)
           const active = svcs.length > 0
           const status = g.xid ? '장애' : active ? '실행중' : '대기중'
-          const totalGb = g.allocMode === 'cluster' ? 80 : (g.slices?.reduce((a, sl) => a + sl.gb, 0) ?? 80)
+          const totalGb = g.allocMode === 'cluster' ? g.vramGb : (g.slices?.reduce((a, sl) => a + sl.gb, 0) ?? g.vramGb)
           const usedGb = !active ? 0 : g.allocMode === 'cluster'
-            ? Math.round((g.vramUtil / 100) * 80 * 10) / 10
+            ? Math.round((g.vramUtil / 100) * g.vramGb * 10) / 10
             : Math.round((g.slices?.filter((sl) => sl.usage > 0 || sl.ownerUserId).reduce((a, sl) => a + (sl.vramUtil / 100) * sl.gb, 0) ?? 0) * 10) / 10
           const vramPct = totalGb ? Math.min(100, Math.round((usedGb / totalGb) * 100)) : 0
           const time = active ? `2026-06-0${(s % 8) + 1} / ${String(8 + (s % 12)).padStart(2, '0')}:${String((s % 6) * 10).padStart(2, '0')}` : ''
@@ -641,14 +838,36 @@ export function ServerDetail() {
   const cpuS = trend(server.cpuUtil, 24, 14, 3)
   const memS = trend(server.memUtil, 24, 10, 7)
   const gpuS = trend(avgUtil, 24, 16, 11)
+  const isMulti = server.gpus.length > 1 // GPU 여러 장=구 레이아웃(카드 행), 1장=신규 레이아웃
   const seed = seedOf(server.id)
-  const svcCount = new Set(server.gpus.flatMap((g) => gpuServices(g).map((s) => s.id))).size
+  // 신규(단일 RTX) 서버 정보 = 호스트 정적 사양(2열 스펙시트). GPU 사양/지표는 GPU 정보 패널로 분리.
+  const idn = parseInt(server.id.replace(/\D/g, '')) || 1
   const info: [string, string][] = [
-    ['서버 ID', server.name],
-    ['서버 유형', 'GPU Server'],
+    ['서버명', server.name],
+    ['유형', 'GPU 노드'],
+    ['CPU', 'Intel Xeon 8358P'],
+    ['코어', '32C / 64T'],
+    ['RAM', '512 GB'],
+    ['스토리지', '7.2 TB NVMe'],
+    ['네트워크', server.network],
+    ['IP', `10.20.${idn}.10`],
+    ['OS', 'Ubuntu 22.04 LTS'],
+    ['위치', `데이터센터 A · ${server.host}`],
+  ]
+  // 구 레이아웃(멀티 GPU 노드) 서버 정보 = GPU 집계(혼합 구성 대응)
+  const archs = [...new Set(server.gpus.map((g) => g.arch))]
+  const totalVram = server.gpus.reduce((a, g) => a + g.vramGb, 0)
+  const hasMig = server.gpus.some((g) => g.migCapable)
+  const hasSingle = server.gpus.some((g) => !g.migCapable)
+  const allocStr = hasMig && hasSingle ? 'MIG + 단일' : hasMig ? 'MIG 분할' : 'GPU 단일'
+  const infoOld: [string, string][] = [
+    ['서버명', server.name],
+    ['GPU 수', `${server.gpus.length}장`],
+    ['아키텍처', archs.join(' / ')],
+    ['총 VRAM', `${totalVram} GB`],
+    ['할당 방식', allocStr],
     ['CPU', 'Intel Xeon 8358P'],
     ['RAM', '512 GB'],
-    ['스토리지', '7.2 TB (NVMe)'],
     ['네트워크', server.network],
     ['위치', `데이터센터 · ${server.host}`],
     ['생성일', `2025-0${(seed % 8) + 1}-${String((seed % 27) + 1).padStart(2, '0')} 11:23`],
@@ -664,7 +883,8 @@ export function ServerDetail() {
       bays = [{ util: 0, danger: true, idle: true, tip: `${g.name} · ${g.xid} · GPU 응답 없음` }]
     } else if (g.allocMode === 'cluster' || !g.slices || g.slices.length === 0) {
       const svc = gpuServices(g)[0]
-      bays = [{ util: g.smUtil, tip: `${g.name} · NVLink 클러스터(7g.80gb) · ${svc ? svc.name : '미할당'} · 부하 ${g.smUtil}%` }]
+      const idle = g.health === 'inactive'
+      bays = [{ util: g.smUtil, idle, tip: `${g.name} · GPU 단일(${g.vramGb}GB) · ${svc ? svc.name : '미할당'} · ${idle ? '유휴' : `부하 ${g.smUtil}%`}` }]
     } else {
       bays = g.slices.map((s) => {
         const used = s.usage > 0 || !!s.ownerUserId
@@ -674,8 +894,8 @@ export function ServerDetail() {
       })
     }
     const usedSl = g.slices?.filter((s) => s.usage > 0 || s.ownerUserId).length ?? (g.allocMode === 'cluster' ? 1 : 0)
-    const rtip = `${g.name} · ${g.allocMode === 'cluster' ? 'NVLink 클러스터' : `MIG ${g.slices?.length ?? 0}분할(${usedSl} 사용)`} · ${g.xid ? g.xid : `${g.smUtil}%`}`
-    return { id: g.id, label: g.name.replace('H100-', '#'), health: regHealth, outline: hueLine(hue), regionTip: rtip, bays, onClick: go }
+    const rtip = `${g.model} · ${g.migCapable ? `MIG ${g.slices?.length ?? 0}분할(${usedSl} 사용)` : `GPU 단일 ${g.vramGb}GB`} · ${g.xid ? g.xid : `${g.smUtil}%`}`
+    return { id: g.id, label: g.model, health: regHealth, outline: hueLine(hue), regionTip: rtip, bays, onClick: go }
   })
 
   return (
@@ -689,34 +909,48 @@ export function ServerDetail() {
             <span className="rounded-full border border-line text-muted shrink-0" style={{ fontSize: 14, padding: '2px 11px' }}>GPU {server.gpus.length}장</span>
           </div>
 
-          {/* ① GPU 카드 행 — 서버 최대 슬롯 수로 등분. 장착된 GPU는 자기 칸에, 나머지는 빈 슬롯 */}
-          <div className="grid shrink-0 min-w-0" style={{ gridTemplateColumns: `repeat(${gpuSlotCount(server.gpus.length)}, minmax(0, 1fr))`, gap: 12 }}>
-            {server.gpus.map((g) => <ServerGpuCard key={g.id} gpu={g} onClick={() => navigate(`/resource-map/${server.id}/${g.id}`)} />)}
-            {Array.from({ length: gpuSlotCount(server.gpus.length) - server.gpus.length }, (_, i) => <EmptyGpuSlot key={`slot-${i}`} />)}
-          </div>
-
-          {/* ②부하추이 · ③서버현황(게이지) · ④서버정보 */}
-          <div className="grid shrink-0" style={{ gridTemplateColumns: '1.15fr 1.35fr 1fr', gap: 12, height: 288 }}>
-            <LoadTrend cpu={cpuS} mem={memS} gpu={gpuS} />
-            <Card title="서버 현황" action={<span className="inline-flex items-center rounded border border-line text-muted" style={{ gap: 6, fontSize: 14, padding: '3px 10px' }}>전체 서버 <span style={{ fontSize: 11 }}>▾</span></span>}>
-              <div className="flex items-center justify-around h-full rounded-lg" style={{ gap: 8, background: 'var(--c-soft)', padding: '14px 8px' }}>
-                <RingGauge value={server.cpuUtil} title="CPU 사용량" sub={<span style={{ fontSize: 14 }}><span className="text-muted">사용율</span> <span className="font-semibold tabular-nums" style={{ color: 'var(--c-accent)' }}>{Math.round((server.cpuUtil / 100) * 128)}</span> <span className="text-muted">/ 128 core</span></span>} />
-                <RingGauge value={server.memUtil} title="RAM 사용량" sub={<span style={{ fontSize: 14 }}><span className="text-muted">사용율</span> <span className="font-semibold tabular-nums" style={{ color: 'var(--c-accent)' }}>{Math.round((server.memUtil / 100) * 640)}</span> <span className="text-muted">/ 640 GB</span></span>} />
-                <RingGauge value={avgUtil} title="GPU 평균" sub={<span style={{ fontSize: 14 }}><span className="text-muted">실행중</span> <span className="font-semibold tabular-nums" style={{ color: 'var(--c-accent)' }}>{serverActiveGpus(server)} GPU</span> <span className="text-muted">/ {svcCount} 서비스</span></span>} />
+          {isMulti ? (
+            <>
+              {/* 멀티 GPU 노드(구 레이아웃) — GPU 카드 행(장착된 GPU만, 빈 슬롯 없음) */}
+              <div className="grid shrink-0 min-w-0" style={{ gridTemplateColumns: `repeat(${server.gpus.length}, minmax(0, 1fr))`, gap: 12 }}>
+                {server.gpus.map((g) => <ServerGpuCard key={g.id} gpu={g} onClick={() => navigate(`/resource-map/${server.id}/${g.id}`)} />)}
               </div>
-            </Card>
-            <Card title="서버 정보">
-              {/* Figma: 라벨 좌(muted) · 값 좌(고정 열·흰색) · hairline 없음 · 넉넉한 행 간격 */}
-              <div className="flex flex-col h-full justify-between" style={{ paddingBlock: 2 }}>
-                {info.map(([k, v]) => (
-                  <div key={k} className="grid items-center min-w-0" style={{ gridTemplateColumns: '92px 1fr', columnGap: 16 }}>
-                    <span className="shrink-0" style={{ fontSize: 15, color: '#5B6480' }}>{k}</span>
-                    <span className="font-medium truncate min-w-0" style={{ fontSize: 15 }}>{v}</span>
+              {/* 부하 추이 · 서버 정보(2열) — 반반 배치 */}
+              <div className="grid shrink-0" style={{ gridTemplateColumns: '1fr 1fr', gap: 12, height: 300 }}>
+                <LoadTrend cpu={cpuS} mem={memS} gpu={gpuS} />
+                <Card fill title="서버 정보">
+                  {/* 2열 스펙시트 — GPU 사양 포함, 행 높이 넉넉 · 옅은 hairline */}
+                  <div className="grid h-full min-h-0" style={{ gridTemplateColumns: '1fr 1fr', columnGap: 32, gridAutoRows: 'minmax(0, 1fr)' }}>
+                    {infoOld.map(([k, v]) => (
+                      <div key={k} className="flex items-center justify-between gap-3 min-w-0" style={{ borderBottom: '1px solid var(--c-border-s)' }}>
+                        <span className="shrink-0" style={{ fontSize: 13, color: '#5B6480' }}>{k}</span>
+                        <span className="font-medium truncate text-right min-w-0" style={{ fontSize: 14 }}>{v}</span>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                </Card>
               </div>
-            </Card>
-          </div>
+            </>
+          ) : (
+            /* 단일 GPU 노드(신규 레이아웃) — 부하 추이(좌, 넓게) · 우측 적층[서버 정보 + GPU 정보(텍스트)] */
+            <div className="grid shrink-0" style={{ gridTemplateColumns: '1.5fr 1fr', gap: 12, height: 386 }}>
+              <LoadTrend cpu={cpuS} mem={memS} gpu={gpuS} />
+              <div className="grid min-h-0" style={{ gridTemplateRows: '1.12fr 0.88fr', gap: 12 }}>
+                <Card fill title="서버 정보">
+                  {/* 2열 스펙시트 — 라벨(muted) 좌 · 값 우 · 행 높이 넉넉 · 옅은 hairline */}
+                  <div className="grid h-full min-h-0" style={{ gridTemplateColumns: '1fr 1fr', columnGap: 32, gridAutoRows: 'minmax(0, 1fr)' }}>
+                    {info.map(([k, v]) => (
+                      <div key={k} className="flex items-center justify-between gap-3 min-w-0" style={{ borderBottom: '1px solid var(--c-border-s)' }}>
+                        <span className="shrink-0" style={{ fontSize: 13, color: '#5B6480' }}>{k}</span>
+                        <span className="font-medium truncate text-right min-w-0" style={{ fontSize: 14 }}>{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+                <GpuSummaryPanel server={server} onOpen={() => navigate(`/resource-map/${server.id}/${server.gpus[0].id}`)} />
+              </div>
+            </div>
+          )}
 
           {/* ⑤자원맵(테두리·카드 박스 없이 배경에 직접 — Figma) · ⑥서비스 할당 현황 */}
           <div className="grid flex-1 min-h-0" style={{ gridTemplateColumns: '1fr 1.9fr', gap: 16 }}>
@@ -752,7 +986,9 @@ function GpuActivityFeed({ gpu }: { gpu: Gpu }) {
     { tone: 'warn', kind: '응답 지연 경고', who: nm(2), desc: `p95 ${280 + (seed % 130)}ms · 임계 250ms 초과`, ago: '26분 전' },
     { tone: 'info', kind: '레플리카 확장', who: nm(0), desc: '오토스케일 · 2 → 3 replica', ago: '41분 전' },
     { tone: 'ok', kind: '체크포인트 저장', who: nm(3), desc: `주기 저장 · ${3 + (seed % 5)}.${seed % 9}GB`, ago: '1시간 전' },
-    { tone: 'info', kind: '슬라이스 재할당', who: nm(1), desc: '1g.10gb → 2g.20gb 승급', ago: '2시간 전' },
+    gpu.migCapable
+      ? { tone: 'info' as const, kind: '슬라이스 재할당', who: nm(1), desc: '1g.36gb → 2g.72gb 승급', ago: '2시간 전' }
+      : { tone: 'info' as const, kind: '컨테이너 재배치', who: nm(1), desc: '노드 내 재스케줄 완료', ago: '2시간 전' },
     { tone: 'danger', kind: '오류 발생', who: nm(2), desc: 'CUDA OOM 1건 · 자동 복구됨', ago: '3시간 전' },
     { tone: 'ok', kind: '인스턴스 재시작', who: nm(0), desc: '헬스체크 실패 후 자동 재기동', ago: '5시간 전' },
     { tone: 'info', kind: '모델 동기화', who: nm(3), desc: '레지스트리 weights 동기화 완료', ago: '8시간 전' },
@@ -811,26 +1047,27 @@ export function GpuDetail() {
   const serialNum = parseInt(gpu.serial.replace(/\D/g, '').slice(-4) || '0', 10)
   const upDays = (serialNum % 88) + 5
   const upHours = serialNum % 24
-  // MIG 헤더 — N분할(표시 칸 수=분할+빈) · 사용(할당 컴퓨트 유닛)/7. 그리드와 동일 소스(migLayout)
-  const mig = migLayout(gpu.slices ?? [])
-  const migTitle = gpu.allocMode === 'cluster'
-    ? '클러스터 할당 (NVLink · 7g.80gb)'
-    : `슬라이스 분할 · MIG · ${mig.cells}분할 · 사용 ${mig.allocUnits}/${MIG_UNITS}`
+  // MIG 헤더 — N분할(표시 칸 수=분할+빈) · 사용 인스턴스/전체. 그리드와 동일 소스(migLayout)
+  const mig = migLayout(gpu)
+  const tdp = gpu.migCapable ? 600 : 250 // 대략 TDP(전력 게이지 기준)
+  const migTitle = gpu.migCapable
+    ? `MIG 인스턴스 분할 · ${mig.cells}분할 · 사용 ${mig.usedInstances}/${mig.total}`
+    : `GPU 단일 할당 · ${gpu.model}`
 
   return (
     <>
       <PageShell
         fill
         screen="4.4"
-        title={`GPU 상세 — ${gpu.name}`}
-        desc={`${server.name} · ${gpu.serial} · ${gpu.allocMode === 'cluster' ? 'NVLink 클러스터' : 'MIG 분할'}`}
+        title={`GPU 상세 현황 — ${gpu.name}`}
+        desc={`${server.name} · ${gpu.serial} · ${gpu.migCapable ? 'MIG 분할' : 'GPU 단일 할당'}`}
         actions={gpu.xid ? <Badge tone="danger" dot={false}>{gpu.xid}</Badge> : <HealthBadge health={gpu.health} />}
         kpis={
           <>
             <KpiStat label="작업률" value={gpu.smUtil} unit="%" delta={gpu.smUtil > 85 ? '높음' : '정상'} deltaTone={gpu.smUtil > 85 ? 'warn' : 'ok'} gauge={gpu.smUtil} sub="적정 ≤85%" />
-            <KpiStat label="VRAM" value={gpu.vramUtil} unit="%" delta={`${fmtNum(usedMb)} MB`} deltaTone="muted" gauge={gpu.vramUtil} sub={`${fmtNum(usedMb)} / ${fmtNum(H100_VRAM_MB)} MB`} />
+            <KpiStat label="VRAM" value={gpu.vramUtil} unit="%" delta={`${fmtNum(usedMb)} MB`} deltaTone="muted" gauge={gpu.vramUtil} sub={`${fmtNum(usedMb)} / ${fmtNum(vramTotalMb(gpu))} MB`} />
             <KpiStat label="온도" value={gpu.temp} unit="°C" delta={gpu.temp > 80 ? '위험' : gpu.temp > 70 ? '주의' : '정상'} deltaTone={gpu.temp > 80 ? 'danger' : gpu.temp > 70 ? 'warn' : 'ok'} gauge={gpu.temp} gaugeColor="var(--c-warn)" sub="임계 80°C" />
-            <KpiStat label="전력" value={gpu.power} unit="W" delta="TDP 700W" deltaTone="muted" gauge={Math.round((gpu.power / 700) * 100)} sub={`효율 ${Math.round((gpu.smUtil / Math.max(1, gpu.power)) * 100)}%`} />
+            <KpiStat label="전력" value={gpu.power} unit="W" delta={`TDP ${tdp}W`} deltaTone="muted" gauge={Math.round((gpu.power / tdp) * 100)} sub={`효율 ${Math.round((gpu.smUtil / Math.max(1, gpu.power)) * 100)}%`} />
           </>
         }
       >
@@ -841,20 +1078,20 @@ export function GpuDetail() {
             <Card title={migTitle} className="shrink-0">
               <SliceGrid gpu={gpu} />
             </Card>
-            <Card title="VRAM 점유 (80GB · 32 세그먼트)" className="shrink-0">
+            <Card title={`VRAM 점유 (${gpu.vramGb}GB · 32 세그먼트)`} className="shrink-0">
               <VramSegments util={gpu.vramUtil} />
-              <div className="flex items-center justify-between text-muted" style={{ fontSize: 14, marginTop: 8 }}><span>점유 {fmtNum(usedMb)} MB</span><span>여유 {fmtNum(H100_VRAM_MB - usedMb)} MB</span></div>
+              <div className="flex items-center justify-between text-muted" style={{ fontSize: 14, marginTop: 8 }}><span>점유 {fmtNum(usedMb)} MB</span><span>여유 {fmtNum(vramTotalMb(gpu) - usedMb)} MB</span></div>
             </Card>
             {/* GPU 정보 = 하단. 좌: 사양(왼쪽으로 압축) / 우: 최근 활동 타임라인 */}
             <Card fill title="GPU 정보 · 최근 활동" style={{ flex: 1, minHeight: 0 }}>
               <div className="grid h-full min-h-0" style={{ gridTemplateColumns: '0.82fr 1.18fr', gap: 18 }}>
                 {/* 좌 — GPU 사양 */}
                 <div className="grid h-full min-w-0" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', columnGap: 16, gridAutoRows: 'minmax(0, 1fr)' }}>
-                  <Info k="모델" v="H100 80GB SXM5" />
-                  <Info k="아키텍처" v="NVIDIA Hopper" />
+                  <Info k="모델" v={gpu.model} />
+                  <Info k="아키텍처" v={gpu.arch} />
                   <Info k="시리얼" v={gpu.serial} />
-                  <Info k="분할 모드" v={gpu.allocMode === 'cluster' ? 'NVLink' : 'MIG'} />
-                  <Info k="VRAM" v="80GB HBM3" />
+                  <Info k="분할 모드" v={gpu.migCapable ? 'MIG' : '단일'} />
+                  <Info k="VRAM" v={`${gpu.vramGb}GB`} />
                   <Info k="인터커넥트" v={gpu.interconnect ?? (gpu.allocMode === 'cluster' ? 'NVLink' : 'PCIe 5.0')} />
                   <Info k="드라이버" v="550.90.07" />
                   <Info k="CUDA" v="12.4" />
@@ -916,36 +1153,38 @@ function VramSegments({ util }: { util: number }) {
 // 미할당 빗금(가시성 강화)
 const MIG_HATCH = 'repeating-linear-gradient(45deg, rgba(120,140,170,.22) 0 5px, rgba(120,140,170,.04) 5px 10px)'
 
-const MIG_MEM_GB = 80 // H100 80GB
-
-// MIG 분할 레이아웃 — 컴퓨트(≤7)·메모리(≤80GB) 둘 다 고려. 헤더·그리드가 같은 값을 쓰도록 단일 소스.
-function migLayout(slices: MigSlice[]) {
+// MIG 분할 레이아웃 — GPU의 실제 VRAM(vramGb)을 메모리 한도로. 헤더·그리드가 같은 값을 쓰도록 단일 소스.
+function migLayout(gpu: Gpu) {
+  const slices = gpu.slices ?? []
   const partUnits = slices.reduce((sum, s) => sum + s.units, 0) // 분할에 쓰인 컴퓨트
   const partGb = slices.reduce((sum, s) => sum + s.gb, 0) // 분할에 쓰인 메모리
-  const freeUnits = Math.max(0, MIG_UNITS - partUnits)
-  const freeGb = Math.max(0, MIG_MEM_GB - partGb)
-  // 빈 슬롯 = 컴퓨트·메모리 둘 다 남을 때만(메모리 소진 시 추가 분할 불가 → 빈 칸 없음)
-  const hasEmpty = freeUnits >= 1 && freeGb >= 10
-  const allocUnits = slices.filter((s) => s.usage > 0 || s.ownerUserId).reduce((sum, s) => sum + s.units, 0)
+  const minGb = slices.length ? Math.min(...slices.map((s) => s.gb)) : 8
+  const freeGb = Math.max(0, gpu.vramGb - partGb)
+  // 빈 인스턴스 = 가장 작은 인스턴스가 하나 더 들어갈 메모리 여유가 있을 때만
+  const hasEmpty = freeGb >= minGb
+  const freeUnits = hasEmpty ? Math.max(1, Math.round(freeGb / (partGb / Math.max(1, partUnits) || minGb))) : 0
+  const usedInstances = slices.filter((s) => s.usage > 0 || s.ownerUserId).length
   const cells = slices.length + (hasEmpty ? 1 : 0) // 실제 표시 칸 수(분할+빈)
+  const total = cells // 총 인스턴스(분할+빈)
   const cols = partUnits + (hasEmpty ? freeUnits : 0) // 그리드 폭(빈 칸 없으면 분할만 → 빈틈 없음)
-  return { freeUnits, freeGb, hasEmpty, allocUnits, cells, cols }
+  return { freeUnits, freeGb, hasEmpty, usedInstances, cells, total, cols }
 }
 
 function SliceGrid({ gpu }: { gpu: Gpu }) {
   if (gpu.allocMode === 'cluster') {
     const svc = gpuServices(gpu)[0]
+    const idle = gpu.health === 'inactive'
     return (
-      <div className="rounded-lg border border-line flex flex-col items-center justify-center text-center h-full" style={{ minHeight: 130, padding: 16, background: bandColor(gpu.smUtil) }}>
-        <div className="font-bold" style={{ fontSize: 16, color: '#fff' }}>NVLink 클러스터 — 전체 할당(7g.80gb)</div>
-        <div style={{ fontSize: 14, color: 'rgba(255,255,255,.85)', marginTop: 4 }}>{svc ? `${svc.name} · ${modelById(svc.model)?.name ?? ''}` : '미할당'} · 작업률 {gpu.smUtil}%</div>
+      <div className="rounded-lg border border-line flex flex-col items-center justify-center text-center h-full" style={{ minHeight: 130, padding: 16, background: idle ? 'var(--c-soft)' : bandColor(gpu.smUtil), backgroundImage: idle ? MIG_HATCH : undefined }}>
+        <div className="font-bold" style={{ fontSize: 16, color: idle ? 'var(--c-text)' : '#fff' }}>GPU 단일 할당 · {gpu.model} {gpu.vramGb}GB</div>
+        <div style={{ fontSize: 14, color: idle ? 'var(--c-muted)' : 'rgba(255,255,255,.85)', marginTop: 4 }}>{idle ? '유휴 · 미할당(신청 가능)' : `${svc ? `${svc.name} · ${modelById(svc.model)?.name ?? ''}` : '미할당'} · 작업률 ${gpu.smUtil}%`}</div>
       </div>
     )
   }
   // GPU 1장 분할 — 외곽 프레임(=GPU) 안에 슬라이스 타일을 작은 간격으로(깔끔·구분·통합). 폭=g수 비례.
   // 그리드 폭 = 분할 컴퓨트(+빈 칸). 메모리 소진 시 빈 칸 없음 → 슬라이스가 폭을 빈틈없이 채움.
   const slices = gpu.slices ?? []
-  const { hasEmpty, freeUnits, freeGb, cols } = migLayout(slices)
+  const { hasEmpty, freeUnits, freeGb, cols } = migLayout(gpu)
   return (
     <div className="rounded-xl border border-line grid" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, gap: 6, padding: 8, background: 'var(--c-bg)' }}>
       {slices.map((s) => <SliceCell key={s.id} slice={s} gpu={gpu} />)}
@@ -968,7 +1207,7 @@ function tileStyle(units: number, used: boolean): CSSProperties {
   }
 }
 
-// 슬라이스 stat 인라인 단위 — "라벨 값" 한 덩어리(nowrap), flex-wrap에서 통째로 줄바꿈(잘림 없음)
+// 슬라이스 stat 인라인 단위 — "라벨 값" 한 덩어리(nowrap), flex-wrap에서 단일로 줄바꿈(잘림 없음)
 function SliceStat({ k, v, c }: { k: string; v: string; c?: string }) {
   return (
     <span className="whitespace-nowrap tabular-nums" style={{ fontSize: 14 }}>

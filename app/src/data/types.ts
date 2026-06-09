@@ -58,8 +58,11 @@ export interface Service {
   usageRank: number
 }
 
-// H100 80GB MIG 프로필 — units(컴퓨트 슬라이스, GPU당 최대 7) + gb(메모리, 최대 80)
-export type MigProfile = '1g.10gb' | '1g.20gb' | '2g.20gb' | '3g.40gb' | '4g.40gb' | '7g.80gb'
+// MIG 프로필 — units(컴퓨트 슬라이스, GPU당 최대 7) + gb(메모리). H100 80GB / GB300(Blackwell) 288GB.
+export type MigProfile =
+  | '1g.10gb' | '1g.20gb' | '2g.20gb' | '3g.40gb' | '4g.40gb' | '7g.80gb'
+  | '1g.36gb' | '2g.72gb' | '3g.144gb' | '4g.144gb' | '7g.288gb'
+  | '1g.16gb'
 export const MIG_PROFILES: Record<MigProfile, { units: number; gb: number }> = {
   '1g.10gb': { units: 1, gb: 10 },
   '1g.20gb': { units: 1, gb: 20 },
@@ -67,6 +70,14 @@ export const MIG_PROFILES: Record<MigProfile, { units: number; gb: number }> = {
   '3g.40gb': { units: 3, gb: 40 },
   '4g.40gb': { units: 4, gb: 40 },
   '7g.80gb': { units: 7, gb: 80 },
+  // GB300 NVL72(Blackwell · 288GB) MIG 프로필
+  '1g.36gb': { units: 1, gb: 36 },
+  '2g.72gb': { units: 2, gb: 72 },
+  '3g.144gb': { units: 3, gb: 144 },
+  '4g.144gb': { units: 4, gb: 144 },
+  '7g.288gb': { units: 7, gb: 288 },
+  // RTX PRO 4500 Blackwell(32GB) — 16GB 인스턴스 2개
+  '1g.16gb': { units: 1, gb: 16 },
 }
 
 export interface MigSlice {
@@ -91,14 +102,18 @@ export interface GpuActivity {
 
 export interface Gpu {
   id: string
-  name: string
+  name: string // 표시명 = GPU 모델(예: 'RTX 2060 SUPER', 'GB300 NVL72')
+  model: string // GPU 모델명
+  arch: string // 아키텍처(Turing·Ampere·Pascal·Blackwell 등)
+  vramGb: number // VRAM 용량(GB)
+  migCapable: boolean // MIG 분할 지원 여부(데이터센터 GPU만 true)
   serial: string
   smUtil: number
   vramUtil: number
   temp: number
   power: number
   health: GpuHealth
-  allocMode: AllocMode
+  allocMode: AllocMode // 'mig'(슬라이스 분할) | 'cluster'(GPU 통째 할당)
   assignedUserId?: string
   assignedServiceId?: string
   interconnect?: string

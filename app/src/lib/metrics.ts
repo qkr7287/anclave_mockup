@@ -9,7 +9,9 @@ export const MIG_UNITS = 7 // H100 MIG 최대 분할 단위
 export const fmtNum = (n: number) => Math.round(n).toLocaleString('en-US')
 export const fmtTemp = (t: number) => `${Math.round(t)}°C` // 공백 없음(Q20)
 export const fmtPower = (p: number) => `${Math.round(p)} W` // 공백 있음(Q20)
-export const vramUsedMb = (g: Gpu) => Math.round((g.vramUtil / 100) * H100_VRAM_MB)
+// VRAM 총량/사용량 — GPU별 실제 용량(vramGb) 기준
+export const vramTotalMb = (g: Gpu) => g.vramGb * 1024
+export const vramUsedMb = (g: Gpu) => Math.round((g.vramUtil / 100) * g.vramGb * 1024)
 
 // 서버 집계
 export const serverAvgUtil = (s: GpuServer) =>
