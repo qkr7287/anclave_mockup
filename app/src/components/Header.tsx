@@ -13,7 +13,6 @@ import { accessOf, useRole } from '../lib/role'
 import { userById } from '../data/users'
 import { notifications } from '../data/events'
 import { IA_GROUPS, ROUTES } from '../lib/routes'
-import { serverById } from '../data'
 
 const DEMO_IDS = ['u-admin', 'u-manager', 'u-user']
 const ACCESS_LABEL: Record<string, string> = {
@@ -29,13 +28,11 @@ function useCrumbs(): Crumb[] {
   const { pathname } = useLocation()
   if (pathname.startsWith('/resource-map')) {
     const [, , serverId, gpuId] = pathname.split('/')
-    const crumbs: Crumb[] = [{ label: '전체 서버', to: '/resource-map' }]
+    const crumbs: Crumb[] = [{ label: '전체 서버 현황', to: '/resource-map' }]
     if (serverId) {
-      const s = serverById(serverId)
-      crumbs.push({ label: s?.name ?? serverId, to: `/resource-map/${serverId}` })
+      crumbs.push({ label: '단일 서버 현황', to: `/resource-map/${serverId}` })
       if (gpuId) {
-        const g = s?.gpus.find((x) => x.id === gpuId)
-        crumbs.push({ label: g?.name ?? gpuId, to: `/resource-map/${serverId}/${gpuId}` })
+        crumbs.push({ label: 'GPU 상세 현황', to: `/resource-map/${serverId}/${gpuId}` })
       }
     }
     crumbs[crumbs.length - 1] = { label: crumbs[crumbs.length - 1].label } // 현재 = 비활성
@@ -43,7 +40,7 @@ function useCrumbs(): Crumb[] {
   }
   const route = [...ROUTES].filter((r) => r.path !== '/' && pathname.startsWith(r.path)).sort((a, b) => b.path.length - a.path.length)[0]
   const group = route ? IA_GROUPS.find((g) => g.id === route.group) : undefined
-  return [{ label: group?.label ?? '대시보드' }, { label: route?.title ?? '전체 서버 모니터링' }]
+  return [{ label: group?.label ?? '대시보드' }, { label: route?.title ?? '전체 서버 현황' }]
 }
 
 // Q2/Q18 헤더(Figma) — 좌: 브레드크럼 / 우: 검색·알림·테마·프로필. GNB 없음.

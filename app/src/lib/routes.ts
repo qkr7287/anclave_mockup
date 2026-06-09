@@ -32,9 +32,9 @@ export const ROUTES: RouteDef[] = [
   { key: 'login', path: '/login', screen: '4.1', title: '로그인', access: ['A', 'B', 'C'] },
 
   // ① 대시보드 · 관제
-  { key: 'resource-map', path: '/resource-map', screen: '4.2', title: '전체 서버 모니터링', access: ['A'], group: 1, menu: ['A'], icon: 'cpu' },
-  { key: 'resource-map-server', path: '/resource-map/:serverId', screen: '4.3', title: '단일 서버 모니터링', access: ['A'] },
-  { key: 'resource-map-gpu', path: '/resource-map/:serverId/:gpuId', screen: '4.4', title: 'GPU 상세 모니터링', access: ['A'] },
+  { key: 'resource-map', path: '/resource-map', screen: '4.2', title: '전체 서버 현황', access: ['A'], group: 1, menu: ['A'], icon: 'cpu' },
+  { key: 'resource-map-server', path: '/resource-map/:serverId', screen: '4.3', title: '단일 서버 현황', access: ['A'] },
+  { key: 'resource-map-gpu', path: '/resource-map/:serverId/:gpuId', screen: '4.4', title: 'GPU 상세 현황', access: ['A'] },
   { key: 'dashboard', path: '/dashboard', screen: '4.5', title: '내 할당 자원', access: ['A', 'B', 'C'], group: 1, menu: ['B', 'C'], icon: 'home' },
   { key: 'requests-status', path: '/requests/status', screen: '4.6', title: '자원 신청현황', access: ['A', 'B', 'C'], group: 1, menu: ['B', 'C'], icon: 'clipboard' },
   { key: 'admin-monitoring', path: '/admin/monitoring', screen: '4.7', title: '관제 모니터링', access: ['A'], group: 1, menu: ['A'], icon: 'chart' },
