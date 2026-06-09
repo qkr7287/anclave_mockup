@@ -15,6 +15,7 @@ import {
 } from '@heroicons/react/24/outline'
 import type { ComponentType, SVGProps } from 'react'
 import { buildSidebar, sidebarHighlightKey } from '../lib/routes'
+import { servers } from '../data'
 import type { Access } from '../lib/role'
 import logoUrl from '../assets/anclave-logo.svg'
 
@@ -44,6 +45,23 @@ export function Sidebar({ access, collapsed, onToggle }: SidebarProps) {
   const { pathname } = useLocation()
   const activeKey = sidebarHighlightKey(pathname)
   const activeGroupId = groups.find((g) => g.items.some((it) => it.key === activeKey))?.group.id
+
+  // 전체 서버 현황 하위: 단일 서버 현황 / GPU 상세 현황 (현재 드릴다운 위치 또는 첫 서버·GPU로 링크)
+  const segs = pathname.split('/')
+  const inRm = segs[1] === 'resource-map'
+  const curServerId = inRm ? segs[2] : undefined
+  const curGpuId = inRm ? segs[3] : undefined
+  const drillServer = (curServerId && servers.find((s) => s.id === curServerId)) || servers[0]
+  const drillSid = drillServer?.id
+  const drillGid =
+    curGpuId && drillServer?.gpus.some((g) => g.id === curGpuId) ? curGpuId : drillServer?.gpus[0]?.id
+  const resourceSubs =
+    drillSid && drillGid
+      ? [
+          { key: 'rm-server', title: '단일 서버 현황', path: `/resource-map/${drillSid}`, active: !!curServerId && !curGpuId },
+          { key: 'rm-gpu', title: 'GPU 상세 현황', path: `/resource-map/${drillSid}/${drillGid}`, active: !!curGpuId },
+        ]
+      : []
 
   const [openMap, setOpenMap] = useState<Record<number, boolean>>({})
   const isOpen = (gid: number) => openMap[gid] ?? gid === activeGroupId
@@ -80,12 +98,20 @@ export function Sidebar({ access, collapsed, onToggle }: SidebarProps) {
         {open && (
           <div className="flex flex-col" style={{ paddingLeft: 22, marginTop: 2 }}>
             {g.items.map((it) => {
-              const active = it.key === activeKey
+              const active = it.key === 'resource-map' ? pathname === '/resource-map' : it.key === activeKey
               return (
-                <NavLink key={it.key} to={it.path} end={it.path === '/resource-map'}
-                  className="flex items-center" style={{ gap: 10, paddingLeft: 24, padding: '8px 0 8px 24px', borderLeft: active ? '2px solid var(--c-accent)' : '1px solid var(--c-border)', marginLeft: active ? -0.5 : 0 }}>
-                  <span className="truncate" style={{ fontSize: 14, fontWeight: active ? 600 : 400, letterSpacing: '-0.4px', color: active ? 'var(--c-accent)' : 'var(--c-muted)' }}>{it.title}</span>
-                </NavLink>
+                <div key={it.key}>
+                  <NavLink to={it.path} end={it.path === '/resource-map'}
+                    className="flex items-center" style={{ gap: 10, paddingLeft: 24, padding: '8px 0 8px 24px', borderLeft: active ? '2px solid var(--c-accent)' : '1px solid var(--c-border)', marginLeft: active ? -0.5 : 0 }}>
+                    <span className="truncate" style={{ fontSize: 14, fontWeight: active ? 600 : 400, letterSpacing: '-0.4px', color: active ? 'var(--c-accent)' : 'var(--c-muted)' }}>{it.title}</span>
+                  </NavLink>
+                  {it.key === 'resource-map' && resourceSubs.map((sub) => (
+                    <NavLink key={sub.key} to={sub.path}
+                      className="flex items-center" style={{ gap: 10, padding: '7px 0 7px 40px', borderLeft: sub.active ? '2px solid var(--c-accent)' : '1px solid var(--c-border)', marginLeft: sub.active ? -0.5 : 0 }}>
+                      <span className="truncate" style={{ fontSize: 14, fontWeight: sub.active ? 600 : 400, letterSpacing: '-0.4px', color: sub.active ? 'var(--c-accent)' : 'var(--c-muted)' }}>{sub.title}</span>
+                    </NavLink>
+                  ))}
+                </div>
               )
             })}
           </div>

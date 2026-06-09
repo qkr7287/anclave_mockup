@@ -64,14 +64,14 @@ export function Header() {
       style={{ height: 64, padding: '0 16px', gap: 14, background: 'var(--c-card2)' }}
     >
       {/* 좌: 브레드크럼(헤더 통합·단계 클릭 이동, 현재=비활성) */}
-      <nav className="flex items-center min-w-0" style={{ gap: 8 }} aria-label="브레드크럼">
+      <nav className="flex items-center min-w-0" style={{ gap: 8, userSelect: 'none' }} aria-label="브레드크럼">
         {crumbs.map((c, i) => {
           const last = i === crumbs.length - 1
           return (
             <span key={i} className="flex items-center min-w-0" style={{ gap: 8 }}>
               {i > 0 && <PlayIcon width={11} height={11} style={{ color: 'var(--c-muted)' }} className="shrink-0" />}
               {c.to && !last ? (
-                <button type="button" onClick={() => navigate(c.to!)} className="truncate hover:underline" style={{ fontSize: 16, fontWeight: 500, color: 'var(--c-muted)' }}>{c.label}</button>
+                <button type="button" onClick={() => navigate(c.to!)} className="truncate hover:underline" style={{ fontSize: 16, fontWeight: 500, color: 'var(--c-muted)', cursor: 'pointer' }}>{c.label}</button>
               ) : (
                 <span className="truncate" style={{ fontSize: 16, fontWeight: 500, color: last ? 'var(--c-text)' : 'var(--c-muted)' }}>{c.label}</span>
               )}
