@@ -12,7 +12,13 @@ interface KpiStatProps {
   spark?: number[]
   /** 우측 미니 반원 게이지(0~100, 보조요소 1종) */
   gauge?: number
-  /** 게이지 색(기본 deltaTone색) */
+  /** 우측 미니 꺾은선(추이) — gauge 대체. 값 스케일 무관(자체 정규화) */
+  trend?: number[]
+  /** 미니 꺾은선 임계선(데이터와 같은 스케일) */
+  trendThreshold?: number
+  /** 미니 꺾은선 호버 값 포맷 */
+  trendFmt?: (v: number) => string
+  /** 게이지/추이 색(기본 deltaTone색) */
   gaugeColor?: string
   /** 보조수치(적정·한도 등) 예: "적정 ≤80%" */
   sub?: string
@@ -80,6 +86,58 @@ function Spark({ data, color }: { data: number[]; color: string }) {
   )
 }
 
+// 우측 슬롯 미니 꺾은선 — 컨테이너 꽉 채움(자체 정규화). 면적+선 + 임계선(점선) + 호버 툴팁.
+function MiniTrend({ data, color, threshold, fmt }: { data: number[]; color: string; threshold?: number; fmt?: (v: number) => string }) {
+  const [hi, setHi] = useState<number | null>(null)
+  const W = 100, H = 40
+  const domain = threshold != null ? [...data, threshold] : data
+  const dTop = Math.max(...domain)
+  const dBot = Math.min(...domain)
+  const pad = Math.max(1, (dTop - dBot) * 0.16)
+  const lo = dBot - pad
+  const sp = Math.max(1, dTop + pad - lo)
+  const n = data.length
+  const xAt = (i: number) => (n <= 1 ? 0 : (i * W) / (n - 1))
+  const yAt = (val: number) => 3 + (1 - (val - lo) / sp) * (H - 6)
+  const line = data.map((val, i) => `${xAt(i)},${yAt(val)}`).join(' ')
+  const area = `0,${H} ${line} ${W},${H}`
+  const tY = threshold != null ? yAt(threshold) : null
+  const hx = hi != null ? (xAt(hi) / W) * 100 : 0
+  const hyPct = hi != null ? (yAt(data[hi]) / H) * 100 : 0
+  return (
+    <div
+      className="relative w-full h-full"
+      onMouseMove={(e) => {
+        const r = e.currentTarget.getBoundingClientRect()
+        const fx = (e.clientX - r.left) / Math.max(1, r.width)
+        setHi(Math.max(0, Math.min(n - 1, Math.round(fx * (n - 1)))))
+      }}
+      onMouseLeave={() => setHi(null)}
+    >
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ width: '100%', height: '100%', display: 'block' }} aria-hidden>
+        <polygon points={area} fill={color} opacity={0.13} />
+        {tY != null && (
+          <line x1={0} y1={tY} x2={W} y2={tY} stroke="var(--c-danger)" strokeWidth={1} strokeDasharray="3 2.5" vectorEffect="non-scaling-stroke" opacity={0.6} />
+        )}
+        <polyline points={line} fill="none" stroke={color} strokeWidth={1.8} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+        {hi != null && (
+          <line x1={xAt(hi)} y1={0} x2={xAt(hi)} y2={H} stroke="var(--c-muted)" strokeWidth={1} strokeDasharray="2 2" vectorEffect="non-scaling-stroke" opacity={0.55} />
+        )}
+      </svg>
+      {hi != null && (
+        <>
+          {/* 데이터 포인트 점(HTML — stretch 왜곡 방지) */}
+          <span className="absolute rounded-full pointer-events-none" style={{ left: `${hx}%`, top: `${hyPct}%`, width: 7, height: 7, transform: 'translate(-50%,-50%)', background: color, border: '1.5px solid var(--c-card2)' }} />
+          {/* 값 툴팁 */}
+          <span className="absolute pointer-events-none rounded font-semibold tabular-nums" style={{ left: `${Math.min(85, Math.max(15, hx))}%`, top: 0, transform: 'translateX(-50%)', fontSize: 11, padding: '1px 6px', background: 'var(--toast-bg)', color: 'var(--c-text)', border: '1px solid var(--c-border)', boxShadow: 'var(--shadow-card)', whiteSpace: 'nowrap', lineHeight: 1.4 }}>
+            {fmt ? fmt(data[hi]) : Math.round(data[hi])}
+          </span>
+        </>
+      )}
+    </div>
+  )
+}
+
 // Q5 반원 아크 게이지 — 컨테이너를 꽉 채움(라인차트처럼 responsive). viewBox 0 0 72 44.
 function MiniGauge({ value, color }: { value: number; color: string }) {
   const r = 30
@@ -110,6 +168,9 @@ export function KpiStat({
   deltaTone = 'muted',
   spark,
   gauge,
+  trend,
+  trendThreshold,
+  trendFmt,
   gaugeColor,
   sub,
   aux,
@@ -123,6 +184,28 @@ export function KpiStat({
     deltaTone === 'ok' ? 'var(--c-ok)' : deltaTone === 'danger' ? 'var(--c-danger)' : deltaTone === 'warn' ? 'var(--c-warn)' : 'var(--c-muted)'
   const auxColor = toneColor(deltaTone)
   const gColor = gaugeColor ?? auxColor
+
+  // 추이 모드 — 좌: 라벨+값(글씨 너비) / 우: 긴 미니 꺾은선 + 하단 [델타 좌·실제값 우]
+  const hasTrend = trend != null && trend.length > 1
+  if (hasTrend) {
+    return (
+      <div className="bg-card2 border border-line rounded-xl min-w-0 flex items-stretch hover-lift"
+        style={{ padding: '12px 14px', gap: 14, boxShadow: 'var(--shadow-card)', minHeight: 96, maxHeight: 120, overflow: 'hidden' }}>
+        {/* 좌 — 라벨 / 값 / 델타 · 보조수치(값 아래) */}
+        <div className="flex flex-col justify-center shrink-0 min-w-0" style={{ width: 128 }}>
+          <span className="text-muted font-semibold truncate" style={{ fontSize: 14, lineHeight: 1.2 }}>{label}</span>
+          <div className="flex items-baseline gap-1" style={{ marginTop: 2 }}>
+            <span style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.5px', lineHeight: 1.05 }}>{shown}</span>
+            {unit && <span className="text-muted" style={{ fontSize: 13 }}>{unit}</span>}
+          </div>
+          {delta && <span className="font-semibold truncate" style={{ fontSize: 13, color: deltaColor, lineHeight: 1.3, marginTop: 2 }}>{delta}</span>}
+          {sub && <span className="text-muted truncate" style={{ fontSize: 13, lineHeight: 1.25 }}>{sub}</span>}
+        </div>
+        {/* 우 — 미니 꺾은선만 꽉 채움(하단 비움) */}
+        <div className="flex-1 min-w-0 min-h-0 flex items-stretch"><MiniTrend data={trend} color={gColor} threshold={trendThreshold} fmt={trendFmt} /></div>
+      </div>
+    )
+  }
 
   // 게이지 모드 — 카드를 행으로, 게이지가 우측에서 세로 꽉 채움
   if (gauge != null) {

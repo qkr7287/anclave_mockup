@@ -217,15 +217,14 @@ function SliceStatus() {
         <span className="text-muted shrink-0 tabular-nums" style={{ fontSize: 14 }}>전체 공간 {total}</span>
       </header>
       <div className="flex" style={{ gap: 16, padding: '0 16px 16px' }}>
-        {/* 좌: 사용률(MIG 인스턴스 + 단일 GPU 전체 중 사용 %) + 노는 가용 칸 수 */}
+        {/* 좌: 사용률(MIG 인스턴스 + 단일 GPU 전체 중 사용 %) + 즉시 할당 가능 칸 수 */}
         <div className="shrink-0 flex flex-col items-center rounded-[10px]" style={{ background: 'var(--c-soft)', padding: '14px 14px', gap: 11, width: 196 }}>
           <span className="font-semibold text-center" style={{ fontSize: 14, color: 'var(--c-muted)' }}>사용률</span>
           <MigDonut used={used} total={total} pct />
-          <span className="inline-flex items-center rounded-full border border-line" style={{ gap: 9, padding: '4px 14px' }}>
+          <span className="inline-flex items-center rounded-full border border-line" style={{ gap: 8, padding: '4px 14px' }}>
             <span className="rounded-[3px]" style={{ width: 12, height: 12, ...BOX_STYLE.free }} />
-            <span style={{ fontSize: 14, fontWeight: 500 }}>가용</span>
             <span className="font-semibold tabular-nums" style={{ fontSize: 14, color: 'var(--c-accent)' }}>{free}칸</span>
-            <span className="text-muted" style={{ fontSize: 13 }}>놀고 있음</span>
+            <span className="text-muted" style={{ fontSize: 13 }}>할당 가능</span>
           </span>
           <div className="flex items-center flex-wrap justify-center" style={{ gap: '4px 12px', fontSize: 13 }}>
             <span className="inline-flex items-center" style={{ gap: 5 }}><MiniBox state="used" /><span className="text-muted">사용 {used}</span></span>
@@ -479,11 +478,11 @@ function AllocBox({ state, tip, wide }: { state: BoxState; tip: string; wide?: b
 function gpuAllocBoxes(g: Gpu): { boxes: { state: BoxState; tip: string }[]; wide: boolean } {
   if (g.xid) return { boxes: [{ state: 'down', tip: `${g.model} · 장애 ${g.xid}` }], wide: true }
   if (g.migCapable && g.slices) {
-    const boxes: { state: BoxState; tip: string }[] = []
-    g.slices.forEach((sl) => {
+    // 박스 = MIG 인스턴스(분할) 1개당 1칸
+    const boxes = g.slices.map((sl) => {
       const used = sl.usage > 0 || !!sl.ownerUserId
       const sv = serviceOfSlice(sl)
-      for (let u = 0; u < sl.units; u++) boxes.push({ state: used ? 'used' : 'free', tip: `${sl.profile} · ${used ? (sv?.name ?? '할당됨') : '할당 가능(가용)'}` })
+      return { state: (used ? 'used' : 'free') as BoxState, tip: `${sl.profile} · ${sl.gb}GB · ${used ? (sv?.name ?? '할당됨') : '할당 가능(가용)'}` }
     })
     return { boxes, wide: false }
   }
@@ -1049,7 +1048,13 @@ export function GpuDetail() {
   const upHours = serialNum % 24
   // MIG 헤더 — N분할(표시 칸 수=분할+빈) · 사용 인스턴스/전체. 그리드와 동일 소스(migLayout)
   const mig = migLayout(gpu)
-  const tdp = gpu.migCapable ? 600 : 250 // 대략 TDP(전력 게이지 기준)
+  const tdp = gpu.migCapable ? 600 : 250 // 대략 TDP(전력 기준)
+  // 미니 꺾은선 추이(결정적) — 작업률·VRAM·온도·전력. 전력은 TDP 대비 %로 형태만.
+  const powerPct = Math.max(6, Math.round((gpu.power / tdp) * 100))
+  const utilTrend = trend(gpu.smUtil, 16, 13, serialNum + 1)
+  const vramTrend = trend(gpu.vramUtil, 16, 9, serialNum + 5)
+  const tempTrend = trend(gpu.temp, 16, 5, serialNum + 9)
+  const powerTrend = trend(powerPct, 16, 11, serialNum + 13)
   const migTitle = gpu.migCapable
     ? `MIG 인스턴스 분할 · ${mig.cells}분할 · 사용 ${mig.usedInstances}/${mig.total}`
     : `GPU 단일 할당 · ${gpu.model}`
@@ -1064,10 +1069,10 @@ export function GpuDetail() {
         actions={gpu.xid ? <Badge tone="danger" dot={false}>{gpu.xid}</Badge> : <HealthBadge health={gpu.health} />}
         kpis={
           <>
-            <KpiStat label="작업률" value={gpu.smUtil} unit="%" delta={gpu.smUtil > 85 ? '높음' : '정상'} deltaTone={gpu.smUtil > 85 ? 'warn' : 'ok'} gauge={gpu.smUtil} sub="적정 ≤85%" />
-            <KpiStat label="VRAM" value={gpu.vramUtil} unit="%" delta={`${fmtNum(usedMb)} MB`} deltaTone="muted" gauge={gpu.vramUtil} sub={`${fmtNum(usedMb)} / ${fmtNum(vramTotalMb(gpu))} MB`} />
-            <KpiStat label="온도" value={gpu.temp} unit="°C" delta={gpu.temp > 80 ? '위험' : gpu.temp > 70 ? '주의' : '정상'} deltaTone={gpu.temp > 80 ? 'danger' : gpu.temp > 70 ? 'warn' : 'ok'} gauge={gpu.temp} gaugeColor="var(--c-warn)" sub="임계 80°C" />
-            <KpiStat label="전력" value={gpu.power} unit="W" delta={`TDP ${tdp}W`} deltaTone="muted" gauge={Math.round((gpu.power / tdp) * 100)} sub={`효율 ${Math.round((gpu.smUtil / Math.max(1, gpu.power)) * 100)}%`} />
+            <KpiStat label="작업률" value={gpu.smUtil} unit="%" delta={gpu.smUtil > 85 ? '높음' : '정상'} deltaTone={gpu.smUtil > 85 ? 'warn' : 'ok'} trend={utilTrend} trendThreshold={85} trendFmt={(v) => `${Math.round(v)}%`} sub="적정 ≤85%" />
+            <KpiStat label="VRAM" value={gpu.vramUtil} unit="%" delta={`${fmtNum(usedMb)} MB`} deltaTone="muted" trend={vramTrend} trendThreshold={90} trendFmt={(v) => `${Math.round(v)}% · ${fmtNum(Math.round((v / 100) * vramTotalMb(gpu)))} MB`} sub={`${fmtNum(usedMb)} / ${fmtNum(vramTotalMb(gpu))} MB`} />
+            <KpiStat label="온도" value={gpu.temp} unit="°C" delta={gpu.temp > 80 ? '위험' : gpu.temp > 70 ? '주의' : '정상'} deltaTone={gpu.temp > 80 ? 'danger' : gpu.temp > 70 ? 'warn' : 'ok'} trend={tempTrend} trendThreshold={80} trendFmt={(v) => `${Math.round(v)}°C`} gaugeColor="var(--c-warn)" sub="임계 80°C" />
+            <KpiStat label="전력" value={gpu.power} unit="W" delta={`TDP ${tdp}W`} deltaTone="muted" trend={powerTrend} trendThreshold={100} trendFmt={(v) => `${Math.round((v / 100) * tdp)} W`} sub={`효율 ${Math.round((gpu.smUtil / Math.max(1, gpu.power)) * 100)}%`} />
           </>
         }
       >

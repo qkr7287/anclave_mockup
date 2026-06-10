@@ -1,0 +1,120 @@
+{
+  "_doc": "Anclave 단일 시드(진실원). 모든 data 모듈이 이 파일을 읽어 빌드한다. 이벤트는 배포 상태에서 생성(events.ts).",
+
+  "users": [
+    { "id": "u-admin", "username": "admin", "name": "admin", "role": "admin", "email": "admin@anclave.local", "hasHosting": true, "initialRoute": "/resource-map" },
+    { "id": "u-manager", "username": "user1", "name": "user1", "role": "user", "email": "user1@anclave.local", "hasHosting": true, "initialRoute": "/dashboard" },
+    { "id": "u-user", "username": "user2", "name": "user2", "role": "user", "email": "user2@anclave.local", "hasHosting": false, "initialRoute": "/marketplace" },
+    { "id": "u-kim", "username": "kim", "name": "김민준", "role": "user", "email": "kim@anclave.local", "hasHosting": true, "initialRoute": "/dashboard" },
+    { "id": "u-lee", "username": "lee", "name": "이서연", "role": "user", "email": "lee@anclave.local", "hasHosting": true, "initialRoute": "/dashboard" },
+    { "id": "u-park", "username": "park", "name": "박지훈", "role": "user", "email": "park@anclave.local", "hasHosting": true, "initialRoute": "/dashboard" },
+    { "id": "u-choi", "username": "choi", "name": "최수아", "role": "user", "email": "choi@anclave.local", "hasHosting": false, "initialRoute": "/marketplace" },
+    { "id": "u-jung", "username": "jung", "name": "정도윤", "role": "user", "email": "jung@anclave.local", "hasHosting": true, "initialRoute": "/dashboard" },
+    { "id": "u-han", "username": "han", "name": "한예린", "role": "user", "email": "han@anclave.local", "hasHosting": false, "initialRoute": "/marketplace" },
+    { "id": "u-yoon", "username": "yoon", "name": "윤서진", "role": "user", "email": "yoon@anclave.local", "hasHosting": true, "initialRoute": "/dashboard" }
+  ],
+
+  "models": [
+    { "id": "m11", "name": "Llama 3 8B", "kind": "LLM", "description": "메타 Llama 3 8B — 16GB MIG 인스턴스에 적합한 경량 챗 모델.", "addons": ["주피터", "API"], "license": "Llama 3 Community", "recommendedGpu": "RTX PRO 4500 16GB MIG", "params": "8B", "usageRank": 1, "usageCount": 121300 },
+    { "id": "m12", "name": "Qwen2.5 7B", "kind": "LLM", "description": "알리바바 Qwen2.5 7B — 에이전트·도구 호출에 적합한 소형 LLM.", "addons": ["주피터", "API"], "license": "Qwen License", "recommendedGpu": "RTX PRO 4500 16GB MIG", "params": "7B", "usageRank": 2, "usageCount": 142800 },
+    { "id": "m13", "name": "Qwen2.5-Coder 7B", "kind": "Code", "description": "코드 생성·리뷰 특화 소형 모델 — 단일 소비자 GPU(8GB)에서 구동.", "addons": ["주피터", "API"], "license": "Apache-2.0", "recommendedGpu": "RTX 2070 8GB 단일", "params": "7B", "usageRank": 3, "usageCount": 87600 },
+    { "id": "m5", "name": "Qwen2.5-VL 7B", "kind": "Vision-Language", "description": "이미지 이해·문서 VQA 멀티모달 모델.", "addons": ["API"], "license": "Qwen License", "recommendedGpu": "RTX 3060 Ti 8GB 단일", "params": "7B", "usageRank": 4, "usageCount": 76300 },
+    { "id": "m8", "name": "SDXL", "kind": "Image", "description": "Stable Diffusion XL 이미지 생성.", "addons": ["주피터"], "license": "CreativeML OpenRAIL++", "recommendedGpu": "RTX 5070 12GB 단일", "params": "3.5B", "usageRank": 5, "usageCount": 52400 },
+    { "id": "m9", "name": "Whisper Large v3", "kind": "STT", "description": "다국어 음성 인식(STT) 모델.", "addons": ["API"], "license": "MIT", "recommendedGpu": "RTX 2070 SUPER 8GB 단일", "params": "1.5B", "usageRank": 6, "usageCount": 27600 },
+    { "id": "m10", "name": "BGE-M3", "kind": "Embedding", "description": "다국어 임베딩·리트리버 모델.", "addons": ["API"], "license": "MIT", "recommendedGpu": "RTX 2060 SUPER 8GB 단일", "params": "0.6B", "usageRank": 7, "usageCount": 19400 },
+    { "id": "m1", "name": "Llama 3 70B", "kind": "LLM", "description": "메타 Llama 3 70B 범용 대화·추론 모델 — 대형(H100 ×2 필요, 현재 함대 미배포).", "addons": ["주피터", "API", "파인튜닝"], "license": "Llama 3 Community", "recommendedGpu": "H100 ×2 (cluster)", "params": "70B", "usageRank": 8, "usageCount": 184200 },
+    { "id": "m2", "name": "Qwen2.5-72B", "kind": "LLM", "description": "알리바바 Qwen2.5 72B 다국어 LLM — 대형(H100 ×2 필요, 미배포).", "addons": ["주피터", "API"], "license": "Qwen License", "recommendedGpu": "H100 ×2 (cluster)", "params": "72B", "usageRank": 9, "usageCount": 162800 },
+    { "id": "m7", "name": "Qwen2.5-Coder 32B", "kind": "Code", "description": "코드 특화 대형 모델 — H100 슬라이스 권장(미배포).", "addons": ["주피터", "API"], "license": "Apache-2.0", "recommendedGpu": "H100 ×1 (3g 슬라이스)", "params": "32B", "usageRank": 10, "usageCount": 98700 },
+    { "id": "m4", "name": "Mistral Small 24B", "kind": "LLM", "description": "경량 고효율 LLM — H100 슬라이스 권장(미배포).", "addons": ["API"], "license": "Apache-2.0", "recommendedGpu": "H100 1g 슬라이스", "params": "24B", "usageRank": 11, "usageCount": 61200 },
+    { "id": "m3", "name": "DeepSeek-V3", "kind": "LLM", "description": "DeepSeek-V3 MoE 대형 추론 모델 — H100 ×4 필요(미배포).", "addons": ["API"], "license": "DeepSeek License", "recommendedGpu": "H100 ×4 (cluster)", "params": "671B (MoE)", "usageRank": 12, "usageCount": 141500 },
+    { "id": "m6", "name": "Gemma2 27B", "kind": "LLM", "description": "구글 Gemma2 27B 오픈 LLM — H100 슬라이스 권장(미배포).", "addons": ["API"], "license": "Gemma License", "recommendedGpu": "H100 2g 슬라이스", "params": "27B", "usageRank": 13, "usageCount": 38900 }
+  ],
+
+  "services": [
+    { "id": "svc-qwen", "name": "qwen-agent", "kind": "LLM 에이전트", "hasApi": true, "model": "m12", "serviceUrl": "http://svc.anclave.local/qwen-agent", "testUrl": "http://svc.anclave.local/qwen-agent/playground", "description": "Qwen2.5-7B 기반 업무 자동화 에이전트.", "manualUrl": "/board?post=manual-qwen", "ownerUserId": "u-kim", "tags": ["LLM", "API", "에이전트"], "usageCount": 142800, "usageRank": 1 },
+    { "id": "svc-llama", "name": "llama-chat", "kind": "챗봇", "hasApi": true, "model": "m11", "serviceUrl": "http://svc.anclave.local/llama-chat", "testUrl": "http://svc.anclave.local/llama-chat/playground", "description": "Llama 3 8B 기반 사내 대화 챗봇.", "manualUrl": "/board?post=manual-llama", "ownerUserId": "u-lee", "tags": ["LLM", "API", "챗봇"], "usageCount": 121300, "usageRank": 2 },
+    { "id": "svc-code", "name": "code-assist", "kind": "코딩", "hasApi": true, "model": "m13", "serviceUrl": "http://svc.anclave.local/code-assist", "testUrl": "http://svc.anclave.local/code-assist/playground", "description": "Qwen2.5-Coder 7B 기반 코드 어시스턴트.", "ownerUserId": "u-kim", "tags": ["Code", "API"], "usageCount": 87600, "usageRank": 3 },
+    { "id": "svc-doc", "name": "doc-search", "kind": "RAG 검색", "hasApi": true, "model": "m10", "serviceUrl": "http://svc.anclave.local/doc-search", "testUrl": "http://svc.anclave.local/doc-search/playground", "description": "BGE-M3 임베딩 기반 문서 검색(RAG).", "ownerUserId": "u-park", "tags": ["Embedding", "RAG", "API"], "usageCount": 64200, "usageRank": 4 },
+    { "id": "svc-stt", "name": "speech-text", "kind": "음성→텍스트", "hasApi": true, "model": "m9", "serviceUrl": "http://svc.anclave.local/speech-text", "testUrl": "http://svc.anclave.local/speech-text/playground", "description": "Whisper Large v3 기반 음성 인식.", "ownerUserId": "u-yoon", "tags": ["STT", "API"], "usageCount": 41900, "usageRank": 5 },
+    { "id": "svc-sd", "name": "sd-image", "kind": "이미지 생성", "hasApi": false, "model": "m8", "serviceUrl": "http://svc.anclave.local/sd-image", "testUrl": "http://svc.anclave.local/sd-image/playground", "description": "SDXL 기반 이미지 생성 워크스페이스.", "ownerUserId": "u-jung", "tags": ["Image"], "usageCount": 33500, "usageRank": 6 },
+    { "id": "svc-vqa", "name": "vision-qa", "kind": "이미지 Q&A", "hasApi": false, "model": "m5", "serviceUrl": "http://svc.anclave.local/vision-qa", "testUrl": "http://svc.anclave.local/vision-qa/playground", "description": "Qwen2.5-VL 7B 기반 이미지 질의응답.", "ownerUserId": "u-lee", "tags": ["Vision-Language"], "usageCount": 22100, "usageRank": 7 }
+  ],
+
+  "fleet": [
+    { "id": "srv-01", "host": "gpu-a01", "cpu": "Intel Xeon 8358P", "ramGb": 512, "cpuUtil": 38, "memUtil": 44, "network": "25 Gbps", "gpus": [
+      { "model": "NVIDIA RTX PRO 4500 Blackwell", "arch": "Blackwell", "vramGb": 32, "migCapable": true, "temp": 61, "power": 200, "interconnect": "PCIe 5.0", "serial": "GPU-A01-1000", "instances": [
+        { "profile": "1g.16gb", "gb": 16, "serviceId": "svc-qwen", "usage": 68 },
+        { "profile": "1g.16gb", "gb": 16, "serviceId": null, "usage": 0 }
+      ] }
+    ] },
+    { "id": "srv-02", "host": "gpu-a02", "cpu": "Intel Xeon 8358P", "ramGb": 512, "cpuUtil": 44, "memUtil": 49, "network": "10 Gbps", "gpus": [
+      { "model": "RTX 5070", "arch": "Blackwell", "vramGb": 12, "migCapable": false, "temp": 67, "power": 220, "interconnect": "PCIe 5.0", "serial": "GPU-A02-1001", "serviceId": "svc-sd", "smUtil": 58, "vramUtil": 61, "health": "normal" }
+    ] },
+    { "id": "srv-03", "host": "gpu-a03", "cpu": "Intel Xeon 8358P", "ramGb": 512, "cpuUtil": 33, "memUtil": 41, "network": "10 Gbps", "gpus": [
+      { "model": "RTX 2060 SUPER", "arch": "Turing", "vramGb": 8, "migCapable": false, "temp": 63, "power": 158, "interconnect": "PCIe 4.0", "serial": "GPU-A03-1002", "serviceId": "svc-doc", "smUtil": 44, "vramUtil": 52, "health": "normal" }
+    ] },
+    { "id": "srv-04", "host": "gpu-a04", "cpu": "Intel Xeon 8358P", "ramGb": 512, "cpuUtil": 62, "memUtil": 70, "network": "10 Gbps", "gpus": [
+      { "model": "RTX 2070 SUPER", "arch": "Turing", "vramGb": 8, "migCapable": false, "temp": 78, "power": 205, "interconnect": "PCIe 4.0", "serial": "GPU-A04-1003", "serviceId": "svc-stt", "smUtil": 71, "vramUtil": 68, "health": "normal" }
+    ] },
+    { "id": "srv-05", "host": "gpu-a05", "cpu": "Intel Xeon 8358P", "ramGb": 512, "cpuUtil": 12, "memUtil": 18, "network": "1 Gbps", "gpus": [
+      { "model": "RTX 2060", "arch": "Turing", "vramGb": 6, "migCapable": false, "temp": 41, "power": 16, "interconnect": "PCIe 4.0", "serial": "GPU-A05-1004", "serviceId": null, "smUtil": 0, "vramUtil": 0, "health": "inactive" }
+    ] },
+    { "id": "srv-06", "host": "gpu-a06", "cpu": "Intel Xeon 8358P", "ramGb": 512, "cpuUtil": 29, "memUtil": 38, "network": "10 Gbps", "gpus": [
+      { "model": "RTX 3060 Ti", "arch": "Ampere", "vramGb": 8, "migCapable": false, "temp": 61, "power": 162, "interconnect": "PCIe 4.0", "serial": "GPU-A06-1005", "serviceId": "svc-vqa", "smUtil": 39, "vramUtil": 47, "health": "normal" }
+    ] },
+    { "id": "srv-07", "host": "gpu-a07", "cpu": "Intel Xeon 8358P", "ramGb": 512, "cpuUtil": 8, "memUtil": 14, "network": "1 Gbps", "gpus": [
+      { "model": "GTX 1070", "arch": "Pascal", "vramGb": 8, "migCapable": false, "temp": 88, "power": 0, "interconnect": "PCIe 3.0", "serial": "GPU-A07-1006", "serviceId": null, "smUtil": 0, "vramUtil": 0, "health": "danger", "xid": "XID 79" }
+    ] },
+    { "id": "srv-08", "host": "gpu-a08", "cpu": "Intel Xeon 8358P", "ramGb": 512, "cpuUtil": 52, "memUtil": 60, "network": "25 Gbps", "gpus": [
+      { "model": "NVIDIA RTX PRO 4500 Blackwell", "arch": "Blackwell", "vramGb": 32, "migCapable": true, "temp": 62, "power": 200, "interconnect": "PCIe 5.0", "serial": "GPU-A08-2000", "instances": [
+        { "profile": "1g.16gb", "gb": 16, "serviceId": "svc-llama", "usage": 71 },
+        { "profile": "1g.16gb", "gb": 16, "serviceId": null, "usage": 0 }
+      ] },
+      { "model": "RTX 2070", "arch": "Turing", "vramGb": 8, "migCapable": false, "temp": 66, "power": 176, "interconnect": "PCIe 4.0", "serial": "GPU-A08-2001", "serviceId": "svc-code", "smUtil": 47, "vramUtil": 51, "health": "normal" }
+    ] }
+  ],
+
+  "gpuRequests": [
+    { "id": "gr-01", "requesterUserId": "u-kim", "capacity": 1, "capacityUnit": "slice", "models": ["m12"], "env": "Ubuntu 22.04 · CUDA 12.4", "addons": ["주피터", "API"], "serviceName": "qwen-agent", "purpose": "Qwen2.5-7B 업무 자동화 에이전트", "attachmentUrl": "/docs/공문-gr01.pdf", "status": "approved", "createdAt": "2026-05-21 10:12" },
+    { "id": "gr-02", "requesterUserId": "u-lee", "capacity": 1, "capacityUnit": "card", "models": ["m5"], "env": "Ubuntu 22.04 · CUDA 12.4", "addons": ["API"], "serviceName": "vision-qa", "purpose": "이미지 문서 QA 추론 서비스", "status": "approved", "createdAt": "2026-05-23 14:30" },
+    { "id": "gr-03", "requesterUserId": "u-park", "capacity": 1, "capacityUnit": "card", "models": ["m10"], "env": "Ubuntu 22.04", "addons": ["API"], "serviceName": "doc-search", "purpose": "RAG 문서 검색 임베딩", "attachmentUrl": "/docs/공문-gr03.pdf", "status": "approved", "createdAt": "2026-05-24 09:05" },
+    { "id": "gr-04", "requesterUserId": "u-jung", "capacity": 1, "capacityUnit": "card", "models": ["m8"], "env": "Ubuntu 22.04", "addons": ["주피터"], "serviceName": "sd-image", "purpose": "SDXL 이미지 생성 워크스페이스", "status": "approved", "createdAt": "2026-05-25 16:48" },
+    { "id": "gr-05", "requesterUserId": "u-yoon", "capacity": 1, "capacityUnit": "card", "models": ["m9"], "env": "Ubuntu 22.04", "addons": ["API"], "serviceName": "speech-text", "purpose": "Whisper STT 추론", "status": "approved", "createdAt": "2026-05-27 11:20" },
+    { "id": "gr-06", "requesterUserId": "u-kim", "capacity": 1, "capacityUnit": "card", "models": ["m13"], "env": "Ubuntu 22.04 · CUDA 12.4", "addons": ["주피터", "API"], "serviceName": "code-assist", "purpose": "코드 어시스턴트 추론", "attachmentUrl": "/docs/공문-gr06.pdf", "status": "approved", "createdAt": "2026-05-29 13:02" },
+    { "id": "gr-07", "requesterUserId": "u-lee", "capacity": 1, "capacityUnit": "slice", "models": ["m11"], "env": "Ubuntu 22.04", "addons": ["API"], "serviceName": "llama-chat", "purpose": "사내 대화 챗봇", "status": "approved", "createdAt": "2026-05-30 10:41" },
+    { "id": "gr-08", "requesterUserId": "u-choi", "capacity": 1, "capacityUnit": "slice", "models": ["m4"], "env": "Ubuntu 22.04", "addons": ["주피터"], "serviceName": "mistral-svc", "purpose": "Mistral Small 24B 시범(H100 슬라이스 필요)", "attachmentUrl": "/docs/공문-gr08.pdf", "status": "pending", "createdAt": "2026-06-02 09:33" },
+    { "id": "gr-09", "requesterUserId": "u-han", "capacity": 1, "capacityUnit": "slice", "models": ["m6"], "env": "Ubuntu 22.04", "addons": ["API"], "serviceName": "gemma-svc", "purpose": "Gemma2 27B 문서 요약(H100 슬라이스 필요)", "status": "pending", "createdAt": "2026-06-03 15:10" },
+    { "id": "gr-10", "requesterUserId": "u-user", "capacity": 4, "capacityUnit": "card", "models": ["m3"], "env": "Ubuntu 22.04", "addons": ["주피터"], "serviceName": "deepseek-test", "purpose": "DeepSeek-V3 추론 검증(H100 ×4 필요)", "status": "pending", "createdAt": "2026-06-04 11:55" },
+    { "id": "gr-11", "requesterUserId": "u-han", "capacity": 4, "capacityUnit": "card", "models": ["m1"], "env": "Ubuntu 22.04 · CUDA 12.4", "addons": ["주피터", "API"], "serviceName": "llama-train", "purpose": "Llama 3 70B 사내 도메인 파인튜닝", "status": "rejected", "rejectReason": "70B 학습은 H100 ×2 이상이 필요해요. 현재 함대(소비자 GPU + RTX PRO 4500)로는 불가하며, H100 증설 후 재신청해 주세요.", "createdAt": "2026-05-26 17:22" },
+    { "id": "gr-12", "requesterUserId": "u-choi", "capacity": 2, "capacityUnit": "card", "models": ["m2"], "env": "Ubuntu 20.04", "addons": [], "serviceName": "qwen-test", "purpose": "테스트", "status": "rejected", "rejectReason": "사용 목적·공문이 불충분하고, 72B는 현재 함대에 올릴 수 없어요. 결재 공문과 함께 H100 증설 후 신청해 주세요.", "createdAt": "2026-05-28 12:08" }
+  ],
+
+  "apiRequests": [
+    { "id": "ar-01", "requesterUserId": "u-park", "serviceId": "svc-qwen", "model": "m12", "targetServiceUrl": "http://app.anclave.local/park-rag", "status": "approved", "apiKey": "ak_live_qwen_8f2a1c9d4e", "createdAt": "2026-05-22 10:00" },
+    { "id": "ar-02", "requesterUserId": "u-jung", "serviceId": "svc-llama", "model": "m11", "targetServiceUrl": "http://app.anclave.local/jung-bot", "status": "approved", "apiKey": "ak_live_llama_3b7e0a2f15", "createdAt": "2026-05-24 14:20" },
+    { "id": "ar-03", "requesterUserId": "u-yoon", "serviceId": "svc-code", "model": "m13", "targetServiceUrl": "http://app.anclave.local/yoon-ide", "status": "approved", "apiKey": "ak_live_code_a91d4f7c20", "createdAt": "2026-05-29 09:45" },
+    { "id": "ar-04", "requesterUserId": "u-lee", "serviceId": "svc-doc", "model": "m10", "targetServiceUrl": "http://app.anclave.local/lee-search", "status": "approved", "apiKey": "ak_live_doc_5c8b2e3a90", "createdAt": "2026-05-31 16:30" },
+    { "id": "ar-05", "requesterUserId": "u-choi", "serviceId": "svc-qwen", "model": "m12", "targetServiceUrl": "http://app.anclave.local/choi-agent", "status": "pending", "createdAt": "2026-06-03 13:12" },
+    { "id": "ar-06", "requesterUserId": "u-han", "serviceId": "svc-stt", "model": "m9", "targetServiceUrl": "http://app.anclave.local/han-stt", "status": "rejected", "rejectReason": "대상 서비스 URL이 사내망에서 확인되지 않아요.", "createdAt": "2026-06-01 11:08" }
+  ],
+
+  "publishRequests": [
+    { "id": "pr-01", "requesterUserId": "u-kim", "serviceName": "qwen-agent", "serviceUrl": "http://svc.anclave.local/qwen-agent", "demoUrl": "http://svc.anclave.local/qwen-agent/playground", "meta": "LLM 에이전트 · Qwen2.5-7B", "status": "approved", "createdAt": "2026-05-20 09:00" },
+    { "id": "pr-02", "requesterUserId": "u-lee", "serviceName": "llama-chat", "serviceUrl": "http://svc.anclave.local/llama-chat", "demoUrl": "http://svc.anclave.local/llama-chat/playground", "meta": "챗봇 · Llama 3 8B", "status": "approved", "createdAt": "2026-05-22 15:40" },
+    { "id": "pr-03", "requesterUserId": "u-park", "serviceName": "doc-search", "serviceUrl": "http://svc.anclave.local/doc-search", "demoUrl": "http://svc.anclave.local/doc-search/playground", "meta": "RAG 검색 · BGE-M3", "status": "pending", "createdAt": "2026-06-03 10:25" },
+    { "id": "pr-04", "requesterUserId": "u-jung", "serviceName": "sd-image", "serviceUrl": "http://svc.anclave.local/sd-image", "demoUrl": "http://svc.anclave.local/sd-image/playground", "meta": "이미지 생성 · SDXL", "status": "rejected", "rejectReason": "데모 URL이 응답하지 않아요. 점검 후 다시 신청해 주세요.", "createdAt": "2026-05-30 14:05" }
+  ],
+
+  "gpuChangeRequests": [
+    { "id": "cr-01", "requesterUserId": "u-kim", "type": "expand", "reason": "code-assist 호출량 증가로 RTX 2070(srv-08) → RTX PRO 4500 MIG 슬라이스 확장 필요", "status": "approved", "createdAt": "2026-06-01 09:30" },
+    { "id": "cr-02", "requesterUserId": "u-lee", "type": "migrate", "reason": "srv-06 응답 지연으로 vision-qa를 srv-01 가용 MIG 인스턴스로 이전 요청", "status": "pending", "createdAt": "2026-06-04 16:12" },
+    { "id": "cr-03", "requesterUserId": "u-admin", "type": "reclaim", "reason": "srv-05(RTX 2060) 유휴 탐지 → 관리자 직접 회수(가용화)", "status": "approved", "createdAt": "2026-06-05 11:48" }
+  ],
+
+  "apiKeyUsages": [
+    { "keyId": "ak_live_qwen_8f2a1c9d4e", "serviceId": "svc-qwen", "calls": [820, 910, 1180, 1340, 1290, 1510, 1620], "connections": 6 },
+    { "keyId": "ak_live_llama_3b7e0a2f15", "serviceId": "svc-llama", "calls": [640, 720, 690, 880, 940, 1010, 1120], "connections": 4 },
+    { "keyId": "ak_live_code_a91d4f7c20", "serviceId": "svc-code", "calls": [410, 520, 600, 580, 720, 760, 810], "connections": 3 },
+    { "keyId": "ak_live_doc_5c8b2e3a90", "serviceId": "svc-doc", "calls": [220, 280, 310, 360, 420, 470, 510], "connections": 2 }
+  ]
+}
