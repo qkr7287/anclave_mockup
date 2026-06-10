@@ -256,7 +256,7 @@ npm run dev -- --port 517&lt;n&gt;        # 세션마다 dev 포트 분리</pre>
 
       <div class="stepcard">
         <div class="hd"><span class="tag">STEP 4</span>G4 · 승인 관리 (게시·GPU 통합 · 4.9, 4.10 메뉴 제외)</div>
-        <pre class="cmd"><span class="label">① 구현 → Claude</span>G4 승인 관리(A 전용)를 §8 DoD+§9.1대로 구현해줘 — <b style="color:#f85149">★게시 승인·GPU 승인을 한 화면 '승인 관리'(4.9, /admin/approvals/publish)로 통합</b>: <b>Tabs[게시 승인 / GPU 승인]</b> · 대기 목록 · 행 클릭→검토 드로어 · 승인/반려(사유)→앱 알림 · 승인 시 토스트+대기수 감소 · GPU 승인은 Hexagon 서버 선택. <b>(★4.10 GPU 승인 관리 = 사이드바 메뉴 제외·승인 관리로 통합, 라우트만 유지.)</b> screens/approvals.tsx만 수정. [공통 꼬리말]</pre>
+        <pre class="cmd"><span class="label">① 구현 → Claude</span>G4 승인 관리(A 전용)를 구현해줘 — <b style="color:#f85149">★4.6 자원 신청현황(/requests/status · desigin/figma-requests-status-final.png)의 '관리자 버전'</b>: 같은 톤·레이아웃(상단 stat 카드[대기/승인/반려/오늘 처리]·검색·필터 바·신청 목록 테이블)을 <b>관리자 검토·승인 관점</b>으로(사용자는 '내 신청 보기'면, 관리자는 '대기 신청 검토→승인/반려'). <b style="color:#f85149">★게시 승인·GPU 승인을 한 화면 '승인 관리'(4.9, /admin/approvals/publish)로 통합</b>: <b>Tabs[게시 승인 / GPU 승인]</b> · 대기 목록 · 행 클릭→검토 드로어 · 승인/반려(사유)→앱 알림 · 승인 시 토스트+대기수 감소 · GPU 승인은 Hexagon 서버 선택. <b>(★4.10 GPU 승인 관리 = 사이드바 메뉴 제외·승인 관리로 통합, 라우트만 유지.)</b> screens/approvals.tsx만 수정. [공통 꼬리말]</pre>
         <pre class="cmd qa"><span class="label">② 검증·QA → Claude</span>승인 관리(4.9, /admin/approvals/publish)를 크롬 1440·1280으로 렌더해 점검해줘. ① §2 "절대 금지 체크리스트" 항목별 위반 0(드로어·모달·헥사곤 선택이 정렬/겹침/잘림 없는지·AI 티) · ② <b>Tabs[게시 승인/GPU 승인] 전환</b>·밀도(영역 ≥4) · ③ 승인/반려 플로우·토스트·대기수 감소·GPU 승인 서버 선택 동작·깨짐 찾아. [위치·문제·금지위반·수정안] 목록 보여주고 합의되면 고쳐 다시 확인 후 커밋 제안해.</pre>
       </div>
 
