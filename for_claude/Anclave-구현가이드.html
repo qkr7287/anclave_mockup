@@ -137,6 +137,7 @@
           <li><b>휑함 금지</b>: 빈 공간만 차지하는 카드 · 단일 테이블/차트 화면 금지(위 밀도 게이트).</li>
           <li><b>★ 컨테이너 꽉 채우기(차트·맵·콘텐츠) — 전 페이지 공통, 강제</b>: 패널 안 차트/맵은 <b>가로·세로 둘 다 패널을 꽉</b> 채운다 — Recharts <code>ResponsiveContainer width="100%" height="100%"</code> + 부모 <code>flex-1 min-h-0 min-w-0</code>(무스크롤 100vh가 definite height 제공). <b>차트 좌우/상하에 큰 빈 공간 금지</b> — <code>flex-1</code>인데 차트가 작게 떠 있고 주변이 비면(예: 부하 추이 그래프) <b>미충족</b>. 헥사 그리드도 패널을 가장자리까지 꽉. <b>★게이지(ArcGauge)도 컨테이너에 맞게 스케일</b>(<code>shrink-0</code> 고정 소형으로 떠 있는 거 ❌, 카드/패널 공간 차면 키움). <b>★LineChart는 꺾은선(직선 세그먼트 · Recharts <code>type="linear"</code>) — 부드러운 곡선(monotone/curved) 금지.</b></li>
           <li><b style="color:#f85149">★ 프로그레스 바(가로 채움 막대) 금지 — 전 프로젝트, 안 씀</b>: 작업률·사용률·메모리·VRAM% 등을 <code>━━━ 95%</code> 같은 가로 채움 막대로 표시하지 말 것 · 수치는 <b>숫자(+게이지/스파크/카운트업)</b>로 · (세그먼트 셀 viz[VRAM 32셀]·아크 게이지·꺾은선은 채움 막대 아님 = 허용) · 특히 자원맵 3계층(4.2 MIG 슬라이스 막대·4.3/4.4 작업률 막대 등) 다 제거.</li>
+          <li><b style="color:#f85149">★ 더미 데이터 = src/data 시드(seed.json) 단일 소스만</b> — 화면별로 더미를 새로 지어내지 말 것(화면끼리 데이터 안 섞이게). <code>import { servers, allGpus, allSlices, events, models, services, gpuRequests, users, serverById … } from '../data'</code>(= <code>data/index.ts</code> 의 typed export, 전부 <code>seed.json</code> 기반). 집계·파생값은 그걸 계산해서, 시계열(추이)만 현재값 기준으로 자연스럽게 생성하되 엔티티(서버·GPU·이벤트·사용자)는 시드 그대로. <b>시드(data/**) 변경은 G1/오케스트레이터만</b>(다른 STEP은 deny로 읽기 전용).</li>
         </ul>
       </div>
 
