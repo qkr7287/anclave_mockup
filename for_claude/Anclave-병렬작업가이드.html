@@ -63,9 +63,13 @@
     <tr><th>STEP</th><th>폴더 (worktree)</th><th>브랜치</th><th>고칠 파일 (이것만)</th><th>dev 포트</th></tr>
     <tr><td><b>G2</b> 내 할당·신청</td><td><code>..\anclave-g2</code></td><td><code>feat/g2-dashboard</code></td><td><code>src/screens/dashboard.tsx</code></td><td>5182</td></tr>
     <tr><td><b>G5</b> 모델 카탈로그</td><td><code>..\anclave-g5</code></td><td><code>feat/g5-catalog</code></td><td><code>src/screens/catalog.tsx</code></td><td>5185</td></tr>
-    <tr><td><b>G8</b> 마켓·서비스</td><td><code>..\anclave-g8</code></td><td><code>feat/g8-market</code></td><td><code>src/screens/market.tsx</code></td><td>5188</td></tr>
+    <tr><td><b>G8</b> 마켓·서비스 <span style="color:#3fb950">✓ 병합됨</span></td><td><code>..\anclave-g8</code></td><td><code>feat/g8-market</code></td><td><code>src/screens/market.tsx</code></td><td>5188</td></tr>
+    <tr><td><b>G3</b> 신청·변경회수</td><td><code>..\anclave-g3</code></td><td><code>feat/g3-allocation</code></td><td><code>src/screens/allocation.tsx</code></td><td>5183</td></tr>
+    <tr><td><b>G4</b> 게시·GPU 승인</td><td><code>..\anclave-g4</code></td><td><code>feat/g4-approvals</code></td><td><code>src/screens/approvals.tsx</code></td><td>5184</td></tr>
+    <tr><td><b>G10</b> 이벤트·알림</td><td><code>..\anclave-g10</code></td><td><code>feat/g10-events</code></td><td><code>src/screens/events.tsx</code></td><td>5190</td></tr>
   </table>
   <p class="tag">전체 경로 예: <code>C:\Users\agics\Desktop\workspace\01. git\anclave-g2</code> (메인 <code>anclave_mockup</code> 옆)</p>
+  <p class="tag" style="color:#e3b341"><b>전체 서버 모니터링(4.2)·단일·GPU상세 = G1</b>은 메인 <code>anclave_mockup</code>에서 직접 작업(워크트리 없음 — resourcemap.tsx 한 파일이라 분리 불가).</p>
   <div class="good">각 폴더에 <b>deny 잠금 + npm 설치까지 완료</b>. 바로 세션만 열면 됩니다.</div>
 </section>
 
@@ -108,8 +112,17 @@ app/src/index.css       ← 디자인 토큰</code></pre>
   <h3>G5 — 폴더 <code>anclave-g5</code></h3>
   <pre class="prompt"><button class="copy">복사</button><code>이 worktree(feat/g5-catalog)에서 G5를 구현해줘. localhost:8765 의 Anclave-구현가이드.html STEP 5(G5 · 모델 카탈로그·상세 4.12·4.13) ①구현을 정독해. src/screens/catalog.tsx 만 수정해(ModelCatalog=4.12, ModelDetail=4.13). 공유 파일은 deny로 잠겨 있으니 읽기만 하고, 변경이 필요하면 나한테 알려줘. §2 절대금지·밀도·꽉참·14px floor 지켜. 끝나면 npm run dev -- --port 5185 로 크롬 ②검증 후 이 브랜치에 커밋해.</code></pre>
 
-  <h3>G8 — 폴더 <code>anclave-g8</code></h3>
+  <h3>G8 — 폴더 <code>anclave-g8</code> <span style="color:#3fb950">✓ 병합됨</span></h3>
   <pre class="prompt"><button class="copy">복사</button><code>이 worktree(feat/g8-market)에서 G8을 구현해줘. localhost:8765 의 Anclave-구현가이드.html STEP 8(G8 · 마켓·서비스 상세 4.17·4.18) ①구현을 정독해. src/screens/market.tsx 만 수정해(Marketplace=4.17, ServiceDetail=4.18). 공유 파일은 deny로 잠겨 있으니 읽기만 하고, 변경이 필요하면 나한테 알려줘. §2 절대금지·밀도·꽉참·14px floor 지켜. 끝나면 npm run dev -- --port 5188 로 크롬 ②검증 후 이 브랜치에 커밋해.</code></pre>
+
+  <h3>G3 — 폴더 <code>anclave-g3</code></h3>
+  <pre class="prompt"><button class="copy">복사</button><code>이 worktree(feat/g3-allocation)에서 G3을 구현해줘. localhost:8765 의 Anclave-구현가이드.html STEP 3(G3 · 신청 관리·변경/회수 4.8·4.11) ①구현을 정독해. src/screens/allocation.tsx 만 수정해(Requests=4.8, GpuChange=4.11). 공유 파일은 deny로 잠겨 있으니 읽기만 하고, 변경이 필요하면 나한테 알려줘. §2 절대금지·밀도·꽉참·14px floor 지켜. 끝나면 npm run dev -- --port 5183 로 크롬 ②검증 후 이 브랜치에 커밋해.</code></pre>
+
+  <h3>G4 — 폴더 <code>anclave-g4</code></h3>
+  <pre class="prompt"><button class="copy">복사</button><code>이 worktree(feat/g4-approvals)에서 G4를 구현해줘. localhost:8765 의 Anclave-구현가이드.html STEP 4(G4 · 게시 승인·GPU 승인 4.9·4.10) ①구현을 정독해. src/screens/approvals.tsx 만 수정해(ApprovalsPublish=4.9, ApprovalsGpu=4.10). 둘 다 A(관리자) 전용. 공유 파일은 deny로 잠겨 있으니 읽기만 하고, 변경이 필요하면 나한테 알려줘. §2 절대금지·밀도·꽉참·14px floor 지켜. 끝나면 npm run dev -- --port 5184 로 크롬 ②검증 후 이 브랜치에 커밋해.</code></pre>
+
+  <h3>G10 — 폴더 <code>anclave-g10</code></h3>
+  <pre class="prompt"><button class="copy">복사</button><code>이 worktree(feat/g10-events)에서 G10을 구현해줘. localhost:8765 의 Anclave-구현가이드.html STEP 10(G10 · 이벤트 관제·알림 4.21·4.22) ①구현을 정독해. src/screens/events.tsx 만 수정해(Events=4.21, Notifications=4.22). 공유 파일은 deny로 잠겨 있으니 읽기만 하고, 변경이 필요하면 나한테 알려줘. §2 절대금지·밀도·꽉참·14px floor 지켜. 끝나면 npm run dev -- --port 5190 로 크롬 ②검증 후 이 브랜치에 커밋해.</code></pre>
 </section>
 
 <section>
