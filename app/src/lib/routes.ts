@@ -40,10 +40,13 @@ export const ROUTES: RouteDef[] = [
   { key: 'admin-monitoring', path: '/admin/monitoring', screen: '4.7', title: '관제 모니터링', access: ['A'], group: 1, menu: ['A'], icon: 'chart' },
 
   // ② 할당 관리
-  { key: 'requests', path: '/requests', screen: '4.8', title: '신청 관리', access: ['A', 'B', 'C'], group: 2, menu: ['B', 'C'], icon: 'doc-plus' },
-  { key: 'approvals-publish', path: '/admin/approvals/publish', screen: '4.9', title: '게시 승인 관리', access: ['A'], group: 2, menu: ['A'], icon: 'megaphone' },
-  { key: 'approvals-gpu', path: '/admin/approvals/gpu', screen: '4.10', title: 'GPU 승인 관리', access: ['A'], group: 2, menu: ['A'], icon: 'check-badge' },
-  { key: 'gpu-change', path: '/requests/gpu-change', screen: '4.11', title: '변경 · 확장 · 이전 · 회수', access: ['A', 'B', 'C'], group: 2, menu: ['A', 'B', 'C'], icon: 'arrows' },
+  // 4.8 신청 관리 — 4.6 자원 신청현황(신규 신청 마법사 포함)과 중복 → 사이드바 메뉴 제외(라우트는 유지, 직접 URL 접근 가능).
+  { key: 'requests', path: '/requests', screen: '4.8', title: '신청 관리', access: ['A', 'B', 'C'], group: 2, icon: 'doc-plus' },
+  // 4.9 승인 관리 — 게시·GPU 신청 통합 승인(이름 '게시 승인 관리'→'승인 관리'). 4.10 GPU 승인은 여기로 통합 → 메뉴 제외.
+  { key: 'approvals-publish', path: '/admin/approvals/publish', screen: '4.9', title: '승인 관리', access: ['A'], group: 2, menu: ['A'], icon: 'megaphone' },
+  { key: 'approvals-gpu', path: '/admin/approvals/gpu', screen: '4.10', title: 'GPU 승인 관리', access: ['A'], group: 2, icon: 'check-badge' },
+  // 4.11 변경·확장·이전·회수 — 사용자(B=C)는 '자원 신청현황 상세보기'에서 진입(메뉴 제외). 관리자는 메뉴 유지(승인 측).
+  { key: 'gpu-change', path: '/requests/gpu-change', screen: '4.11', title: '변경 · 확장 · 이전 · 회수', access: ['A', 'B', 'C'], group: 2, menu: ['A'], icon: 'arrows' },
 
   // ③ 모델 관리
   { key: 'models', path: '/models', screen: '4.12', title: '모델 카탈로그', access: ['A', 'B', 'C'], group: 3, menu: ['A', 'B', 'C'], icon: 'cube' },
