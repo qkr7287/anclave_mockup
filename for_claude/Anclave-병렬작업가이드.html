@@ -61,6 +61,7 @@
   <h2>1 · 지금 준비된 것 (내가 셋업 완료)</h2>
   <table>
     <tr><th>STEP</th><th>폴더 (worktree)</th><th>브랜치</th><th>고칠 파일 (이것만)</th><th>dev 포트</th></tr>
+    <tr><td><b>G1</b> 자원맵 3계층 <span style="color:#3fb950">기반</span></td><td><code>..\anclave-g1</code></td><td><code>feat/g1-resourcemap</code></td><td><code>src/screens/resourcemap.tsx</code> <span class="tag">+자원맵 data/charts/metrics/css</span></td><td>5181</td></tr>
     <tr><td><b>G2</b> 내 할당·신청</td><td><code>..\anclave-g2</code></td><td><code>feat/g2-dashboard</code></td><td><code>src/screens/dashboard.tsx</code></td><td>5182</td></tr>
     <tr><td><b>G5</b> 모델 카탈로그</td><td><code>..\anclave-g5</code></td><td><code>feat/g5-catalog</code></td><td><code>src/screens/catalog.tsx</code></td><td>5185</td></tr>
     <tr><td><b>G8</b> 마켓·서비스 <span style="color:#3fb950">✓ 병합됨</span></td><td><code>..\anclave-g8</code></td><td><code>feat/g8-market</code></td><td><code>src/screens/market.tsx</code></td><td>5188</td></tr>
@@ -69,7 +70,7 @@
     <tr><td><b>G10</b> 이벤트·알림</td><td><code>..\anclave-g10</code></td><td><code>feat/g10-events</code></td><td><code>src/screens/events.tsx</code></td><td>5190</td></tr>
   </table>
   <p class="tag">전체 경로 예: <code>C:\Users\agics\Desktop\workspace\01. git\anclave-g2</code> (메인 <code>anclave_mockup</code> 옆)</p>
-  <p class="tag" style="color:#e3b341"><b>전체 서버 모니터링(4.2)·단일·GPU상세 = G1</b>은 메인 <code>anclave_mockup</code>에서 직접 작업(워크트리 없음 — resourcemap.tsx 한 파일이라 분리 불가).</p>
+  <p class="tag" style="color:#e3b341"><b>G1(자원맵 3계층 4.2·4.3·4.4)</b>은 데이터·차트·metrics·css까지 손대는 <b>기반 작업</b>이라 deny가 완화됨 — <b>auth/라우팅/셸·문서만 잠그고</b> 자원맵 도메인(resourcemap·data·charts·lib/metrics·index.css)은 허용. App·role·routes·셸·다른 화면은 건드리지 말 것.</p>
   <div class="good">각 폴더에 <b>deny 잠금 + npm 설치까지 완료</b>. 바로 세션만 열면 됩니다.</div>
 </section>
 
@@ -105,6 +106,9 @@ app/src/index.css       ← 디자인 토큰</code></pre>
 
 <section>
   <h2>4 · 세션별 프롬프트 (복붙)</h2>
+
+  <h3>G1 — 폴더 <code>anclave-g1</code> <span class="tag">기반·자원맵</span></h3>
+  <pre class="prompt"><button class="copy">복사</button><code>이 worktree(feat/g1-resourcemap)에서 G1(자원맵 3계층)을 이어서 작업해줘. localhost:8765 의 Anclave-구현가이드.html STEP 1 정독. src/screens/resourcemap.tsx(4.2 전체 서버 현황·4.3 단일 서버 현황·4.4 GPU 상세 현황) + 자원맵 데이터(data/servers·events·types)·차트(components/charts)·lib/metrics·index.css 의 hex 변수까지 자유롭게 수정 가능(이게 G1 도메인). 단 App.tsx·lib/role·lib/routes·셸(Shell/Header/Sidebar/PageShell)·다른 화면·문서는 건드리지 마(deny로 잠겨 있음 — 필요하면 나한테 말해). §2 절대금지·밀도·무스크롤(1920) 지켜. 끝나면 npm run dev -- --port 5181 로 크롬 ②검증 후 이 브랜치에 커밋해.</code></pre>
 
   <h3>G2 — 폴더 <code>anclave-g2</code></h3>
   <pre class="prompt"><button class="copy">복사</button><code>이 worktree(feat/g2-dashboard)에서 G2를 구현해줘. localhost:8765 의 Anclave-구현가이드.html STEP 2(G2 · 내 할당 자원·신청현황 4.5·4.6) ①구현을 정독해. src/screens/dashboard.tsx 만 수정해(MyResources=4.5, RequestStatus=4.6). 공유 파일(components·data·lib·App·css)은 deny로 잠겨 있으니 읽기만 하고, 변경이 필요하면 구현하지 말고 나한테 알려줘. §2 절대금지·밀도·꽉참·14px floor 지켜. 끝나면 npm run dev -- --port 5182 로 크롬에서 ②검증한 뒤 이 브랜치에 커밋해.</code></pre>
