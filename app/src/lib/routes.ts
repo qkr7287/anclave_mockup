@@ -42,8 +42,7 @@ export const ROUTES: RouteDef[] = [
   // ② 할당 관리
   // 4.8 신청 관리 — 4.6 자원 신청현황(신규 신청 마법사 포함)과 중복 → 사이드바 메뉴 제외(라우트는 유지, 직접 URL 접근 가능).
   { key: 'requests', path: '/requests', screen: '4.8', title: '신청 관리', access: ['A', 'B', 'C'], group: 2, icon: 'doc-plus' },
-  // 4.9 게시 승인 = 마켓플레이스 게시(서비스 노출) 승인 → 마켓플레이스 그룹(4). / 4.10 GPU 자원 승인 = 할당 관리 '승인 관리'(2).
-  { key: 'approvals-publish', path: '/admin/approvals/publish', screen: '4.9', title: '게시 승인 관리', access: ['A'], group: 4, menu: ['A'], icon: 'megaphone' },
+  // 4.10 GPU 자원 승인 = 할당 관리 '승인 관리'. (게시 승인 4.9는 마켓플레이스 그룹으로 이동 — 아래 ④ 참고)
   { key: 'approvals-gpu', path: '/admin/approvals/gpu', screen: '4.10', title: '승인 관리', access: ['A'], group: 2, menu: ['A'], icon: 'check-badge' },
   // 4.11 변경·확장·이전·회수 — 사용자(B=C)는 '자원 신청현황 상세보기'에서 진입(메뉴 제외). 관리자는 메뉴 유지(승인 측).
   { key: 'gpu-change', path: '/requests/gpu-change', screen: '4.11', title: '변경 · 확장 · 이전 · 회수', access: ['A', 'B', 'C'], group: 2, menu: ['A'], icon: 'arrows' },
@@ -54,13 +53,15 @@ export const ROUTES: RouteDef[] = [
   { key: 'models-new', path: '/admin/models/new', screen: '4.14', title: '신규 모델 반입', access: ['A'], group: 3, menu: ['A'], icon: 'plus-circle' },
   { key: 'agents', path: '/admin/agents', screen: '4.16', title: '데몬 · 에이전트 관리', access: ['A'], group: 3, menu: ['A'], icon: 'server' },
 
-  // ④ 마켓플레이스
+  // ④ 마켓플레이스 — 메뉴 순서: 둘러보기(4.17) → 게시 신청(4.29) → API 신청 관리(4.19) → 게시 승인 관리(4.9, 관리자)
   { key: 'marketplace', path: '/marketplace', screen: '4.17', title: '마켓플레이스', access: ['A', 'B', 'C'], group: 4, menu: ['A', 'B', 'C'], icon: 'bag' },
   { key: 'service-detail', path: '/marketplace/:id', screen: '4.18', title: '서비스 상세', access: ['A', 'B', 'C'] },
-  // 4.19 API 신청 관리 — 내가 마켓에 올린 서비스에 온 타인의 API key 신청 관리 + 서비스별 발급 요약. 소유자(B) 전용 — 관리자(A)는 서비스 안 올리니 메뉴 제외.
-  { key: 'api-approvals', path: '/api-approvals', screen: '4.19', title: 'API 신청 관리', access: ['A', 'B'], group: 4, menu: ['B'], icon: 'key' },
-  // 4.29 서비스 게시 신청 — 사용자가 자기 배포 서비스를 마켓 게시 신청(→ 4.9 게시 승인). 마켓플레이스 그룹·사용자 메뉴.
+  // 4.29 서비스 게시 신청 — 사용자가 자기 배포 서비스를 마켓 게시 신청(→ 4.9 게시 승인). 소유자 액션.
   { key: 'publish-request', path: '/marketplace/publish', screen: '4.29', title: '서비스 게시 신청', access: ['A', 'B', 'C'], group: 4, menu: ['B', 'C'], icon: 'megaphone' },
+  // 4.19 API 신청 관리 — 내 마켓 서비스에 온 타인의 API key 신청 관리 + 발급 요약. 소유자(B) 전용.
+  { key: 'api-approvals', path: '/api-approvals', screen: '4.19', title: 'API 신청 관리', access: ['A', 'B'], group: 4, menu: ['B'], icon: 'key' },
+  // 4.9 게시 승인 관리 — 마켓 게시(서비스 노출) 신청 승인. 관리자(A) 전용. (할당관리→마켓플레이스 그룹으로 이동)
+  { key: 'approvals-publish', path: '/admin/approvals/publish', screen: '4.9', title: '게시 승인 관리', access: ['A'], group: 4, menu: ['A'], icon: 'megaphone' },
 
   // ⑤ 이벤트 · 알림
   { key: 'events', path: '/events', screen: '4.21', title: '에러 · 이벤트 관제', access: ['A', 'B', 'C'], group: 5, menu: ['A', 'B', 'C'], icon: 'alert' },
