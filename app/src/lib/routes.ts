@@ -57,8 +57,8 @@ export const ROUTES: RouteDef[] = [
   // ④ 마켓플레이스
   { key: 'marketplace', path: '/marketplace', screen: '4.17', title: '마켓플레이스', access: ['A', 'B', 'C'], group: 4, menu: ['A', 'B', 'C'], icon: 'bag' },
   { key: 'service-detail', path: '/marketplace/:id', screen: '4.18', title: '서비스 상세', access: ['A', 'B', 'C'] },
-  // 4.19 API 신청 관리 — 내가 마켓에 올린 서비스에 대해 타인이 요청한 API key 신청 승인·관리 + 서비스별 발급 요약 (B·소유자).
-  { key: 'api-approvals', path: '/api-approvals', screen: '4.19', title: 'API 신청 관리', access: ['A', 'B'], group: 4, menu: ['A', 'B'], icon: 'key' },
+  // 4.19 API 신청 관리 — 내가 마켓에 올린 서비스에 온 타인의 API key 신청 관리 + 서비스별 발급 요약. 소유자(B) 전용 — 관리자(A)는 서비스 안 올리니 메뉴 제외.
+  { key: 'api-approvals', path: '/api-approvals', screen: '4.19', title: 'API 신청 관리', access: ['A', 'B'], group: 4, menu: ['B'], icon: 'key' },
   // 4.29 서비스 게시 신청 — 사용자가 자기 배포 서비스를 마켓 게시 신청(→ 4.9 게시 승인). 마켓플레이스 그룹·사용자 메뉴.
   { key: 'publish-request', path: '/marketplace/publish', screen: '4.29', title: '서비스 게시 신청', access: ['A', 'B', 'C'], group: 4, menu: ['B', 'C'], icon: 'megaphone' },
 
