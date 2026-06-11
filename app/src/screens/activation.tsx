@@ -52,10 +52,21 @@ const randomKey = (slug: string) => {
 
 export function ApiApprovals() {
   const { push: toast } = useToast()
-  const [reqs, setReqs] = useState<ApiRequest[]>(() => apiRequests.map((r) => ({ ...r })))
 
-  // 내 API 서비스(마켓에 올린, API 제공) — 발급 요약의 단위.
-  const apiServices = useMemo(() => services.filter((s) => s.hasApi), [])
+  // 마켓플레이스에 올라와 있는(게시 승인된) 서비스만 = API 키 신청·발급의 대상.
+  // publishRequests approved → serviceName 매칭으로 마켓 등록 서비스 추출.
+  const marketServices = useMemo(() => {
+    const listed = new Set(publishRequests.filter((p) => p.status === 'approved').map((p) => p.serviceName))
+    return services.filter((s) => s.hasApi && listed.has(s.name))
+  }, [])
+  const marketIds = useMemo(() => new Set(marketServices.map((s) => s.id)), [marketServices])
+
+  // 받은 신청도 마켓 등록 서비스 대상 건만(대상 서비스 = 마켓에 올라와 있는 서비스).
+  const [reqs, setReqs] = useState<ApiRequest[]>(() =>
+    apiRequests.filter((r) => marketIds.has(r.serviceId)).map((r) => ({ ...r })),
+  )
+
+  const apiServices = marketServices
   const usageOf = (sid: string) => apiKeyUsages.find((u) => u.serviceId === sid)
   const issuedOf = (sid: string) => reqs.filter((r) => r.status === 'approved' && r.serviceId === sid).length
 
@@ -115,7 +126,7 @@ export function ApiApprovals() {
         return (
           <div className="flex flex-col min-w-0">
             <span className="font-semibold truncate">{s?.name ?? r.serviceId}</span>
-            <span className="text-muted truncate" style={{ fontSize: 13 }}>{modelById(r.model)?.name ?? r.model}</span>
+            <span className="text-muted truncate" style={{ fontSize: 13 }}>{[s?.kind, modelById(r.model)?.name ?? r.model].filter(Boolean).join(' · ')}</span>
           </div>
         )
       },
@@ -176,7 +187,7 @@ export function ApiApprovals() {
     <PageShell
       screen="4.19"
       title="API 신청 관리"
-      desc="내가 마켓에 올린 서비스에 들어온 API 키 신청을 검토·발급하고, 서비스별 발급 현황을 관리해요. (소유자)"
+      desc="마켓플레이스에 게시된 내 서비스에 들어온 API 키 신청을 검토·발급하고, 서비스별 발급 현황을 관리해요. (소유자)"
       actions={<Badge tone={pending > 0 ? 'warn' : 'ok'}>{pending > 0 ? `대기 신청 ${pending}건` : '대기 신청 없음'}</Badge>}
       kpis={
         <>
@@ -184,7 +195,7 @@ export function ApiApprovals() {
             label="총 발급 키"
             value={totalIssued}
             unit="개"
-            sub={`내 API 서비스 ${apiServices.length}개`}
+            sub={`마켓 게시 서비스 ${apiServices.length}개`}
             deltaTone="ok"
             spark={issuedSpark}
             icon={<KeyIcon width={18} height={18} />}
@@ -237,6 +248,9 @@ export function ApiApprovals() {
               </span>
             }
           >
+            {apiServices.length === 0 ? (
+              <EmptyState title="마켓 게시 서비스가 없어요" description="게시 승인된 서비스가 있어야 API 키를 발급할 수 있어요." />
+            ) : (
             <div className="flex flex-col">
               {apiServices.map((s, i) => {
                 const usage = usageOf(s.id)
@@ -250,7 +264,7 @@ export function ApiApprovals() {
                   >
                     <div className="flex flex-col min-w-0 flex-1" style={{ gap: 3 }}>
                       <span className="font-semibold truncate" style={{ fontSize: 14 }}>{s.name}</span>
-                      <span className="text-muted truncate" style={{ fontSize: 12.5 }}>{modelById(s.model)?.name ?? s.model}</span>
+                      <span className="text-muted truncate" style={{ fontSize: 12.5 }}>{[s.kind, modelById(s.model)?.name ?? s.model].filter(Boolean).join(' · ')}</span>
                       <div className="flex items-center gap-2" style={{ marginTop: 1 }}>
                         <span className="rounded-md whitespace-nowrap" style={{ padding: '2px 8px', fontSize: 12, fontWeight: 700, color: issued > 0 ? 'var(--c-accent)' : 'var(--c-muted)', background: issued > 0 ? 'var(--accent-soft)' : 'var(--c-active)' }}>
                           발급 {issued}개
@@ -274,6 +288,7 @@ export function ApiApprovals() {
                 )
               })}
             </div>
+            )}
           </Card>
         }
       />
@@ -309,6 +324,9 @@ interface PubItem extends PublishReq {
 
 const VIS_OPTS = ['전사 공개', '팀 한정', '링크 보유자']
 const PRICE_OPTS = ['무료', '구독형', '종량제']
+
+// 서비스명 → 카테고리(kind) — 게시 목록·드롭다운에 마켓 톤의 라벨 보강.
+const kindByName = (name: string) => services.find((s) => s.name === name)?.kind
 
 function nowStamp(): string {
   const d = new Date()
@@ -387,7 +405,9 @@ export function PublishRequest() {
           </span>
           <div className="flex flex-col min-w-0">
             <span className="font-semibold truncate">{p.serviceName}</span>
-            {p.isNew && <span className="text-accent" style={{ fontSize: 12 }}>방금 신청</span>}
+            <span className="text-muted truncate" style={{ fontSize: 12.5 }}>
+              {kindByName(p.serviceName) ?? '서비스'}{p.isNew && <span className="text-accent"> · 방금 신청</span>}
+            </span>
           </div>
         </div>
       ),
@@ -505,7 +525,7 @@ export function PublishRequest() {
               <select value={svcId} onChange={(e) => setSvcId(e.target.value)} className="appearance-none w-full rounded-lg outline-none cursor-pointer" style={{ ...inputStyle, paddingRight: 32 }}>
                 <option value="" style={{ color: '#111' }}>게시할 서비스를 선택하세요</option>
                 {services.map((s) => (
-                  <option key={s.id} value={s.id} style={{ color: '#111' }}>{s.name} · {modelById(s.model)?.name ?? s.model}</option>
+                  <option key={s.id} value={s.id} style={{ color: '#111' }}>{s.name} · {s.kind} · {modelById(s.model)?.name ?? s.model}</option>
                 ))}
               </select>
               <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted" style={{ fontSize: 12 }}>▾</span>
