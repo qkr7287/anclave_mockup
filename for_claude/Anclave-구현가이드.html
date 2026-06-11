@@ -255,9 +255,9 @@ npm run dev -- --port 517&lt;n&gt;        # 세션마다 dev 포트 분리</pre>
       </div>
 
       <div class="stepcard">
-        <div class="hd"><span class="tag">STEP 4</span>G4 · 승인 관리 (게시·GPU 통합 · 4.9, 4.10 메뉴 제외)</div>
-        <pre class="cmd"><span class="label">① 구현 → Claude</span>G4 승인 관리(A 전용)를 구현해줘 — <b style="color:#f85149">★4.6 자원 신청현황(/requests/status · desigin/figma-requests-status-final.png)의 '관리자 버전'</b>: 같은 톤·레이아웃(상단 stat 카드[대기/승인/반려/오늘 처리]·검색·필터 바·신청 목록 테이블)을 <b>관리자 검토·승인 관점</b>으로(사용자는 '내 신청 보기'면, 관리자는 '대기 신청 검토→승인/반려'). <b style="color:#f85149">★게시 승인·GPU 승인을 한 화면 '승인 관리'(4.9, /admin/approvals/publish)로 통합</b>: <b>Tabs[게시 승인 / GPU 승인]</b> · 대기 목록 · 행 클릭→검토 드로어 · 승인/반려(사유)→앱 알림 · 승인 시 토스트+대기수 감소 · GPU 승인은 Hexagon 서버 선택. <b>(★4.10 GPU 승인 관리 = 사이드바 메뉴 제외·승인 관리로 통합, 라우트만 유지.)</b> screens/approvals.tsx만 수정. [공통 꼬리말]</pre>
-        <pre class="cmd qa"><span class="label">② 검증·QA → Claude</span>승인 관리(4.9, /admin/approvals/publish)를 크롬 1440·1280으로 렌더해 점검해줘. ① §2 "절대 금지 체크리스트" 항목별 위반 0(드로어·모달·헥사곤 선택이 정렬/겹침/잘림 없는지·AI 티) · ② <b>Tabs[게시 승인/GPU 승인] 전환</b>·밀도(영역 ≥4) · ③ 승인/반려 플로우·토스트·대기수 감소·GPU 승인 서버 선택 동작·깨짐 찾아. [위치·문제·금지위반·수정안] 목록 보여주고 합의되면 고쳐 다시 확인 후 커밋 제안해.</pre>
+        <div class="hd"><span class="tag">STEP 4</span>G4 · 승인 관리(GPU·할당, 4.10) + 게시 승인(마켓, 4.9) <span class="muted" style="font-size:12px">— 통합 ❌ 분리</span></div>
+        <pre class="cmd"><span class="label">① 구현 → Claude</span>G4가 <b>screens/approvals.tsx에 2개 화면</b>을 구현해줘(A 전용 · 통합 Tabs ❌ — 별도 화면 2개). <b style="color:#f85149">★(1) 승인 관리(4.10, /admin/approvals/gpu · 할당 관리 그룹) = GPU 자원 신청 승인</b> · <b>4.6 자원 신청현황(figma-requests-status-final.png)의 관리자 버전</b>: 같은 톤·레이아웃(상단 stat 카드[대기/승인/반려/오늘]·검색·필터 바·신청 목록 테이블[신청자·자원·사유·신청일·상태·검토]) · 행 클릭→검토 드로어 · <b>승인 시 헥사곤 서버 선택</b>/반려 사유 → 앱 알림·토스트+대기수 감소. <b style="color:#f85149">★(2) 게시 승인 관리(4.9, /admin/approvals/publish · 마켓플레이스 그룹) = 마켓 게시(서비스 노출) 신청 승인</b>: 대기 게시 신청 테이블 · 상세 드로어(서비스 메타) · 승인=마켓 노출/반려=사유 → 앱 알림. (★게시 승인은 마켓 게시라 마켓플레이스 그룹, GPU 자원 승인은 할당 관리 그룹.) 더미=src/data 시드(<code>gpuRequests·publishRequests·users·services·models</code>) · 셸 우리 것·테마 토큰·14px floor·정렬·프로그레스 바 금지. [공통 꼬리말]</pre>
+        <pre class="cmd qa"><span class="label">② 검증·QA → Claude</span>승인 관리(4.10, /admin/approvals/gpu)·게시 승인(4.9, /admin/approvals/publish)을 크롬 1440·1280으로 렌더해 점검해줘. ① §2 절대 금지 항목별 위반 0(드로어·모달·헥사곤 선택 정렬/겹침/잘림 없는지·14px floor·정렬·AI 티) · ② 두 화면이 <b>별도</b>인지·승인 관리가 4.6 톤과 맞는지·밀도(영역 ≥4) · ③ 승인/반려·토스트·대기수 감소·GPU 승인 서버 선택·게시 승인 마켓 노출 동작·깨짐 찾아. [위치·문제·금지위반·수정안] 목록 후 합의되면 고쳐 다시 확인 후 커밋 제안해.</pre>
       </div>
 
       <div class="stepcard">
