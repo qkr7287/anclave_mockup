@@ -1,0 +1,25 @@
+# Anclave backend — 로컬/63번 공통. `docker compose up -d`
+# 1단계: postgres만. (hono server·frontend는 다음 단계에서 service 추가)
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: anclave-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-anclave}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-anclave}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - anclave_pgdata:/var/lib/postgresql/data
+      # 컨테이너 최초 기동 시 init/*.sql 자동 실행 (스키마 적용)
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-anclave} -d ${POSTGRES_DB:-anclave}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  anclave_pgdata:

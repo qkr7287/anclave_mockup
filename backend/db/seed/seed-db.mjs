@@ -1,0 +1,133 @@
+// seed.json → Postgres 엔티티 적재 (멱등 · on conflict do nothing).
+// 텔레메트리(사용률·온도·전력·토큰)는 여기서 안 넣음 → backend 워커(2단계)가 현재값+과거치 생성.
+// 실행: cd backend && cp .env.example .env(비번 채움) && docker compose up -d && npm install && npm run seed
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname, resolve } from 'node:path'
+import pg from 'pg'
+
+const here = dirname(fileURLToPath(import.meta.url))
+// 단일 진실원: app 의 seed.json 을 그대로 읽는다(monorepo)
+const seed = JSON.parse(readFileSync(resolve(here, '../../../app/src/data/seed.json'), 'utf-8'))
+
+const client = new pg.Client({ connectionString: process.env.DATABASE_URL })
+
+const svcById = (id) => (id ? seed.services.find((s) => s.id === id) : undefined)
+const reqByService = (name) =>
+  seed.gpuRequests.find((r) => r.serviceName === name && r.status === 'approved')?.id
+
+let n = 0
+async function ins(table, cols, vals) {
+  const ph = cols.map((_, i) => `$${i + 1}`).join(',')
+  await client.query(
+    `insert into ${table}(${cols.join(',')}) values(${ph}) on conflict do nothing`,
+    vals,
+  )
+  n++
+}
+
+async function main() {
+  await client.connect()
+
+  // --- users ---
+  for (const u of seed.users)
+    await ins('users',
+      ['id', 'username', 'name', 'role', 'email', 'has_hosting', 'initial_route'],
+      [u.id, u.username, u.name, u.role, u.email, !!u.hasHosting, u.initialRoute])
+
+  // --- models ---
+  for (const m of seed.models)
+    await ins('models',
+      ['id', 'name', 'kind', 'description', 'addons', 'license', 'recommended_gpu', 'params', 'usage_rank', 'usage_count'],
+      [m.id, m.name, m.kind, m.description ?? null, m.addons ?? [], m.license ?? null, m.recommendedGpu ?? null, m.params ?? null, m.usageRank ?? null, m.usageCount ?? 0])
+
+  // --- services (listed=true: 기존 7개는 이미 게시된 상태) ---
+  for (const s of seed.services)
+    await ins('services',
+      ['id', 'name', 'kind', 'has_api', 'model_id', 'service_url', 'test_url', 'description', 'manual_url', 'owner_user_id', 'deployer_user_id', 'tags', 'usage_count', 'usage_rank', 'listed'],
+      [s.id, s.name, s.kind ?? null, !!s.hasApi, s.model ?? null, s.serviceUrl ?? null, s.testUrl ?? null, s.description ?? null, s.manualUrl ?? null, s.ownerUserId, s.deployerUserId ?? null, s.tags ?? [], s.usageCount ?? 0, s.usageRank ?? null, true])
+
+  // --- fleet → gpu_servers / gpus / mig_slices (servers.ts 빌드 로직 재현, 엔티티 컬럼만) ---
+  for (const node of seed.fleet) {
+    const serviceIds = new Set(), userIds = new Set()
+    for (const fg of node.gpus) {
+      const svc = svcById(fg.serviceId)
+      if (svc) { serviceIds.add(svc.id); userIds.add(svc.ownerUserId) }
+      for (const inst of fg.instances ?? []) {
+        const s2 = svcById(inst.serviceId)
+        if (s2) { serviceIds.add(s2.id); userIds.add(s2.ownerUserId) }
+      }
+    }
+    const anyXid = node.gpus.some((g) => g.xid)
+    const allIdle = node.gpus.every((g) => (g.health ?? 'normal') === 'inactive')
+    const serverHealth = anyXid ? 'danger' : allIdle ? 'inactive' : 'normal' // temp 기반 warn 은 워커가 갱신
+    const note = anyXid ? '장애 GPU · 점검'
+      : allIdle ? '유휴 노드(미할당)'
+      : node.gpus.length > 1 ? `GPU ${node.gpus.length}장`
+      : node.gpus[0].migCapable ? 'MIG 분할 노드'
+      : `${node.gpus[0].model} · 단일 할당`
+
+    await ins('gpu_servers',
+      ['id', 'name', 'rack', 'host', 'network', 'note', 'health', 'hosted_service_ids', 'hosted_user_ids'],
+      [node.id, node.host, node.host, node.host, node.network ?? null, note, serverHealth, [...serviceIds], [...userIds]])
+
+    for (let gi = 0; gi < node.gpus.length; gi++) {
+      const fg = node.gpus[gi]
+      const gpuId = `${node.id}-gpu${gi}`
+      const svc = svcById(fg.serviceId)
+      await ins('gpus',
+        ['id', 'server_id', 'name', 'model', 'arch', 'vram_gb', 'mig_capable', 'serial', 'interconnect', 'health', 'alloc_mode', 'assigned_user_id', 'assigned_service_id', 'xid'],
+        [gpuId, node.id, fg.model, fg.model, fg.arch, fg.vramGb, !!fg.migCapable, fg.serial, fg.interconnect ?? null,
+          fg.xid ? 'danger' : (fg.health ?? 'normal'), fg.migCapable ? 'mig' : 'cluster',
+          svc?.ownerUserId ?? null, fg.serviceId ?? null, fg.xid ?? null])
+
+      const instances = fg.instances ?? []
+      for (let i = 0; i < instances.length; i++) {
+        const inst = instances[i]
+        const s = svcById(inst.serviceId)
+        await ins('mig_slices',
+          ['id', 'gpu_id', 'profile', 'units', 'gb', 'owner_user_id', 'model_id', 'container_id', 'health', 'request_id', 'status'],
+          [`${gpuId}-s${i + 1}`, gpuId, inst.profile, 1, inst.gb, s?.ownerUserId ?? null, s?.model ?? null,
+            s ? `cont-${s.id.slice(4)}-01` : null,
+            !s ? 'inactive' : inst.usage >= 80 ? 'warn' : 'normal',
+            s ? (reqByService(s.name) ?? null) : null, 'active'])
+      }
+    }
+  }
+
+  // --- 신청류 ---
+  for (const r of seed.gpuRequests)
+    await ins('gpu_requests',
+      ['id', 'requester_user_id', 'capacity', 'capacity_unit', 'models', 'env', 'addons', 'service_name', 'purpose', 'attachment_url', 'status', 'reject_reason', 'created_at'],
+      [r.id, r.requesterUserId, r.capacity, r.capacityUnit, r.models ?? [], r.env ?? null, r.addons ?? [], r.serviceName ?? null, r.purpose ?? null, r.attachmentUrl ?? null, r.status, r.rejectReason ?? null, r.createdAt])
+
+  for (const r of seed.apiRequests ?? [])
+    await ins('api_requests',
+      ['id', 'requester_user_id', 'service_id', 'model', 'target_service_url', 'status', 'api_key', 'reject_reason', 'created_at'],
+      [r.id, r.requesterUserId, r.serviceId, r.model ?? null, r.targetServiceUrl ?? null, r.status, r.apiKey ?? null, r.rejectReason ?? null, r.createdAt])
+
+  for (const r of seed.publishRequests ?? [])
+    await ins('publish_requests',
+      ['id', 'requester_user_id', 'service_name', 'service_url', 'demo_url', 'meta', 'status', 'reject_reason', 'created_at'],
+      [r.id, r.requesterUserId, r.serviceName, r.serviceUrl ?? null, r.demoUrl ?? null, r.meta ?? null, r.status, r.rejectReason ?? null, r.createdAt])
+
+  for (const r of seed.gpuChangeRequests ?? [])
+    await ins('gpu_change_requests',
+      ['id', 'requester_user_id', 'type', 'reason', 'status', 'reject_reason', 'created_at'],
+      [r.id, r.requesterUserId, r.type, r.reason ?? null, r.status, r.rejectReason ?? null, r.createdAt])
+
+  for (const k of seed.apiKeyUsages ?? [])
+    await ins('api_key_usage', ['key_id', 'service_id', 'connections'],
+      [k.keyId, k.serviceId ?? null, k.connections ?? 0])
+
+  console.log(`✓ seeded ${n} rows`)
+  const { rows } = await client.query(`select
+    (select count(*) from users) users, (select count(*) from models) models,
+    (select count(*) from services) services, (select count(*) from gpu_servers) servers,
+    (select count(*) from gpus) gpus, (select count(*) from mig_slices) slices,
+    (select count(*) from gpu_requests) gpu_requests, (select count(*) from api_requests) api_requests`)
+  console.log('counts:', rows[0])
+  await client.end()
+}
+
+main().catch((e) => { console.error('seed failed:', e); process.exit(1) })

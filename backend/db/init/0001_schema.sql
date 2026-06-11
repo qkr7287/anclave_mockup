@@ -1,0 +1,294 @@
+-- Anclave DB 스키마 — 정본 app/src/data/types.ts(§13) + 화면↔데이터 매핑 확정 반영.
+-- 컨테이너 최초 기동 시 docker-entrypoint-initdb.d 로 자동 실행.
+-- 텔레메트리(사용률·온도·전력·토큰)는 엔티티 컬럼이 아니라 별도 시계열 테이블(맨 아래).
+
+-- ============================================================
+-- 공유 도메인 (union 타입 → DOMAIN + CHECK, enum 보다 변경 쉬움)
+-- ============================================================
+create domain status        as text check (value in ('pending','approved','rejected'));
+create domain server_health as text check (value in ('normal','warn','danger','inactive'));
+create domain gpu_health    as text check (value in ('normal','danger','inactive'));
+create domain role_t        as text check (value in ('admin','user'));
+
+-- ============================================================
+-- 핵심 엔티티
+-- ============================================================
+create table users (
+  id            text primary key,
+  username      text not null unique,
+  name          text not null,
+  role          role_t not null,
+  email         text not null,
+  has_hosting   boolean not null default false,
+  initial_route text not null
+);
+
+create table models (
+  id              text primary key,
+  name            text not null,
+  kind            text not null check (kind in ('LLM','Code','Vision-Language','Image','STT','Embedding')),
+  description     text,
+  addons          text[] not null default '{}',
+  license         text,
+  recommended_gpu text,
+  params          text,
+  usage_rank      int,
+  usage_count     int not null default 0
+);
+
+create table services (
+  id               text primary key,
+  name             text not null,
+  kind             text,
+  has_api          boolean not null default false,
+  model_id         text references models(id),
+  service_url      text,
+  test_url         text,
+  description      text,
+  manual_url       text,
+  owner_user_id    text not null references users(id),
+  deployer_user_id text references users(id),
+  tags             text[] not null default '{}',
+  usage_count      int not null default 0,
+  usage_rank       int,
+  listed           boolean not null default true   -- 매핑 ④확정: 마켓 게시 여부(게시 승인 시 true)
+);
+
+-- ============================================================
+-- 함대(인벤토리) 3계층 — 자원맵 4.2→4.3→4.4
+-- 텔레메트리 필드(temp·cpu_util·sm_util·power 등)는 컬럼 없음 → 시계열 테이블
+-- ============================================================
+create table gpu_servers (
+  id                 text primary key,
+  name               text not null,
+  rack               text,
+  host               text,
+  network            text,
+  note               text,
+  health             server_health not null default 'normal',
+  hosted_service_ids text[] not null default '{}',
+  hosted_user_ids    text[] not null default '{}'
+);
+
+create table gpus (
+  id                  text primary key,
+  server_id           text not null references gpu_servers(id) on delete cascade,
+  name                text,
+  model               text,
+  arch                text,
+  vram_gb             int,
+  mig_capable         boolean not null default false,
+  serial              text,
+  interconnect        text,
+  health              gpu_health not null default 'normal',
+  alloc_mode          text check (alloc_mode in ('cluster','mig')),
+  assigned_user_id    text references users(id),
+  assigned_service_id text references services(id),
+  xid                 text
+);
+create index on gpus (server_id);
+
+create table gpu_requests (
+  id                text primary key,
+  requester_user_id text not null references users(id),
+  capacity          numeric not null,
+  capacity_unit     text check (capacity_unit in ('card','slice')),
+  models            text[] not null default '{}',
+  env               text,
+  addons            text[] not null default '{}',
+  service_name      text,
+  purpose           text,
+  attachment_url    text,
+  status            status not null default 'pending',
+  reject_reason     text,
+  created_at        timestamptz not null default now()
+);
+create index on gpu_requests (status, created_at desc);
+create index on gpu_requests (requester_user_id);
+
+create table mig_slices (
+  id            text primary key,
+  gpu_id        text not null references gpus(id) on delete cascade,
+  profile       text not null,
+  units         int not null,
+  gb            int not null,
+  owner_user_id text references users(id),
+  model_id      text references models(id),
+  container_id  text,
+  health        server_health,
+  request_id    text references gpu_requests(id),
+  status        text not null default 'active' check (status in ('active','reclaimed'))  -- 매핑 ②확정: 회수 soft(이력 보존)
+);
+create index on mig_slices (gpu_id);
+create index on mig_slices (owner_user_id);
+
+-- ============================================================
+-- 신청 · 승인
+-- ============================================================
+create table api_requests (
+  id                 text primary key,
+  requester_user_id  text not null references users(id),
+  service_id         text not null references services(id),
+  model              text,
+  target_service_url text,
+  status             status not null default 'pending',
+  api_key            text,            -- 승인 시 발급
+  reject_reason      text,
+  created_at         timestamptz not null default now()
+);
+create index on api_requests (service_id, status);
+
+create table gpu_change_requests (
+  id                text primary key,
+  requester_user_id text not null references users(id),
+  type              text not null check (type in ('migrate','change','expand','reclaim')),
+  reason            text,
+  status            status not null default 'pending',
+  reject_reason     text,
+  created_at        timestamptz not null default now()
+);
+
+create table publish_requests (
+  id                text primary key,
+  requester_user_id text not null references users(id),
+  service_name      text not null,
+  service_url       text,
+  demo_url          text,
+  meta              text,
+  status            status not null default 'pending',
+  reject_reason     text,
+  created_at        timestamptz not null default now()
+);
+
+create table model_imports (
+  id         text primary key,
+  file_name  text not null,
+  format     text check (format in ('safetensors','other')),
+  scan       text check (scan in ('pass','fail','pending')) default 'pending',
+  checksum   text,
+  status     status not null default 'pending',
+  created_at timestamptz not null default now()
+);
+
+-- ============================================================
+-- 로그 · 알림 · 게시판
+-- ============================================================
+create table event_logs (
+  id         text primary key,
+  severity   text not null check (severity in ('critical','warn','info','recovered')),
+  status     text not null default 'open' check (status in ('open','resolved')),
+  gpu_id     text references gpus(id),
+  server_id  text references gpu_servers(id),
+  message    text not null,
+  created_at timestamptz not null default now(),
+  read       boolean not null default false,
+  assignee   text,
+  action     text,
+  resolution text
+);
+create index on event_logs (status, created_at desc);
+
+create table notifications (
+  id         text primary key,
+  category   text not null check (category in ('alloc','health','reclaim')),
+  message    text not null,
+  created_at timestamptz not null default now(),
+  read       boolean not null default false,
+  link       text
+);
+
+create table audit_logs (
+  id            text primary key,
+  actor_user_id text not null references users(id),
+  action        text not null,
+  target        text,
+  ip            text,
+  created_at    timestamptz not null default now()
+);
+
+create table board_posts (
+  id         text primary key,
+  tab        text not null check (tab in ('notice','qna','manual')),
+  title      text not null,
+  body       text,
+  author_id  text references users(id),
+  answered   boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+-- 활성화 누적(서비스별 사용량 카운터). 분 단위 추이는 텔레메트리(service.tokens)에서.
+create table activation_stats (
+  service_id       text not null references services(id),
+  model_id         text references models(id),
+  consumer_user_id text not null references users(id),
+  tokens           bigint not null default 0,
+  calls            bigint not null default 0,
+  period           text not null,
+  primary key (service_id, consumer_user_id, period)
+);
+
+-- API 키 사용 누적(connections). 호출 sparkline 추이는 텔레메트리.
+create table api_key_usage (
+  key_id      text primary key,
+  service_id  text references services(id),
+  connections int not null default 0
+);
+
+-- ============================================================
+-- 설정 · 운영 (정적성 — 시드 1회 적재 후 거의 불변)
+-- ============================================================
+create table access_policies (
+  id       text primary key,
+  role     role_t not null,
+  resource text not null,
+  allow    boolean not null default false
+);
+
+create table agents (
+  id          text primary key,
+  node_id     text not null,
+  server_id   text references gpu_servers(id),
+  version     text,
+  status      text not null check (status in ('active','stale','down')),
+  deployed_at timestamptz
+);
+
+create table infra_integrations (
+  id       text primary key,
+  kind     text not null check (kind in ('dcgm','prometheus','metrics','orchestrator')),
+  name     text not null,
+  endpoint text,
+  status   text not null check (status in ('connected','down'))
+);
+
+-- ============================================================
+-- 텔레메트리 (시계열) — long format. 측정 대상 4종 = server|gpu|slice|service
+-- 정책: latest(5초 upsert) / raw(1분·48h) / hourly(1시간평균·30일)
+-- 적재·보존청소·이벤트룰은 backend 워커가 담당(다음 단계).
+-- ============================================================
+create table telemetry_latest (
+  kind       text not null,    -- server | gpu | slice | service
+  id         text not null,    -- 대상 엔티티 id
+  metric     text not null,    -- cpu_util | mem_util | net_in | net_out | sm_util | vram | temp | power | usage | tokens | calls
+  value      real not null,
+  updated_at timestamptz not null default now(),
+  primary key (kind, id, metric)
+);
+
+create table telemetry_raw (
+  ts     timestamptz not null,
+  kind   text not null,
+  id     text not null,
+  metric text not null,
+  value  real not null
+);
+create index on telemetry_raw (kind, id, metric, ts desc);
+
+create table telemetry_hourly (
+  ts     timestamptz not null,   -- 시간 버킷 시작
+  kind   text not null,
+  id     text not null,
+  metric text not null,
+  value  real not null,          -- 해당 시간 평균
+  primary key (kind, id, metric, ts)
+);

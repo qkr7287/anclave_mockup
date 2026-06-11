@@ -1,0 +1,12 @@
+{
+  "name": "anclave-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "seed": "node --env-file=.env db/seed/seed-db.mjs"
+  },
+  "dependencies": {
+    "pg": "^8.13.1"
+  }
+}
