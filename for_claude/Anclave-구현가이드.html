@@ -289,9 +289,9 @@ npm run dev -- --port 517&lt;n&gt;        # 세션마다 dev 포트 분리</pre>
       </div>
 
       <div class="stepcard">
-        <div class="hd"><span class="tag">STEP 9</span>G9 · API 연동 (4.19)</div>
+        <div class="hd"><span class="tag">STEP 9</span>G9 · API 연동(4.19) + 서비스 게시 신청(4.29)</div>
         <div class="scope">단일 목록 금지 — 요약 KPI·호출량 차트 동반으로 밀도 충분히. (4.20 활성화 대시보드는 제거됨)</div>
-        <pre class="cmd"><span class="label">① 구현 → Claude</span>G9를 §8 DoD대로 구현해줘. 4.19 API 연동(B: 상단 요약 KPI(발급 키·대기 신청·총 호출 + 각 델타/스파크) + 받은 신청 목록·승인→key 발급/복사·호출량 LineChart·사용 가이드 — 단일 목록 금지, above-fold 영역 ≥4). (★4.20 "활성화 대시보드"는 제거됨) [공통 꼬리말]</pre>
+        <pre class="cmd"><span class="label">① 구현 → Claude</span>G9를 §8 DoD대로 구현해줘. 4.19 API 연동(B: 상단 요약 KPI(발급 키·대기 신청·총 호출 + 각 델타/스파크) + 받은 신청 목록·승인→key 발급/복사·호출량 LineChart·사용 가이드 — 단일 목록 금지, above-fold 영역 ≥4). <b style="color:#f85149">★4.29 서비스 게시 신청(B=C · 마켓플레이스 그룹)</b>: 내가 배포한 서비스를 마켓에 게시 신청 → 4.9 게시 승인으로. 구성 — 내 배포 서비스 선택(올라간 서비스, <code>services</code> 시드) · 게시 정보 입력(소개·태그·공개 범위·요금) · 제출 → 게시 승인 대기(+토스트) · 내 게시 신청 상태 목록(대기/승인/반려). 더미=src/data 시드(<code>services·publishRequests from '../data'</code>). (★4.20 "활성화 대시보드"는 제거됨) <b>screens/activation.tsx만 수정</b>. [공통 꼬리말]</pre>
         <pre class="cmd qa"><span class="label">② 검증·QA → Claude</span>4.19를 크롬 1440·1280·1024로 렌더해 점검해줘. ① §2 "절대 금지 체크리스트" + 밀도(above-fold 영역 ≥4: 요약 KPI행/신청 목록/호출량 차트/사용 가이드가 다 있는지·KPI 카드 빈 박스 아닌지)를 항목별로 꼭 확인 · ② 정렬·헤더·AI 티 위반 0 · ③ 승인→key 발급/복사·깨짐 찾아. [위치·문제·금지위반·수정안] 목록 보여주고 합의되면 고쳐 다시 확인 후 커밋 제안해.</pre>
       </div>
 
