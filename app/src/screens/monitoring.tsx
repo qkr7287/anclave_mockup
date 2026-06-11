@@ -49,8 +49,8 @@ function wave(base: number, amp: number, seed: number, n: number): number[] {
   })
 }
 
-// 1시간 윈도(30초 간격 121포인트) — Figma처럼 촘촘한 텔레메트리.
-const STEP_SEC = 30
+// 1시간 윈도(10초 간격 361포인트) — 예시: 현재 121점의 ~3배 밀도.
+const STEP_SEC = 10
 const pad2 = (v: number) => String(v).padStart(2, '0')
 const TIMES = Array.from({ length: 3600 / STEP_SEC + 1 }, (_, i) => {
   const s = 14 * 3600 + 30 * 60 + i * STEP_SEC
@@ -263,11 +263,11 @@ function KpiCard({ icon, iconTone, label, value, unit, delta, sub, spark, sparkC
 
 // 시드 집계 기반 — 더미 없음(servers·allGpus)
 const KPIS: KpiCardProps[] = [
-  { icon: <ChartBarSquareIcon width={16} />, iconTone: ACCENT, label: '전체 서버 사용률', value: `${SRV_UTIL}`, unit: '%', delta: '2.4%', sub: `정상 ${NORMAL_SRV} / ${servers.length} 서버`, spark: wave(SRV_UTIL, 13, 3, 90), sparkColor: ACCENT },
-  { icon: <Squares2X2Icon width={16} />, iconTone: ACCENT2, label: '전체 GPU 사용률', value: `${GPU_UTIL}`, unit: '%', delta: '3.1%', sub: `활성 ${ACTIVE_GPU} / ${TOTAL_GPU} GPU`, spark: wave(GPU_UTIL, 12, 7, 90), sparkColor: ACCENT2 },
-  { icon: <CpuChipIcon width={16} />, iconTone: OK, label: '활성 GPU 수', value: `${ACTIVE_GPU}`, sub: `전체 ${TOTAL_GPU}대 · 장애 ${FAILED_GPU}`, spark: wave(60, 16, 11, 90), sparkColor: OK },
-  { icon: <CircleStackIcon width={16} />, iconTone: '#8d6be0', label: '평균 VRAM 사용률', value: `${VRAM_UTIL}`, unit: '%', delta: '1.8%', sub: `${VRAM_USED_GB} / ${VRAM_TOTAL_GB} GB`, spark: wave(VRAM_UTIL, 11, 5, 90), sparkColor: '#8d6be0' },
-  { icon: <BoltIcon width={16} />, iconTone: WARN, label: '평균 전력', value: `${POWER_MEAN}`, unit: 'W', delta: '6 W', sub: `총 ${fmtNum(POWER_TOTAL)} W`, spark: wave(70, 16, 9, 90), sparkColor: WARN },
+  { icon: <ChartBarSquareIcon width={16} />, iconTone: ACCENT, label: '전체 서버 사용률', value: `${SRV_UTIL}`, unit: '%', delta: '2.4%', sub: `정상 ${NORMAL_SRV} / ${servers.length} 서버`, spark: wave(SRV_UTIL, 13, 3, 270), sparkColor: ACCENT },
+  { icon: <Squares2X2Icon width={16} />, iconTone: ACCENT2, label: '전체 GPU 사용률', value: `${GPU_UTIL}`, unit: '%', delta: '3.1%', sub: `활성 ${ACTIVE_GPU} / ${TOTAL_GPU} GPU`, spark: wave(GPU_UTIL, 12, 7, 270), sparkColor: ACCENT2 },
+  { icon: <CpuChipIcon width={16} />, iconTone: OK, label: '활성 GPU 수', value: `${ACTIVE_GPU}`, sub: `전체 ${TOTAL_GPU}대 · 장애 ${FAILED_GPU}`, spark: wave(60, 16, 11, 270), sparkColor: OK },
+  { icon: <CircleStackIcon width={16} />, iconTone: '#8d6be0', label: '평균 VRAM 사용률', value: `${VRAM_UTIL}`, unit: '%', delta: '1.8%', sub: `${VRAM_USED_GB} / ${VRAM_TOTAL_GB} GB`, spark: wave(VRAM_UTIL, 11, 5, 270), sparkColor: '#8d6be0' },
+  { icon: <BoltIcon width={16} />, iconTone: WARN, label: '평균 전력', value: `${POWER_MEAN}`, unit: 'W', delta: '6 W', sub: `총 ${fmtNum(POWER_TOTAL)} W`, spark: wave(70, 16, 9, 270), sparkColor: WARN },
 ]
 
 // ───────────────────────── ③ 클러스터 GPU 사용 추이 ─────────────────────────

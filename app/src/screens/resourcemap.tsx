@@ -25,9 +25,7 @@ import {
   vramUsedMb,
   vramTotalMb,
   fmtNum,
-  trend,
-  HOUR_LABELS,
-} from '../lib/metrics'
+  trend,} from '../lib/metrics'
 import { events as allEvents } from '../data'
 
 // ───────────────────────── 공통 부품 ─────────────────────────
@@ -398,7 +396,7 @@ function GpuServicePanel({ gpu }: { gpu: Gpu }) {
         const errRate = ((seed % 32) / 10)
         const ago = (seed % 56) + 1
         const warn = errRate > 2
-        const spark = trend(52 + (seed % 34), 24, 16, (seed % 40) + 1)
+        const spark = trend(52 + (seed % 34), 100, 16, (seed % 40) + 1)
         return (
           <article key={s.id} className="bg-soft border border-line rounded-xl flex flex-col min-w-0 hover-lift"
             style={{ flex: single ? undefined : 1, flexShrink: single ? 0 : 1, minHeight: 248, padding: 14, gap: 9 }}>
@@ -695,6 +693,12 @@ function GpuSummaryPanel({ server, onOpen }: { server: GpuServer; onOpen: () => 
 // 부하 추이 — Figma: 헤더 우측 범례 · 0~80 축. 툴팁은 호버 시에만(LineChart 내장 Recharts Tooltip).
 const LOAD_COL = { cpu: 'var(--c-accent)', mem: 'var(--c-accent2)', gpu: '#c74ddb' }
 function LoadTrend({ cpu, mem, gpu }: { cpu: number[]; mem: number[]; gpu: number[] }) {
+  // 점 개수에 맞춘 시각 라벨(24h 윈도) — 점만 늘려 x축이 인덱스(0/99/198)로 깨지던 것 방지
+  const N = Math.max(cpu.length, 1)
+  const loadLabels = Array.from({ length: N }, (_, i) => {
+    const m = Math.round((i * 24 * 60) / Math.max(1, N - 1))
+    return `${String(Math.floor(m / 60) % 24).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
+  })
   return (
     <section className="bg-card2 border border-line rounded-xl overflow-hidden flex flex-col min-w-0 min-h-0" style={{ boxShadow: 'var(--shadow-card)' }}>
       <header className="flex items-center justify-between gap-3 px-4 py-3 border-b border-line shrink-0">
@@ -704,7 +708,7 @@ function LoadTrend({ cpu, mem, gpu }: { cpu: number[]; mem: number[]; gpu: numbe
         </div>
       </header>
       <div className="flex-1 min-h-0 min-w-0" style={{ padding: 10 }}>
-        <LineChart max={80} labels={HOUR_LABELS}
+        <LineChart max={80} labels={loadLabels}
           series={[{ data: cpu, color: LOAD_COL.cpu, label: 'CPU' }, { data: mem, color: LOAD_COL.mem, label: 'RAM' }, { data: gpu, color: LOAD_COL.gpu, label: 'GPU' }]} />
       </div>
     </section>
@@ -834,9 +838,9 @@ export function ServerDetail() {
   if (!server) return <Navigate to="/resource-map" replace />
 
   const avgUtil = serverAvgUtil(server)
-  const cpuS = trend(server.cpuUtil, 24, 14, 3)
-  const memS = trend(server.memUtil, 24, 10, 7)
-  const gpuS = trend(avgUtil, 24, 16, 11)
+  const cpuS = trend(server.cpuUtil, 200, 14, 3)
+  const memS = trend(server.memUtil, 200, 10, 7)
+  const gpuS = trend(avgUtil, 200, 16, 11)
   const isMulti = server.gpus.length > 1 // GPU 여러 장=구 레이아웃(카드 행), 1장=신규 레이아웃
   const seed = seedOf(server.id)
   // 신규(단일 RTX) 서버 정보 = 호스트 정적 사양(2열 스펙시트). GPU 사양/지표는 GPU 정보 패널로 분리.
@@ -1051,10 +1055,10 @@ export function GpuDetail() {
   const tdp = gpu.migCapable ? 600 : 250 // 대략 TDP(전력 기준)
   // 미니 꺾은선 추이(결정적) — 작업률·VRAM·온도·전력. 전력은 TDP 대비 %로 형태만.
   const powerPct = Math.max(6, Math.round((gpu.power / tdp) * 100))
-  const utilTrend = trend(gpu.smUtil, 16, 13, serialNum + 1)
-  const vramTrend = trend(gpu.vramUtil, 16, 9, serialNum + 5)
-  const tempTrend = trend(gpu.temp, 16, 5, serialNum + 9)
-  const powerTrend = trend(powerPct, 16, 11, serialNum + 13)
+  const utilTrend = trend(gpu.smUtil, 100, 13, serialNum + 1)
+  const vramTrend = trend(gpu.vramUtil, 100, 9, serialNum + 5)
+  const tempTrend = trend(gpu.temp, 100, 5, serialNum + 9)
+  const powerTrend = trend(powerPct, 100, 11, serialNum + 13)
   const migTitle = gpu.migCapable
     ? `MIG 인스턴스 분할 · ${mig.cells}분할 · 사용 ${mig.usedInstances}/${mig.total}`
     : `GPU 단일 할당 · ${gpu.model}`
