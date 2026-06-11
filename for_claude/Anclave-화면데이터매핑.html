@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anclave — 화면 ↔ 데이터 매핑</title>
+<style>
+  :root{
+    --bg:#0d1117; --bg-soft:#161b22; --bg-card:#1c2330; --border:#2a3343;
+    --text:#e6edf3; --muted:#8b97a7; --accent:#6ea8fe; --accent2:#3fb6a8;
+    --ok:#3fb950; --warn:#d29922; --danger:#f85149; --inactive:#6e7681;
+    --chip:#222b3a; --shadow:0 6px 20px rgba(0,0,0,.35);
+  }
+  [data-theme="light"]{
+    --bg:#f6f8fa; --bg-soft:#fff; --bg-card:#fff; --border:#d8dee4;
+    --text:#1f2328; --muted:#636c76; --accent:#0969da; --accent2:#1a7f72;
+    --ok:#1a7f37; --warn:#9a6700; --danger:#cf222e; --inactive:#8c959f;
+    --chip:#eef1f4; --shadow:0 4px 14px rgba(140,149,159,.18);
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:"Pretendard","Segoe UI",system-ui,-apple-system,sans-serif;line-height:1.6;font-size:15px}
+  a{color:var(--accent);text-decoration:none}
+  .layout{display:grid;grid-template-columns:250px 1fr;max-width:1320px;margin:0 auto}
+  nav.side{position:sticky;top:0;height:100vh;overflow:auto;padding:24px 16px;
+    border-right:1px solid var(--border);background:var(--bg-soft)}
+  nav.side .brand{font-weight:800;font-size:18px;letter-spacing:-.3px;margin-bottom:4px}
+  nav.side .brand span{color:var(--accent)}
+  nav.side .sub{color:var(--muted);font-size:12px;margin-bottom:18px}
+  nav.side a{display:block;color:var(--muted);padding:5px 10px;border-radius:8px;font-size:13px}
+  nav.side a:hover{background:var(--chip);color:var(--text)}
+  nav.side a.done{color:var(--text)}
+  nav.side a.todo{opacity:.5}
+  nav.side .group{font-size:11px;color:var(--accent2);font-weight:700;margin:16px 0 4px;text-transform:uppercase;letter-spacing:.5px}
+  main{padding:40px 48px;min-width:0}
+  header.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+  h1{font-size:26px;margin:0;letter-spacing:-.5px}
+  .lead{color:var(--muted);margin:4px 0 24px;max-width:880px}
+  section{margin:0 0 40px;scroll-margin-top:20px}
+  h2{font-size:20px;margin:0 0 8px;padding-bottom:8px;border-bottom:1px solid var(--border);letter-spacing:-.3px}
+  h2 .num{color:var(--accent);font-weight:700;margin-right:8px}
+  h3{font-size:15px;margin:18px 0 8px;color:var(--accent2)}
+  p{margin:8px 0}
+  .muted{color:var(--muted)}
+  code{font-family:"JetBrains Mono","Consolas",monospace;font-size:12.5px;background:var(--chip);
+    padding:1px 6px;border-radius:5px;color:var(--accent2)}
+  .tbtn{cursor:pointer;border:1px solid var(--border);background:var(--bg-card);color:var(--text);
+    padding:7px 14px;border-radius:20px;font-size:13px}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:13.5px;
+    background:var(--bg-card);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:top}
+  th{background:var(--bg-soft);color:var(--muted);font-weight:600;font-size:12.5px}
+  tr:last-child td{border-bottom:none}
+  .badge{display:inline-block;padding:1px 9px;border-radius:12px;font-size:11.5px;font-weight:600;border:1px solid transparent;white-space:nowrap}
+  .b-a{background:rgba(110,168,254,.16);color:var(--accent);border-color:rgba(110,168,254,.35)}
+  .b-bc{background:rgba(63,182,168,.16);color:var(--accent2);border-color:rgba(63,182,168,.35)}
+  .b-seed{background:rgba(63,185,80,.16);color:var(--ok);border-color:rgba(63,185,80,.3)}
+  .b-hard{background:rgba(248,81,73,.16);color:var(--danger);border-color:rgba(248,81,73,.35)}
+  .b-cli{background:rgba(210,153,34,.14);color:var(--warn);border-color:rgba(210,153,34,.3)}
+  .scn{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px 18px;box-shadow:var(--shadow);margin-bottom:18px}
+  .scn>h4{margin:0 0 2px;font-size:15.5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .scn .who{color:var(--muted);font-size:12.5px;margin:2px 0 10px}
+  .scn table{margin:6px 0 0}
+  .scn th{width:120px;white-space:nowrap}
+  .tbl{font-family:"JetBrains Mono","Consolas",monospace;font-size:12.5px;color:var(--accent);font-weight:600}
+  .fk{font-family:"JetBrains Mono","Consolas",monospace;font-size:12px;color:var(--warn)}
+  .note{background:rgba(210,153,34,.1);border:1px solid rgba(210,153,34,.3);border-radius:8px;padding:11px 14px;font-size:13px;margin:12px 0}
+  .note.db{background:rgba(110,168,254,.1);border-color:rgba(110,168,254,.3)}
+  .note.danger{background:rgba(248,81,73,.1);border-color:rgba(248,81,73,.3)}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;font-size:12.5px;color:var(--muted);margin:6px 0 18px}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .todo-box{background:var(--bg-card);border:1px dashed var(--border);border-radius:10px;padding:14px 16px;color:var(--muted);font-size:13.5px}
+  hr.div{border:none;border-top:1px solid var(--border);margin:32px 0}
+</style>
+</head>
+<body>
+<div class="layout">
+  <nav class="side">
+    <div class="brand">Anclave<span>.</span></div>
+    <div class="sub">화면 ↔ 데이터 매핑</div>
+    <a href="#how">읽는 법 · 범례</a>
+    <div class="group">IA 8 그룹</div>
+    <a href="#g1" class="done">① 대시보드 · 관제 ✓</a>
+    <a href="#g2" class="done">② 할당 관리 ✓</a>
+    <a href="#g3" class="done">③ 모델 관리 ✓</a>
+    <a href="#g4" class="done">④ 마켓플레이스 ✓</a>
+    <a href="#g5" class="done">⑤ 이벤트 · 알림 ✓</a>
+    <a href="#g6" class="todo">⑥ 게시판</a>
+    <a href="#g7" class="todo">⑦ 감사 · 보안</a>
+    <a href="#g8" class="todo">⑧ 시스템 설정</a>
+    <div style="margin-top:18px"><button class="tbtn" onclick="var h=document.documentElement;h.setAttribute('data-theme',h.getAttribute('data-theme')==='light'?'dark':'light')">라이트/다크</button></div>
+  </nav>
+
+  <main>
+  <header class="top"><h1>화면 ↔ 데이터 매핑</h1></header>
+  <p class="lead">페이지마다 <b>어떤 데이터(테이블)가 필요하고, 무엇과 연계(FK)되는지</b> 정리.
+  스키마(<a href="Anclave-DB%EC%84%A4%EA%B3%84.html">DB설계.html</a>)를 "화면 관점"에서 검증 → 빠진/과한 데이터·더미 건수·DB화 작업량을 드러낸다.
+  근거: <code>routes.ts</code>(28화면) · <code>screens/*.tsx</code> 실제 사용 · <code>data/*.ts</code>.</p>
+
+  <section id="how">
+    <h2>읽는 법 · 범례</h2>
+    <p>화면별 표: <b>필요 테이블</b>(DB에서 읽음) · <b>표시 필드</b>(화면이 뿌리는 값) · <b>연계 FK</b>(테이블 간 관계) · <b>클라이언트 생성</b>(DB 미저장 텔레메트리) · <b>더미</b>(시드 건수) · <b>현 상태</b>.</p>
+    <div class="legend">
+      <span><span class="badge b-a">A</span> 관리자 전용</span>
+      <span><span class="badge b-bc">B·C</span> 사용자</span>
+      <span><span class="badge b-seed">시드연결</span> seed.json에서 읽는 중</span>
+      <span><span class="badge b-hard">하드코딩</span> 화면에 더미 박힘 → DB화 신규작업</span>
+      <span><span class="badge b-cli">f(now)</span> 클라이언트 생성(DB 미저장)</span>
+    </div>
+    <div class="note db"><b>이 문서의 목적:</b> 여기서 화면별 데이터를 확정하면 → 그게 ①스키마 최종본 ②더미 시드 건수 ③backend 쿼리/엔드포인트의 근거가 된다. 그룹 단위로 같이 검토·확정하고 다음 그룹으로.</div>
+  </section>
+
+  <hr class="div">
+
+  <!-- 그룹 1 -->
+  <section id="g1">
+    <h2><span class="num">①</span>대시보드 · 관제 <span class="muted" style="font-size:14px">— 4.2 ~ 4.7 (6화면)</span></h2>
+    <p class="muted">자원 모니터링 3계층(4.2 전체→4.3 단일→4.4 GPU상세, <b>A 전용</b>) + 사용자 대시보드(4.5·4.6) + 관제(4.7).</p>
+
+    <!-- 4.2 -->
+    <div class="scn">
+      <h4>4.2 전체 서버 현황 <span class="tbl">resource-map</span> <span class="badge b-a">A</span> <span class="badge b-seed">시드연결</span></h4>
+      <div class="who">함대 전체를 honeycomb(서버&gt;GPU&gt;슬라이스)으로. KPI(서버수·가동GPU·평균사용률) + 크리티컬 알람 오버레이.</div>
+      <table>
+        <tr><th>필요 테이블</th><td><span class="tbl">gpu_servers</span> · <span class="tbl">gpus</span> · <span class="tbl">mig_slices</span> · <span class="tbl">gpu_requests</span> · <span class="tbl">users</span> · <span class="tbl">models</span> · <span class="tbl">event_logs</span></td></tr>
+        <tr><th>표시 필드</th><td>server.health/name/rack · gpu.health/name/xid · slice.profile/health · 알람=event(severity·message)</td></tr>
+        <tr><th>연계 FK</th><td><span class="fk">gpus.server_id→gpu_servers</span> · <span class="fk">mig_slices.gpu_id→gpus</span> · <span class="fk">mig_slices.request_id→gpu_requests</span>(호버: 신청명·신청자) · <span class="fk">gpu_requests.requester→users</span></td></tr>
+        <tr><th>클라이언트 생성</th><td><span class="badge b-cli">f(now)</span> gpu.sm_util·temp·power · 슬라이스 usage · 미니 라인(trend)</td></tr>
+        <tr><th>더미</th><td>서버 8 · GPU ~14 · 슬라이스 다수 · 신청 일부</td></tr>
+      </table>
+    </div>
+
+    <!-- 4.3 -->
+    <div class="scn">
+      <h4>4.3 단일 서버 현황 <span class="tbl">resource-map/:serverId</span> <span class="badge b-a">A</span> <span class="badge b-seed">시드연결</span></h4>
+      <div class="who">서버 1대의 GPU 4장 honeycomb + 아크게이지 + 라인 + 슬라이스 테이블. 4.2에서 드릴다운.</div>
+      <table>
+        <tr><th>필요 테이블</th><td><span class="tbl">gpu_servers</span>(1건) · <span class="tbl">gpus</span>(server_id 필터) · <span class="tbl">mig_slices</span> · <span class="tbl">gpu_requests</span> · <span class="tbl">event_logs</span>(server_id 필터)</td></tr>
+        <tr><th>표시 필드</th><td>server.cpu/mem/temp/network · gpu별 점유·슬라이스 목록 · 서버 이벤트</td></tr>
+        <tr><th>연계 FK</th><td><span class="fk">gpus.server_id</span> · <span class="fk">event_logs.server_id→gpu_servers</span> · <span class="fk">mig_slices.gpu_id</span></td></tr>
+        <tr><th>클라이언트 생성</th><td><span class="badge b-cli">f(now)</span> server cpu_util·mem_util·temp · gpu 텔레메트리 · 시계열 라인</td></tr>
+        <tr><th>더미</th><td>4.2 서버 중 택1 (GPU 2~8장)</td></tr>
+      </table>
+    </div>
+
+    <!-- 4.4 -->
+    <div class="scn">
+      <h4>4.4 GPU 상세 현황 <span class="tbl">resource-map/:serverId/:gpuId</span> <span class="badge b-a">A</span> <span class="badge b-seed">시드연결</span></h4>
+      <div class="who">GPU 1장: KPI 꺾은선 · VRAM 32셀 맵 · 슬라이스 상세 · 이 GPU의 이벤트. 4.3에서 드릴다운.</div>
+      <table>
+        <tr><th>필요 테이블</th><td><span class="tbl">gpus</span>(1건) · <span class="tbl">mig_slices</span>(gpu_id 필터) · <span class="tbl">services</span> · <span class="tbl">models</span> · <span class="tbl">event_logs</span>(gpu_id 필터)</td></tr>
+        <tr><th>표시 필드</th><td>gpu.model/arch/vram/serial/xid · slice.profile/owner/model/container · 슬라이스가 쓰는 서비스</td></tr>
+        <tr><th>연계 FK</th><td><span class="fk">mig_slices.gpu_id→gpus</span> · <span class="fk">mig_slices.owner_user_id→users</span> · <span class="fk">mig_slices.model_id→models</span> · <span class="fk">event_logs.gpu_id→gpus</span></td></tr>
+        <tr><th>클라이언트 생성</th><td><span class="badge b-cli">f(now)</span> sm_util·vram_util·temp·power 추이 · VRAM 32셀 점유</td></tr>
+        <tr><th>더미</th><td>4.3 GPU 중 택1</td></tr>
+      </table>
+    </div>
+
+    <!-- 4.5 -->
+    <div class="scn">
+      <h4>4.5 내 할당 자원 <span class="tbl">dashboard</span> <span class="badge b-bc">B·C</span> <span class="badge b-hard">하드코딩</span></h4>
+      <div class="who">로그인 사용자 본인의 슬라이스·서비스·사용량(토큰). C(호스팅 없음)는 빈 상태.</div>
+      <table>
+        <tr><th>필요 테이블</th><td><span class="tbl">mig_slices</span>(owner=나) · <span class="tbl">services</span>(owner=나) · <span class="tbl">activation_stats</span>(나) · <span class="tbl">models</span></td></tr>
+        <tr><th>표시 필드</th><td>내 슬라이스 점유 · 내 서비스 호출/토큰 · 워크로드 카드 · KPI 6</td></tr>
+        <tr><th>연계 FK</th><td><span class="fk">mig_slices.owner_user_id = 현재 user.id</span> · <span class="fk">services.owner_user_id = 나</span> · <span class="fk">activation_stats.consumer_user_id = 나</span></td></tr>
+        <tr><th>클라이언트 생성</th><td><span class="badge b-cli">f(now)</span> 사용률·토큰 추이 라인</td></tr>
+        <tr><th>현 상태</th><td class="muted"><b style="color:var(--danger)">⚠ 화면에 METRICS 더미 하드코딩 — 시드 미연결.</b> DB화 시 현재 user 기준 쿼리로 신규 연결 필요.</td></tr>
+      </table>
+    </div>
+
+    <!-- 4.6 -->
+    <div class="scn">
+      <h4>4.6 자원 신청현황 <span class="tbl">requests-status</span> <span class="badge b-bc">B·C</span> <span class="badge b-hard">하드코딩</span></h4>
+      <div class="who">내가 낸 자원 신청 목록(stat 카드·필터·테이블), 상태별. 상세보기 → 4.11 변경·회수 진입.</div>
+      <table>
+        <tr><th>필요 테이블</th><td><span class="tbl">gpu_requests</span>(requester=나) · <span class="tbl">models</span>(신청 모델명)</td></tr>
+        <tr><th>표시 필드</th><td>신청 service_name · capacity · status(pending/approved/rejected) · created_at · reject_reason</td></tr>
+        <tr><th>연계 FK</th><td><span class="fk">gpu_requests.requester_user_id = 나</span> · <span class="fk">gpu_requests.models[] → models</span></td></tr>
+        <tr><th>더미</th><td>내 신청 수 건 (상태 섞어서)</td></tr>
+        <tr><th>현 상태</th><td class="muted"><b style="color:var(--danger)">⚠ 하드코딩 — 시드 미연결.</b> 단 <code>gpu_requests</code> 테이블 자체는 4.8·4.10이 공유하므로, DB화하면 4.6은 거기에 <code>requester=나</code> 필터만 붙이면 됨.</td></tr>
+      </table>
+    </div>
+
+    <!-- 4.7 -->
+    <div class="scn">
+      <h4>4.7 관제 모니터링 <span class="tbl">admin-monitoring</span> <span class="badge b-a">A</span> <span class="badge b-seed">시드연결</span></h4>
+      <div class="who">함대 집계 대시보드: KPI(서버 사용률·VRAM·전력) · 서버×GPU 히트맵 · 알람 목록 · 랭킹.</div>
+      <table>
+        <tr><th>필요 테이블</th><td><span class="tbl">gpu_servers</span> · <span class="tbl">gpus</span> · <span class="tbl">event_logs</span>(알람 상위 7)</td></tr>
+        <tr><th>표시 필드</th><td>집계: 정상서버수 · VRAM 사용/총 · 전력 합/평균 · 히트맵(서버별 GPU) · 알람 severity</td></tr>
+        <tr><th>연계 FK</th><td><span class="fk">gpus.server_id→gpu_servers</span> · <span class="fk">event_logs.gpu_id/server_id</span></td></tr>
+        <tr><th>클라이언트 생성</th><td><span class="badge b-cli">f(now)</span> 서버 평균 사용률 · VRAM 사용량 · 전력 · 히트맵 셀 값 (집계는 텔레메트리에서)</td></tr>
+        <tr><th>더미</th><td>없음(servers·gpus 집계) + event_logs</td></tr>
+      </table>
+    </div>
+
+    <div class="note">
+      <b>그룹 ① 요약 — 검토 포인트:</b>
+      <ul style="margin:6px 0 0;padding-left:20px">
+        <li>쓰는 테이블: <code>gpu_servers · gpus · mig_slices · gpu_requests · event_logs · services · models · users · activation_stats</code> (9종)</li>
+        <li><b>4.5·4.6은 하드코딩</b> → DB화 시 신규 연결. 나머지 4개는 시드 연결돼 있어 로더만 교체.</li>
+        <li>핵심 텔레메트리(sm_util·temp·power·usage)는 전부 <span class="badge b-cli">f(now)</span> — DB 컬럼 없음. <b>이 경계 동의되는지?</b></li>
+        <li><code>activation_stats</code>(4.5 토큰)는 "분 추이=클라이언트 / 누적 합=DB" 둘로 갈림 — 이 분리 OK?</li>
+      </ul>
+    </div>
+  </section>
+
+  <hr class="div">
+
+  <section id="g2">
+    <h2><span class="num">②</span>할당 관리 <span class="muted" style="font-size:14px">— 4.8 · 4.10 · 4.11 (3화면)</span></h2>
+    <p class="muted">네가 처음 말한 <b>"A 신청 → B(관리자)가 봄 → 승인 → 누적"</b> 흐름의 주역. <code>gpu_requests</code> 한 테이블이 화면들 사이를 돈다.</p>
+
+    <div class="scn" style="border-color:var(--accent)">
+      <h4>핵심 흐름 — gpu_requests 생명주기</h4>
+      <div class="wire">[4.8 신청 관리]  사용자 A가 자원 신청 작성(GPU 마법사)
+        └→ gpu_requests INSERT  (status = pending)
+                 ↓  관리자 B가 4.10에서 봄
+[4.10 승인 관리]  검토 → 승인:  status = approved  +  mig_slices INSERT (request_id로 연결)
+                       반려:  status = rejected  +  reject_reason
+                 ↓
+[4.2/4.3/4.4]  할당된 슬라이스로 함대에 나타남        [4.6]  A가 "승인됨" 확인 (requester=나 필터)</div>
+      <p class="muted" style="margin:8px 0 0">→ 이게 DB여야만 되는 이유: A의 INSERT를 B가 다른 시점·다른 브라우저에서 보고, 승인 결과가 여러 화면에 동시 반영. 시간 누적.</p>
+    </div>
+
+    <!-- 4.8 -->
+    <div class="scn">
+      <h4>4.8 신청 관리 <span class="tbl">requests</span> <span class="badge b-bc">B·C</span> <span class="badge b-hard">스텁(미구현)</span></h4>
+      <div class="who">사용자가 자원을 신청. Tabs(API / GPU 번들 / 게시) + GPU 마법사(세로 스텝·공문 첨부) + 내 신청 테이블. (현재 29줄 placeholder)</div>
+      <table>
+        <tr><th>필요 테이블</th><td><span class="tbl">gpu_requests</span>(INSERT) · <span class="tbl">models</span>(선택) · <span class="tbl">users</span>(나)</td></tr>
+        <tr><th>쓰기(핵심)</th><td><b>gpu_requests INSERT</b> — capacity·capacity_unit·models[]·env·addons·service_name·purpose·attachment_url·status=<code>pending</code></td></tr>
+        <tr><th>연계 FK</th><td><span class="fk">gpu_requests.requester_user_id = 나</span> · <span class="fk">models[] → models</span></td></tr>
+        <tr><th>현 상태</th><td class="muted"><b style="color:var(--danger)">⚠ 미구현 스텁</b> — DB화하며 마법사 폼 + INSERT 신규 구현. (4.6 자원 신청현황과 신청 테이블 공유)</td></tr>
+      </table>
+    </div>
+
+    <!-- 4.10 -->
+    <div class="scn">
+      <h4>4.10 승인 관리 <span class="tbl">approvals-gpu</span> <span class="badge b-a">A</span> <span class="badge b-seed">시드연결</span></h4>
+      <div class="who">관리자가 대기 신청을 검토 → 헥사곤으로 서버/GPU 선택해 승인(슬라이스 할당) 또는 반려. 토스트·대기수 감소.</div>
+      <table>
+        <tr><th>필요 테이블</th><td><span class="tbl">gpu_requests</span>(pending 전체) · <span class="tbl">users</span>(신청자) · <span class="tbl">models</span> · <span class="tbl">gpu_servers</span>·<span class="tbl">gpus</span>(할당 대상 헥사곤)</td></tr>
+        <tr><th>표시 필드</th><td>신청자명·capacity·models·purpose·created_at · 서버 헥사곤(여유 공간)</td></tr>
+        <tr><th>쓰기(핵심)</th><td><b>승인</b>: gpu_requests.status=<code>approved</code> + <b>mig_slices INSERT</b>(owner=신청자·request_id 연결) / <b>반려</b>: status=<code>rejected</code>+reject_reason</td></tr>
+        <tr><th>연계 FK</th><td><span class="fk">gpu_requests.requester→users</span> · <span class="fk">.models→models</span> · 승인 시 <span class="fk">mig_slices.request_id→gpu_requests</span>·<span class="fk">.gpu_id→gpus</span></td></tr>
+        <tr><th>현 상태</th><td>시드 연결 — 로더만 교체 + 승인 mutation(트랜잭션) 추가</td></tr>
+      </table>
+    </div>
+
+    <!-- 4.11 -->
+    <div class="scn">
+      <h4>4.11 변경 · 확장 · 이전 · 회수 <span class="tbl">gpu-change</span> <span class="badge b-a">A</span> <span class="badge b-bc">B·C</span> <span class="badge b-hard">스텁(미구현)</span></h4>
+      <div class="who">사용자가 받은 자원의 변경/확장/이전/회수를 신청(B=C는 4.6 상세에서 진입), 관리자는 승인 측.</div>
+      <table>
+        <tr><th>필요 테이블</th><td><span class="tbl">gpu_change_requests</span>(INSERT) · <span class="tbl">mig_slices</span>(내 할당, 대상)</td></tr>
+        <tr><th>쓰기(핵심)</th><td><b>gpu_change_requests INSERT</b> — type(migrate/change/expand/reclaim)·reason·status=<code>pending</code> → 회수 승인 시 mig_slices 해제</td></tr>
+        <tr><th>연계 FK</th><td><span class="fk">gpu_change_requests.requester→users</span></td></tr>
+        <tr><th>현 상태</th><td class="muted"><b style="color:var(--danger)">⚠ 미구현 스텁</b> — DB화하며 신규 구현.</td></tr>
+      </table>
+    </div>
+
+    <div class="note">
+      <b>그룹 ② 요약 — 검토 포인트:</b>
+      <ul style="margin:6px 0 0;padding-left:20px">
+        <li>쓰는 테이블: <code>gpu_requests · gpu_change_requests · mig_slices · users · models · gpu_servers · gpus</code></li>
+        <li><b>4.8·4.11은 스텁(미구현)</b> → DB화하며 신규 구현(폼+INSERT). 4.10만 시드 연결돼 있어 로더 교체+mutation.</li>
+        <li><b>승인 = 트랜잭션</b>: gpu_requests.status 변경 + mig_slices INSERT를 한 묶음으로(중간 실패 방지). 동의?</li>
+        <li>회수 승인 시 슬라이스 <b>해제</b>(삭제 or owner=null)는 어느 방식? — 이력 남기려면 soft(상태), 깔끔하려면 삭제.</li>
+        <li>빠진 데이터/흐름 있나?</li>
+      </ul>
+    </div>
+  </section>
+  <section id="g3">
+    <h2><span class="num">③</span>모델 관리 <span class="muted" style="font-size:14px">— 4.12 · 4.13 · 4.14 · 4.16 (4화면)</span></h2>
+    <p class="muted">카탈로그 + 상세 + 신규 반입(보안스캔) + 에이전트. <code>models</code> 중심, 반입은 <code>model_imports</code> 흐름.</p>
+
+    <!-- 4.12 -->
+    <div class="scn">
+      <h4>4.12 모델 카탈로그 <span class="tbl">models</span> <span class="badge b-a">A</span> <span class="badge b-bc">B·C</span> <span class="badge b-seed">시드연결</span></h4>
+      <div class="who">전체 모델 그리드 + kind 필터 + 사용량 랭킹. 클릭 → 4.13 상세.</div>
+      <table>
+        <tr><th>필요 테이블</th><td><span class="tbl">models</span>(전체) · <span class="tbl">services</span>(이 모델 쓰는 서비스 역참조)</td></tr>
+        <tr><th>표시 필드</th><td>name·kind·params·license·recommended_gpu·usage_count(랭킹)·전체 모델 수</td></tr>
+        <tr><th>연계 FK</th><td><span class="fk">services.model_id → models</span> (모델별 사용 서비스 수)</td></tr>
+        <tr><th>현 상태</th><td>시드 연결 — 로더만 교체</td></tr>
+      </table>
+    </div>
+
+    <!-- 4.13 -->
+    <div class="scn">
+      <h4>4.13 모델 상세 <span class="tbl">models/:id</span> <span class="badge b-a">A</span> <span class="badge b-bc">B·C</span> <span class="badge b-hard">스텁(미구현)</span></h4>
+      <div class="who">모델 1개: 메타데이터 카드(권장 GPU·라이선스) + 사용 추이 라인 + GPU 신청 진입.</div>
+      <table>
+        <tr><th>필요 테이블</th><td><span class="tbl">models</span>(1건) · <span class="tbl">services</span>(이 모델 사용) · <span class="tbl">telemetry</span>(사용 추이)</td></tr>
+        <tr><th>표시 필드</th><td>description·addons·params·license·recommended_gpu · 이 모델 쓰는 서비스 목록</td></tr>
+        <tr><th>연계 FK</th><td><span class="fk">services.model_id → models</span></td></tr>
+        <tr><th>사용 추이</th><td><span class="badge b-cli">텔레메트리</span> 이 모델 쓰는 서비스들의 <b>토큰 합산 추이</b>(service.tokens를 model로 집계 = 파생)</td></tr>
+        <tr><th>현 상태</th><td class="muted"><b style="color:var(--danger)">⚠ 미구현 스텁</b> — DB화하며 구현. models는 시드에 있으니 읽기만, 추이는 텔레메트리 집계.</td></tr>
+      </table>
+    </div>
+
+    <!-- 4.14 -->
+    <div class="scn">
+      <h4>4.14 신규 모델 반입 <span class="tbl">models/new</span> <span class="badge b-a">A</span> <span class="badge b-hard">스텁(미구현)</span></h4>
+      <div class="who">관리자가 모델 파일 업로드 → 보안 점검(safetensors·modelscan·picklescan·체크섬) → 통과 시 카탈로그 등재.</div>
+      <table>
+        <tr><th>필요 테이블</th><td><span class="tbl">model_imports</span>(INSERT) → 통과 시 <span class="tbl">models</span> 등재</td></tr>
+        <tr><th>쓰기(핵심)</th><td><b>model_imports INSERT</b> — file_name·format(safetensors/other)·scan(pass/fail/pending)·checksum·status. 스캔 통과 → models 행 추가</td></tr>
+        <tr><th>연계 흐름</th><td>model_imports(pending→scan→pass) → <span class="fk">models</span>에 신규 등재 → 4.12 카탈로그에 노출</td></tr>
+        <tr><th>현 상태</th><td class="muted"><b style="color:var(--danger)">⚠ 미구현 스텁</b> — DB화하며 업로드 폼 + 스캔 상태 진행 UI 신규 구현.</td></tr>
+      </table>
+    </div>
+
+    <!-- 4.16 -->
+    <div class="scn">
+      <h4>4.16 데몬 · 에이전트 관리 <span class="tbl">agents</span> <span class="badge b-a">A</span> <span class="badge b-hard">스텁(미구현)</span></h4>
+      <div class="who">노드별 에이전트 테이블(버전·상태) + 자동 배포·오프라인 노드 표시.</div>
+      <table>
+        <tr><th>필요 테이블</th><td><span class="tbl">agents</span> · <span class="tbl">gpu_servers</span>(소속 노드)</td></tr>
+        <tr><th>표시 필드</th><td>node_id·version·status(active/stale/down)·deployed_at · 소속 서버</td></tr>
+        <tr><th>연계 FK</th><td><span class="fk">agents.server_id → gpu_servers</span></td></tr>
+        <tr><th>현 상태</th><td class="muted"><b style="color:var(--danger)">⚠ 미구현 스텁</b> — agents는 정적성(텔레메트리 아님, 상태값만). 시드로 1회 적재 후 읽기.</td></tr>
+      </table>
+    </div>
+
+    <div class="note">
+      <b>그룹 ③ 요약 — 검토 포인트:</b>
+      <ul style="margin:6px 0 0;padding-left:20px">
+        <li>쓰는 테이블: <code>models · services · model_imports · agents · gpu_servers</code> + 텔레메트리(4.13 추이)</li>
+        <li><b>4.12만 구현(시드연결)</b>, 4.13·4.14·4.16 스텁 → DB화하며 신규 구현.</li>
+        <li><b>4.13 사용 추이</b> = 이 모델 쓰는 서비스들의 토큰 합산(파생). 이 해석 맞아?</li>
+        <li><b>4.14 반입 흐름</b>: model_imports 통과 → models 등재 → 카탈로그 노출. 이 연결 OK?</li>
+        <li>빠진 데이터/흐름 있나?</li>
+      </ul>
+    </div>
+  </section>
+  <section id="g4">
+    <h2><span class="num">④</span>마켓플레이스 <span class="muted" style="font-size:14px">— 4.17 · 4.18 · 4.29 · 4.19 · 4.9 (5화면)</span></h2>
+    <p class="muted">두 번째 핵심 흐름 — <b>게시</b>(서비스를 마켓에 올림)와 <b>API키</b>(남의 서비스를 쓰겠다 신청). 5화면 모두 시드 연결됨.</p>
+
+    <div class="scn" style="border-color:var(--accent)">
+      <h4>핵심 흐름 ⓐ — 게시 (publish_requests)</h4>
+      <div class="wire">[4.29 게시 신청]  사용자가 자기 배포 서비스를 마켓 게시 신청
+        └→ publish_requests INSERT  (status = pending)
+                 ↓  관리자가 4.9에서 봄
+[4.9 게시 승인]   승인:  publish_requests = approved  +  services.listed = true
+                 ↓
+[4.17 마켓플레이스]  listed = true 서비스만 노출</div>
+    </div>
+
+    <div class="scn" style="border-color:var(--accent2)">
+      <h4>핵심 흐름 ⓑ — API키 (api_requests)</h4>
+      <div class="wire">[4.17/4.18]  둘러보다 서비스에 "API 사용" 신청
+        └→ api_requests INSERT  (status = pending)
+                 ↓  서비스 소유자가 4.19에서 봄
+[4.19 API 신청 관리]  승인:  api_requests.api_key 발급  +  api_key_usage 시작
+                 ↓  신청자가 그 키로 호출
+[텔레메트리]  service.tokens·calls 쌓임 → 4.20 활성화·4.5 내 사용량</div>
+    </div>
+
+    <!-- 4.17 -->
+    <div class="scn">
+      <h4>4.17 마켓플레이스 <span class="tbl">marketplace</span> <span class="badge b-a">A</span> <span class="badge b-bc">B·C</span> <span class="badge b-seed">시드연결</span></h4>
+      <div class="who">게시된 서비스 둘러보기 — 카테고리 필터·정렬·사용량 순위. 클릭 → 4.18.</div>
+      <table>
+        <tr><th>필요 테이블</th><td><span class="tbl">services</span>(listed=true) · <span class="tbl">models</span> · <span class="tbl">users</span>(소유자)</td></tr>
+        <tr><th>표시 필드</th><td>name·kind·tags·model·usage_count(순위)·소유자</td></tr>
+        <tr><th>연계 FK</th><td><span class="fk">services.model_id→models</span> · <span class="fk">services.owner_user_id→users</span></td></tr>
+        <tr><th>현 상태</th><td>시드 연결 — 단 <b>listed 필터 추가 필요</b>(아래 검토)</td></tr>
+      </table>
+    </div>
+
+    <!-- 4.18 -->
+    <div class="scn">
+      <h4>4.18 서비스 상세 <span class="tbl">marketplace/:id</span> <span class="badge b-a">A</span> <span class="badge b-bc">B·C</span> <span class="badge b-seed">시드연결</span></h4>
+      <div class="who">서비스 1개 상세 + 플레이그라운드(테스트 호출) + "API 사용 신청" 진입.</div>
+      <table>
+        <tr><th>필요 테이블</th><td><span class="tbl">services</span>(1건) · <span class="tbl">models</span> · <span class="tbl">api_requests</span>(신청 INSERT)</td></tr>
+        <tr><th>쓰기</th><td><b>api_requests INSERT</b>(이 서비스에 API 신청) — service_id·requester·model·target_service_url·status=<code>pending</code></td></tr>
+        <tr><th>연계 FK</th><td><span class="fk">service.model_id→models</span> · <span class="fk">api_requests.service_id→services</span></td></tr>
+        <tr><th>현 상태</th><td>시드 연결</td></tr>
+      </table>
+    </div>
+
+    <!-- 4.29 -->
+    <div class="scn">
+      <h4>4.29 서비스 게시 신청 <span class="tbl">marketplace/publish</span> <span class="badge b-bc">B·C</span> <span class="badge b-seed">시드연결</span></h4>
+      <div class="who">소유자가 자기 배포 서비스를 마켓에 올려달라 신청 → 4.9 승인 대상.</div>
+      <table>
+        <tr><th>필요 테이블</th><td><span class="tbl">publish_requests</span>(INSERT) · <span class="tbl">services</span>(내 배포 서비스)</td></tr>
+        <tr><th>쓰기(핵심)</th><td><b>publish_requests INSERT</b> — service_name·service_url·demo_url·meta·status=<code>pending</code></td></tr>
+        <tr><th>연계 FK</th><td><span class="fk">publish_requests.requester_user_id = 나</span></td></tr>
+        <tr><th>현 상태</th><td>시드 연결</td></tr>
+      </table>
+    </div>
+
+    <!-- 4.19 -->
+    <div class="scn">
+      <h4>4.19 API 신청 관리 <span class="tbl">api-approvals</span> <span class="badge b-bc">B(소유자)</span> <span class="badge b-seed">시드연결</span></h4>
+      <div class="who">내 마켓 서비스에 온 <b>타인의 API 키 신청</b> 관리 + 서비스별 발급 요약.</div>
+      <table>
+        <tr><th>필요 테이블</th><td><span class="tbl">api_requests</span>(내 서비스에 온 것) · <span class="tbl">api_key_usage</span>(발급 요약) · <span class="tbl">services</span>(내 것) · <span class="tbl">users</span>(신청자)</td></tr>
+        <tr><th>쓰기(핵심)</th><td><b>승인</b>: api_requests.status=approved + <b>api_key 발급</b>(채움) + api_key_usage 시작 / 반려: rejected+reason</td></tr>
+        <tr><th>연계 FK</th><td><span class="fk">api_requests.service_id→services</span>(owner=나 필터) · <span class="fk">.requester→users</span></td></tr>
+        <tr><th>현 상태</th><td>시드 연결</td></tr>
+      </table>
+    </div>
+
+    <!-- 4.9 -->
+    <div class="scn">
+      <h4>4.9 게시 승인 관리 <span class="tbl">approvals-publish</span> <span class="badge b-a">A</span> <span class="badge b-seed">시드연결</span></h4>
+      <div class="who">관리자가 마켓 게시 신청(서비스 노출)을 승인/반려.</div>
+      <table>
+        <tr><th>필요 테이블</th><td><span class="tbl">publish_requests</span>(pending) · <span class="tbl">users</span>(신청자) · <span class="tbl">services</span></td></tr>
+        <tr><th>쓰기(핵심)</th><td><b>승인</b>: publish_requests.approved + <b>services.listed=true</b>(마켓 노출) / 반려: rejected+reason</td></tr>
+        <tr><th>연계 FK</th><td><span class="fk">publish_requests.requester→users</span></td></tr>
+        <tr><th>현 상태</th><td>시드 연결</td></tr>
+      </table>
+    </div>
+
+    <div class="note">
+      <b>그룹 ④ 요약 — 검토 포인트:</b>
+      <ul style="margin:6px 0 0;padding-left:20px">
+        <li>쓰는 테이블: <code>services · publish_requests · api_requests · api_key_usage · models · users</code> + 텔레메트리(토큰)</li>
+        <li><b>5화면 모두 시드 연결</b>(스텁 없음) — 로더 교체 + 신청/승인 mutation만.</li>
+        <li><b>⚠ services에 게시상태 필드 추가 필요</b>: 지금은 필드가 없어 7개 전부 노출 → 게시 신청/승인이 무의미. <code>listed boolean</code>(or marketplace_status) 추가해서 4.9 승인 시 true → 4.17은 그것만 노출. <b>동의?</b></li>
+        <li>API 승인 = <code>api_requests.api_key</code> 발급 → 그 키 사용이 service.tokens 텔레메트리로 누적(④ⓑ→4.20). 이 연결 OK?</li>
+        <li>빠진 데이터/흐름 있나?</li>
+      </ul>
+    </div>
+    <div class="note ok"><b>④ 확정:</b> services에 <code>listed</code>(게시여부) 추가 — <b>B안(실명 유지)</b>. 서비스 7개 → 사용자 7명에게 1:1 재배정, 전부 <code>listed=true</code>(기존=이미 게시된 상태). 새 게시 신청만 4.29→4.9 흐름. API 승인=api_key 발급→service.tokens 누적. <b>실제 반영은 시드 구현 때.</b></div>
+  </section>
+  <section id="g5">
+    <h2><span class="num">⑤</span>이벤트 · 알림 <span class="muted" style="font-size:14px">— 4.21 · 4.22 (2화면)</span></h2>
+    <p class="muted">텔레메트리 워커(★ 이벤트 룰)가 만든 <code>event_logs</code>와 시스템 <code>notifications</code>가 흘러드는 곳. 둘 다 스텁.</p>
+
+    <div class="scn" style="border-color:var(--accent2)">
+      <h4>이벤트 출처 — 어디서 생기나</h4>
+      <div class="wire">[텔레메트리 워커]    임계 룰(온도&gt;85 · 전력&gt;95% · 유휴 · XID) → event_logs INSERT
+[신청·승인 트랜잭션]  승인 / 반려 / 회수 결과              → notifications INSERT
+        ↓
+[4.21 이벤트 관제]  event_logs 타임라인           [4.22 알림 센터]  notifications 목록</div>
+    </div>
+
+    <!-- 4.21 -->
+    <div class="scn">
+      <h4>4.21 에러 · 이벤트 관제 <span class="tbl">events</span> <span class="badge b-a">A</span> <span class="badge b-bc">B·C</span> <span class="badge b-hard">스텁(미구현)</span></h4>
+      <div class="who">심각도 4분류 타임라인 + 검색·필터 칩 + 상세 드로어(상태·담당·조치) + 문제 GPU 링크 + 빈상태.</div>
+      <table>
+        <tr><th>필요 테이블</th><td><span class="tbl">event_logs</span> · <span class="tbl">gpus</span>·<span class="tbl">gpu_servers</span>(링크 대상)</td></tr>
+        <tr><th>표시 필드</th><td>severity(critical/warn/info/recovered)·status(open/resolved)·message·created_at·assignee·action·resolution</td></tr>
+        <tr><th>쓰기</th><td>상세 드로어에서 status=resolved·assignee·resolution UPDATE</td></tr>
+        <tr><th>연계 FK</th><td><span class="fk">event_logs.gpu_id→gpus</span> · <span class="fk">event_logs.server_id→gpu_servers</span> (문제 GPU/서버 클릭→4.4/4.3)</td></tr>
+        <tr><th>현 상태</th><td class="muted"><b style="color:var(--danger)">⚠ 미구현 스텁</b> — event_logs는 워커가 자동 적재(★) + 시드 7일치. 화면은 신규 구현.</td></tr>
+      </table>
+    </div>
+
+    <!-- 4.22 -->
+    <div class="scn">
+      <h4>4.22 알림 센터 <span class="tbl">notifications</span> <span class="badge b-a">A</span> <span class="badge b-bc">B·C</span> <span class="badge b-hard">스텁(미구현)</span></h4>
+      <div class="who">알림 목록(할당·승인 / 헬스·에러 / 회수 권고) + 모두 읽음 + 항목 클릭 → 해당 화면 + 빈상태.</div>
+      <table>
+        <tr><th>필요 테이블</th><td><span class="tbl">notifications</span></td></tr>
+        <tr><th>표시 필드</th><td>category(alloc/health/reclaim)·message·link·read·created_at</td></tr>
+        <tr><th>쓰기</th><td>읽음 처리 read=true UPDATE(개별/모두)</td></tr>
+        <tr><th>연계</th><td>link 필드로 해당 화면 이동. 출처 = 신청/승인/헬스 이벤트 결과로 INSERT</td></tr>
+        <tr><th>현 상태</th><td class="muted"><b style="color:var(--danger)">⚠ 미구현 스텁</b> — 신규 구현. (메일 미사용 = 앱 내 알림이 유일 통지)</td></tr>
+      </table>
+    </div>
+
+    <div class="note">
+      <b>그룹 ⑤ 요약 — 검토 포인트:</b>
+      <ul style="margin:6px 0 0;padding-left:20px">
+        <li>쓰는 테이블: <code>event_logs · notifications</code> + <code>gpus·gpu_servers</code>(링크)</li>
+        <li><b>둘 다 스텁</b> → 신규 구현. event_logs는 워커 자동 적재라 화면은 "읽기+상태변경"만.</li>
+        <li>이벤트가 워커(텔레메트리 룰)에서 자동 생기는 흐름 — ★ 섹션과 일치. OK?</li>
+        <li>빠진 데이터/흐름 있나?</li>
+      </ul>
+    </div>
+  </section>
+  <section id="g6"><h2><span class="num">⑥</span>게시판 <span class="muted" style="font-size:14px">— 4.23</span></h2><div class="todo-box">다음 단계.</div></section>
+  <section id="g7"><h2><span class="num">⑦</span>감사 · 보안 <span class="muted" style="font-size:14px">— 4.24 · 4.25</span></h2><div class="todo-box">다음 단계.</div></section>
+  <section id="g8"><h2><span class="num">⑧</span>시스템 설정 <span class="muted" style="font-size:14px">— 4.26~4.28</span></h2><div class="todo-box">다음 단계.</div></section>
+
+  </main>
+</div>
+</body>
+</html>

@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anclave — DB 설계 (Postgres / Hono · 방식 A)</title>
+<style>
+  :root{
+    --bg:#0d1117; --bg-soft:#161b22; --bg-card:#1c2330; --border:#2a3343;
+    --text:#e6edf3; --muted:#8b97a7; --accent:#6ea8fe; --accent2:#3fb6a8;
+    --ok:#3fb950; --warn:#d29922; --danger:#f85149; --inactive:#6e7681;
+    --chip:#222b3a; --shadow:0 6px 20px rgba(0,0,0,.35);
+  }
+  [data-theme="light"]{
+    --bg:#f6f8fa; --bg-soft:#fff; --bg-card:#fff; --border:#d8dee4;
+    --text:#1f2328; --muted:#636c76; --accent:#0969da; --accent2:#1a7f72;
+    --ok:#1a7f37; --warn:#9a6700; --danger:#cf222e; --inactive:#8c959f;
+    --chip:#eef1f4; --shadow:0 4px 14px rgba(140,149,159,.18);
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:"Pretendard","Segoe UI",system-ui,-apple-system,sans-serif;line-height:1.6;font-size:15px}
+  a{color:var(--accent);text-decoration:none}
+  .layout{display:grid;grid-template-columns:250px 1fr;max-width:1320px;margin:0 auto}
+  nav.side{position:sticky;top:0;height:100vh;overflow:auto;padding:24px 16px;
+    border-right:1px solid var(--border);background:var(--bg-soft)}
+  nav.side .brand{font-weight:800;font-size:18px;letter-spacing:-.3px;margin-bottom:4px}
+  nav.side .brand span{color:var(--accent)}
+  nav.side .sub{color:var(--muted);font-size:12px;margin-bottom:18px}
+  nav.side a{display:block;color:var(--muted);padding:5px 10px;border-radius:8px;font-size:13px}
+  nav.side a:hover{background:var(--chip);color:var(--text)}
+  nav.side .group{font-size:11px;color:var(--accent2);font-weight:700;margin:16px 0 4px;text-transform:uppercase;letter-spacing:.5px}
+  main{padding:40px 48px;min-width:0}
+  header.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+  h1{font-size:26px;margin:0;letter-spacing:-.5px}
+  .lead{color:var(--muted);margin:4px 0 28px;max-width:860px}
+  section{margin:0 0 44px;scroll-margin-top:20px}
+  h2{font-size:20px;margin:0 0 16px;padding-bottom:8px;border-bottom:1px solid var(--border);letter-spacing:-.3px}
+  h2 .num{color:var(--accent);font-weight:700;margin-right:8px}
+  h3{font-size:15px;margin:20px 0 8px;color:var(--accent2)}
+  p{margin:8px 0}
+  .muted{color:var(--muted)}
+  .tbtn{cursor:pointer;border:1px solid var(--border);background:var(--bg-card);color:var(--text);
+    padding:7px 14px;border-radius:20px;font-size:13px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+  .chip{background:var(--chip);border:1px solid var(--border);border-radius:16px;padding:4px 12px;font-size:12.5px;color:var(--text)}
+  .chip b{color:var(--accent)}
+  .badge{display:inline-block;padding:1px 9px;border-radius:12px;font-size:12px;font-weight:600;border:1px solid transparent}
+  .b-db{background:rgba(110,168,254,.16);color:var(--accent);border-color:rgba(110,168,254,.35)}
+  .b-cli{background:rgba(63,182,168,.16);color:var(--accent2);border-color:rgba(63,182,168,.35)}
+  .b-ok{background:rgba(63,185,80,.16);color:var(--ok)}
+  .b-warn{background:rgba(210,153,34,.16);color:var(--warn)}
+  .b-danger{background:rgba(248,81,73,.16);color:var(--danger)}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px;
+    background:var(--bg-card);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:top}
+  th{background:var(--bg-soft);color:var(--muted);font-weight:600;font-size:12.5px}
+  tr:last-child td{border-bottom:none}
+  td.c,th.c{text-align:center}
+  code{font-family:"JetBrains Mono","Consolas",monospace;font-size:12.5px;background:var(--chip);
+    padding:1px 6px;border-radius:5px;color:var(--accent2)}
+  .pk{color:var(--accent);font-weight:700}
+  .fk{color:var(--warn)}
+  .card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px 18px;box-shadow:var(--shadow);margin:12px 0}
+  .card h4{margin:0 0 6px;font-size:14.5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  pre.code{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:16px;overflow:auto;
+    font-family:"JetBrains Mono","Consolas",monospace;font-size:12px;line-height:1.55}
+  pre.code .kw{color:var(--accent)} pre.code .ty{color:var(--accent2)} pre.code .cm{color:var(--inactive)} pre.code .st{color:var(--warn)}
+  .wire{background:var(--bg);border:1px dashed var(--border);border-radius:8px;padding:14px;margin:12px 0;
+    font-family:"JetBrains Mono","Consolas",monospace;font-size:12.5px;color:var(--muted);white-space:pre;overflow:auto;line-height:1.6}
+  .note{background:rgba(210,153,34,.1);border:1px solid rgba(210,153,34,.3);border-radius:8px;padding:11px 14px;font-size:13px;margin:12px 0}
+  .note.ok{background:rgba(63,185,80,.1);border-color:rgba(63,185,80,.3)}
+  .note.db{background:rgba(110,168,254,.1);border-color:rgba(110,168,254,.3)}
+  ol.road{counter-reset:s;list-style:none;padding:0;margin:14px 0}
+  ol.road li{position:relative;padding:10px 0 10px 42px;border-left:2px solid var(--border);margin-left:14px}
+  ol.road li::before{counter-increment:s;content:counter(s);position:absolute;left:-15px;top:9px;width:28px;height:28px;
+    border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700}
+  ol.road li b{color:var(--text)}
+  hr.div{border:none;border-top:1px solid var(--border);margin:36px 0}
+  .group-h{font-size:12px;color:var(--accent2);font-weight:700;margin:24px 0 6px;text-transform:uppercase;letter-spacing:.5px}
+  .tbl-name{font-family:"JetBrains Mono","Consolas",monospace;font-size:13.5px;color:var(--accent);font-weight:700}
+  .legend{font-size:12.5px;color:var(--muted);margin-top:8px}
+  .legend .pk,.legend .fk{margin-right:2px}
+</style>
+</head>
+<body>
+<div class="layout">
+  <nav class="side">
+    <div class="brand">Anclave<span>.</span></div>
+    <div class="sub">DB 설계 — Postgres</div>
+    <a href="#overview">0 · 개요 &amp; 전략</a>
+    <a href="#split">1 · 어디에 무엇을</a>
+    <a href="#telemetry">★ 텔레메트리 적재</a>
+    <a href="#erd">2 · ERD (관계도)</a>
+    <div class="group">테이블 스키마</div>
+    <a href="#domains">3 · 공유 도메인(enum)</a>
+    <a href="#t-core">4 · 핵심 엔티티</a>
+    <a href="#t-fleet">5 · 함대(인벤토리)</a>
+    <a href="#t-req">6 · 신청·승인</a>
+    <a href="#t-log">7 · 로그·알림·게시판</a>
+    <a href="#t-cfg">8 · 설정·운영</a>
+    <div class="group">운영</div>
+    <a href="#seed">9 · 시드 적재</a>
+    <a href="#access">10 · 접근 레이어</a>
+    <a href="#docker">11 · 63번 Docker 셋업</a>
+    <a href="#roadmap">12 · 작업 로드맵</a>
+    <div style="margin-top:18px"><button class="tbtn" onclick="document.documentElement.toggleAttribute('data-theme-light');document.documentElement.setAttribute('data-theme',document.documentElement.hasAttribute('data-theme-light')?'light':'dark')">라이트/다크</button></div>
+  </nav>
+
+  <main>
+  <header class="top"><h1>Anclave — DB 설계</h1></header>
+  <p class="lead">목업을 <b>실제 서비스처럼</b>(사람 간 공유 · 시간 누적) 동작시키기 위한 데이터베이스 설계.
+  DB는 <b>PostgreSQL</b>(외부 플랫폼 X), 데이터 접근은 <b>얇은 Hono backend(REST)</b> — 방식 A. 지금은 로컬 Docker로 DB만 띄우고, 나중에 frontend+backend 이미지로 63번에 올림.
+  근거 모델 = <code>app/src/data/types.ts</code>(§13 스키마) · 시드 = <code>app/src/data/seed.json</code>.</p>
+
+  <!-- 0 -->
+  <section id="overview">
+    <h2><span class="num">0</span>개요 &amp; 전략</h2>
+    <h3>왜 DB인가</h3>
+    <p>요구사항: <b>A가 오늘 신청 → B가 내일 보고 → A가 승인하면 B에게 보이고 → 대시보드는 어제+오늘 누적.</b>
+    이건 "시간의 함수"가 아니라 <b>어딘가 저장된 사실</b>이라 localStorage·시간생성기로는 불가능 → 공유 DB 필요.</p>
+
+    <h3>하이브리드 원칙 (핵심)</h3>
+    <p>거의 전부 DB. <b>사람 간 공유·시간 누적되는 사실</b>은 물론, <b>사용률·온도·전력 같은 텔레메트리도 DB 시계열로 저장</b>(아래 ★ 텔레메트리 적재). 초기 설계의 클라이언트 <code>f(now)</code> 생성은 폐기 — 브라우저마다 값이 달라 비현실적이라(사용자 지적 반영).</p>
+    <table>
+      <tr><th style="width:130px">구분</th><th>대상</th><th>이유</th></tr>
+      <tr><td><span class="badge b-db">DB 저장</span></td>
+        <td>신청·승인·서비스·마켓 게시·API키·할당(슬라이스 소유)·모델·이벤트로그·감사로그·게시판·알림</td>
+        <td>시간순 누적 + 사람 간 공유 = "어제 신청 + 오늘 추가"가 진짜로 됨</td></tr>
+      <tr><td><span class="badge b-cli">텔레메트리(DB 시계열)</span></td>
+        <td>GPU 작업률·VRAM·온도·전력, 서버 CPU/MEM·네트워크, 슬라이스 usage, 서비스 토큰</td>
+        <td>3단 tier(현재값 5초 / 원본 1분·48h / 1시간평균 30일)로 저장 → 브라우저 공통·시간 누적. ★ 섹션 참고</td></tr>
+    </table>
+    <div class="note db"><b>seed.json의 운명:</b> 버리지 않고 <b>"DB 최초 1회 적재용 시드"</b>로 강등. seeding 후엔 DB가 정본. data/*.ts 로더는 점진적으로 Hono API 훅으로 교체.</div>
+
+    <h3>호스팅: Plain Postgres + 얇은 Hono backend (방식 A · 외부 플랫폼 X)</h3>
+    <p><b>브라우저는 Postgres에 직접 연결 못 한다</b>(드라이버·보안·CORS). 그래서 DB 앞에 <b>얇은 backend(Hono)</b>를 직접 둔다 — SQL을 감싼 REST + 적재 워커. Supabase 같은 외부 스택 미사용.</p>
+    <div class="wire">[Vite 프론트] --fetch(REST)--> [Hono backend] --SQL--> [PostgreSQL (Docker)]
+                                          │                       (데이터 · 정본)
+                                          ├─ REST API   (화면별 query / mutation)
+                                          └─ 적재 워커   (5초 현재값 · 1분 원본 · 1시간 롤업 · 이벤트 룰)
+
+  [지금]  셋 다 내 PC 로컬 (DB만 Docker)        [나중]  frontend+backend 이미지 → 63번(192.168.0.63)</div>
+    <p class="muted">→ 100% 자체 코드·인프라. 컨테이너 가벼움(postgres 1개). 실시간 갱신은 5초 폴링으로 충분(목업).</p>
+  </section>
+
+  <!-- 1 -->
+  <section id="split">
+    <h2><span class="num">1</span>어디에 무엇을 — 필드 단위 분류</h2>
+    <p><code>types.ts</code>의 각 인터페이스에서 <b>엔티티 컬럼</b>(고정 속성·관계)과 <b>텔레메트리</b>(시간에 따라 변하는 측정값)를 가른 표. 둘 다 DB지만 저장 방식이 다르다 — 컬럼은 엔티티 테이블, 텔레메트리는 시계열 테이블(★ 섹션).</p>
+    <table>
+      <tr><th style="width:160px">인터페이스</th><th>엔티티 컬럼 (엔티티 테이블)</th><th>텔레메트리 (시계열 테이블)</th></tr>
+      <tr><td><code>Gpu</code></td><td>id, server_id, name, model, arch, vram_gb, mig_capable, serial, health, alloc_mode, assigned_user_id, assigned_service_id, interconnect, xid</td><td><b>sm_util, vram_util, temp, power</b></td></tr>
+      <tr><td><code>GpuServer</code></td><td>id, name, rack, host, network, note, health, hosted_*</td><td><b>cpu_util, mem_util, net_in, net_out, temp</b></td></tr>
+      <tr><td><code>MigSlice</code></td><td>id, gpu_id, profile, units, gb, owner_user_id, model_id, container_id, health, request_id</td><td><b>usage, vram_util</b> (서비스의 할당공간 사용률)</td></tr>
+      <tr><td><code>Service</code></td><td>id, name, model_id, owner_user_id, … (스키마 §4)</td><td><b>tokens, calls</b> (앱 지표만 — 자원은 할당 슬라이스에서 파생)</td></tr>
+      <tr><td>그 외 전부</td><td colspan="2">스칼라·관계 필드는 전부 엔티티 컬럼 (텔레메트리 없음)</td></tr>
+    </table>
+    <div class="note">health(상태)는 <b>현재 사실</b>이라 엔티티 컬럼. 단 텔레메트리 적재 워커가 임계치를 넘으면 health·event를 자동 갱신(★ 이벤트 룰). 서비스의 vram·온도·전력 등은 별도 저장 없이 <b>할당받은 슬라이스→GPU→서버</b>를 타고 파생(한 GPU에 서비스 여럿이어도 슬라이스 단위로 구분).</div>
+  </section>
+
+  <!-- ★ 텔레메트리 -->
+  <section id="telemetry">
+    <h2><span class="num">★</span>텔레메트리 적재 아키텍처</h2>
+    <p>사용률·온도·전력·토큰처럼 <b>시간에 따라 변하는 측정값</b>을 DB에 저장해, 어느 브라우저에서 봐도 같고 시간 누적되게. 정책 5가지 — 측정 대상 · 3단 tier · 정상범위 생성 · 이벤트 룰 · 헬스 대시보드.</p>
+
+    <h3>① 측정 대상 4종 (다대다 대응)</h3>
+    <p>한 GPU에 서비스 여러 개가 올라가도 각자 값을 갖도록, <b>서비스는 토큰만 직접 측정</b>하고 자원(vram·온도 등)은 <b>할당받은 슬라이스→GPU→서버</b>를 타고 파생.</p>
+    <table>
+      <tr><th style="width:90px">대상</th><th>직접 쌓는 지표</th><th>비고</th></tr>
+      <tr><td class="tbl-name">server</td><td>cpu_util · mem_util · net_in · net_out · temp</td><td>서비스 CPU/메모리 = 내 서버 값</td></tr>
+      <tr><td class="tbl-name">gpu</td><td>작업률(sm) · vram · 온도 · 전력</td><td>물리값. 서비스 온도/전력 = 내 GPU 값</td></tr>
+      <tr><td class="tbl-name">slice</td><td>usage · vram</td><td>할당공간 = 격리 단위 → 서비스 vram/사용률은 여기서</td></tr>
+      <tr><td class="tbl-name">service</td><td><b>tokens · calls</b></td><td>앱 지표만 직접</td></tr>
+    </table>
+
+    <h3>② 3단 tier — 부하 없이 평균·200점·7일</h3>
+    <table>
+      <tr><th style="width:90px">tier</th><th>간격</th><th>보존</th><th>쓰는 뷰</th></tr>
+      <tr><td class="tbl-name">latest</td><td>5초 덮어쓰기</td><td>1행/시리즈</td><td>KPI 숫자·게이지·평균</td></tr>
+      <tr><td class="tbl-name">raw</td><td>1분</td><td>48시간</td><td>3h·6h·24h 그래프(100~200점)</td></tr>
+      <tr><td class="tbl-name">hourly</td><td>1시간 평균</td><td>30일</td><td>7일·30일 그래프</td></tr>
+    </table>
+    <p class="muted">읽을 때 범위 보고 tier 자동 선택 → 어떤 화면이든 <b>수백 행만</b> 읽음 → 로드 일정. 7일은 hourly(168행)에서 읽어 raw 안 건드림.</p>
+    <pre class="code"><span class="cm">-- long format: 지표 추가가 행만 추가(스키마 불변), 다대다 자유</span>
+<span class="kw">create table</span> telemetry_raw (
+  ts      timestamptz <span class="kw">not null</span>,
+  kind    text <span class="kw">not null</span>,   <span class="cm">-- server | gpu | slice | service</span>
+  id      text <span class="kw">not null</span>,   <span class="cm">-- 대상 엔티티 id</span>
+  metric  text <span class="kw">not null</span>,   <span class="cm">-- cpu_util | sm_util | vram | temp | power | tokens ...</span>
+  value   real <span class="kw">not null</span>
+);
+<span class="kw">create index</span> on telemetry_raw (kind, id, metric, ts <span class="kw">desc</span>);  <span class="cm">-- 시리즈+범위 즉시 점프(풀스캔 X) → 테이블 커도 빠름</span>
+<span class="cm">-- telemetry_hourly = 동일 구조(value=시간평균) · telemetry_latest = ts 없이 1행 upsert</span></pre>
+
+    <h3>③ 정상범위 생성 — "예쁜" 차트</h3>
+    <p>더미를 지표별 <b>현실 정상범위</b> 안에서 자연스럽게 출렁이게(일주기 + 노이즈). 상태별로 다르게 — 정상=정상범위 / 유휴=거의 0 / XID 장애=비정상·끊김.</p>
+    <table>
+      <tr><th style="width:130px">지표</th><th>정상범위</th><th>패턴</th></tr>
+      <tr><td>GPU 작업률</td><td>20~85%</td><td>낮↑/밤↓ + 노이즈</td></tr>
+      <tr><td>GPU 온도</td><td>38~74°C</td><td>작업률 따라감</td></tr>
+      <tr><td>GPU 전력</td><td>TDP의 30~90%</td><td>작업률 비례</td></tr>
+      <tr><td>서버 CPU / RAM</td><td>15~70% / 30~75%</td><td>완만</td></tr>
+      <tr><td>서비스 토큰</td><td>트래픽 곡선</td><td>업무시간 ↑</td></tr>
+    </table>
+
+    <h3>④ 이벤트 자동 발생 — backend 워커 룰 (방식 B 확정)</h3>
+    <p>1분 적재 때 워커가 임계 룰을 평가 → 넘으면 <code>event_logs</code>에 INSERT(DB 트리거 대신 워커 — 룰 수정 쉽고 부하 적음). 같은 대상에 <code>open</code> 이벤트 있으면 중복 안 만듦(디바운스).</p>
+    <table>
+      <tr><th style="width:230px">룰</th><th>이벤트</th></tr>
+      <tr><td>GPU 온도 &gt; 85°C</td><td>warn · 온도 경고</td></tr>
+      <tr><td>전력 &gt; TDP 95%</td><td>warn · 전력 경고</td></tr>
+      <tr><td>할당됐는데 작업률 0 지속</td><td>info · 유휴 경고</td></tr>
+      <tr><td>XID 발생</td><td>critical · 위험</td></tr>
+    </table>
+    <p class="muted">→ 4.2 알람·4.21 타임라인이 텔레메트리에서 자동으로 생김(진짜 관제처럼).</p>
+
+    <h3>⑤ 적재 헬스 대시보드</h3>
+    <p>backend가 잘 넣고 있나 확인하는 개발/운영용 페이지(<code>/admin/telemetry-health</code>) + <code>/stats</code> 엔드포인트.</p>
+    <div class="wire">워커 상태 (running / 마지막 실행)        tier별 행 수 (latest/raw/hourly) + 용량
+최근 1분 INSERT 수 (정상 ~120)          시리즈별 최신값 샘플
+보존 청소 동작 (48h / 30일)             이벤트 트리거 발생 수</div>
+
+    <h3>용량 (서버8·GPU9·슬라이스~15·서비스7 = ~120 시리즈)</h3>
+    <div class="wire">latest   120 시리즈 × 1            =      120 행
+raw      120 × (1분×48h=2,880)    ≈  34.6만 행  ≈ 30MB
+hourly   120 × (1시간×30일=720)   ≈   8.6만 행  ≈  8MB
+─────────────────────────────────────  합 ~43만 행 ≈ 40MB (고정 · 자동삭제로 안 늘어남)</div>
+    <p class="muted">한 화면이 읽는 건 수백~천 행(인덱스로 그것만). 처음 DB 만들 때 과거 48h+30일을 결정적 함수로 미리 생성·적재(시드) → 그래프가 처음부터 차 있음. 슬라이스 수만 함대 규모에 따라 ±.</p>
+  </section>
+
+  <!-- 2 -->
+  <section id="erd">
+    <h2><span class="num">2</span>ERD — 관계도</h2>
+    <div class="wire">users ─┬─< services >─── models
+       │        │
+       │        └─< activation_stats >── (consumer) users
+       │
+       ├─< gpu_requests ───< mig_slices >── gpus >── gpu_servers
+       ├─< api_requests >── services
+       ├─< gpu_change_requests
+       ├─< publish_requests
+       ├─< model_imports
+       ├─< audit_logs
+       └─< board_posts
+
+gpu_servers ─< gpus ─< mig_slices        (인벤토리 3계층, 4.2→4.3→4.4)
+event_logs ── (gpu_id?, server_id?)      (함대 참조, nullable)
+notifications · access_policies · agents · infra_integrations  (독립/설정성)</div>
+    <p class="legend"><code>A ─< B</code> = A 1 : N B (B가 A의 id를 FK로 가짐). <span class="pk">파랑</span>=PK, <span class="fk">주황</span>=FK.</p>
+  </section>
+
+  <!-- 3 -->
+  <section id="domains">
+    <h2><span class="num">3</span>공유 도메인 (enum 대체)</h2>
+    <p>union 타입(<code>Status</code> 등)은 Postgres <b>DOMAIN + CHECK</b>로. enum 타입보다 값 추가/변경이 쉬워 데모에 적합(<code>ALTER TYPE</code> 락 회피).</p>
+    <pre class="code"><span class="cm">-- 여러 테이블이 공유하는 값 집합 → 도메인으로 한 번만 정의(DRY)</span>
+<span class="kw">create domain</span> status <span class="kw">as</span> text <span class="kw">check</span> (value <span class="kw">in</span> (<span class="st">'pending'</span>,<span class="st">'approved'</span>,<span class="st">'rejected'</span>));
+<span class="kw">create domain</span> server_health <span class="kw">as</span> text <span class="kw">check</span> (value <span class="kw">in</span> (<span class="st">'normal'</span>,<span class="st">'warn'</span>,<span class="st">'danger'</span>,<span class="st">'inactive'</span>));
+<span class="kw">create domain</span> gpu_health <span class="kw">as</span> text <span class="kw">check</span> (value <span class="kw">in</span> (<span class="st">'normal'</span>,<span class="st">'danger'</span>,<span class="st">'inactive'</span>));
+<span class="kw">create domain</span> role <span class="kw">as</span> text <span class="kw">check</span> (value <span class="kw">in</span> (<span class="st">'admin'</span>,<span class="st">'user'</span>));
+<span class="cm">-- 그 외 인라인 CHECK: alloc_mode, severity, event_status, change_type, model_kind, capacity_unit ...</span></pre>
+    <div class="note"><b>ID 전략:</b> 시드가 의미있는 문자열 ID(<code>'u-admin'</code>, <code>'srv-01'</code>, <code>'gpu-a01'</code>)를 쓰므로 PK = <code>text</code> 유지(시드·기존 코드 호환). 런타임 신규 레코드는 앱에서 <code>req-${crypto.randomUUID()}</code> 생성. <b>배열</b>(tags·addons·models·hosted_*)은 정규화 대신 <code>text[]</code>(데모 단순성). <b>중첩</b>(server>gpu>slice)만 정규화 테이블로 분리.</p></div>
+  </section>
+
+  <!-- 4 핵심 엔티티 -->
+  <section id="t-core">
+    <h2><span class="num">4</span>핵심 엔티티 — users · models · services</h2>
+
+    <h3 class="tbl-name">users</h3>
+    <table>
+      <tr><th style="width:170px">컬럼</th><th style="width:130px">타입</th><th>비고</th></tr>
+      <tr><td class="pk">id</td><td>text PK</td><td><code>u-admin</code> 등</td></tr>
+      <tr><td>username</td><td>text unique not null</td><td>로그인 슬러그</td></tr>
+      <tr><td>name</td><td>text not null</td><td>표시명</td></tr>
+      <tr><td>role</td><td>role not null</td><td>admin / user</td></tr>
+      <tr><td>email</td><td>text not null</td><td></td></tr>
+      <tr><td>has_hosting</td><td>boolean not null</td><td>호스팅 보유(화면 분기)</td></tr>
+      <tr><td>initial_route</td><td>text not null</td><td>로그인 후 진입</td></tr>
+    </table>
+
+    <h3 class="tbl-name">models</h3>
+    <table>
+      <tr><th style="width:170px">컬럼</th><th style="width:130px">타입</th><th>비고</th></tr>
+      <tr><td class="pk">id</td><td>text PK</td><td></td></tr>
+      <tr><td>name / kind</td><td>text / text</td><td>kind ∈ LLM·Code·Vision-Language·Image·STT·Embedding (CHECK)</td></tr>
+      <tr><td>description / license / params / recommended_gpu</td><td>text</td><td></td></tr>
+      <tr><td>addons</td><td>text[]</td><td>부가기능 배열</td></tr>
+      <tr><td>usage_rank / usage_count</td><td>int / int</td><td>usage_count = <b>누적 카운터</b>(DB)</td></tr>
+    </table>
+
+    <h3 class="tbl-name">services</h3>
+    <table>
+      <tr><th style="width:170px">컬럼</th><th style="width:130px">타입</th><th>비고</th></tr>
+      <tr><td class="pk">id</td><td>text PK</td><td></td></tr>
+      <tr><td>name / kind</td><td>text</td><td></td></tr>
+      <tr><td>has_api</td><td>boolean</td><td>API 제공 여부</td></tr>
+      <tr><td class="fk">model_id</td><td>text → models(id)</td><td></td></tr>
+      <tr><td>service_url / test_url / manual_url / description</td><td>text</td><td>manual_url nullable</td></tr>
+      <tr><td class="fk">owner_user_id</td><td>text → users(id) not null</td><td>소유자</td></tr>
+      <tr><td class="fk">deployer_user_id</td><td>text → users(id)</td><td>올린 사람(기본=owner)</td></tr>
+      <tr><td>tags</td><td>text[]</td><td></td></tr>
+      <tr><td>usage_rank / usage_count</td><td>int</td><td>usage_count 누적</td></tr>
+    </table>
+  </section>
+
+  <!-- 5 함대 -->
+  <section id="t-fleet">
+    <h2><span class="num">5</span>함대(인벤토리) — gpu_servers · gpus · mig_slices</h2>
+    <p>3계층 정규화(자원맵 4.2→4.3→4.4 드릴다운과 1:1). <b>텔레메트리 필드는 컬럼 없음</b>(1번 표 참고).</p>
+
+    <h3 class="tbl-name">gpu_servers</h3>
+    <table>
+      <tr><th style="width:180px">컬럼</th><th style="width:150px">타입</th><th>비고</th></tr>
+      <tr><td class="pk">id</td><td>text PK</td><td><code>srv-01</code></td></tr>
+      <tr><td>name / rack / host / network / note</td><td>text</td><td></td></tr>
+      <tr><td>health</td><td>server_health</td><td>normal/warn/danger/inactive</td></tr>
+      <tr><td>hosted_service_ids / hosted_user_ids</td><td>text[]</td><td>호스팅 중 서비스·사용자</td></tr>
+      <tr><td colspan="3" class="muted">✕ temp · cpu_util · mem_util → 클라이언트 생성</td></tr>
+    </table>
+
+    <h3 class="tbl-name">gpus</h3>
+    <table>
+      <tr><th style="width:180px">컬럼</th><th style="width:150px">타입</th><th>비고</th></tr>
+      <tr><td class="pk">id</td><td>text PK</td><td><code>gpu-a01</code></td></tr>
+      <tr><td class="fk">server_id</td><td>text → gpu_servers(id) on delete cascade</td><td></td></tr>
+      <tr><td>name / model / arch / serial / interconnect</td><td>text</td><td></td></tr>
+      <tr><td>vram_gb</td><td>int</td><td></td></tr>
+      <tr><td>mig_capable</td><td>boolean</td><td>데이터센터 GPU만 true</td></tr>
+      <tr><td>health</td><td>gpu_health</td><td></td></tr>
+      <tr><td>alloc_mode</td><td>text CHECK(cluster/mig)</td><td></td></tr>
+      <tr><td class="fk">assigned_user_id / assigned_service_id</td><td>text → users/services</td><td>nullable</td></tr>
+      <tr><td>xid</td><td>text</td><td>장애 코드(nullable)</td></tr>
+      <tr><td colspan="3" class="muted">✕ sm_util · vram_util · temp · power · recent_activities → 클라이언트 생성</td></tr>
+    </table>
+
+    <h3 class="tbl-name">mig_slices</h3>
+    <table>
+      <tr><th style="width:180px">컬럼</th><th style="width:150px">타입</th><th>비고</th></tr>
+      <tr><td class="pk">id</td><td>text PK</td><td></td></tr>
+      <tr><td class="fk">gpu_id</td><td>text → gpus(id) on delete cascade</td><td></td></tr>
+      <tr><td>profile</td><td>text</td><td>1g.10gb ~ 7g.288gb (앱 상수 MIG_PROFILES와 일치)</td></tr>
+      <tr><td>units / gb</td><td>int / int</td><td>프로필에서 파생(중복 저장 허용)</td></tr>
+      <tr><td class="fk">owner_user_id / model_id / request_id</td><td>text → users/models/gpu_requests</td><td>전부 nullable</td></tr>
+      <tr><td>container_id</td><td>text</td><td></td></tr>
+      <tr><td>health</td><td>server_health</td><td>4.3 슬라이스 색</td></tr>
+      <tr><td colspan="3" class="muted">✕ usage · vram_util → 클라이언트 생성</td></tr>
+    </table>
+  </section>
+
+  <!-- 6 신청·승인 -->
+  <section id="t-req">
+    <h2><span class="num">6</span>신청 · 승인 (트랜잭션 핵심)</h2>
+    <p>이 그룹이 "A 신청 → B가 봄 → 승인 → 누적"의 주역. 공통: <code>requester_user_id</code>, <code>status</code>(default <code>'pending'</code>), <code>reject_reason</code>, <code>created_at timestamptz default now()</code>.</p>
+
+    <table>
+      <tr><th style="width:200px">테이블</th><th>고유 컬럼</th><th>흐름</th></tr>
+      <tr><td class="tbl-name">gpu_requests</td><td>capacity, capacity_unit(card/slice), models text[], env, addons text[], service_name, purpose, attachment_url</td><td>자원 신청(4.8) → GPU 승인(4.10) → 슬라이스 할당</td></tr>
+      <tr><td class="tbl-name">api_requests</td><td class="fk">service_id→services, model, target_service_url, api_key</td><td>API 신청(4.19) → 승인 시 api_key 발급</td></tr>
+      <tr><td class="tbl-name">gpu_change_requests</td><td>type(migrate/change/expand/reclaim), reason</td><td>변경·회수(4.11)</td></tr>
+      <tr><td class="tbl-name">publish_requests</td><td>service_name, service_url, demo_url, meta</td><td>게시 신청(4.29) → 게시 승인(4.9) → 마켓 등록</td></tr>
+      <tr><td class="tbl-name">model_imports</td><td>file_name, format(safetensors/other), scan(pass/fail/pending), checksum</td><td>모델 반입(4.14) 보안스캔</td></tr>
+    </table>
+
+    <h3>예시 DDL — gpu_requests</h3>
+    <pre class="code"><span class="kw">create table</span> gpu_requests (
+  id              text <span class="kw">primary key</span>,
+  requester_user_id text <span class="kw">not null references</span> users(id),
+  capacity        numeric <span class="kw">not null</span>,
+  capacity_unit   text <span class="kw">check</span> (capacity_unit <span class="kw">in</span> (<span class="st">'card'</span>,<span class="st">'slice'</span>)),
+  models          text[] <span class="kw">not null default</span> <span class="st">'{}'</span>,
+  env             text,
+  addons          text[] <span class="kw">not null default</span> <span class="st">'{}'</span>,
+  service_name    text,
+  purpose         text,
+  attachment_url  text,
+  status          status <span class="kw">not null default</span> <span class="st">'pending'</span>,
+  reject_reason   text,
+  created_at      timestamptz <span class="kw">not null default</span> now()
+);
+<span class="kw">create index</span> on gpu_requests (status, created_at <span class="kw">desc</span>);  <span class="cm">-- 대기목록 조회</span></pre>
+  </section>
+
+  <!-- 7 로그 -->
+  <section id="t-log">
+    <h2><span class="num">7</span>로그 · 알림 · 게시판</h2>
+    <table>
+      <tr><th style="width:170px">테이블</th><th>주요 컬럼</th></tr>
+      <tr><td class="tbl-name">event_logs</td><td>severity(critical/warn/info/recovered), status(open/resolved), <span class="fk">gpu_id?·server_id?</span>, message, read, assignee, action, resolution, created_at</td></tr>
+      <tr><td class="tbl-name">notifications</td><td>category(alloc/health/reclaim), message, link, read, created_at</td></tr>
+      <tr><td class="tbl-name">audit_logs</td><td><span class="fk">actor_user_id</span>, action, target, ip, created_at</td></tr>
+      <tr><td class="tbl-name">board_posts</td><td>tab(notice/qna/manual), title, body, <span class="fk">author_id</span>, answered, created_at</td></tr>
+      <tr><td class="tbl-name">activation_stats</td><td><span class="fk">service_id·model_id·consumer_user_id</span>, period, calls·tokens(누적)</td></tr>
+      <tr><td class="tbl-name">api_key_usage</td><td>key_id, <span class="fk">service_id</span>, connections(누적). ✕ calls[] sparkline=클라이언트</td></tr>
+    </table>
+    <div class="note db"><b>events.ts 주의:</b> 현재 이벤트는 배포 상태에서 <b>결정적 생성</b>(수기 X). DB 전환 시 — 시드 적재 단계에서 한 번 생성해 <code>event_logs</code>에 넣고, 이후 신규 이벤트는 신청/승인 트랜잭션의 결과로 INSERT. lib/metrics 순환참조 주의는 그대로 유지.</div>
+  </section>
+
+  <!-- 8 설정 -->
+  <section id="t-cfg">
+    <h2><span class="num">8</span>설정 · 운영 (정적성)</h2>
+    <p>거의 안 변하지만 화면이 읽으므로 테이블로 둠. 시드로 1회 적재 후 Studio에서 편집.</p>
+    <table>
+      <tr><th style="width:200px">테이블</th><th>컬럼</th></tr>
+      <tr><td class="tbl-name">access_policies</td><td><span class="pk">id</span>, role, resource, allow(boolean) — 4.25 접근통제</td></tr>
+      <tr><td class="tbl-name">agents</td><td><span class="pk">id</span>, node_id, <span class="fk">server_id</span>, version, status(active/stale/down), deployed_at — 4.16</td></tr>
+      <tr><td class="tbl-name">infra_integrations</td><td><span class="pk">id</span>, kind(dcgm/prometheus/metrics/orchestrator), name, endpoint, status — 4.28</td></tr>
+    </table>
+    <p class="muted">※ <code>Capability</code>(4.26 능력탐지)는 단일 설정 객체 → 테이블 대신 1행 <code>config</code> 테이블 또는 클라이언트 상수로 둬도 무방.</p>
+  </section>
+
+  <hr class="div">
+
+  <!-- 9 시드 -->
+  <section id="seed">
+    <h2><span class="num">9</span>시드 적재 — seed.json → DB (1회)</h2>
+    <p><code>seed.json</code>의 키 순서대로 FK 의존성 순서 INSERT. 멱등(idempotent)하게 <code>on conflict do nothing</code>.</p>
+    <ol class="road">
+      <li><b>스키마 SQL</b> 적용 (도메인 → 엔티티 테이블 → 텔레메트리 테이블 → 인덱스). <code>infra/db/init/0001_schema.sql</code></li>
+      <li><b>적재 순서</b>: users → models → services → gpu_servers → gpus → mig_slices → (신청류) → event_logs → 나머지. (FK 부모 먼저)</li>
+      <li><b>적재 스크립트</b>: Node <code>infra/db/seed/seed-db.ts</code> — seed.json 읽어 pg로 batch insert. servers.ts가 fleet 스펙→GpuServer[] 빌드하던 로직을 그대로 재사용해 gpus·slices 풀어서 INSERT.</li>
+      <li><b>검증</b>: 적재 후 row count + 기존 <code>verifyIntegrity</code>를 DB판으로(끊긴 FK 0 확인).</li>
+    </ol>
+    <div class="note db">텔레메트리는 별도 — 시드 시 <b>과거 48시간(원본) + 30일(1시간평균)을 결정적 함수로 미리 생성·적재</b>해야 그래프가 처음부터 차 있음(★ 섹션). 엔티티의 현재 temp·util 값은 latest 테이블 초기값으로.</div>
+  </section>
+
+  <!-- 10 접근 레이어 -->
+  <section id="access">
+    <h2><span class="num">10</span>접근 레이어 — Hono backend + fetch 훅</h2>
+    <p>화면이 동기 <code>import { gpuRequests }</code>에서 <b>비동기 훅</b>으로 전환. backend가 SQL을 감싼 REST를 주고, 프론트는 fetch. 공통 계약을 먼저 만들어 화면별로 분산.</p>
+
+    <h3>backend (Hono · SQL 직접)</h3>
+    <pre class="code"><span class="cm">// infra/server/index.ts (Hono)</span>
+app.get(<span class="st">'/api/gpu-requests'</span>, <span class="kw">async</span> (c) =&gt; {
+  <span class="kw">const</span> status = c.req.query(<span class="st">'status'</span>)
+  <span class="kw">const</span> rows = <span class="kw">await</span> sql<span class="st">`select * from gpu_requests
+    ${status ? sql`where status = ${status}` : sql``} order by created_at desc`</span>
+  <span class="kw">return</span> c.json(rows)
+})
+<span class="cm">// 텔레메트리: GET /api/telemetry?kind=gpu&id=..&metric=sm_util&range=3h</span>
+<span class="cm">//   → range로 tier 선택(raw/hourly) + time_bucket 다운샘플해서 ~150점만 반환</span></pre>
+
+    <h3>query 훅 (프론트)</h3>
+    <pre class="code"><span class="cm">// app/src/data/hooks/useGpuRequests.ts</span>
+<span class="kw">export function</span> useGpuRequests(status?: Status) {
+  <span class="kw">return</span> useQuery([<span class="st">'gpu_requests'</span>, status], () =&gt;
+    fetch(<span class="st">`${API}/api/gpu-requests?status=${status ?? ''}`</span>).then(r =&gt; r.json()))
+}
+<span class="cm">// mutation: POST /api/gpu-requests/:id/approve → status update + 슬라이스 INSERT (트랜잭션)</span>
+<span class="cm">// 실시간감: 5초 폴링(refetchInterval) — 목업엔 충분(외부 realtime 불필요)</span></pre>
+
+    <h3>전환 패턴 (화면별)</h3>
+    <table>
+      <tr><th style="width:240px">기존(동기)</th><th>전환(비동기)</th></tr>
+      <tr><td><code>import { gpuRequests } from data</code></td><td><code>const { data, isLoading } = useGpuRequests()</code> + 로딩/빈상태 처리</td></tr>
+    </table>
+    <div class="note"><b>로딩/에러 UI</b>는 G0의 Skeleton·빈상태 컴포넌트 재사용 → 화면당 변경 최소화. 권한은 데모용 <code>useRole()</code> 클라이언트 게이팅으로 단순화(폐쇄망 · 필요 시 backend 인가 추가).</div>
+  </section>
+
+  <!-- 11 Docker -->
+  <section id="docker">
+    <h2><span class="num">11</span>로컬 Docker 셋업 (지금) · 63번 배포 (나중)</h2>
+    <h3>지금 — 내 PC 로컬 (DB만 Docker)</h3>
+    <ol class="road">
+      <li><b>DB Docker</b>: <code>infra/db/docker-compose.yml</code>(postgres 1개) → <code>docker compose up -d</code>. init SQL이 스키마 자동 적용.</li>
+      <li><b>시드</b>: <code>infra/db/seed/seed-db.ts</code> 실행 → seed.json + 텔레메트리 과거치 적재.</li>
+      <li><b>backend</b>: <code>infra/server</code>(Hono) 로컬 실행 — REST + 적재 워커.</li>
+      <li><b>frontend</b>: <code>npm run dev</code>(로컬). <code>.env</code>에 <code>VITE_API_BASE=http://localhost:8787</code>.</li>
+    </ol>
+    <h3>나중 — 63번(192.168.0.63)에 이미지로</h3>
+    <ol class="road">
+      <li><b>이미지화</b>: frontend·backend 각 <code>Dockerfile</code>로 빌드.</li>
+      <li><b>배포</b>: postgres + backend + frontend(nginx) compose를 63번에. DB도 그때 63번으로.</li>
+      <li><b>네트워크</b>: 개발 PC/접속자가 63번에 도달(같은 망/VPN).</li>
+    </ol>
+    <div class="note"><b>내가 작성</b>: compose · init SQL(스키마) · seed 스크립트 · Hono backend · 적재 워커 · 훅 · .env.example · Dockerfile. <b>네가</b>: <code>docker compose up</code> 실행 · 실제 시크릿을 <code>.env</code>에 입력. 내 비밀 없이 작업 100% 가능.</div>
+    <div class="note ok"><b>보안</b>: 시크릿 하드코딩 금지 → <code>.env</code>(gitignore) + <code>.env.example</code>(틀만). 63번 자격증명은 채팅·git·문서에 안 넣음.</div>
+  </section>
+
+  <!-- 12 로드맵 -->
+  <section id="roadmap">
+    <h2><span class="num">12</span>작업 로드맵</h2>
+    <ol class="road">
+      <li><b>① DB Docker 기동</b> (로컬) — infra/db compose up, 스키마 자동 적용 <span class="muted">[네가]</span></li>
+      <li><b>② 스키마 SQL</b> — 도메인·엔티티·텔레메트리 테이블·인덱스 작성 <span class="muted">[내가]</span></li>
+      <li><b>③ 시드 스크립트</b> — seed.json → DB 멱등 적재 + <b>텔레메트리 과거 48h/30일 생성</b> + 무결성 검증 <span class="muted">[내가]</span></li>
+      <li><b>④ backend + 훅 토대</b> — Hono REST(테이블별 query/mutation) + <b>적재 워커</b>(5초/1분/1시간·이벤트 룰) + fetch 훅 <span class="muted">[내가]</span></li>
+      <li><b>⑤ 화면 async 전환</b> — 동기 import → 훅. 공통 계약으로 화면별 분산 <span class="muted">[내가, 점진]</span></li>
+    </ol>
+    <p class="muted">②~④는 토대(빠름), ⑤가 분량(화면 수 비례). ①만 되면 ②부터 바로 시작.</p>
+  </section>
+
+  </main>
+</div>
+</body>
+</html>
