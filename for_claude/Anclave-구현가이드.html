@@ -289,10 +289,10 @@ npm run dev -- --port 517&lt;n&gt;        # 세션마다 dev 포트 분리</pre>
       </div>
 
       <div class="stepcard">
-        <div class="hd"><span class="tag">STEP 9</span>G9 · API 연동(4.19) + 서비스 게시 신청(4.29)</div>
-        <div class="scope">단일 목록 금지 — 요약 KPI·호출량 차트 동반으로 밀도 충분히. (4.20 활성화 대시보드는 제거됨)</div>
-        <pre class="cmd"><span class="label">① 구현 → Claude</span>G9를 §8 DoD대로 구현해줘. 4.19 API 연동(B: 상단 요약 KPI(발급 키·대기 신청·총 호출 + 각 델타/스파크) + 받은 신청 목록·승인→key 발급/복사·호출량 LineChart·사용 가이드 — 단일 목록 금지, above-fold 영역 ≥4). <b style="color:#f85149">★4.29 서비스 게시 신청(B=C · 마켓플레이스 그룹)</b>: 내가 배포한 서비스를 마켓에 게시 신청 → 4.9 게시 승인으로. 구성 — 내 배포 서비스 선택(올라간 서비스, <code>services</code> 시드) · 게시 정보 입력(소개·태그·공개 범위·요금) · 제출 → 게시 승인 대기(+토스트) · 내 게시 신청 상태 목록(대기/승인/반려). 더미=src/data 시드(<code>services·publishRequests from '../data'</code>). (★4.20 "활성화 대시보드"는 제거됨) <b>screens/activation.tsx만 수정</b>. [공통 꼬리말]</pre>
-        <pre class="cmd qa"><span class="label">② 검증·QA → Claude</span>4.19를 크롬 1440·1280·1024로 렌더해 점검해줘. ① §2 "절대 금지 체크리스트" + 밀도(above-fold 영역 ≥4: 요약 KPI행/신청 목록/호출량 차트/사용 가이드가 다 있는지·KPI 카드 빈 박스 아닌지)를 항목별로 꼭 확인 · ② 정렬·헤더·AI 티 위반 0 · ③ 승인→key 발급/복사·깨짐 찾아. [위치·문제·금지위반·수정안] 목록 보여주고 합의되면 고쳐 다시 확인 후 커밋 제안해.</pre>
+        <div class="hd"><span class="tag">STEP 9</span>G9 · API 신청 관리(4.19) + 서비스 게시 신청(4.29)</div>
+        <div class="scope">두 화면 다 <b>내 마켓 활동</b> 관점 — API 신청 관리=내 서비스에 온 key 신청 관리+발급 요약 · 게시 신청=자원 신청현황처럼 깔끔한 내 신청 목록. (4.20 활성화 대시보드는 제거됨)</div>
+        <pre class="cmd"><span class="label">① 구현 → Claude</span>G9를 구현해줘 — <b>screens/activation.tsx만</b>. <b style="color:#f85149">★4.19 'API 신청 관리'(B·소유자 · 마켓플레이스 그룹, /api-approvals)</b>: 내가 마켓에 올린 서비스에 대해 <b>다른 사용자가 요청한 API key 신청</b>을 승인·관리. 구성 — 상단 <b>요약(★내 서비스별 발급 key 수[어떤 서비스에 몇 개]·총 발급·대기 신청)</b> + 받은 API key 신청 테이블(요청자·대상 서비스·신청일·상태) · 행 승인→key 발급/복사·반려. 더미=<code>apiRequests·apiKeyUsages·services</code>(from '../data'). <b style="color:#f85149">★4.29 '서비스 게시 신청'(B=C · 마켓플레이스 그룹, /marketplace/publish)</b>: <b>자원 신청현황(4.6)처럼 깔끔하게</b> — '내가 신청한 게시 목록'(서비스·신청일·상태 대기/승인/반려) 중심 + '신규 게시 신청'(내 배포 서비스 선택 + 게시 정보 입력 → publishRequests 대기 추가). 과하게 만들지 말고 목록 중심. 더미=<code>publishRequests·services</code>(from '../data'). (★4.20 제거됨) §2 절대금지·테마 토큰·14px floor·프로그레스 바 금지. [공통 꼬리말]</pre>
+        <pre class="cmd qa"><span class="label">② 검증·QA → Claude</span>4.19(API 신청 관리)·4.29(서비스 게시 신청)를 크롬 1440·1280으로 렌더해 점검해줘. ① §2 절대금지 항목별 위반 0(정렬·헤더 nowrap·14px floor·프로그레스 바 금지·AI 티) · ② <b>4.19 = 서비스별 발급 key 요약 + 받은 API 신청 목록·승인→key 발급 동작</b>·<b>4.29 = 내 게시 신청 목록(자원 신청현황 톤)·신규 신청 동작</b> · ③ 시드 데이터(apiRequests·apiKeyUsages / publishRequests) 연결·깨짐 찾아. [위치·문제·금지위반·수정안] 목록 보여주고 합의되면 고쳐 다시 확인 후 커밋 제안해.</pre>
       </div>
 
       <div class="stepcard">
