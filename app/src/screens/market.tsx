@@ -337,7 +337,6 @@ const serviceById = (id?: string) => SERVICES.find((s) => s.id === id) ?? SERVIC
 
 const KINDS = [...new Set(SERVICES.map((s) => s.kind))]
 const MODELS = [...new Set(SERVICES.map((s) => s.model))]
-const OWNERS = [...new Set(SERVICES.map((s) => s.owner))]
 const STATUSES = ['정상', '주의', '불안정', '점검 중']
 
 interface RankItem {
@@ -362,11 +361,11 @@ const ALL_TAGS = [...new Set(SERVICES.flatMap((s) => s.tags))].slice(0, 18)
 type ApiMode = 'all' | 'yes' | 'no'
 type SortKey = 'usage' | 'recent' | 'name'
 interface Filters {
-  query: string; kind: string; model: string; owner: string; api: ApiMode; statuses: Set<string>; tag: string
+  query: string; kind: string; model: string; api: ApiMode; statuses: Set<string>; tag: string
 }
-const emptyFilters = (): Filters => ({ query: '', kind: 'all', model: 'all', owner: 'all', api: 'all', statuses: new Set(), tag: '' })
+const emptyFilters = (): Filters => ({ query: '', kind: 'all', model: 'all', api: 'all', statuses: new Set(), tag: '' })
 const filtersActive = (f: Filters) =>
-  !!f.query || f.kind !== 'all' || f.model !== 'all' || f.owner !== 'all' || f.api !== 'all' || f.statuses.size > 0 || !!f.tag
+  !!f.query || f.kind !== 'all' || f.model !== 'all' || f.api !== 'all' || f.statuses.size > 0 || !!f.tag
 
 function applyFilters(f: Filters, sort: SortKey): Service[] {
   const q = f.query.trim().toLowerCase()
@@ -375,7 +374,6 @@ function applyFilters(f: Filters, sort: SortKey): Service[] {
     if (q && !`${s.name} ${s.kind} ${s.model} ${s.provider} ${s.desc} ${s.tags.join(' ')}`.toLowerCase().includes(q)) return false
     if (f.kind !== 'all' && s.kind !== f.kind) return false
     if (f.model !== 'all' && s.model !== f.model) return false
-    if (f.owner !== 'all' && s.owner !== f.owner) return false
     if (f.api === 'yes' && !hasApiOf(s)) return false
     if (f.api === 'no' && hasApiOf(s)) return false
     if (f.statuses.size > 0 && !f.statuses.has(s.status)) return false
@@ -505,8 +503,6 @@ function FilterPanel({ f, set, onReset, fill }: { f: Filters; set: (patch: Parti
 
         <Select label="모델" value={f.model} onChange={(model) => set({ model })}
           options={[{ value: 'all', label: '모든 모델' }, ...MODELS.map((m) => ({ value: m, label: m }))]} />
-        <Select label="소유자" value={f.owner} onChange={(owner) => set({ owner })}
-          options={[{ value: 'all', label: '모든 소유자' }, ...OWNERS.map((o) => ({ value: o, label: o }))]} />
 
         <FilterGroup label="상태">
           <CheckRow label="전체" checked={f.statuses.size === 0} onClick={() => set({ statuses: new Set() })} />
@@ -685,7 +681,7 @@ function RankingPanel({ fill, onOpen }: { fill: boolean; onOpen: (s: Service) =>
         </span>
         <span className="flex items-center justify-between gap-2 rounded-lg" style={{ padding: '8px 11px', fontSize: 13, background: p.chip, border: `1px solid ${p.border}` }}>
           <span style={{ fontWeight: 600, color: p.text }}>필터</span>
-          <span className="flex items-center gap-1 truncate" style={{ color: p.muted }}>종류 · API · 모델 · 소유자 · 상태 <ChevronDownIcon width={14} height={14} className="shrink-0" /></span>
+          <span className="flex items-center gap-1 truncate" style={{ color: p.muted }}>종류 · API · 모델 · 상태 <ChevronDownIcon width={14} height={14} className="shrink-0" /></span>
         </span>
         <div className="flex items-center justify-between gap-2">
           <span style={{ fontSize: 13.5, fontWeight: 700, color: p.text }}>최대 사용량 서비스 순위</span>
