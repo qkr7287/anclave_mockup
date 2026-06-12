@@ -1,65 +1,37 @@
-import { useState } from 'react'
-import type { CSSProperties, ReactNode } from 'react'
+import { Fragment } from 'react'
+import type { CSSProperties } from 'react'
 import {
   ResponsiveContainer,
-  ComposedChart,
-  AreaChart,
   BarChart,
   PieChart,
   Pie,
   Cell,
-  Area,
-  Line,
   Bar,
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
 } from 'recharts'
-import {
-  ChartBarSquareIcon,
-  CpuChipIcon,
-  Squares2X2Icon,
-  CircleStackIcon,
-  BoltIcon,
-} from '@heroicons/react/24/outline'
-import { Card } from '../components/ui'
+import { Card, KpiStat } from '../components/ui'
+import { BandChart } from '../components/charts'
+import type { BandSeries, BandAxis } from '../components/charts'
 import { servers, allGpus, events } from '../data'
 import { serverAvgUtil, vramUsedMb, vramTotalMb, fmtNum } from '../lib/metrics'
+import {
+  RANGES,
+  RANGE_LABEL,
+  INTERVAL_BY_RANGE,
+  RangeProvider,
+  useRange,
+  useTelemetryBand,
+  tsLabel,
+} from './monitoring-telemetry'
 
 // ─────────────────────────────────────────────────────────────────────────
 // G11 · 4.7 관제 모니터링 — 전체 서버 모니터링(재현) · Figma node 3-2 구조 1:1
 // 다크 빅스크린 · 무스크롤 1920×1080(100vh·넘침은 패널 내부) · 색은 테마 토큰
+// 시계열은 useTelemetryBand(조회범위 Context) → /api/telemetry/band(없으면 목).
+// 모든 위젯이 같은 {range,unit} Context 공유(전부 조회범위 기준).
 // ─────────────────────────────────────────────────────────────────────────
-
-// 결정적 시계열 — base 주위로 진동(Math.random 미사용 → 렌더 안정).
-// 주파수를 윈도 비율(p=0~1)에 고정 → 포인트 수와 무관하게 매크로 추세 유지.
-// 마지막 per-sample 해시 jitter가 샘플마다 흔들려 데이터가 촘촘할수록 더 빽빽해짐.
-function wave(base: number, amp: number, seed: number, n: number): number[] {
-  return Array.from({ length: n }, (_, i) => {
-    const p = n <= 1 ? 0 : i / (n - 1)
-    const TAU = Math.PI * 2
-    const w =
-      Math.sin(p * TAU * 1.3 + seed) * amp * 0.5 +
-      Math.sin(p * TAU * 3.5 + seed * 1.7) * amp * 0.24 +
-      Math.sin(p * TAU * 9 + seed) * amp * 0.15 +
-      Math.sin(p * TAU * 22 + seed * 0.5) * amp * 0.09 +
-      (((i * 9301 + seed * 49297) % 233) / 233 - 0.5) * amp * 0.36
-    return Math.round((base + w) * 10) / 10
-  })
-}
-
-// 1시간 윈도(30초 간격 121포인트) — Figma처럼 촘촘한 텔레메트리.
-const STEP_SEC = 30
-const pad2 = (v: number) => String(v).padStart(2, '0')
-const TIMES = Array.from({ length: 3600 / STEP_SEC + 1 }, (_, i) => {
-  const s = 14 * 3600 + 30 * 60 + i * STEP_SEC
-  return `${pad2(Math.floor(s / 3600) % 24)}:${pad2(Math.floor(s / 60) % 60)}:${pad2(s % 60)}`
-})
-const N = TIMES.length
-// 10분 간격 눈금(14:30·14:40…15:30) — 600초/10초 − 1
-const TICK_INTERVAL = (10 * 60) / STEP_SEC - 1
-const hhmm = (t: string) => t.slice(0, 5) // 축 라벨은 HH:MM만
 
 const ACCENT = 'var(--c-accent)'
 const ACCENT2 = 'var(--c-accent2)'
@@ -96,53 +68,36 @@ const IDLE_PCT = Math.round((IDLE_GPU / Math.max(1, TOTAL_GPU)) * 1000) / 10
 
 const axisTick = { fontSize: 10, fill: MUTED }
 
-// Figma 스타일 툴팁 — 시간 헤더 + [컬러 닷 · 라벨 · 굵은 값] 행
-interface TipEntry { name?: string; value?: number; color?: string; dataKey?: string }
-function ChartTooltip({ active, payload, label, fmt }: { active?: boolean; payload?: TipEntry[]; label?: string; fmt: (key: string, v: number) => string }) {
-  if (!active || !payload?.length) return null
-  return (
-    <div style={{ background: 'var(--toast-bg)', border: '1px solid var(--c-border)', borderRadius: 10, padding: '8px 11px', boxShadow: 'var(--shadow-pop)', minWidth: 150 }}>
-      <div className="font-bold" style={{ fontSize: 13, marginBottom: 5 }}>{label?.slice(0, 5)}</div>
-      <div className="flex flex-col" style={{ gap: 4 }}>
-        {payload.map((p, i) => (
-          <div key={i} className="flex items-center gap-2" style={{ fontSize: 12 }}>
-            <span className="rounded-full shrink-0" style={{ width: 7, height: 7, background: p.color }} />
-            <span className="text-muted">{p.name}</span>
-            <span className="ml-auto font-bold tabular-nums">{fmt(p.dataKey ?? '', p.value ?? 0)}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
+// 축 상한을 nice 값으로 — 범위 전환에도 축이 안 흔들리게 base 기준 고정(레이아웃 안정).
+function niceTop(v: number): number {
+  const step = v <= 10 ? 2 : v <= 50 ? 10 : v <= 200 ? 50 : v <= 1000 ? 100 : 500
+  return Math.max(step, Math.ceil(v / step) * step)
 }
-const clusterFmt = (k: string, v: number) => (k === 'avg' ? `${v}%` : v.toLocaleString('en-US'))
-const powerFmt = (k: string, v: number) => (k === 'power' ? `${v} W` : `${v}°C`)
-const netFmt = (_k: string, v: number) => `${v} Gbps`
+const triTicks = (top: number) => [0, Math.round(top / 2), top]
+const PCT_TICKS = [0, 25, 50, 75, 100]
 
-// 패널 우상단 기간 칩(Figma "1시간") — 정적 라벨
-function PanelChip({ label = '1시간' }: { label?: string }) {
+// 차트 값 포맷터 — BandChart 툴팁([최저·평균·최고])에 주입.
+const clusterFmt = (k: string, v: number) => (k === 'avg' ? `${Math.round(v)}%` : Math.round(v).toLocaleString('en-US'))
+const powerFmt = (k: string, v: number) => (k === 'power' ? `${Math.round(v)} W` : `${Math.round(v)}°C`)
+const netFmt = (_k: string, v: number) => `${Math.round(v)} Gbps`
+
+// 패널 우상단 조회범위 칩 — Context의 {range·unit} 반영(전부 조회범위 기준).
+function PanelChip() {
+  const { range, unit } = useRange()
   return (
     <span
-      className="shrink-0 rounded-md font-semibold"
-      style={{
-        fontSize: 12,
-        color: MUTED,
-        padding: '3px 9px',
-        background: 'var(--c-soft)',
-        border: '1px solid var(--c-border)',
-      }}
+      className="shrink-0 rounded-md font-semibold whitespace-nowrap"
+      style={{ fontSize: 12, color: MUTED, padding: '3px 9px', background: 'var(--c-soft)', border: '1px solid var(--c-border)' }}
     >
-      {label}
+      {RANGE_LABEL[range]} · {unit}
     </span>
   )
 }
 
 // ───────────────────────── ① 헤더 ─────────────────────────
 
-const PERIODS = ['3시간', '6시간', '24시간'] as const
-
 function MonitoringHeader() {
-  const [period, setPeriod] = useState<(typeof PERIODS)[number]>('3시간')
+  const { range, unit, setRange } = useRange()
   return (
     <header className="flex items-end justify-between gap-4 shrink-0 min-w-0">
       <div className="min-w-0">
@@ -165,33 +120,33 @@ function MonitoringHeader() {
           <span className="text-muted tabular-nums">15:30:45</span>
         </span>
 
-        {/* 자동 새로고침 ON */}
+        {/* 단위(읽기전용) — 조회범위 → 단위 권장페어 자동 */}
         <span
           className="inline-flex items-center gap-2 rounded-lg"
           style={{ fontSize: 13, padding: '5px 11px', background: 'var(--c-soft)', border: '1px solid var(--c-border)' }}
         >
-          <span className="text-muted">자동 새로고침</span>
-          <span className="font-bold" style={{ color: ACCENT }}>ON</span>
+          <span className="text-muted">단위</span>
+          <span className="font-bold tabular-nums" style={{ color: ACCENT }}>{unit}</span>
         </span>
 
-        {/* 기간 토글 */}
+        {/* 조회범위 토글(4종) — 선택값을 Context로 전 위젯에 전파 */}
         <div
           className="inline-flex items-center rounded-lg"
           style={{ padding: 3, gap: 2, background: 'var(--c-soft)', border: '1px solid var(--c-border)' }}
         >
-          {PERIODS.map((p) => (
+          {RANGES.map((r) => (
             <button
-              key={p}
-              onClick={() => setPeriod(p)}
+              key={r}
+              onClick={() => setRange(r)}
               className="rounded-md font-semibold transition-colors"
               style={{
                 fontSize: 13,
                 padding: '4px 12px',
-                color: p === period ? 'var(--c-onaccent)' : MUTED,
-                background: p === period ? ACCENT : 'transparent',
+                color: r === range ? 'var(--c-onaccent)' : MUTED,
+                background: r === range ? ACCENT : 'transparent',
               }}
             >
-              {p}
+              {RANGE_LABEL[r]}
             </button>
           ))}
         </div>
@@ -202,143 +157,115 @@ function MonitoringHeader() {
 
 // ───────────────────────── ② KPI 5장 ─────────────────────────
 
-interface KpiCardProps {
-  icon: ReactNode
-  iconTone: string
+// GPU 상세 현황(4.4)과 동일한 KpiStat 추이 모드 — 좌 [라벨/값/상태/보조] · 우 큰 꺾은선
+// (임계 점선 + 호버 값 툴팁). 도메인은 자체 정규화(16% 패딩) → 눌림 없음.
+interface KpiStatus { text: string; tone: 'ok' | 'warn' | 'danger' | 'muted' }
+interface KpiMeta {
+  metric: string
+  base: number
   label: string
-  value: string
   unit?: string
-  delta?: string
   sub: string
-  spark: number[]
-  sparkColor: string
+  color: string
+  /** 임계치 — 추이 점선. 없는 카드는 미표시. */
+  threshold?: number
+  fmt: (v: number) => string
+  status?: (latest: number) => KpiStatus
 }
 
-function Spark({ data, color }: { data: number[]; color: string }) {
-  const W = 100
-  const H = 26
-  const top = Math.max(...data)
-  const bot = Math.min(...data)
-  const span = Math.max(0.01, top - bot)
-  const n = data.length
-  const x = (i: number) => (n <= 1 ? 0 : (i * W) / (n - 1))
-  const y = (v: number) => 2 + (1 - (v - bot) / span) * (H - 4)
-  const line = data.map((v, i) => `${x(i)},${y(v)}`).join(' ')
-  const area = `0,${H} ${line} ${W},${H}`
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ width: '100%', height: H, display: 'block' }} aria-hidden>
-      <polygon points={area} fill={color} opacity={0.13} />
-      <polyline points={line} fill="none" stroke={color} strokeWidth={1.8} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-    </svg>
-  )
-}
+// KPI 임계치 — 사용률 90%(경고 75%) · 전력 TDP 95%(시드에 TDP 필드 없음 → 목업 상수).
+// (GPU 온도 85°C는 온도 KPI 카드가 없어 현재 미사용 — 온도 카드 추가 시 적용.)
+const UTIL_THRESHOLD_PCT = 90
+const UTIL_WARN_PCT = 75
+const TDP_MEAN_W = 220
+const POWER_THRESHOLD_W = Math.round(TDP_MEAN_W * 0.95)
 
-function KpiCard({ icon, iconTone, label, value, unit, delta, sub, spark, sparkColor }: KpiCardProps) {
+const utilStatus = (v: number): KpiStatus =>
+  v >= UTIL_THRESHOLD_PCT ? { text: '높음', tone: 'danger' } : v >= UTIL_WARN_PCT ? { text: '주의', tone: 'warn' } : { text: '정상', tone: 'ok' }
+const pctFmt = (v: number) => `${Math.round(v)}%`
+const wattFmt = (v: number) => `${Math.round(v)} W`
+
+// 시드 집계가 목 폴백 base — 실연동 시 base는 무시되고 계약 응답으로 대체.
+const KPI_META: KpiMeta[] = [
+  { metric: 'srvUtil', base: SRV_UTIL, label: '전체 서버 사용률', unit: '%', sub: `정상 ${NORMAL_SRV} / ${servers.length} 서버`, color: ACCENT, threshold: UTIL_THRESHOLD_PCT, fmt: pctFmt, status: utilStatus },
+  { metric: 'gpuUtil', base: GPU_UTIL, label: '전체 GPU 사용률', unit: '%', sub: `활성 ${ACTIVE_GPU} / ${TOTAL_GPU} GPU`, color: ACCENT2, threshold: UTIL_THRESHOLD_PCT, fmt: pctFmt, status: utilStatus },
+  { metric: 'activeGpu', base: ACTIVE_GPU, label: '활성 GPU 수', unit: '대', sub: `전체 ${TOTAL_GPU}대`, color: OK, fmt: (v) => `${Math.round(v)}대`, status: () => (FAILED_GPU > 0 ? { text: `장애 ${FAILED_GPU}`, tone: 'danger' } : { text: '정상', tone: 'ok' }) },
+  { metric: 'vramUtil', base: VRAM_UTIL, label: '평균 VRAM 사용률', unit: '%', sub: `${VRAM_USED_GB} / ${VRAM_TOTAL_GB} GB`, color: '#8d6be0', threshold: UTIL_THRESHOLD_PCT, fmt: pctFmt, status: utilStatus },
+  { metric: 'power', base: POWER_MEAN, label: '평균 전력', unit: 'W', sub: `총 ${fmtNum(POWER_TOTAL)} W`, color: WARN, threshold: POWER_THRESHOLD_W, fmt: wattFmt, status: () => ({ text: `TDP ${TDP_MEAN_W}W`, tone: 'muted' }) },
+]
+const KPI_METRICS = KPI_META.map((k) => k.metric)
+const KPI_BASES = Object.fromEntries(KPI_META.map((k) => [k.metric, k.base]))
+
+function KpiRow() {
+  // KPI 5종 단일 폴링(같은 조회범위) — 카드 큰 숫자=범위 내 최신값, 추이=범위 시리즈.
+  const { data } = useTelemetryBand('cluster', 'all', KPI_METRICS, KPI_BASES)
   return (
-    <div
-      className="bg-card2 border border-line rounded-xl min-w-0 flex flex-col hover-lift"
-      style={{ padding: '12px 14px', boxShadow: 'var(--shadow-card)', minHeight: 104, maxHeight: 116, overflow: 'hidden' }}
-    >
-      <div className="flex items-center gap-2 min-w-0">
-        <span
-          className="flex items-center justify-center rounded-lg shrink-0"
-          style={{ width: 26, height: 26, background: `color-mix(in srgb, ${iconTone} 16%, transparent)`, color: iconTone }}
-        >
-          {icon}
-        </span>
-        <span className="text-muted font-semibold truncate" style={{ fontSize: 14 }}>{label}</span>
-        {delta && <span className="ml-auto shrink-0 font-bold tabular-nums" style={{ fontSize: 13, color: OK }}>▲ {delta}</span>}
-      </div>
-      <div className="flex items-baseline gap-1" style={{ marginTop: 4 }}>
-        <span style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.5px', lineHeight: 1 }}>{value}</span>
-        {unit && <span className="text-muted" style={{ fontSize: 14 }}>{unit}</span>}
-        <span className="text-muted truncate" style={{ fontSize: 12, marginLeft: 'auto' }}>{sub}</span>
-      </div>
-      <div className="mt-auto" style={{ paddingTop: 4 }}>
-        <Spark data={spark} color={sparkColor} />
-      </div>
+    <div className="grid shrink-0" style={{ gap: 12, gridTemplateColumns: 'repeat(5, 1fr)' }}>
+      {KPI_META.map((meta) => {
+        const trend = data.map((d) => Number(d[meta.metric]) || 0)
+        const latest = trend.length ? trend[trend.length - 1] : meta.base
+        const st = meta.status?.(latest)
+        return (
+          <KpiStat
+            key={meta.label}
+            label={meta.label}
+            value={Math.round(latest)}
+            unit={meta.unit}
+            delta={st?.text}
+            deltaTone={st?.tone}
+            sub={meta.sub}
+            trend={trend}
+            trendThreshold={meta.threshold}
+            trendFmt={meta.fmt}
+            gaugeColor={meta.color}
+          />
+        )
+      })}
     </div>
   )
 }
 
-// 시드 집계 기반 — 더미 없음(servers·allGpus)
-const KPIS: KpiCardProps[] = [
-  { icon: <ChartBarSquareIcon width={16} />, iconTone: ACCENT, label: '전체 서버 사용률', value: `${SRV_UTIL}`, unit: '%', delta: '2.4%', sub: `정상 ${NORMAL_SRV} / ${servers.length} 서버`, spark: wave(SRV_UTIL, 13, 3, 90), sparkColor: ACCENT },
-  { icon: <Squares2X2Icon width={16} />, iconTone: ACCENT2, label: '전체 GPU 사용률', value: `${GPU_UTIL}`, unit: '%', delta: '3.1%', sub: `활성 ${ACTIVE_GPU} / ${TOTAL_GPU} GPU`, spark: wave(GPU_UTIL, 12, 7, 90), sparkColor: ACCENT2 },
-  { icon: <CpuChipIcon width={16} />, iconTone: OK, label: '활성 GPU 수', value: `${ACTIVE_GPU}`, sub: `전체 ${TOTAL_GPU}대 · 장애 ${FAILED_GPU}`, spark: wave(60, 16, 11, 90), sparkColor: OK },
-  { icon: <CircleStackIcon width={16} />, iconTone: '#8d6be0', label: '평균 VRAM 사용률', value: `${VRAM_UTIL}`, unit: '%', delta: '1.8%', sub: `${VRAM_USED_GB} / ${VRAM_TOTAL_GB} GB`, spark: wave(VRAM_UTIL, 11, 5, 90), sparkColor: '#8d6be0' },
-  { icon: <BoltIcon width={16} />, iconTone: WARN, label: '평균 전력', value: `${POWER_MEAN}`, unit: 'W', delta: '6 W', sub: `총 ${fmtNum(POWER_TOTAL)} W`, spark: wave(70, 16, 9, 90), sparkColor: WARN },
-]
-
 // ───────────────────────── ③ 클러스터 GPU 사용 추이 ─────────────────────────
 
-// 시드엔 시계열이 없으니 현재 집계값 기준으로 자연스러운 추이를 생성(엔티티는 시드 그대로)
-const clusterData = TIMES.map((t, i) => ({
-  t,
-  used: Math.max(0, Math.min(TOTAL_GPU, Math.round(wave(ACTIVE_GPU, 1.6, 3, N)[i] * 10) / 10)),
-  total: TOTAL_GPU,
-  avg: Math.round(wave(GPU_UTIL, 8, 5, N)[i]),
-}))
-
+const CLUSTER_METRICS = ['total', 'used', 'avg']
+const CLUSTER_BASES = { used: ACTIVE_GPU, total: TOTAL_GPU, avg: GPU_UTIL }
+const CNT_TOP = niceTop(TOTAL_GPU)
+const CLUSTER_AXES: BandAxis[] = [
+  { id: 'cnt', domain: [0, CNT_TOP], ticks: triTicks(CNT_TOP), width: 34 },
+  { id: 'pct', orientation: 'right', domain: [0, 100], ticks: PCT_TICKS, width: 36, suffix: '%' },
+]
+const CLUSTER_SERIES: BandSeries[] = [
+  { key: 'total', name: '총 GPU 수', color: SKY, yAxisId: 'cnt' },
+  { key: 'used', name: '사용 GPU 수', color: CYAN, yAxisId: 'cnt' },
+  { key: 'avg', name: '평균 사용률(%)', color: VIOLET, yAxisId: 'pct' },
+]
 function ClusterTrend() {
-  return (
-    <ResponsiveContainer width="100%" height="100%">
-      <ComposedChart data={clusterData} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
-        <defs>
-          <linearGradient id="g-used" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={CYAN} stopOpacity={0.32} />
-            <stop offset="100%" stopColor={CYAN} stopOpacity={0.02} />
-          </linearGradient>
-          <linearGradient id="g-total" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={SKY} stopOpacity={0.16} />
-            <stop offset="100%" stopColor={SKY} stopOpacity={0.01} />
-          </linearGradient>
-          <linearGradient id="g-avg" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={VIOLET} stopOpacity={0.22} />
-            <stop offset="100%" stopColor={VIOLET} stopOpacity={0.02} />
-          </linearGradient>
-        </defs>
-        <CartesianGrid vertical={false} stroke="var(--c-border)" />
-        <XAxis dataKey="t" tickFormatter={hhmm} tick={axisTick} tickLine={false} axisLine={false} interval={TICK_INTERVAL} minTickGap={8} />
-        <YAxis yAxisId="cnt" domain={[0, 10]} ticks={[0, 5, 10]} tick={axisTick} tickLine={false} axisLine={false} width={34} />
-        <YAxis yAxisId="pct" orientation="right" domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} tick={axisTick} tickLine={false} axisLine={false} width={34} tickFormatter={(v) => `${v}%`} />
-        <Tooltip content={<ChartTooltip fmt={clusterFmt} />} cursor={{ stroke: 'rgba(255,255,255,.22)' }} />
-        <Area yAxisId="cnt" type="linear" dataKey="total" name="총 GPU 수" stroke={SKY} strokeWidth={1.6} fill="url(#g-total)" dot={false} activeDot={{ r: 3, strokeWidth: 2, stroke: 'var(--c-bg)' }} isAnimationActive={false} />
-        <Area yAxisId="cnt" type="linear" dataKey="used" name="사용 GPU 수" stroke={CYAN} strokeWidth={2} fill="url(#g-used)" dot={{ r: 1, fill: CYAN, strokeWidth: 0 }} activeDot={{ r: 3.5, strokeWidth: 2, stroke: 'var(--c-bg)' }} isAnimationActive={false} />
-        <Area yAxisId="pct" type="linear" dataKey="avg" name="평균 사용률(%)" stroke={VIOLET} strokeWidth={2} fill="url(#g-avg)" dot={{ r: 1, fill: VIOLET, strokeWidth: 0 }} activeDot={{ r: 3.5, strokeWidth: 2, stroke: 'var(--c-bg)' }} isAnimationActive={false} />
-      </ComposedChart>
-    </ResponsiveContainer>
-  )
+  const { data, range } = useTelemetryBand('cluster', 'all', CLUSTER_METRICS, CLUSTER_BASES)
+  return <BandChart data={data} xTickFormatter={tsLabel(range)} series={CLUSTER_SERIES} axes={CLUSTER_AXES} fmt={clusterFmt} margin={{ top: 8, right: 8, bottom: 0, left: -16 }} />
 }
 
 // ───────────────────────── ④ 전력 / 온도 추이 ─────────────────────────
 
-const powerData = TIMES.map((t, i) => ({
-  t,
-  power: Math.round(wave(POWER_MEAN, 22, 4, N)[i]),
-  temp: Math.round(wave(TEMP_MEAN, 6, 8, N)[i]),
-}))
-
+const POWER_METRICS = ['power', 'temp']
+const POWER_BASES = { power: POWER_MEAN, temp: TEMP_MEAN }
+const W_TOP = niceTop(Math.round(POWER_MEAN * 1.5))
+const POWER_AXES: BandAxis[] = [
+  { id: 'w', domain: [0, W_TOP], ticks: triTicks(W_TOP), width: 38 },
+  { id: 'c', orientation: 'right', domain: [0, 100], ticks: PCT_TICKS, width: 32 },
+]
+const POWER_SERIES: BandSeries[] = [
+  { key: 'power', name: '평균 전력 (W)', color: POWER_BLUE, yAxisId: 'w' },
+  { key: 'temp', name: '평균 온도 (°C)', color: TEMP_RED, yAxisId: 'c' },
+]
 function PowerTempTrend() {
-  return (
-    <ResponsiveContainer width="100%" height="100%">
-      <ComposedChart data={powerData} margin={{ top: 8, right: 6, bottom: 0, left: 2 }}>
-        <CartesianGrid vertical={false} stroke="var(--c-border)" />
-        <XAxis dataKey="t" tickFormatter={hhmm} tick={axisTick} tickLine={false} axisLine={false} interval={TICK_INTERVAL} minTickGap={8} />
-        <YAxis yAxisId="w" domain={[0, 300]} ticks={[0, 100, 200, 300]} tick={axisTick} tickLine={false} axisLine={false} width={36} />
-        <YAxis yAxisId="c" orientation="right" domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} tick={axisTick} tickLine={false} axisLine={false} width={32} />
-        <Tooltip content={<ChartTooltip fmt={powerFmt} />} cursor={{ stroke: 'rgba(255,255,255,.22)' }} />
-        <Line yAxisId="w" type="linear" dataKey="power" name="평균 전력 (W)" stroke={POWER_BLUE} strokeWidth={2} dot={{ r: 1, fill: POWER_BLUE, strokeWidth: 0 }} activeDot={{ r: 3.5, strokeWidth: 2, stroke: 'var(--c-bg)' }} isAnimationActive={false} />
-        <Line yAxisId="c" type="linear" dataKey="temp" name="평균 온도 (°C)" stroke={TEMP_RED} strokeWidth={2} dot={{ r: 1, fill: TEMP_RED, strokeWidth: 0 }} activeDot={{ r: 3.5, strokeWidth: 2, stroke: 'var(--c-bg)' }} isAnimationActive={false} />
-      </ComposedChart>
-    </ResponsiveContainer>
-  )
+  const { data, range } = useTelemetryBand('cluster', 'all', POWER_METRICS, POWER_BASES)
+  return <BandChart data={data} xTickFormatter={tsLabel(range)} series={POWER_SERIES} axes={POWER_AXES} fmt={powerFmt} margin={{ top: 8, right: 6, bottom: 0, left: 2 }} />
 }
 
-function LegendDot({ color, label, dash }: { color: string; label: string; dash?: boolean }) {
+function LegendDot({ color, label }: { color: string; label: string }) {
   return (
     <span className="inline-flex items-center gap-1.5" style={{ fontSize: 12, color: MUTED }}>
-      <span style={{ width: 12, height: dash ? 0 : 3, borderTop: dash ? `1.5px dashed ${color}` : 'none', background: dash ? 'none' : color, borderRadius: 2 }} />
+      <span style={{ width: 12, height: 3, background: color, borderRadius: 2 }} />
       {label}
     </span>
   )
@@ -358,14 +285,12 @@ function heatColor(v: number): string {
   return (HEAT_BANDS.find((b) => v < b.max) ?? HEAT_BANDS[4]).color
 }
 
-// 서버 헬스 배지(시드)
 const SRV_BADGE: Record<string, { label: string; color: string }> = {
   normal: { label: '정상', color: OK },
   warn: { label: '경고', color: WARN },
   danger: { label: '장애', color: DANGER },
   inactive: { label: '유휴', color: MUTED },
 }
-// 서버별 GPU 셀(시드 그대로) — 각 GPU = smUtil 색 · 장애(XID)/유휴 표기 · 빈 슬롯 placeholder
 const MAX_GPU = Math.max(...servers.map((s) => s.gpus.length))
 const HEAT = servers.map((s) => ({
   id: s.id,
@@ -379,44 +304,67 @@ const HEAT = servers.map((s) => ({
   }),
 }))
 
+// 히트맵 — 서버×GPU 현재 스냅샷. 단일 CSS Grid로 헤더·전 행이 같은 컬럼 트랙을
+// 공유 → 완벽 정렬. 헤더 구분선 + 타일 테두리로 그리드 가독성 확보.
+const HEAT_COLS = `66px repeat(${MAX_GPU}, minmax(0, 1fr)) 104px`
+const heatCell: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  borderRadius: 5,
+  fontSize: 10.5,
+  fontWeight: 700,
+  padding: '0 9px',
+  gap: 6,
+  overflow: 'hidden',
+}
 function GpuHeatmap() {
   return (
-    <div className="h-full min-h-0 flex flex-col" style={{ gap: 7 }}>
-      {/* 헤더행 */}
-      <div className="flex items-center shrink-0" style={{ gap: 5, paddingLeft: 66 }}>
+    <div className="h-full min-h-0 flex flex-col" style={{ gap: 8 }}>
+      <div
+        className="flex-1 min-h-0"
+        style={{
+          display: 'grid',
+          gridTemplateColumns: HEAT_COLS,
+          gridTemplateRows: `auto 1px repeat(${HEAT.length}, minmax(0, 1fr))`,
+          columnGap: 6,
+          rowGap: 5,
+        }}
+      >
+        {/* 헤더 행 — 라벨 */}
+        <div />
         {Array.from({ length: MAX_GPU }, (_, i) => (
-          <div key={i} className="flex-1 text-muted" style={{ fontSize: 10, paddingLeft: 9 }}>GPU{i}</div>
+          <div key={`h${i}`} className="text-muted" style={{ fontSize: 10, alignSelf: 'end', paddingLeft: 9 }}>GPU{i}</div>
         ))}
-        <div className="text-right text-muted shrink-0" style={{ width: 92, fontSize: 10 }}>평균 · 상태</div>
-      </div>
-      {/* 행 = 서버(시드) — 패널 높이 균등 분배 */}
-      <div className="flex-1 min-h-0 flex flex-col" style={{ gap: 4 }}>
+        <div className="text-muted text-right" style={{ fontSize: 10, alignSelf: 'end' }}>평균 · 상태</div>
+        {/* 헤더 구분선 — 전 컬럼 가로지름 */}
+        <div style={{ gridColumn: '1 / -1', background: 'var(--c-border)' }} />
+
+        {/* 서버 행 — Fragment 로 같은 그리드에 셀 배치 */}
         {HEAT.map((r) => {
           const badge = SRV_BADGE[r.health]
           return (
-            <div key={r.id} className="flex items-center flex-1 min-h-0" style={{ gap: 5 }}>
-              <div className="text-muted shrink-0 truncate" style={{ width: 62, fontSize: 11.5, fontWeight: 600 }}>{r.name}</div>
+            <Fragment key={r.id}>
+              <div className="text-muted truncate" style={{ display: 'flex', alignItems: 'center', fontSize: 11.5, fontWeight: 600 }}>{r.name}</div>
               {r.cells.map((c, ci) => {
-                if (!c) return <div key={ci} className="flex-1 self-stretch rounded" style={{ border: '1px dashed var(--c-border)', opacity: 0.5 }} />
+                if (!c) return <div key={ci} style={{ ...heatCell, border: '1px dashed var(--c-border)', opacity: 0.5 }} />
                 const bg = c.xid ? 'color-mix(in srgb, var(--c-danger) 22%, transparent)' : c.idle ? 'var(--c-track)' : heatColor(c.util)
                 const fg = c.xid ? DANGER : c.idle ? MUTED : c.util >= 40 ? '#0a0d12' : '#cdd6e4'
                 const text = c.xid ? `장애 · ${c.xid}` : c.idle ? '유휴' : `${c.util}%`
                 return (
-                  <div key={ci} className="flex-1 self-stretch flex items-center rounded" style={{ background: bg, color: fg, fontSize: 10.5, fontWeight: 700, padding: '0 9px', gap: 6, overflow: 'hidden' }} title={`${r.name} · ${c.model}`}>
+                  <div key={ci} style={{ ...heatCell, background: bg, color: fg, border: '1px solid color-mix(in srgb, var(--c-text) 10%, transparent)' }} title={`${r.name} · ${c.model}`}>
                     <span className="tabular-nums shrink-0">{text}</span>
-                    <span className="truncate" style={{ fontWeight: 500, opacity: 0.8, fontSize: 10 }}>{c.model}</span>
+                    <span className="truncate" style={{ fontWeight: 500, opacity: 0.82, fontSize: 10 }}>{c.model}</span>
                   </div>
                 )
               })}
-              <div className="flex items-center justify-end gap-1.5 shrink-0" style={{ width: 92 }}>
+              <div className="flex items-center justify-end gap-1.5" style={{ minWidth: 0 }}>
                 <span className="tabular-nums font-bold" style={{ fontSize: 11 }}>{r.avg}%</span>
-                <span className="rounded font-bold" style={{ fontSize: 9.5, padding: '1px 5px', color: badge.color, background: `color-mix(in srgb, ${badge.color} 16%, transparent)` }}>{badge.label}</span>
+                <span className="rounded font-bold shrink-0" style={{ fontSize: 9.5, padding: '1px 5px', color: badge.color, background: `color-mix(in srgb, ${badge.color} 16%, transparent)` }}>{badge.label}</span>
               </div>
-            </div>
+            </Fragment>
           )
         })}
       </div>
-      {/* 범례 */}
       <div className="flex items-center flex-wrap shrink-0" style={{ gap: '4px 12px', paddingTop: 2 }}>
         <span className="text-muted" style={{ fontSize: 11 }}>사용률 범례</span>
         {['0~20%', '20~40%', '40~60%', '60~80%', '80~100%'].map((lb, i) => (
@@ -434,40 +382,21 @@ function GpuHeatmap() {
 
 // ───────────────────────── ⑥ 네트워크 Throughput ─────────────────────────
 
-const netData = TIMES.map((t, i) => ({
-  t,
-  in: Math.round(wave(70, 12, 2, N)[i]),
-  out: Math.round(wave(35, 9, 6, N)[i]),
-}))
-
+const NET_METRICS = ['in', 'out']
+const NET_BASES = { in: 70, out: 35 }
+const NET_TOP = niceTop(90)
+const NET_AXES: BandAxis[] = [{ id: 'g', domain: [0, NET_TOP], ticks: PCT_TICKS, width: 32 }]
+const NET_SERIES: BandSeries[] = [
+  { key: 'in', name: 'In (Gbps)', color: CYAN, yAxisId: 'g' },
+  { key: 'out', name: 'Out (Gbps)', color: NET_OUT, yAxisId: 'g' },
+]
 function NetworkThroughput() {
-  return (
-    <ResponsiveContainer width="100%" height="100%">
-      <AreaChart data={netData} margin={{ top: 8, right: 8, bottom: 0, left: -10 }}>
-        <defs>
-          <linearGradient id="g-in" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={CYAN} stopOpacity={0.3} />
-            <stop offset="100%" stopColor={CYAN} stopOpacity={0.02} />
-          </linearGradient>
-          <linearGradient id="g-out" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={NET_OUT} stopOpacity={0.16} />
-            <stop offset="100%" stopColor={NET_OUT} stopOpacity={0.02} />
-          </linearGradient>
-        </defs>
-        <CartesianGrid vertical={false} stroke="var(--c-border)" />
-        <XAxis dataKey="t" tickFormatter={hhmm} tick={axisTick} tickLine={false} axisLine={false} interval={TICK_INTERVAL} minTickGap={6} />
-        <YAxis domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} tick={axisTick} tickLine={false} axisLine={false} width={32} />
-        <Tooltip content={<ChartTooltip fmt={netFmt} />} cursor={{ stroke: 'rgba(255,255,255,.22)' }} />
-        <Area type="linear" dataKey="in" name="In (Gbps)" stroke={CYAN} strokeWidth={2} fill="url(#g-in)" dot={{ r: 1, fill: CYAN, strokeWidth: 0 }} activeDot={{ r: 3.5, strokeWidth: 2, stroke: 'var(--c-bg)' }} isAnimationActive={false} />
-        <Area type="linear" dataKey="out" name="Out (Gbps)" stroke={NET_OUT} strokeWidth={2} fill="url(#g-out)" dot={{ r: 1, fill: NET_OUT, strokeWidth: 0 }} activeDot={{ r: 3.5, strokeWidth: 2, stroke: 'var(--c-bg)' }} isAnimationActive={false} />
-      </AreaChart>
-    </ResponsiveContainer>
-  )
+  const { data, range } = useTelemetryBand('cluster', 'all', NET_METRICS, NET_BASES)
+  return <BandChart data={data} xTickFormatter={tsLabel(range)} series={NET_SERIES} axes={NET_AXES} fmt={netFmt} margin={{ top: 8, right: 8, bottom: 0, left: -10 }} />
 }
 
 // ───────────────────────── ⑦ 실시간 알림 ─────────────────────────
 
-// 시드 이벤트(events) → 알람 행. severity → 수준 라벨/색
 const SEV: Record<string, { label: string; color: string }> = {
   critical: { label: '치명', color: DANGER },
   warn: { label: '경고', color: WARN },
@@ -514,7 +443,6 @@ function AlarmTable() {
 
 // ───────────────────────── ⑧ 서버별 활용률 순위 ─────────────────────────
 
-// 시드 — 서버별 평균 사용률 내림차순(상위 6)
 const RANK = [...servers]
   .map((s) => ({ name: s.name, v: serverAvgUtil(s) }))
   .sort((a, b) => b.v - a.v)
@@ -526,7 +454,6 @@ function rankColor(v: number): string {
   return OK
 }
 
-// 순번 + SRV 라벨을 한 줄 우측정렬(겹침 방지) — 순번(muted) · 라벨(text)
 function RankTick({ x, y, payload }: { x?: number; y?: number; payload?: { value?: string } }) {
   const idx = RANK.findIndex((r) => r.name === payload?.value)
   return (
@@ -548,7 +475,7 @@ function UtilRanking() {
     <ResponsiveContainer width="100%" height="100%">
       <BarChart data={RANK} layout="vertical" margin={{ top: 6, right: 40, bottom: 0, left: 6 }} barCategoryGap="28%">
         <CartesianGrid horizontal={false} stroke="var(--c-border)" />
-        <XAxis type="number" domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} tick={axisTick} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}%`} />
+        <XAxis type="number" domain={[0, 100]} ticks={PCT_TICKS} tick={axisTick} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}%`} />
         <YAxis type="category" dataKey="name" tick={<RankTick />} tickLine={false} axisLine={false} width={84} />
         <Bar dataKey="v" radius={[0, 4, 4, 0]} barSize={15} isAnimationActive={false} label={<RankLabel />}>
           {RANK.map((r) => (
@@ -562,13 +489,14 @@ function UtilRanking() {
 
 // ───────────────────────── ⑨ 유휴 자원 현황 ─────────────────────────
 
-// IDLE_PCT는 시드 집계 블록에서 산출(유휴 GPU / 전체 GPU)
-const idlePie = [
-  { name: '유휴', value: IDLE_PCT },
-  { name: '사용', value: 100 - IDLE_PCT },
-]
-
 function IdleResource() {
+  // 유휴 비율도 조회범위 폴링 — 범위 내 최신값.
+  const { data } = useTelemetryBand('cluster', 'all', ['idle'], { idle: IDLE_PCT })
+  const idle = data.length ? Math.round(Number(data[data.length - 1].idle) * 10) / 10 : IDLE_PCT
+  const idlePie = [
+    { name: '유휴', value: idle },
+    { name: '사용', value: Math.max(0, 100 - idle) },
+  ]
   return (
     <div className="h-full min-h-0 flex flex-col items-center justify-center" style={{ gap: 10 }}>
       <div className="relative" style={{ width: 132, height: 132 }}>
@@ -581,7 +509,7 @@ function IdleResource() {
           </PieChart>
         </ResponsiveContainer>
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-          <span className="font-bold tabular-nums" style={{ fontSize: 24, lineHeight: 1 }}>{IDLE_PCT}%</span>
+          <span className="font-bold tabular-nums" style={{ fontSize: 24, lineHeight: 1 }}>{idle}%</span>
           <span className="text-muted" style={{ fontSize: 11, marginTop: 2 }}>유휴 자원 비율</span>
         </div>
       </div>
@@ -595,17 +523,13 @@ function IdleResource() {
 
 // ───────────────────────── 루트 ─────────────────────────
 
-export function AdminMonitoring() {
+function MonitoringContent() {
   return (
     <div className="flex flex-col h-full min-w-0" style={{ gap: 12, overflow: 'hidden' }}>
       <MonitoringHeader />
 
       {/* ② KPI 5장 */}
-      <div className="grid shrink-0" style={{ gap: 12, gridTemplateColumns: 'repeat(5, 1fr)' }}>
-        {KPIS.map((k) => (
-          <KpiCard key={k.label} {...k} />
-        ))}
-      </div>
+      <KpiRow />
 
       {/* 본문 — 3행, 각 행 flex-1 균등 */}
       <div className="flex-1 min-h-0 flex flex-col" style={{ gap: 12 }}>
@@ -668,7 +592,7 @@ export function AdminMonitoring() {
           <Card fill title="서버별 활용률 순위 (평균)" action={<PanelChip />}>
             <UtilRanking />
           </Card>
-          <Card fill title="유휴 자원 현황">
+          <Card fill title="유휴 자원 현황" action={<PanelChip />}>
             <IdleResource />
           </Card>
         </div>
@@ -676,3 +600,15 @@ export function AdminMonitoring() {
     </div>
   )
 }
+
+export function AdminMonitoring() {
+  // 조회범위 Context로 모니터링 화면 전 위젯에 {range,unit} 전파(전부 조회범위 기준).
+  return (
+    <RangeProvider initial="10m">
+      <MonitoringContent />
+    </RangeProvider>
+  )
+}
+
+// 폴링 간격 상수는 외부에서도 참조 가능하도록 노출(검증·디버그용).
+export { INTERVAL_BY_RANGE as MONITORING_INTERVALS }
