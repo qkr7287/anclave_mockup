@@ -85,6 +85,37 @@ app.get('/api/telemetry/latest', async (c) => {
   return c.json(rows)
 })
 
+// GPU 자원 신청 — user 지정 시 그 사람 신청만(B/C), 없으면 전체(A). 4.6 자원 신청현황.
+app.get('/api/gpu-requests', async (c) => {
+  const { user } = c.req.query()
+  const { rows } = await pool.query(
+    `select id, requester_user_id "requesterUserId", capacity, capacity_unit "capacityUnit",
+            models, service_name "serviceName", purpose,
+            status, reject_reason "rejectReason", created_at "createdAt"
+       from gpu_requests
+      where ($1::text is null or requester_user_id = $1)
+      order by created_at desc`,
+    [user || null])
+  return c.json(rows)
+})
+
+// 내 할당 — user 의 게시된 서비스 + 각 서비스가 올라간 gpu/server. 4.5 내 할당 자원.
+app.get('/api/allocations', async (c) => {
+  const { user } = c.req.query()
+  if (!user) return c.json({ error: 'user required' }, 400)
+  const { rows } = await pool.query(
+    `select s.id "serviceId", s.name "serviceName", s.model_id "modelId", s.usage_count "usageCount",
+            g.id "gpuId", g.server_id "serverId", g.model "gpuModel", g.vram_gb "vramGb", g.alloc_mode "allocMode",
+            srv.host "serverHost"
+       from services s
+       left join gpus g on g.assigned_service_id = s.id
+       left join gpu_servers srv on srv.id = g.server_id
+      where s.owner_user_id = $1
+      order by s.id`,
+    [user])
+  return c.json(rows)
+})
+
 const port = Number(process.env.PORT || 8787)
 serve({ fetch: app.fetch, port, hostname: '0.0.0.0' },
   (info) => console.log(`✓ backend on http://0.0.0.0:${info.port}`))
