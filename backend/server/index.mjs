@@ -8,11 +8,19 @@ import pg from 'pg'
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 8 })
 
-// range → (tier, interval). raw=1분/48h, hourly=1시간/30일.
+// range → (tier, interval, bucket_sec). raw 5초/6h · hourly 1시간/35d. bucket 으로 ~150점 다운샘플.
 const RANGE = {
-  '1h': ['raw', '1 hour'], '3h': ['raw', '3 hours'], '6h': ['raw', '6 hours'], '12h': ['raw', '12 hours'],
-  '24h': ['hourly', '24 hours'], '7d': ['hourly', '7 days'], '30d': ['hourly', '30 days'],
+  '1h': ['raw', '1 hour', 30], '3h': ['raw', '3 hours', 90], '6h': ['raw', '6 hours', 150],
+  '12h': ['hourly', '12 hours', 3600], '24h': ['hourly', '24 hours', 3600],
+  '7d': ['hourly', '7 days', 21600], '30d': ['hourly', '30 days', 86400],
 }
+// 밴드 차트 — range → (tier, bucket_sec, window). 권장 페어 고정(10m→10s·2h→60s·1d→30m·30d→6h).
+const BAND_RANGE = {
+  '10m': ['raw', 10, '10 minutes'], '2h': ['raw', 60, '2 hours'],
+  '1d': ['1m', 1800, '1 day'], '30d': ['hourly', 21600, '30 days'],
+}
+// epoch 버킷팅(Plain PG): bucket_sec 정수 상수 → floor 정렬. (RANGE/BAND_RANGE 값만 사용 = 안전)
+const BUCKET = (b) => `to_timestamp(floor(extract(epoch from ts)/${b})*${b})`
 const KINDS = new Set(['server', 'gpu', 'slice', 'service'])
 const METRICS = new Set(['cpu_util', 'mem_util', 'net_in', 'net_out', 'temp', 'sm', 'vram', 'power', 'usage', 'tokens', 'calls'])
 
@@ -29,13 +37,13 @@ app.get('/', async (c) => {
 app.get('/api/telemetry/agg', async (c) => {
   const { kind, metric, range = '1h', agg = 'avg' } = c.req.query()
   if (!KINDS.has(kind) || !metric) return c.json({ error: 'kind/metric required' }, 400)
-  const [tier, span] = RANGE[range] ?? RANGE['1h']
+  const [tier, span, bucket] = RANGE[range] ?? RANGE['1h']
   const fn = agg === 'sum' ? 'sum' : 'avg'
   const { rows } = await pool.query(
-    `select ts, round(${fn}(value)::numeric, 2)::float8 v
+    `select ${BUCKET(bucket)} ts, round(${fn}(value)::numeric, 2)::float8 v
        from telemetry_${tier}
       where kind = $1 and metric = $2 and ts >= now() - interval '${span}'
-      group by ts order by ts`,
+      group by 1 order by 1`,
     [kind, metric])
   return c.json(rows)
 })
@@ -47,7 +55,7 @@ app.get('/api/telemetry/series', async (c) => {
   if (!KINDS.has(kind) || !metrics) return c.json({ error: 'kind/metrics required' }, 400)
   const ms = metrics.split(',').map((s) => s.trim()).filter(Boolean)
   if (!ms.length || !ms.every((m) => METRICS.has(m))) return c.json({ error: 'invalid metric' }, 400)
-  const [tier, span] = RANGE[range] ?? RANGE['1h']
+  const [tier, span, bucket] = RANGE[range] ?? RANGE['1h']
   const fn = agg === 'sum' ? 'sum' : 'avg'
   // metric 은 화이트리스트 통과분만 → alias 안전. 값 매칭은 파라미터 바인딩.
   const cols = ms.map((m, i) => `round(${fn}(value) filter (where metric = $${i + 2})::numeric, 2)::float8 "${m}"`).join(', ')
@@ -57,10 +65,10 @@ app.get('/api/telemetry/series', async (c) => {
   if (id) { params.push(id); idClause = ` and id = $${params.length}` }
   params.push(ms)
   const { rows } = await pool.query(
-    `select ts, ${cols}
+    `select ${BUCKET(bucket)} ts, ${cols}
        from telemetry_${tier}
       where kind = $1${idClause} and metric = any($${params.length}) and ts >= now() - interval '${span}'
-      group by ts order by ts`,
+      group by 1 order by 1`,
     params)
   return c.json(rows)
 })
@@ -84,13 +92,43 @@ app.get('/api/events', async (c) => {
 app.get('/api/telemetry', async (c) => {
   const { kind, id, metric, range = '1h' } = c.req.query()
   if (!KINDS.has(kind) || !id || !metric) return c.json({ error: 'kind/id/metric required' }, 400)
-  const [tier, span] = RANGE[range] ?? RANGE['1h']
+  const [tier, span, bucket] = RANGE[range] ?? RANGE['1h']
   const { rows } = await pool.query(
-    `select ts, round(value::numeric, 2)::float8 v
+    `select ${BUCKET(bucket)} ts, round(avg(value)::numeric, 2)::float8 v
        from telemetry_${tier}
       where kind = $1 and id = $2 and metric = $3 and ts >= now() - interval '${span}'
-      order by ts`,
+      group by 1 order by 1`,
     [kind, id, metric])
+  return c.json(rows)
+})
+
+// 밴드 시계열 — 각 버킷의 avg(가운데점) + min/max(밴드). Bollinger 스타일. 4.7.
+// 예: /api/telemetry/band?kind=gpu&id=srv-08-gpu1&metrics=sm,temp&range=2h → [{ts, sm, sm_min, sm_max, ...}]
+app.get('/api/telemetry/band', async (c) => {
+  const { kind, id, metrics, range = '10m' } = c.req.query()
+  if (!KINDS.has(kind) || !metrics) return c.json({ error: 'kind/metrics required' }, 400)
+  const ms = metrics.split(',').map((s) => s.trim()).filter(Boolean)
+  if (!ms.length || !ms.every((m) => METRICS.has(m))) return c.json({ error: 'invalid metric' }, 400)
+  const [tier, bucket, win] = BAND_RANGE[range] ?? BAND_RANGE['10m']
+  const isRaw = tier === 'raw'
+  // raw 소스: avg/min/max(value). rollup(1m/hourly) 소스: avg(value)/min(v_min)/max(v_max).
+  const cols = ms.map((m, i) => {
+    const mi = `$${i + 2}`
+    const f = (agg, col) => `round(${agg}(${col}) filter (where metric = ${mi})::numeric, 2)::float8`
+    return isRaw
+      ? `${f('avg', 'value')} "${m}", ${f('min', 'value')} "${m}_min", ${f('max', 'value')} "${m}_max"`
+      : `${f('avg', 'value')} "${m}", ${f('min', 'v_min')} "${m}_min", ${f('max', 'v_max')} "${m}_max"`
+  }).join(', ')
+  const params = [kind, ...ms]
+  let idClause = ''
+  if (id) { params.push(id); idClause = ` and id = $${params.length}` }
+  params.push(ms)
+  const { rows } = await pool.query(
+    `select ${BUCKET(bucket)} ts, ${cols}
+       from telemetry_${tier}
+      where kind = $1${idClause} and metric = any($${params.length}) and ts >= now() - interval '${win}'
+      group by 1 order by 1`,
+    params)
   return c.json(rows)
 })
 

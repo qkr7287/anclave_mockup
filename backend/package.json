@@ -7,7 +7,8 @@
     "seed": "node --env-file=.env db/seed/seed-db.mjs",
     "seed:telemetry": "node --env-file=.env db/seed/seed-telemetry.mjs",
     "seed:events": "node --env-file=.env db/seed/seed-events.mjs",
-    "dev:server": "node --env-file=.env server/index.mjs"
+    "dev:server": "node --env-file=.env server/index.mjs",
+    "worker": "node --env-file=.env db/worker.mjs"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.7",

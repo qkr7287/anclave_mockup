@@ -263,18 +263,19 @@ create table infra_integrations (
 
 -- ============================================================
 -- 텔레메트리 (시계열) — long format. 측정 대상 4종 = server|gpu|slice|service
--- 정책: latest(5초 upsert) / raw(1분·48h) / hourly(1시간평균·30일)
--- 적재·보존청소·이벤트룰은 backend 워커가 담당(다음 단계).
+-- 정책(보존): latest(5초 upsert) / raw(5초·6시간) / 1m(1분 집계·2일) / hourly(1시간 집계·35일)
+-- 밴드 차트용으로 1m·hourly 는 v_min/v_max 사전집계. 적재·롤업·보존청소는 backend 워커.
 -- ============================================================
 create table telemetry_latest (
   kind       text not null,    -- server | gpu | slice | service
   id         text not null,    -- 대상 엔티티 id
-  metric     text not null,    -- cpu_util | mem_util | net_in | net_out | sm_util | vram | temp | power | usage | tokens | calls
+  metric     text not null,    -- cpu_util | mem_util | net_in | net_out | sm | vram | temp | power | usage | tokens | calls
   value      real not null,
   updated_at timestamptz not null default now(),
   primary key (kind, id, metric)
 );
 
+-- raw: 5초 원본 (보존 6시간)
 create table telemetry_raw (
   ts     timestamptz not null,
   kind   text not null,
@@ -284,11 +285,27 @@ create table telemetry_raw (
 );
 create index on telemetry_raw (kind, id, metric, ts desc);
 
+-- 1m: 1분 사전집계 avg/min/max (보존 2일)
+create table telemetry_1m (
+  ts     timestamptz not null,   -- 분 버킷 시작
+  kind   text not null,
+  id     text not null,
+  metric text not null,
+  value  real not null,          -- 1분 평균
+  v_min  real not null,
+  v_max  real not null,
+  primary key (kind, id, metric, ts)
+);
+create index on telemetry_1m (kind, id, metric, ts desc);
+
+-- hourly: 1시간 집계 avg/min/max (보존 35일). value=avg 는 기존 엔드포인트 호환 유지.
 create table telemetry_hourly (
   ts     timestamptz not null,   -- 시간 버킷 시작
   kind   text not null,
   id     text not null,
   metric text not null,
   value  real not null,          -- 해당 시간 평균
+  v_min  real not null,
+  v_max  real not null,
   primary key (kind, id, metric, ts)
 );
