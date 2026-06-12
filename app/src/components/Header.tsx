@@ -10,11 +10,11 @@ import {
 } from '@heroicons/react/24/solid'
 import { useTheme } from '../lib/theme'
 import { accessOf, useRole } from '../lib/role'
-import { userById } from '../data/users'
+import { userById, users } from '../data/users'
 import { notifications } from '../data/events'
 import { IA_GROUPS, ROUTES } from '../lib/routes'
 
-const DEMO_IDS = ['u-admin', 'u-hwang', 'u-lim']
+const DEMO_IDS = users.map((u) => u.id)
 const ACCESS_LABEL: Record<string, string> = {
   A: '최종 관리자',
   B: '실무 관리자',
@@ -183,8 +183,9 @@ export function Header() {
           style={{ top: 60, right: 16, width: 240, boxShadow: 'var(--shadow-pop)' }}
         >
           <div className="px-4 pt-3 pb-1 text-muted uppercase" style={{ fontSize: 14, letterSpacing: '.5px' }}>
-            역할 전환 (A / B=C)
+            역할 전환 · 데모 계정
           </div>
+          <div style={{ maxHeight: 320, overflowY: 'auto' }}>
           {DEMO_IDS.map((id) => {
             const u = userById(id)!
             const a = accessOf(u)
@@ -215,6 +216,7 @@ export function Header() {
               </button>
             )
           })}
+          </div>
           <div className="border-t border-line">
             <button
               type="button"

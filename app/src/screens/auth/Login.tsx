@@ -1,19 +1,15 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useRole } from '../../lib/role'
-import { userById } from '../../data/users'
+import { accessOf, useRole } from '../../lib/role'
+import { userById, users } from '../../data/users'
 
-// 데모 로그인 계정 3종 (공통 비번). 실데이터 보유 user 로 매핑해 화면이 채워지게.
-const CREDENTIALS: Record<string, { pw: string; id: string }> = {
-  admin: { pw: 'agics12!@', id: 'u-admin' },
-  hwang: { pw: 'agics12!@', id: 'u-hwang' },
-  lim: { pw: 'agics12!@', id: 'u-lim' },
-}
-const HINTS = [
-  { u: 'admin', label: '최종관리자', desc: '전체 자원맵 · 승인 · 시스템 설정' },
-  { u: 'hwang', label: '대표 · 서비스 운영', desc: 'GPU·서비스 보유 — 내 할당/신청' },
-  { u: 'lim', label: '사용자 · 신청', desc: '신청 검토중 · 마켓 이용' },
-]
+// 데모 로그인 — 전체 조직 계정 선택(공통 비번). username 으로 로그인.
+const PW = 'agics12!@'
+const CREDENTIALS: Record<string, { pw: string; id: string }> = Object.fromEntries(
+  users.map((u) => [u.username, { pw: PW, id: u.id }]),
+)
+const ACCESS_LABEL: Record<string, string> = { A: '최종 관리자', B: '실무 관리자', C: '사용자' }
+const HINTS = users.map((u) => ({ u: u.username, label: ACCESS_LABEL[accessOf(u)] }))
 
 // 4.1 로그인 — 라디얼 글로우 배경 + gradient 로고 + 아이디/비번.
 export function Login() {
@@ -105,21 +101,20 @@ export function Login() {
 
         <div style={{ borderTop: '1px solid #2a3344', marginTop: 18, paddingTop: 14 }}>
           <p style={{ fontSize: 14, color: '#616a74', marginBottom: 8 }}>데모 계정 — 클릭하면 자동 입력</p>
-          <div className="flex flex-col" style={{ gap: 6 }}>
+          <div className="flex flex-col" style={{ gap: 5, maxHeight: 264, overflowY: 'auto', paddingRight: 4 }}>
             {HINTS.map((h) => (
               <button
                 key={h.u}
                 type="button"
                 onClick={() => fill(h.u)}
-                className="text-left rounded-lg border border-line hover:border-accent transition-colors"
-                style={{ padding: '8px 11px', background: 'rgba(28,36,48,.5)' }}
+                className="text-left rounded-lg border border-line hover:border-accent transition-colors shrink-0"
+                style={{ padding: '7px 11px', background: 'rgba(28,36,48,.5)' }}
               >
                 <div className="flex items-center gap-2">
-                  <span className="font-mono font-semibold" style={{ fontSize: 14, color: '#cfe3ff' }}>{h.u}</span>
-                  <span style={{ fontSize: 13, color: '#8b97a7' }}>{userById(CREDENTIALS[h.u].id)?.name}</span>
-                  <span className="ml-auto" style={{ fontSize: 14, color: '#6ea8fe' }}>{h.label}</span>
+                  <span className="font-mono font-semibold" style={{ fontSize: 13, color: '#cfe3ff', minWidth: 42 }}>{h.u}</span>
+                  <span style={{ fontSize: 13, color: '#cfe3ff' }}>{userById(CREDENTIALS[h.u].id)?.name}</span>
+                  <span className="ml-auto" style={{ fontSize: 13, color: '#6ea8fe' }}>{h.label}</span>
                 </div>
-                <div style={{ fontSize: 14, color: '#8b97a7', marginTop: 2 }}>{h.desc}</div>
               </button>
             ))}
           </div>
