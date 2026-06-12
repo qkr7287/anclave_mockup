@@ -2,13 +2,22 @@
   "_doc": "Anclave 단일 시드(진실원). 모든 data 모듈이 이 파일을 읽어 빌드한다. 이벤트는 배포 상태에서 생성(events.ts).",
   "users": [
     {
+      "id": "u-admin",
+      "username": "admin",
+      "name": "관리자",
+      "role": "admin",
+      "email": "admin@anclave.local",
+      "hasHosting": false,
+      "initialRoute": "/resource-map"
+    },
+    {
       "id": "u-hwang",
       "username": "hwang",
       "name": "황상곤",
-      "role": "admin",
+      "role": "user",
       "email": "hwang@anclave.local",
       "hasHosting": true,
-      "initialRoute": "/resource-map"
+      "initialRoute": "/dashboard"
     },
     {
       "id": "u-kgr",

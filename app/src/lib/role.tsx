@@ -30,7 +30,7 @@ const AUTH_KEY = 'anclave-authed'
 export function RoleProvider({ children }: { children: ReactNode }) {
   // 로그인 후 역할 유지(새로고침·직접 URL에도). authed=false면 /login으로 게이트(App.tsx).
   const [userId, setUserIdState] = useState<string>(
-    () => localStorage.getItem(KEY) ?? 'u-hwang',
+    () => localStorage.getItem(KEY) ?? 'u-admin',
   )
   const [authed, setAuthed] = useState<boolean>(
     () => localStorage.getItem(AUTH_KEY) === '1',

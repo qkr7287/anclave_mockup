@@ -14,7 +14,7 @@ import { userById } from '../data/users'
 import { notifications } from '../data/events'
 import { IA_GROUPS, ROUTES } from '../lib/routes'
 
-const DEMO_IDS = ['u-admin', 'u-manager', 'u-user']
+const DEMO_IDS = ['u-admin', 'u-hwang', 'u-lim']
 const ACCESS_LABEL: Record<string, string> = {
   A: '최종 관리자',
   B: '실무 관리자',
