@@ -17,6 +17,32 @@ function noise(key, t) {
   return (h >>> 0) / 4294967296
 }
 
+// 부드러운 value noise [-1,1] — period 그리드점 해시를 smoothstep 보간.
+function smoothNoise(key, t, period) {
+  const i = Math.floor(t / period)
+  const f = t / period - i
+  const u = f * f * (3 - 2 * f)
+  const a = noise(key, i)
+  const b = noise(key, i + 1)
+  return (a + (b - a) * u) * 2 - 1
+}
+
+// 다중 사인 파동 [-1,1] — 프론트 mockBand 의 wave() 이식.
+// 위상 = (t / cycle) — 절대시간이라 실시간 연속이지만, cycle 을 작게(분 단위) 잡아
+// 짧은 윈도(10분)에도 여러 사이클이 들어가 항상 깔끔히 굽이친다(밋밋함 해소).
+function waveAt(key, t) {
+  const sd = noise(key, 'phase') * 6.283 // 시리즈별 위상 오프셋(결정적)
+  const TAU = Math.PI * 2
+  const ph = (cycMin) => (t / (cycMin * 60_000)) * TAU
+  return (
+    Math.sin(ph(11) + sd) * 0.5 +
+    Math.sin(ph(4.1) + sd * 1.7) * 0.24 +
+    Math.sin(ph(1.6) + sd) * 0.15 +
+    Math.sin(ph(0.65) + sd * 0.5) * 0.09 +
+    (noise(key, Math.floor(t / (5 * 1000))) * 2 - 1) * 0.18 // 5초 미세 결
+  )
+}
+
 // (kind, metric, 상태) → 곡선 파라미터 {base, dayAmp, jitter, floor, ceil}
 export function profileFor(s) {
   const { kind, metric, state, model, hot, usage } = s
@@ -57,15 +83,22 @@ export function profileFor(s) {
   }
 }
 
-// 한 시점의 값: baseline + 일주기 + 주간추세 + 결정적 노이즈.
+// 한 시점의 값: baseline + 일주기 + 주간추세 + smooth noise(공유+개별 옥타브).
+// 공유 옥타브(kind|metric 키 — id 제외)는 같은 종류 엔티티가 "함께" 출렁이게 해
+// 클러스터 평균(4.7)에서도 상쇄되지 않고 굽이치는 곡선이 남는다.
+// 개별 옥타브는 시리즈별 결(밴드 폭·heatmap 차이), 5초 텍스처는 미세 질감.
+const MIN_MS = 60_000
 export function valueAt(s, prof, t, smooth) {
   const d = new Date(t)
   const hod = d.getUTCHours() + d.getUTCMinutes() / 60
   const day = Math.sin(2 * Math.PI * (hod - 9) / 24)
   const week = 0.4 * Math.sin(2 * Math.PI * t / (7 * 24 * HOUR))
-  const jit = smooth ? prof.jitter * 0.3 : prof.jitter
-  const n = noise(s.key, t) * 2 - 1
-  const v = prof.base + prof.dayAmp * (day + week) + jit * n
+  const jit = smooth ? prof.jitter * 0.4 : prof.jitter
+  // 공유 wave(kind|metric — id 제외): 같은 종류가 함께 출렁여 클러스터 평균(4.7)에도 굽이침 유지.
+  // 개별 wave(시리즈키): 엔티티별 결(밴드 폭·heatmap 차이).
+  const gk = `${s.kind}|${s.metric}`
+  const n = waveAt(gk, t) * 0.62 + waveAt(s.key, t) * 0.55
+  const v = prof.base + prof.dayAmp * (day + week) + jit * n * 1.7
   return Math.round(clamp(v, prof.floor, prof.ceil) * 100) / 100
 }
 
