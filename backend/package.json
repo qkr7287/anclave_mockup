@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "seed": "node --env-file=.env db/seed/seed-db.mjs"
+    "seed": "node --env-file=.env db/seed/seed-db.mjs",
+    "seed:telemetry": "node --env-file=.env db/seed/seed-telemetry.mjs"
   },
   "dependencies": {
     "pg": "^8.13.1"
