@@ -40,8 +40,11 @@ export function useTelemetrySeries(
   range = '3h',
   agg: 'avg' | 'sum' = 'avg',
   intervalMs = 5000,
+  id?: string | null,
 ): PollState<SeriesPoint[]> {
-  const path = `/api/telemetry/series?kind=${kind}&metrics=${metrics}&range=${range}&agg=${agg}`
+  // id 명시했는데 아직 undefined/null(할당 로딩 전 등) → 호출 보류
+  const idPart = id === undefined ? '' : id === null ? null : `&id=${encodeURIComponent(id)}`
+  const path = idPart === null ? null : `/api/telemetry/series?kind=${kind}&metrics=${metrics}&range=${range}&agg=${agg}${idPart}`
   return usePolling<SeriesPoint[]>(path, intervalMs)
 }
 

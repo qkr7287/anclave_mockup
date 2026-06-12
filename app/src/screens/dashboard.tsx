@@ -29,7 +29,7 @@ import {
 import { EmptyState, Button, useToast } from '../components/ui'
 import { useRole } from '../lib/role'
 import { useTheme } from '../lib/theme'
-import { useGpuRequests, useAllocations, type GpuRequestRow, type AllocationRow } from '../data/hooks/usePolling'
+import { useGpuRequests, useAllocations, useTelemetrySeries, type GpuRequestRow, type AllocationRow, type SeriesPoint } from '../data/hooks/usePolling'
 
 // 다크 테마에서 공유 --c-muted(#525872)가 카드 대비 ~2.7:1로 너무 어두움 → 페이지 루트에서만 더 밝게 오버라이드.
 // (index.css는 공유 파일이라 수정 불가 → 스코프 오버라이드로 text-muted 일괄 개선. 라이트는 기본값 유지.)
@@ -120,6 +120,22 @@ const METRICS: MetricDef[] = [
   { key: 'temp', label: '온도', value: '67', sub: '°C', tone: 'orange', suffix: '°C', spark: [55, 60, 58, 64, 62, 68, 66, 70, 67, 72, 68, 66, 67] },
   { key: 'power', label: '전력 사용량', value: '284', sub: 'w', tone: 'green', suffix: ' W', spark: [240, 260, 250, 275, 270, 290, 280, 300, 284, 295, 284, 288, 284] },
 ]
+
+// telemetry 시계열 → 6 KPI(MetricDef). value=최신값, spark=시계열. 4.5 DB 연동.
+function buildMetrics(gpuTel: SeriesPoint[] | null, srvTel: SeriesPoint[] | null): MetricDef[] {
+  const last = (a: SeriesPoint[] | null) => (a && a.length ? a[a.length - 1] : null)
+  const gL = last(gpuTel), sL = last(srvTel)
+  const num = (v: unknown) => Math.round(Number(v ?? 0))
+  const spark = (a: SeriesPoint[] | null, k: string) => (a ?? []).map((p) => Number(p[k] ?? 0))
+  return [
+    { key: 'gpu', label: 'GPU 사용률', value: `${num(gL?.sm)}%`, tone: 'blue', suffix: '%', spark: spark(gpuTel, 'sm') },
+    { key: 'vram', label: 'VRAM 사용률', value: `${num(gL?.vram)}`, sub: '%', tone: 'blue', suffix: '%', spark: spark(gpuTel, 'vram') },
+    { key: 'cpu', label: 'CPU 사용률', value: `${num(sL?.cpu_util)}%`, tone: 'cyan', suffix: '%', spark: spark(srvTel, 'cpu_util') },
+    { key: 'mem', label: '메모리 사용률', value: `${num(sL?.mem_util)}`, sub: '%', tone: 'purple', suffix: '%', spark: spark(srvTel, 'mem_util') },
+    { key: 'temp', label: '온도', value: `${num(gL?.temp)}`, sub: '°C', tone: 'orange', suffix: '°C', spark: spark(gpuTel, 'temp') },
+    { key: 'power', label: '전력 사용량', value: `${num(gL?.power)}`, sub: 'W', tone: 'green', suffix: ' W', spark: spark(gpuTel, 'power') },
+  ]
+}
 
 function MetricCard({ m }: { m: MetricDef }) {
   const { theme } = useTheme()
@@ -519,6 +535,10 @@ export function MyResources() {
   const navigate = useNavigate()
   const mutedFix = useMutedFix()
   const { data: allocs } = useAllocations(access === 'C' ? null : user.id)
+  const gpuAlloc = allocs?.find((a) => a.gpuId)
+  // 내 대표 GPU/서버의 텔레메트리 (백필이 과거라 range=24h). 할당 GPU 없으면 보류(null).
+  const gpuTel = useTelemetrySeries('gpu', 'sm,vram,temp,power', '24h', 'avg', 10000, gpuAlloc?.gpuId ?? null).data
+  const srvTel = useTelemetrySeries('server', 'cpu_util,mem_util', '24h', 'avg', 10000, gpuAlloc?.serverId ?? null).data
 
   // C(호스팅 전) 또는 할당 0건 → 빈 상태
   if (access === 'C' || allocs?.length === 0) {
@@ -570,7 +590,7 @@ export function MyResources() {
       {/* 3) 할당 GPU 상태 — 간격은 Figma대로 촘촘히, 카드는 152:330 비율로 함께 grow */}
       <h2 className="font-bold text-text shrink-0" style={{ fontSize: 15.5, marginTop: 26 }}>할당 GPU 상태</h2>
       <div className="grid stagger" style={{ gridTemplateColumns: 'repeat(6, 1fr)', gap: 34, marginTop: 14, flex: '152 1 152px', minHeight: 152 }}>
-        {METRICS.map((m) => (
+        {buildMetrics(gpuTel, srvTel).map((m) => (
           <MetricCard key={m.key} m={m} />
         ))}
       </div>
