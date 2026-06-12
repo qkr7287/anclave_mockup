@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import type { ComponentType, ReactNode, SVGProps } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -29,6 +29,7 @@ import {
 import { EmptyState, Button, useToast } from '../components/ui'
 import { useRole } from '../lib/role'
 import { useTheme } from '../lib/theme'
+import { useGpuRequests, type GpuRequestRow } from '../data/hooks/usePolling'
 
 // 다크 테마에서 공유 --c-muted(#525872)가 카드 대비 ~2.7:1로 너무 어두움 → 페이지 루트에서만 더 밝게 오버라이드.
 // (index.css는 공유 파일이라 수정 불가 → 스코프 오버라이드로 text-muted 일괄 개선. 라이트는 기본값 유지.)
@@ -673,6 +674,43 @@ const ROWS: ReqRow[] = [
   { no: 'REQ-2024-0418-022', resource: 'H100 2GPU', model: 'Mixtral-8x7B', reason: '추천 시스템 모델 서빙', date: '2024-04-18 11:40', status: '승인', statusSub: '할당 완료', procDate: '2024-04-18 16:25', procStatus: '할당 완료', memo: '리소스 할당됨', action: '상세보기' },
   { no: 'REQ-2024-0415-023', resource: 'A100 1GPU', model: 'Phi-3-mini', reason: '사내 QA 봇 추론 환경', date: '2024-04-15 09:00', status: '대기', statusSub: '검토중', procDate: '2024-04-15 09:05', procStatus: '접수 완료', memo: '-', action: '상세보기' },
 ]
+
+// DB(gpu_requests) → 화면 행(ReqRow) 변환. 4.6 DB 연동.
+const STATUS_KR: Record<GpuRequestRow['status'], ReqStatus> = { pending: '대기', approved: '승인', rejected: '반려' }
+function fmtReqDate(iso: string): string {
+  const d = new Date(iso)
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
+function toReqRow(r: GpuRequestRow): ReqRow {
+  const status = STATUS_KR[r.status] ?? '대기'
+  const unit = r.capacityUnit === 'slice' ? '슬라이스' : 'GPU'
+  const date = fmtReqDate(r.createdAt)
+  const sub = status === '대기' ? '검토중' : status === '승인' ? '할당 완료' : '반려됨'
+  return {
+    no: r.id,
+    resource: `${r.capacity} ${unit}`,
+    model: r.models?.[0] ?? '-',
+    reason: r.purpose ?? r.serviceName ?? '-',
+    date,
+    status,
+    statusSub: sub,
+    procDate: date,
+    procStatus: status === '대기' ? '접수 완료' : sub,
+    memo: r.rejectReason ?? (status === '승인' ? '리소스 할당됨' : '-'),
+    action: status === '반려' ? '재신청' : '상세보기',
+  }
+}
+function computeStats(rows: ReqRow[]): StatDef[] {
+  const c: Record<ReqStatus, number> = { 대기: 0, 승인: 0, 반려: 0 }
+  rows.forEach((r) => { c[r.status]++ })
+  return [
+    { ...STATS[0], value: rows.length },
+    { ...STATS[1], value: c.대기 },
+    { ...STATS[2], value: c.승인 },
+    { ...STATS[3], value: c.반려 },
+  ]
+}
 
 const COLS = [
   { key: 'no', label: '신청번호', width: 160 },
@@ -1391,8 +1429,13 @@ export function RequestStatus() {
   const toast = useToast()
   const navigate = useNavigate()
   const mutedFix = useMutedFix()
-  const [rows, setRows] = useState<ReqRow[]>(ROWS)
-  const [total, setTotal] = useState(23)
+  const { user, isAdmin } = useRole()
+  // A=전체 신청, B/C=내 신청만(requester=나)
+  const { data: dbReqs } = useGpuRequests(isAdmin ? undefined : user.id)
+  const [extraRows, setExtraRows] = useState<ReqRow[]>([]) // 신규 신청(로컬 추가)
+  const dbRows = useMemo(() => (dbReqs ?? []).map(toReqRow), [dbReqs])
+  const rows = useMemo(() => [...extraRows, ...dbRows], [extraRows, dbRows])
+  const total = rows.length
   const [modalOpen, setModalOpen] = useState(false)
   const [detailRow, setDetailRow] = useState<ReqRow | null>(null)
   // 검색·필터: draft(입력값) → '필터 적용' 시 applied 로 반영(실제 검색)
@@ -1450,8 +1493,7 @@ export function RequestStatus() {
       memo: '-',
       action: '상세보기',
     }
-    setRows((cur) => [row, ...cur])
-    setTotal((t) => t + 1)
+    setExtraRows((cur) => [row, ...cur])
     setPage(1)
     setModalOpen(false)
     toast.push('신규 자원 요청이 접수되었어요. (검토중)', 'ok')
@@ -1469,7 +1511,7 @@ export function RequestStatus() {
 
       {/* 2) stat 카드 4개 */}
       <div className="grid stagger shrink-0" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: 18, marginTop: 28 }}>
-        {STATS.map((s) => (
+        {computeStats(rows).map((s) => (
           <StatCard key={s.label} s={s} />
         ))}
       </div>

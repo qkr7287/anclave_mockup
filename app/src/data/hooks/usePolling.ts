@@ -44,3 +44,40 @@ export function useTelemetrySeries(
   const path = `/api/telemetry/series?kind=${kind}&metrics=${metrics}&range=${range}&agg=${agg}`
   return usePolling<SeriesPoint[]>(path, intervalMs)
 }
+
+// GPU 자원 신청 — backend /api/gpu-requests. userId 지정 시 그 사람 신청만(B/C), 없으면 전체(A).
+export interface GpuRequestRow {
+  id: string
+  requesterUserId: string
+  capacity: number | string
+  capacityUnit: 'card' | 'slice'
+  models: string[]
+  serviceName: string | null
+  purpose: string | null
+  status: 'pending' | 'approved' | 'rejected'
+  rejectReason: string | null
+  createdAt: string
+}
+
+export function useGpuRequests(userId?: string, intervalMs = 5000): PollState<GpuRequestRow[]> {
+  const path = `/api/gpu-requests${userId ? `?user=${encodeURIComponent(userId)}` : ''}`
+  return usePolling<GpuRequestRow[]>(path, intervalMs)
+}
+
+// 내 할당 — backend /api/allocations?user=. 4.5 내 할당 자원.
+export interface AllocationRow {
+  serviceId: string
+  serviceName: string
+  modelId: string | null
+  usageCount: number
+  gpuId: string | null
+  serverId: string | null
+  gpuModel: string | null
+  vramGb: number | null
+  allocMode: string | null
+  serverHost: string | null
+}
+
+export function useAllocations(userId: string | null, intervalMs = 5000): PollState<AllocationRow[]> {
+  return usePolling<AllocationRow[]>(userId ? `/api/allocations?user=${encodeURIComponent(userId)}` : null, intervalMs)
+}

@@ -3,16 +3,16 @@ import { useNavigate } from 'react-router-dom'
 import { useRole } from '../../lib/role'
 import { userById } from '../../data/users'
 
-// 더미 로그인 계정 3종 (공통 비번)
+// 데모 로그인 계정 3종 (공통 비번). 실데이터 보유 user 로 매핑해 화면이 채워지게.
 const CREDENTIALS: Record<string, { pw: string; id: string }> = {
   admin: { pw: 'agics12!@', id: 'u-admin' },
-  user1: { pw: 'agics12!@', id: 'u-manager' },
-  user2: { pw: 'agics12!@', id: 'u-user' },
+  kim: { pw: 'agics12!@', id: 'u-kim' },
+  choi: { pw: 'agics12!@', id: 'u-choi' },
 }
 const HINTS = [
   { u: 'admin', label: '최종관리자', desc: '전체 자원맵 · 승인 · 시스템 설정' },
-  { u: 'user1', label: '실무관리자', desc: 'GPU 보유 — 내 할당 자원 대시보드' },
-  { u: 'user2', label: '사용자', desc: '신청 전 — 마켓에서 신청부터' },
+  { u: 'kim', label: '실무관리자', desc: 'GPU·서비스 보유 — 내 할당/신청' },
+  { u: 'choi', label: '사용자', desc: '내 신청 내역 · 마켓 이용' },
 ]
 
 // 4.1 로그인 — 라디얼 글로우 배경 + gradient 로고 + 아이디/비번.
@@ -77,7 +77,7 @@ export function Login() {
         <form onSubmit={submit} className="flex flex-col mt-5" style={{ gap: 10 }}>
           <input
             style={inputStyle}
-            placeholder="아이디 (admin / user1 / user2)"
+            placeholder="아이디 (admin / kim / choi)"
             value={username}
             onChange={(e) => { setUsername(e.target.value); setError('') }}
             aria-label="아이디"
@@ -116,6 +116,7 @@ export function Login() {
               >
                 <div className="flex items-center gap-2">
                   <span className="font-mono font-semibold" style={{ fontSize: 14, color: '#cfe3ff' }}>{h.u}</span>
+                  <span style={{ fontSize: 13, color: '#8b97a7' }}>{userById(CREDENTIALS[h.u].id)?.name}</span>
                   <span className="ml-auto" style={{ fontSize: 14, color: '#6ea8fe' }}>{h.label}</span>
                 </div>
                 <div style={{ fontSize: 14, color: '#8b97a7', marginTop: 2 }}>{h.desc}</div>
