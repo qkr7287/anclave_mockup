@@ -165,6 +165,15 @@ export interface GpuRequest {
   status: Status
   rejectReason?: string
   createdAt: string
+  // 신청 상세·심사 페이지(4.6a/4.10a) 확장 — 기존 데이터 호환 위해 전부 optional
+  period?: '1개월' | '3개월' | '6개월' | '무기한'
+  priority?: 'low' | 'normal' | 'high'
+  adminMemo?: string // 관리자 처리 메모(신청자에게 표시)
+  processedAt?: string
+  processedBy?: string // 처리자 userId
+  allocatedServerId?: string // 승인 시 할당 자원
+  allocatedGpuId?: string
+  allocatedSliceId?: string
 }
 
 export interface GpuChangeRequest {

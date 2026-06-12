@@ -732,7 +732,12 @@
       "purpose": "Qwen2.5-7B 업무 자동화 에이전트",
       "attachmentUrl": "/docs/공문-gr01.pdf",
       "status": "approved",
-      "createdAt": "2026-05-21 10:12"
+      "createdAt": "2026-05-21 10:12",
+      "period": "3개월",
+      "priority": "normal",
+      "processedAt": "2026-05-22 09:40",
+      "processedBy": "u-admin",
+      "adminMemo": "우선 슬라이스 1개 할당. 사용량 추이 보고 확장 검토 예정."
     },
     {
       "id": "gr-02",
@@ -749,7 +754,11 @@
       "serviceName": "vision-qa",
       "purpose": "이미지 문서 QA 추론 서비스",
       "status": "approved",
-      "createdAt": "2026-05-23 14:30"
+      "createdAt": "2026-05-23 14:30",
+      "period": "6개월",
+      "priority": "normal",
+      "processedAt": "2026-05-24 11:15",
+      "processedBy": "u-admin"
     },
     {
       "id": "gr-03",
@@ -767,7 +776,12 @@
       "purpose": "RAG 문서 검색 임베딩",
       "attachmentUrl": "/docs/공문-gr03.pdf",
       "status": "approved",
-      "createdAt": "2026-05-24 09:05"
+      "createdAt": "2026-05-24 09:05",
+      "period": "1개월",
+      "priority": "normal",
+      "processedAt": "2026-05-25 14:05",
+      "processedBy": "u-admin",
+      "adminMemo": "검색 임베딩용 단일 카드 충분. 모니터링 애드온 권장."
     },
     {
       "id": "gr-04",
@@ -784,7 +798,11 @@
       "serviceName": "sd-image",
       "purpose": "SDXL 이미지 생성 워크스페이스",
       "status": "approved",
-      "createdAt": "2026-05-25 16:48"
+      "createdAt": "2026-05-25 16:48",
+      "period": "무기한",
+      "priority": "normal",
+      "processedAt": "2026-05-26 16:20",
+      "processedBy": "u-admin"
     },
     {
       "id": "gr-05",
@@ -801,7 +819,11 @@
       "serviceName": "speech-text",
       "purpose": "Whisper STT 추론",
       "status": "approved",
-      "createdAt": "2026-05-27 11:20"
+      "createdAt": "2026-05-27 11:20",
+      "period": "3개월",
+      "priority": "normal",
+      "processedAt": "2026-05-28 09:40",
+      "processedBy": "u-admin"
     },
     {
       "id": "gr-06",
@@ -820,7 +842,11 @@
       "purpose": "코드 어시스턴트 추론",
       "attachmentUrl": "/docs/공문-gr06.pdf",
       "status": "approved",
-      "createdAt": "2026-05-29 13:02"
+      "createdAt": "2026-05-29 13:02",
+      "period": "6개월",
+      "priority": "normal",
+      "processedAt": "2026-05-30 11:15",
+      "processedBy": "u-admin"
     },
     {
       "id": "gr-07",
@@ -837,7 +863,12 @@
       "serviceName": "llama-chat",
       "purpose": "사내 대화 챗봇",
       "status": "approved",
-      "createdAt": "2026-05-30 10:41"
+      "createdAt": "2026-05-30 10:41",
+      "period": "1개월",
+      "priority": "normal",
+      "processedAt": "2026-05-31 14:05",
+      "processedBy": "u-admin",
+      "adminMemo": "동일 서버 내 잔여 슬롯 배정."
     },
     {
       "id": "gr-08",
@@ -855,7 +886,9 @@
       "purpose": "Mistral Small 24B 시범(H100 슬라이스 필요)",
       "attachmentUrl": "/docs/공문-gr08.pdf",
       "status": "pending",
-      "createdAt": "2026-06-02 09:33"
+      "createdAt": "2026-06-02 09:33",
+      "period": "무기한",
+      "priority": "normal"
     },
     {
       "id": "gr-09",
@@ -872,7 +905,9 @@
       "serviceName": "gemma-svc",
       "purpose": "Gemma2 27B 문서 요약(H100 슬라이스 필요)",
       "status": "pending",
-      "createdAt": "2026-06-03 15:10"
+      "createdAt": "2026-06-03 15:10",
+      "period": "3개월",
+      "priority": "low"
     },
     {
       "id": "gr-10",
@@ -889,7 +924,9 @@
       "serviceName": "deepseek-test",
       "purpose": "DeepSeek-V3 추론 검증(H100 ×4 필요)",
       "status": "pending",
-      "createdAt": "2026-06-04 11:55"
+      "createdAt": "2026-06-04 11:55",
+      "period": "6개월",
+      "priority": "high"
     },
     {
       "id": "gr-11",
@@ -908,7 +945,12 @@
       "purpose": "Llama 3 70B 사내 도메인 파인튜닝",
       "status": "rejected",
       "rejectReason": "70B 학습은 H100 ×2 이상이 필요해요. 현재 함대(소비자 GPU + RTX PRO 4500)로는 불가하며, H100 증설 후 재신청해 주세요.",
-      "createdAt": "2026-05-26 17:22"
+      "createdAt": "2026-05-26 17:22",
+      "period": "1개월",
+      "priority": "normal",
+      "processedAt": "2026-05-27 14:05",
+      "processedBy": "u-admin",
+      "adminMemo": "재신청 시 H100 도입 일정 공유 예정."
     },
     {
       "id": "gr-12",
@@ -924,7 +966,12 @@
       "purpose": "테스트",
       "status": "rejected",
       "rejectReason": "사용 목적·공문이 불충분하고, 72B는 현재 함대에 올릴 수 없어요. 결재 공문과 함께 H100 증설 후 신청해 주세요.",
-      "createdAt": "2026-05-28 12:08"
+      "createdAt": "2026-05-28 12:08",
+      "period": "무기한",
+      "priority": "high",
+      "processedAt": "2026-05-29 16:20",
+      "processedBy": "u-admin",
+      "adminMemo": "운영 전환 일정 확정 후 재신청 안내함."
     }
   ],
   "apiRequests": [
