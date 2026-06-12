@@ -43,7 +43,7 @@ app.get('/api/telemetry/agg', async (c) => {
 // 멀티메트릭 집계 — 여러 metric 을 ts별 한 행으로 pivot (차트당 1호출). 관제 차트용.
 // 예: /api/telemetry/series?kind=gpu&metrics=power,temp&range=3h&agg=avg → [{ts, power, temp}]
 app.get('/api/telemetry/series', async (c) => {
-  const { kind, metrics, range = '1h', agg = 'avg' } = c.req.query()
+  const { kind, id, metrics, range = '1h', agg = 'avg' } = c.req.query()
   if (!KINDS.has(kind) || !metrics) return c.json({ error: 'kind/metrics required' }, 400)
   const ms = metrics.split(',').map((s) => s.trim()).filter(Boolean)
   if (!ms.length || !ms.every((m) => METRICS.has(m))) return c.json({ error: 'invalid metric' }, 400)
@@ -51,12 +51,32 @@ app.get('/api/telemetry/series', async (c) => {
   const fn = agg === 'sum' ? 'sum' : 'avg'
   // metric 은 화이트리스트 통과분만 → alias 안전. 값 매칭은 파라미터 바인딩.
   const cols = ms.map((m, i) => `round(${fn}(value) filter (where metric = $${i + 2})::numeric, 2)::float8 "${m}"`).join(', ')
+  const params = [kind, ...ms]
+  // id 지정 시 그 엔티티만(4.5 내 GPU/서버), 없으면 kind 전체 집계(4.7 관제).
+  let idClause = ''
+  if (id) { params.push(id); idClause = ` and id = $${params.length}` }
+  params.push(ms)
   const { rows } = await pool.query(
     `select ts, ${cols}
        from telemetry_${tier}
-      where kind = $1 and metric = any($${ms.length + 2}) and ts >= now() - interval '${span}'
+      where kind = $1${idClause} and metric = any($${params.length}) and ts >= now() - interval '${span}'
       group by ts order by ts`,
-    [kind, ...ms, ms])
+    params)
+  return c.json(rows)
+})
+
+// 이벤트 로그 — 4.5/4.21. gpuId/serverId 지정 시 해당 대상만.
+app.get('/api/events', async (c) => {
+  const { gpuId, serverId, limit = '20' } = c.req.query()
+  const params = []
+  let where = ''
+  if (gpuId) { params.push(gpuId); where = `where gpu_id = $${params.length}` }
+  else if (serverId) { params.push(serverId); where = `where server_id = $${params.length}` }
+  params.push(Math.min(Number(limit) || 20, 100))
+  const { rows } = await pool.query(
+    `select id, severity, status, message, gpu_id "gpuId", server_id "serverId", created_at "createdAt"
+       from event_logs ${where} order by created_at desc limit $${params.length}`,
+    params)
   return c.json(rows)
 })
 
