@@ -136,6 +136,30 @@ app.get('/api/allocations', async (c) => {
   return c.json(rows)
 })
 
+// 내 서비스 토큰 사용량 — user 소유 서비스들의 tokens 시계열(9버킷) + 합계. 4.5 토큰차트.
+app.get('/api/service-tokens', async (c) => {
+  const { user } = c.req.query()
+  if (!user) return c.json({ error: 'user required' }, 400)
+  const svcs = (await pool.query(`select id, name, model_id "modelId" from services where owner_user_id = $1 order by id`, [user])).rows
+  const ids = svcs.map((s) => s.id)
+  if (!ids.length) return c.json({ services: [], bars: [], max: 1, total: 0, calls: 0 })
+  const rows = (await pool.query(
+    `select id, ts, value from telemetry_hourly
+      where kind='service' and metric='tokens' and id = any($1) and ts >= now() - interval '24 hours'
+      order by ts`, [ids])).rows
+  const tsList = [...new Set(rows.map((r) => r.ts.toISOString()))].slice(-9)
+  const bars = tsList.map((ts) => svcs.map((s) => {
+    const r = rows.find((x) => x.id === s.id && x.ts.toISOString() === ts)
+    return Math.round(r ? Number(r.value) : 0)
+  }))
+  const max = Math.max(1, ...bars.flat())
+  const lt = (await pool.query(
+    `select metric, sum(value) v from telemetry_latest where kind='service' and id = any($1) and metric in ('tokens','calls') group by metric`, [ids])).rows
+  const total = Math.round(Number(lt.find((x) => x.metric === 'tokens')?.v ?? 0))
+  const calls = Math.round(Number(lt.find((x) => x.metric === 'calls')?.v ?? 0))
+  return c.json({ services: svcs, bars, max, total, calls })
+})
+
 const port = Number(process.env.PORT || 8787)
 serve({ fetch: app.fetch, port, hostname: '0.0.0.0' },
   (info) => console.log(`✓ backend on http://0.0.0.0:${info.port}`))
