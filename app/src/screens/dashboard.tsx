@@ -29,7 +29,7 @@ import {
 import { EmptyState, Button, useToast } from '../components/ui'
 import { useRole } from '../lib/role'
 import { useTheme } from '../lib/theme'
-import { useGpuRequests, type GpuRequestRow } from '../data/hooks/usePolling'
+import { useGpuRequests, useAllocations, type GpuRequestRow, type AllocationRow } from '../data/hooks/usePolling'
 
 // 다크 테마에서 공유 --c-muted(#525872)가 카드 대비 ~2.7:1로 너무 어두움 → 페이지 루트에서만 더 밝게 오버라이드.
 // (index.css는 공유 파일이라 수정 불가 → 스코프 오버라이드로 text-muted 일괄 개선. 라이트는 기본값 유지.)
@@ -165,8 +165,15 @@ function InfoItem({ Icon, label, value, valueColor }: { Icon: IconType; label: s
   )
 }
 
-// ── 할당 요약(hero) 카드 ──
-function HeroCard() {
+// ── 할당 요약(hero) 카드 — DB allocations 연동 ──
+function HeroCard({ allocs }: { allocs: AllocationRow[] }) {
+  const gpuAlloc = allocs.find((a) => a.gpuId) ?? allocs[0]
+  const count = allocs.length
+  const first = allocs[0]
+  const svcName = count > 1 ? `${first?.serviceName} 외 ${count - 1}개 서비스` : (first?.serviceName ?? '할당 서비스')
+  const server = gpuAlloc?.serverHost ?? '—'
+  const gpuLabel = gpuAlloc?.gpuModel ? `${gpuAlloc.gpuModel}${gpuAlloc.allocMode === 'mig' ? ' · MIG' : ''}` : 'MIG 슬라이스'
+  const model = first?.modelId ?? '—'
   return (
     <section className="bg-card2 border border-line rounded-[14px] shrink-0" style={{ boxShadow: 'var(--shadow-card)', padding: 24, minHeight: 140 }}>
       <div className="flex items-stretch gap-6 min-w-0 h-full">
@@ -178,13 +185,13 @@ function HeroCard() {
             </span>
             <div className="min-w-0">
               <div className="text-muted" style={{ fontSize: 14, lineHeight: 1.2 }}>서비스 환경</div>
-              <div className="font-bold text-text truncate" style={{ fontSize: 17, lineHeight: 1.3, marginTop: 2 }}>멀티모달 추론 서비스 운영 환경</div>
+              <div className="font-bold text-text truncate" style={{ fontSize: 17, lineHeight: 1.3, marginTop: 2 }}>{svcName}</div>
             </div>
           </div>
           <div className="flex items-end justify-between" style={{ marginTop: 18, paddingRight: 32 }}>
-            <HeroField label="요청 ID" value="REQ-202505-000123" />
-            <HeroField label="할당일" value="2025-05-10 10:24" />
-            <HeroField label="서버 / GPU" value="SRV-10 / A100 1GPU" />
+            <HeroField label="서비스 ID" value={first?.serviceId ?? '—'} />
+            <HeroField label="운영 서비스" value={`${count}개`} />
+            <HeroField label="서버 / GPU" value={`${server} / ${gpuLabel}`} />
             <div className="flex flex-col" style={{ gap: 6 }}>
               <span className="text-muted" style={{ fontSize: 14, lineHeight: 1.2 }}>할당 상태</span>
               <span className="inline-flex items-center rounded-[6px] font-semibold" style={{ background: 'var(--ok-soft)', color: 'var(--c-ok)', padding: '3px 10px', fontSize: 14, alignSelf: 'flex-start' }}>정상</span>
@@ -194,11 +201,11 @@ function HeroCard() {
         {/* 우: info-box */}
         <div className="bg-card2 border border-line rounded-[12px] flex items-center min-w-0" style={{ flex: '0 0 47%', padding: '0 24px' }}>
           <div className="grid items-center w-full" style={{ gridTemplateColumns: '1fr 1px 1fr 1px 1.3fr 1px 0.8fr', columnGap: 18 }}>
-            <InfoItem Icon={ServerIcon} label="서버" value="SRV-10" valueColor="var(--c-accent)" />
+            <InfoItem Icon={ServerIcon} label="서버" value={server} valueColor="var(--c-accent)" />
             <Divider />
-            <InfoItem Icon={CpuChipIcon} label="GPU" value="A100 1GPU" />
+            <InfoItem Icon={CpuChipIcon} label="GPU" value={gpuLabel} />
             <Divider />
-            <InfoItem Icon={CubeIcon} label="모델" value="Llama 3 70B 외 3개" />
+            <InfoItem Icon={CubeIcon} label="모델" value={model} />
             <Divider />
             <InfoItem Icon={CheckCircleIcon} label="상태" value="정상" valueColor="var(--c-ok)" />
           </div>
@@ -508,12 +515,13 @@ function FloatingControl() {
 }
 
 export function MyResources() {
-  const { access } = useRole()
+  const { user, access } = useRole()
   const navigate = useNavigate()
   const mutedFix = useMutedFix()
+  const { data: allocs } = useAllocations(access === 'C' ? null : user.id)
 
-  // C(호스팅 전) = 할당 자원 없음 → 빈 상태
-  if (access === 'C') {
+  // C(호스팅 전) 또는 할당 0건 → 빈 상태
+  if (access === 'C' || allocs?.length === 0) {
     return (
       <div className="anim-fade flex flex-col min-w-0 h-full" style={mutedFix}>
         <header className="flex flex-col min-w-0 shrink-0">
@@ -556,7 +564,7 @@ export function MyResources() {
 
       {/* 2) 할당 요약 — 고정 높이(Figma 140) */}
       <div className="shrink-0" style={{ marginTop: 20 }}>
-        <HeroCard />
+        <HeroCard allocs={allocs ?? []} />
       </div>
 
       {/* 3) 할당 GPU 상태 — 간격은 Figma대로 촘촘히, 카드는 152:330 비율로 함께 grow */}
