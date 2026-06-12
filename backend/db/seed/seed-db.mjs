@@ -47,6 +47,12 @@ async function main() {
       ['id', 'name', 'kind', 'has_api', 'model_id', 'service_url', 'test_url', 'description', 'manual_url', 'owner_user_id', 'deployer_user_id', 'tags', 'usage_count', 'usage_rank', 'listed'],
       [s.id, s.name, s.kind ?? null, !!s.hasApi, s.model ?? null, s.serviceUrl ?? null, s.testUrl ?? null, s.description ?? null, s.manualUrl ?? null, s.ownerUserId, s.deployerUserId ?? null, s.tags ?? [], s.usageCount ?? 0, s.usageRank ?? null, true])
 
+  // --- gpu_requests (먼저: 아래 mig_slices.request_id FK 가 참조) ---
+  for (const r of seed.gpuRequests)
+    await ins('gpu_requests',
+      ['id', 'requester_user_id', 'capacity', 'capacity_unit', 'models', 'env', 'addons', 'service_name', 'purpose', 'attachment_url', 'status', 'reject_reason', 'created_at'],
+      [r.id, r.requesterUserId, r.capacity, r.capacityUnit, r.models ?? [], r.env ?? null, r.addons ?? [], r.serviceName ?? null, r.purpose ?? null, r.attachmentUrl ?? null, r.status, r.rejectReason ?? null, r.createdAt])
+
   // --- fleet → gpu_servers / gpus / mig_slices (servers.ts 빌드 로직 재현, 엔티티 컬럼만) ---
   for (const node of seed.fleet) {
     const serviceIds = new Set(), userIds = new Set()
@@ -95,12 +101,7 @@ async function main() {
     }
   }
 
-  // --- 신청류 ---
-  for (const r of seed.gpuRequests)
-    await ins('gpu_requests',
-      ['id', 'requester_user_id', 'capacity', 'capacity_unit', 'models', 'env', 'addons', 'service_name', 'purpose', 'attachment_url', 'status', 'reject_reason', 'created_at'],
-      [r.id, r.requesterUserId, r.capacity, r.capacityUnit, r.models ?? [], r.env ?? null, r.addons ?? [], r.serviceName ?? null, r.purpose ?? null, r.attachmentUrl ?? null, r.status, r.rejectReason ?? null, r.createdAt])
-
+  // --- 신청류 (gpu_requests 는 위에서 먼저 적재) ---
   for (const r of seed.apiRequests ?? [])
     await ins('api_requests',
       ['id', 'requester_user_id', 'service_id', 'model', 'target_service_url', 'status', 'api_key', 'reject_reason', 'created_at'],
