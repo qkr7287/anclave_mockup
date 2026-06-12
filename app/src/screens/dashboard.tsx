@@ -112,15 +112,6 @@ interface MetricDef {
   suffix: string // 호버 툴팁 단위
 }
 
-const METRICS: MetricDef[] = [
-  { key: 'gpu', label: 'GPU 사용률', value: '72%', tone: 'blue', suffix: '%', spark: [55, 60, 52, 68, 64, 72, 66, 74, 70, 78, 72, 76, 72] },
-  { key: 'vram', label: 'VRAM 사용량', value: '61.2', sub: '/ 80 GB', tone: 'blue', suffix: ' GB', spark: [40, 48, 44, 55, 60, 58, 64, 61, 66, 62, 61, 63, 61] },
-  { key: 'cpu', label: 'CPU 사용률', value: '38%', tone: 'cyan', suffix: '%', spark: [30, 42, 28, 45, 38, 50, 34, 40, 36, 44, 38, 42, 38] },
-  { key: 'mem', label: '메모리 사용량', value: '94', sub: '/ 256 GB', tone: 'purple', suffix: ' GB', spark: [70, 68, 74, 80, 78, 84, 82, 90, 88, 94, 90, 92, 94] },
-  { key: 'temp', label: '온도', value: '67', sub: '°C', tone: 'orange', suffix: '°C', spark: [55, 60, 58, 64, 62, 68, 66, 70, 67, 72, 68, 66, 67] },
-  { key: 'power', label: '전력 사용량', value: '284', sub: 'w', tone: 'green', suffix: ' W', spark: [240, 260, 250, 275, 270, 290, 280, 300, 284, 295, 284, 288, 284] },
-]
-
 // telemetry 시계열 → 6 KPI(MetricDef). value=최신값, spark=시계열. 4.5 DB 연동.
 function buildMetrics(gpuTel: SeriesPoint[] | null, srvTel: SeriesPoint[] | null): MetricDef[] {
   const last = (a: SeriesPoint[] | null) => (a && a.length ? a[a.length - 1] : null)
@@ -245,37 +236,7 @@ function Divider() {
 }
 
 // ── 모델별 토큰 그룹 바차트 ──
-const BAR_MODELS = [
-  { name: 'Llama 3 70B', color: '#2d7ff9' },
-  { name: 'Mistral 7B', color: '#22b8cf' },
-  { name: 'Qwen 14B', color: '#8b5cf6' },
-  { name: 'Embedding Small', color: '#f97316' },
-]
-// 기간 탭별 데이터셋(바 값은 K 단위, ≥1000이면 M으로 표기) — 9버킷 × 4모델.
-interface TokenPeriod { bars: number[][]; max: number; yLabels: string[]; total: string; topTokens: string; calls: string; avgLat: string; maxLat: string; tps: string }
 const fmtK = (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(1)}M` : `${v}K`)
-const TOKEN_PERIODS: TokenPeriod[] = [
-  { // 1시간
-    bars: [[6, 4, 3, 1], [9, 6, 4, 2], [8, 5, 4, 2], [12, 8, 6, 3], [14, 9, 7, 4], [11, 8, 5, 3], [16, 11, 8, 4], [20, 14, 10, 5], [24, 16, 12, 6]],
-    max: 24, yLabels: ['24K', '16K', '8K', '0'],
-    total: '52,310', topTokens: '24,860', calls: '1,204', avgLat: '612', maxLat: '1,980', tps: '45.2',
-  },
-  { // 1일
-    bars: [[62, 40, 30, 18], [80, 58, 45, 26], [110, 82, 60, 34], [140, 100, 72, 42], [118, 90, 65, 38], [145, 105, 80, 46], [128, 95, 70, 40], [95, 70, 52, 30], [88, 60, 48, 26]],
-    max: 150, yLabels: ['150K', '100K', '50K', '0'],
-    total: '1,248,560', topTokens: '612,340', calls: '28,745', avgLat: '632', maxLat: '2,134', tps: '43.4',
-  },
-  { // 7일
-    bars: [[520, 360, 260, 150], [640, 440, 320, 180], [880, 600, 420, 240], [1020, 700, 500, 280], [760, 520, 380, 210], [1120, 780, 560, 300], [980, 680, 480, 260], [1180, 820, 600, 320], [1060, 740, 520, 290]],
-    max: 1200, yLabels: ['1.2M', '800K', '400K', '0'],
-    total: '8,640,200', topTokens: '4,128,900', calls: '198,420', avgLat: '645', maxLat: '2,510', tps: '44.1',
-  },
-  { // 30일
-    bars: [[2800, 1900, 1400, 800], [3200, 2200, 1600, 900], [2600, 1800, 1300, 750], [3600, 2500, 1800, 1000], [4000, 2800, 2000, 1100], [3400, 2300, 1700, 950], [4200, 2900, 2100, 1150], [4500, 3100, 2200, 1250], [3900, 2700, 1950, 1080]],
-    max: 4500, yLabels: ['4.5M', '3M', '1.5M', '0'],
-    total: '32,410,800', topTokens: '15,240,600', calls: '824,160', avgLat: '658', maxLat: '3,120', tps: '42.8',
-  },
-]
 
 function GroupedBars({ data, max, yLabels, series }: { data: number[][]; max: number; yLabels: string[]; series: { name: string; color: string }[] }) {
   const [hv, setHv] = useState<{ gi: number; mi: number } | null>(null)
@@ -332,7 +293,6 @@ function StatRow({ label, value, unit }: { label: string; value: string; unit?: 
   )
 }
 
-const TABS = ['1시간', '1일', '7일', '30일']
 
 const BAR_COLORS = ['#2d7ff9', '#22b8cf', '#8b5cf6', '#f97316']
 function BarCard() {
@@ -399,17 +359,6 @@ const EV_BADGE: Record<EvLevel, { bg: string; fg: string }> = {
   정보: { bg: 'var(--accent-soft)', fg: 'var(--c-accent)' },
   경고: { bg: 'var(--warn-soft)', fg: 'var(--c-warn)' },
 }
-const EVENTS: { time: string; level: EvLevel; msg: string }[] = [
-  { time: '2025-05-14 15:28:26', level: '정보', msg: '작업 할당이 사용자에 의해 완료되었습니다.' },
-  { time: '2025-05-14 15:27:03', level: '경고', msg: '토큰 사용량이 80% 임계치를 초과했습니다. (사용: 28.7M)' },
-  { time: '2025-05-14 15:16:04', level: '정보', msg: 'VRAM 사용량이 60%를 넘었습니다. (사용: 61.2GB)' },
-  { time: '2025-05-14 13:05:22', level: '정보', msg: '모델 로드 완료: Llama 3 70B' },
-  { time: '2025-05-14 12:29:11', level: '정보', msg: '멀티모달서비스가 시작되었습니다.' },
-  { time: '2025-05-13 22:11:07', level: '정보', msg: '작업 할당이 정상 완료되었습니다.' },
-  { time: '2025-05-13 21:10:56', level: '정보', msg: '사용자 인증 서버에 연결되었습니다.' },
-  { time: '2025-05-13 09:15:33', level: '정보', msg: 'SSH 세션이 연결되었습니다.' },
-]
-
 function EventLogCard() {
   const toast = useToast()
   const { data } = useEvents({ limit: 8 })
@@ -673,33 +622,6 @@ interface ReqRow {
   memo: string
   action: '상세보기' | '재신청'
 }
-
-// Figma 예시 행(전체 23건 중 1페이지) — 시드 내 신청 데이터가 부족해 Figma 예시 그대로 재현
-const ROWS: ReqRow[] = [
-  { no: 'REQ-2024-0521-001', resource: 'A100 MIG 2g.20gb', model: 'Llama-3-8B', reason: '연구 프로젝트 실험 환경 구성', date: '2024-05-21 10:23', status: '대기', statusSub: '검토중', procDate: '2024-05-21 10:23', procStatus: '접수 완료', memo: '-', action: '상세보기' },
-  { no: 'REQ-2024-0519-002', resource: 'A100 1GPU', model: 'Qwen2.5-7B', reason: '모델 학습을 위한 단일 GPU 요청', date: '2024-05-19 14:18', status: '승인', statusSub: '할당 완료', procDate: '2024-05-20 09:41', procStatus: '할당 완료', memo: '리소스 할당됨', action: '상세보기' },
-  { no: 'REQ-2024-0517-003', resource: 'H100 2GPU 확장', model: 'Mixtral-8x7B', reason: '기존 환경 성능 향상을 위한 GPU 추가', date: '2024-05-17 16:05', status: '승인', statusSub: '할당 완료', procDate: '2024-05-18 11:22', procStatus: '할당 완료', memo: '리소스 할당됨', action: '상세보기' },
-  { no: 'REQ-2024-0516-004', resource: 'H100 4GPU', model: 'Llama-3-70B', reason: '대규모 모델 학습을 위한 고성능 GPU 요청', date: '2024-05-16 13:32', status: '반려', statusSub: '반려됨', procDate: '2024-05-17 10:08', procStatus: '반려됨', memo: '사유서 보완 필요 · 자세한 내용은 상세보기 참조', action: '재신청' },
-  { no: 'REQ-2024-0515-005', resource: 'A100 1GPU', model: 'Gemma-2-9B', reason: '프로젝트 종료에 의한 자원 회수 요청', date: '2024-05-15 09:11', status: '승인', statusSub: '회수 완료', procDate: '2024-05-15 15:44', procStatus: '회수 처리 완료', memo: '-', action: '상세보기' },
-  { no: 'REQ-2024-0514-006', resource: 'A100 MIG 1g.10gb', model: 'Phi-3-mini', reason: '경량 모델 서빙 부하 테스트', date: '2024-05-14 11:40', status: '승인', statusSub: '할당 완료', procDate: '2024-05-14 16:20', procStatus: '할당 완료', memo: '리소스 할당됨', action: '상세보기' },
-  { no: 'REQ-2024-0513-007', resource: 'H100 1GPU', model: 'Qwen2.5-32B', reason: '사내 코드 어시스턴트 추론 환경', date: '2024-05-13 09:55', status: '대기', statusSub: '검토중', procDate: '2024-05-13 10:02', procStatus: '접수 완료', memo: '-', action: '상세보기' },
-  { no: 'REQ-2024-0512-008', resource: 'A100 2GPU', model: 'Llama-3-70B', reason: '멀티 GPU 분산 학습 검증', date: '2024-05-12 15:10', status: '승인', statusSub: '할당 완료', procDate: '2024-05-13 09:30', procStatus: '할당 완료', memo: '리소스 할당됨', action: '상세보기' },
-  { no: 'REQ-2024-0511-009', resource: 'H100 4GPU', model: 'DeepSeek-V2', reason: '대규모 사전학습 자원 요청', date: '2024-05-11 17:22', status: '반려', statusSub: '반려됨', procDate: '2024-05-12 10:15', procStatus: '반려됨', memo: '가용 용량 초과 · 슬라이스 단위 재신청 권장', action: '재신청' },
-  { no: 'REQ-2024-0510-010', resource: 'A100 MIG 3g.40gb', model: 'Gemma-2-27B', reason: 'RAG 임베딩 파이프라인 구축', date: '2024-05-10 08:48', status: '대기', statusSub: '검토중', procDate: '2024-05-10 09:00', procStatus: '접수 완료', memo: '-', action: '상세보기' },
-  { no: 'REQ-2024-0509-011', resource: 'A100 1GPU', model: 'Llama-3-8B', reason: '챗봇 PoC 추론 환경 구성', date: '2024-05-09 10:20', status: '승인', statusSub: '할당 완료', procDate: '2024-05-09 14:00', procStatus: '할당 완료', memo: '리소스 할당됨', action: '상세보기' },
-  { no: 'REQ-2024-0508-012', resource: 'H100 1GPU', model: 'Qwen2.5-7B', reason: '문서 요약 서비스 운영', date: '2024-05-08 09:15', status: '승인', statusSub: '할당 완료', procDate: '2024-05-08 13:30', procStatus: '할당 완료', memo: '리소스 할당됨', action: '상세보기' },
-  { no: 'REQ-2024-0507-013', resource: 'A100 MIG 2g.20gb', model: 'Gemma-2-9B', reason: '임베딩 배치 작업', date: '2024-05-07 16:40', status: '대기', statusSub: '검토중', procDate: '2024-05-07 16:45', procStatus: '접수 완료', memo: '-', action: '상세보기' },
-  { no: 'REQ-2024-0506-014', resource: 'H100 2GPU', model: 'Mixtral-8x7B', reason: '멀티모달 추론 실험', date: '2024-05-06 11:05', status: '승인', statusSub: '할당 완료', procDate: '2024-05-06 15:20', procStatus: '할당 완료', memo: '리소스 할당됨', action: '상세보기' },
-  { no: 'REQ-2024-0505-015', resource: 'A100 1GPU', model: 'Phi-3-mini', reason: '경량 모델 추론 테스트', date: '2024-05-05 13:22', status: '승인', statusSub: '할당 완료', procDate: '2024-05-05 17:00', procStatus: '할당 완료', memo: '리소스 할당됨', action: '상세보기' },
-  { no: 'REQ-2024-0503-016', resource: 'A100 2GPU', model: 'Llama-3-70B', reason: '도메인 파인튜닝 학습', date: '2024-05-03 09:48', status: '대기', statusSub: '검토중', procDate: '2024-05-03 09:55', procStatus: '접수 완료', memo: '-', action: '상세보기' },
-  { no: 'REQ-2024-0502-017', resource: 'H100 4GPU', model: 'DeepSeek-V2', reason: '대규모 사전학습 자원 요청', date: '2024-05-02 17:30', status: '반려', statusSub: '반려됨', procDate: '2024-05-03 10:40', procStatus: '반려됨', memo: '가용 용량 초과 · 분할 신청 권장', action: '재신청' },
-  { no: 'REQ-2024-0430-018', resource: 'A100 MIG 1g.10gb', model: 'Qwen2.5-32B', reason: '사내 코드 어시스턴트', date: '2024-04-30 10:10', status: '승인', statusSub: '할당 완료', procDate: '2024-04-30 14:30', procStatus: '할당 완료', memo: '리소스 할당됨', action: '상세보기' },
-  { no: 'REQ-2024-0428-019', resource: 'H100 1GPU', model: 'Gemma-2-27B', reason: 'RAG 문서 검색 서비스', date: '2024-04-28 14:55', status: '승인', statusSub: '할당 완료', procDate: '2024-04-28 18:10', procStatus: '할당 완료', memo: '리소스 할당됨', action: '상세보기' },
-  { no: 'REQ-2024-0425-020', resource: 'A100 1GPU', model: 'Mistral-7B', reason: 'STT 음성 인식 추론', date: '2024-04-25 08:30', status: '대기', statusSub: '검토중', procDate: '2024-04-25 08:35', procStatus: '접수 완료', memo: '-', action: '상세보기' },
-  { no: 'REQ-2024-0422-021', resource: 'A100 MIG 3g.40gb', model: 'Llama-3-8B', reason: '이미지 캡셔닝 모델 서빙', date: '2024-04-22 15:12', status: '승인', statusSub: '할당 완료', procDate: '2024-04-22 19:00', procStatus: '할당 완료', memo: '리소스 할당됨', action: '상세보기' },
-  { no: 'REQ-2024-0418-022', resource: 'H100 2GPU', model: 'Mixtral-8x7B', reason: '추천 시스템 모델 서빙', date: '2024-04-18 11:40', status: '승인', statusSub: '할당 완료', procDate: '2024-04-18 16:25', procStatus: '할당 완료', memo: '리소스 할당됨', action: '상세보기' },
-  { no: 'REQ-2024-0415-023', resource: 'A100 1GPU', model: 'Phi-3-mini', reason: '사내 QA 봇 추론 환경', date: '2024-04-15 09:00', status: '대기', statusSub: '검토중', procDate: '2024-04-15 09:05', procStatus: '접수 완료', memo: '-', action: '상세보기' },
-]
 
 // DB(gpu_requests) → 화면 행(ReqRow) 변환. 4.6 DB 연동.
 const STATUS_KR: Record<GpuRequestRow['status'], ReqStatus> = { pending: '대기', approved: '승인', rejected: '반려' }

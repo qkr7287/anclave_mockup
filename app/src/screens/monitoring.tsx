@@ -52,12 +52,6 @@ function wave(base: number, amp: number, seed: number, n: number): number[] {
 
 // 1시간 윈도(10초 간격 361포인트) — 예시: 현재 121점의 ~3배 밀도.
 const STEP_SEC = 10
-const pad2 = (v: number) => String(v).padStart(2, '0')
-const TIMES = Array.from({ length: 3600 / STEP_SEC + 1 }, (_, i) => {
-  const s = 14 * 3600 + 30 * 60 + i * STEP_SEC
-  return `${pad2(Math.floor(s / 3600) % 24)}:${pad2(Math.floor(s / 60) % 60)}:${pad2(s % 60)}`
-})
-const N = TIMES.length
 // 10분 간격 눈금(14:30·14:40…15:30) — 600초/10초 − 1
 const TICK_INTERVAL = (10 * 60) / STEP_SEC - 1
 const hhmm = (t: string) => t.slice(0, 5) // 축 라벨은 HH:MM만
@@ -89,7 +83,6 @@ const NORMAL_SRV = servers.filter((s) => s.health === 'normal').length
 const GPU_UTIL = meanOf(ACTIVE_GPUS.map((g) => g.smUtil))
 const SRV_UTIL = meanOf(servers.map((s) => serverAvgUtil(s)))
 const VRAM_UTIL = meanOf(ACTIVE_GPUS.map((g) => g.vramUtil))
-const TEMP_MEAN = meanOf(ACTIVE_GPUS.map((g) => g.temp))
 const VRAM_USED_GB = Math.round(allGpus.reduce((a, g) => a + vramUsedMb(g), 0) / 1024)
 const VRAM_TOTAL_GB = Math.round(allGpus.reduce((a, g) => a + vramTotalMb(g), 0) / 1024)
 const POWER_TOTAL = allGpus.reduce((a, g) => a + g.power, 0)
