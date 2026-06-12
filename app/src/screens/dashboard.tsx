@@ -29,7 +29,7 @@ import {
 import { EmptyState, Button, useToast } from '../components/ui'
 import { useRole } from '../lib/role'
 import { useTheme } from '../lib/theme'
-import { useGpuRequests, useAllocations, useTelemetrySeries, type GpuRequestRow, type AllocationRow, type SeriesPoint } from '../data/hooks/usePolling'
+import { useGpuRequests, useAllocations, useTelemetrySeries, useEvents, type GpuRequestRow, type AllocationRow, type SeriesPoint } from '../data/hooks/usePolling'
 
 // 다크 테마에서 공유 --c-muted(#525872)가 카드 대비 ~2.7:1로 너무 어두움 → 페이지 루트에서만 더 밝게 오버라이드.
 // (index.css는 공유 파일이라 수정 불가 → 스코프 오버라이드로 text-muted 일괄 개선. 라이트는 기본값 유지.)
@@ -420,6 +420,12 @@ const EVENTS: { time: string; level: EvLevel; msg: string }[] = [
 
 function EventLogCard() {
   const toast = useToast()
+  const { data } = useEvents({ limit: 8 })
+  const events: { time: string; level: EvLevel; msg: string }[] = (data ?? []).map((e) => ({
+    time: fmtReqDate(e.createdAt),
+    level: e.severity === 'warn' || e.severity === 'critical' ? '경고' : '정보',
+    msg: e.message,
+  }))
   return (
     <section className="bg-card2 border border-line rounded-[14px] flex flex-col min-w-0" style={{ boxShadow: 'var(--shadow-card)', padding: '18px 20px' }}>
       <header className="flex items-center justify-between gap-3 shrink-0">
@@ -432,8 +438,8 @@ function EventLogCard() {
         <span className="flex-1">이벤트</span>
       </div>
       <div className="flex-1 min-h-0 flex flex-col">
-        {EVENTS.map((e, i) => (
-          <div key={i} className="flex items-center flex-1" style={{ minHeight: 32, borderBottom: i < EVENTS.length - 1 ? '1px solid var(--c-border-s)' : 'none' }}>
+        {events.map((e, i) => (
+          <div key={i} className="flex items-center flex-1" style={{ minHeight: 32, borderBottom: i < events.length - 1 ? '1px solid var(--c-border-s)' : 'none' }}>
             <span className="shrink-0 text-muted" style={{ width: 150, fontSize: 14 }}>{e.time}</span>
             <span className="shrink-0" style={{ width: 64 }}>
               <span className="inline-flex items-center rounded-[5px] font-semibold" style={{ background: EV_BADGE[e.level].bg, color: EV_BADGE[e.level].fg, padding: '2px 8px', fontSize: 14 }}>{e.level}</span>

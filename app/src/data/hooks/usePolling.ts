@@ -84,3 +84,22 @@ export interface AllocationRow {
 export function useAllocations(userId: string | null, intervalMs = 5000): PollState<AllocationRow[]> {
   return usePolling<AllocationRow[]>(userId ? `/api/allocations?user=${encodeURIComponent(userId)}` : null, intervalMs)
 }
+
+// 이벤트 로그 — backend /api/events. 4.5/4.21.
+export interface EventRow {
+  id: string
+  severity: 'critical' | 'warn' | 'info' | 'recovered'
+  status: string
+  message: string
+  gpuId: string | null
+  serverId: string | null
+  createdAt: string
+}
+
+export function useEvents(opts: { gpuId?: string; serverId?: string; limit?: number } = {}, intervalMs = 10000): PollState<EventRow[]> {
+  const q = new URLSearchParams()
+  if (opts.gpuId) q.set('gpuId', opts.gpuId)
+  if (opts.serverId) q.set('serverId', opts.serverId)
+  q.set('limit', String(opts.limit ?? 8))
+  return usePolling<EventRow[]>(`/api/events?${q.toString()}`, intervalMs)
+}

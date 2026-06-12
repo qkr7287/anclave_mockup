@@ -5,14 +5,14 @@ import { userById } from '../../data/users'
 
 // 데모 로그인 계정 3종 (공통 비번). 실데이터 보유 user 로 매핑해 화면이 채워지게.
 const CREDENTIALS: Record<string, { pw: string; id: string }> = {
-  admin: { pw: 'agics12!@', id: 'u-admin' },
-  kim: { pw: 'agics12!@', id: 'u-kim' },
-  choi: { pw: 'agics12!@', id: 'u-choi' },
+  hwang: { pw: 'agics12!@', id: 'u-hwang' },
+  pts: { pw: 'agics12!@', id: 'u-pts' },
+  lim: { pw: 'agics12!@', id: 'u-lim' },
 }
 const HINTS = [
-  { u: 'admin', label: '최종관리자', desc: '전체 자원맵 · 승인 · 시스템 설정' },
-  { u: 'kim', label: '실무관리자', desc: 'GPU·서비스 보유 — 내 할당/신청' },
-  { u: 'choi', label: '사용자', desc: '내 신청 내역 · 마켓 이용' },
+  { u: 'hwang', label: '대표 · 최종관리자', desc: '전체 자원맵 · 승인 · 시스템 설정' },
+  { u: 'pts', label: '서비스 운영', desc: 'GPU·서비스 보유 — 내 할당/신청' },
+  { u: 'lim', label: '신청 · 사용자', desc: '신청 검토중 · 마켓 이용' },
 ]
 
 // 4.1 로그인 — 라디얼 글로우 배경 + gradient 로고 + 아이디/비번.
@@ -77,7 +77,7 @@ export function Login() {
         <form onSubmit={submit} className="flex flex-col mt-5" style={{ gap: 10 }}>
           <input
             style={inputStyle}
-            placeholder="아이디 (admin / kim / choi)"
+            placeholder="아이디 (hwang / pts / lim)"
             value={username}
             onChange={(e) => { setUsername(e.target.value); setError('') }}
             aria-label="아이디"
