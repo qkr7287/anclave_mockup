@@ -26,6 +26,7 @@ export interface User {
   email: string
   hasHosting: boolean
   initialRoute: string
+  department?: string // 조직도 소속(대표이사·기술개발본부 등)
 }
 
 export interface Model {

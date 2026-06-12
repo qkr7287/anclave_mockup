@@ -8,7 +8,8 @@
       "role": "admin",
       "email": "admin@anclave.local",
       "hasHosting": false,
-      "initialRoute": "/resource-map"
+      "initialRoute": "/resource-map",
+      "department": "시스템 관리"
     },
     {
       "id": "u-hwang",
@@ -17,7 +18,8 @@
       "role": "user",
       "email": "hwang@anclave.local",
       "hasHosting": true,
-      "initialRoute": "/dashboard"
+      "initialRoute": "/dashboard",
+      "department": "대표이사"
     },
     {
       "id": "u-kgr",
@@ -26,7 +28,8 @@
       "role": "user",
       "email": "kgr@anclave.local",
       "hasHosting": true,
-      "initialRoute": "/dashboard"
+      "initialRoute": "/dashboard",
+      "department": "사업기획본부"
     },
     {
       "id": "u-lim",
@@ -35,7 +38,8 @@
       "role": "user",
       "email": "lim@anclave.local",
       "hasHosting": false,
-      "initialRoute": "/dashboard"
+      "initialRoute": "/dashboard",
+      "department": "기술개발본부"
     },
     {
       "id": "u-pts",
@@ -44,7 +48,8 @@
       "role": "user",
       "email": "pts@anclave.local",
       "hasHosting": true,
-      "initialRoute": "/dashboard"
+      "initialRoute": "/dashboard",
+      "department": "서비스 기술개발팀"
     },
     {
       "id": "u-pjh",
@@ -53,7 +58,8 @@
       "role": "user",
       "email": "pjh@anclave.local",
       "hasHosting": false,
-      "initialRoute": "/dashboard"
+      "initialRoute": "/dashboard",
+      "department": "서비스 기술개발팀"
     },
     {
       "id": "u-jhs",
@@ -62,7 +68,8 @@
       "role": "user",
       "email": "jhs@anclave.local",
       "hasHosting": true,
-      "initialRoute": "/dashboard"
+      "initialRoute": "/dashboard",
+      "department": "서비스 기술개발팀"
     },
     {
       "id": "u-leh",
@@ -71,7 +78,8 @@
       "role": "user",
       "email": "leh@anclave.local",
       "hasHosting": false,
-      "initialRoute": "/dashboard"
+      "initialRoute": "/dashboard",
+      "department": "서비스 기술개발팀"
     },
     {
       "id": "u-kmw",
@@ -80,7 +88,8 @@
       "role": "user",
       "email": "kmw@anclave.local",
       "hasHosting": false,
-      "initialRoute": "/dashboard"
+      "initialRoute": "/dashboard",
+      "department": "시스템 통합개발팀"
     },
     {
       "id": "u-psj",
@@ -89,7 +98,8 @@
       "role": "user",
       "email": "psj@anclave.local",
       "hasHosting": false,
-      "initialRoute": "/dashboard"
+      "initialRoute": "/dashboard",
+      "department": "시스템 통합개발팀"
     },
     {
       "id": "u-jhw",
@@ -98,7 +108,8 @@
       "role": "user",
       "email": "jhw@anclave.local",
       "hasHosting": false,
-      "initialRoute": "/dashboard"
+      "initialRoute": "/dashboard",
+      "department": "시스템 통합개발팀"
     },
     {
       "id": "u-isj",
@@ -107,7 +118,8 @@
       "role": "user",
       "email": "isj@anclave.local",
       "hasHosting": false,
-      "initialRoute": "/dashboard"
+      "initialRoute": "/dashboard",
+      "department": "시스템 통합개발팀"
     },
     {
       "id": "u-oys",
@@ -116,7 +128,8 @@
       "role": "user",
       "email": "oys@anclave.local",
       "hasHosting": false,
-      "initialRoute": "/dashboard"
+      "initialRoute": "/dashboard",
+      "department": "시스템 통합개발팀"
     },
     {
       "id": "u-jhu",
@@ -125,7 +138,8 @@
       "role": "user",
       "email": "jhu@anclave.local",
       "hasHosting": false,
-      "initialRoute": "/dashboard"
+      "initialRoute": "/dashboard",
+      "department": "시스템 통합개발팀"
     },
     {
       "id": "u-bgh",
@@ -134,7 +148,8 @@
       "role": "user",
       "email": "bgh@anclave.local",
       "hasHosting": false,
-      "initialRoute": "/dashboard"
+      "initialRoute": "/dashboard",
+      "department": "시스템 통합개발팀"
     },
     {
       "id": "u-kmh",
@@ -143,7 +158,8 @@
       "role": "user",
       "email": "kmh@anclave.local",
       "hasHosting": false,
-      "initialRoute": "/dashboard"
+      "initialRoute": "/dashboard",
+      "department": "시스템 통합개발팀"
     }
   ],
   "models": [

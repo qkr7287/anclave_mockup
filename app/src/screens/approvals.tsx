@@ -56,12 +56,9 @@ const BADGE: Record<Status, { bg: string; fg: string }> = {
 }
 const STATUS_FROM_KO: Record<string, Status> = { 대기: 'pending', 승인: 'approved', 반려: 'rejected' }
 
-// 신청자 표시용 소속 팀(시드엔 없음 → id 기반 안정적 합성)
-const TEAMS = ['플랫폼팀', 'AI 연구팀', '서비스개발팀', '데이터팀', '클라우드인프라팀', 'MLOps팀']
+// 신청자 소속 부서 — user.department(조직도) 사용.
 function teamOf(userId: string): string {
-  let h = 0
-  for (let i = 0; i < userId.length; i++) h = (h * 31 + userId.charCodeAt(i)) >>> 0
-  return TEAMS[h % TEAMS.length]
+  return userById(userId)?.department ?? '미지정'
 }
 
 // ════════════════════════════════════ 공통 프리미티브(4.6 톤) ════════════════════════════════════
