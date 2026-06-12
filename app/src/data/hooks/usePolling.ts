@@ -103,3 +103,16 @@ export function useEvents(opts: { gpuId?: string; serverId?: string; limit?: num
   q.set('limit', String(opts.limit ?? 8))
   return usePolling<EventRow[]>(`/api/events?${q.toString()}`, intervalMs)
 }
+
+// 내 서비스 토큰 사용량 — backend /api/service-tokens. 4.5 토큰차트.
+export interface ServiceTokens {
+  services: { id: string; name: string; modelId: string | null }[]
+  bars: number[][]
+  max: number
+  total: number
+  calls: number
+}
+
+export function useServiceTokens(userId: string | null, intervalMs = 10000): PollState<ServiceTokens> {
+  return usePolling<ServiceTokens>(userId ? `/api/service-tokens?user=${encodeURIComponent(userId)}` : null, intervalMs)
+}

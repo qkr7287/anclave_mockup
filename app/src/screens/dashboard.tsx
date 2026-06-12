@@ -29,7 +29,7 @@ import {
 import { EmptyState, Button, useToast } from '../components/ui'
 import { useRole } from '../lib/role'
 import { useTheme } from '../lib/theme'
-import { useGpuRequests, useAllocations, useTelemetrySeries, useEvents, type GpuRequestRow, type AllocationRow, type SeriesPoint } from '../data/hooks/usePolling'
+import { useGpuRequests, useAllocations, useTelemetrySeries, useEvents, useServiceTokens, type GpuRequestRow, type AllocationRow, type SeriesPoint } from '../data/hooks/usePolling'
 
 // 다크 테마에서 공유 --c-muted(#525872)가 카드 대비 ~2.7:1로 너무 어두움 → 페이지 루트에서만 더 밝게 오버라이드.
 // (index.css는 공유 파일이라 수정 불가 → 스코프 오버라이드로 text-muted 일괄 개선. 라이트는 기본값 유지.)
@@ -277,7 +277,7 @@ const TOKEN_PERIODS: TokenPeriod[] = [
   },
 ]
 
-function GroupedBars({ data, max, yLabels }: { data: number[][]; max: number; yLabels: string[] }) {
+function GroupedBars({ data, max, yLabels, series }: { data: number[][]; max: number; yLabels: string[]; series: { name: string; color: string }[] }) {
   const [hv, setHv] = useState<{ gi: number; mi: number } | null>(null)
   return (
     <div className="relative h-full w-full min-w-0" style={{ paddingLeft: 36 }}>
@@ -299,7 +299,7 @@ function GroupedBars({ data, max, yLabels }: { data: number[][]; max: number; yL
                   key={mi}
                   onMouseEnter={() => setHv({ gi, mi })}
                   onMouseLeave={() => setHv(null)}
-                  style={{ width: 6, height: `${(v / max) * 100}%`, background: BAR_MODELS[mi].color, borderRadius: '2px 2px 0 0', opacity: dim ? 0.45 : 1, transition: 'height .35s cubic-bezier(0.2,0.7,0.2,1), opacity .12s', cursor: 'pointer' }}
+                  style={{ width: 6, height: `${(v / max) * 100}%`, background: series[mi].color, borderRadius: '2px 2px 0 0', opacity: dim ? 0.45 : 1, transition: 'height .35s cubic-bezier(0.2,0.7,0.2,1), opacity .12s', cursor: 'pointer' }}
                 />
               )
             })}
@@ -308,8 +308,8 @@ function GroupedBars({ data, max, yLabels }: { data: number[][]; max: number; yL
                 className="absolute pointer-events-none rounded-md whitespace-nowrap font-semibold flex items-center gap-1.5"
                 style={{ left: '50%', bottom: '100%', transform: 'translate(-50%, -6px)', fontSize: 14, lineHeight: 1.3, padding: '3px 9px', background: 'var(--toast-bg)', color: 'var(--c-text)', border: '1px solid var(--c-line)', boxShadow: 'var(--shadow-pop)', zIndex: 5 }}
               >
-                <span style={{ width: 8, height: 8, borderRadius: 2, background: BAR_MODELS[hv.mi].color, flexShrink: 0 }} />
-                {BAR_MODELS[hv.mi].name} · {fmtK(data[hv.gi][hv.mi])}
+                <span style={{ width: 8, height: 8, borderRadius: 2, background: series[hv.mi].color, flexShrink: 0 }} />
+                {series[hv.mi].name} · {fmtK(data[hv.gi][hv.mi])}
               </div>
             )}
           </div>
@@ -334,33 +334,27 @@ function StatRow({ label, value, unit }: { label: string; value: string; unit?: 
 
 const TABS = ['1시간', '1일', '7일', '30일']
 
+const BAR_COLORS = ['#2d7ff9', '#22b8cf', '#8b5cf6', '#f97316']
 function BarCard() {
-  const [tab, setTab] = useState(1)
-  const p = TOKEN_PERIODS[tab]
+  const { user } = useRole()
+  const { data } = useServiceTokens(user.id)
+  const services = data?.services ?? []
+  const series = services.map((s, i) => ({ name: s.name, color: BAR_COLORS[i % BAR_COLORS.length] }))
+  const bars = data?.bars ?? []
+  const max = data?.max ?? 1
+  const yLabels = [`${max}`, `${Math.round((max * 2) / 3)}`, `${Math.round(max / 3)}`, '0']
   return (
     <section className="bg-card2 border border-line rounded-[14px] flex flex-col min-w-0" style={{ boxShadow: 'var(--shadow-card)', padding: 18 }}>
       <header className="flex items-center gap-3 shrink-0">
         <h3 className="font-bold text-text" style={{ fontSize: 15 }}>서비스 토큰 사용량</h3>
-        <span className="inline-flex items-center rounded-[6px] font-semibold" style={{ background: 'var(--accent-soft)', color: 'var(--c-accent)', padding: '3px 8px', fontSize: 14 }}>총 4개 모델</span>
-        <div className="flex items-center gap-1 ml-auto">
-          {TABS.map((t, i) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setTab(i)}
-              className="rounded-[7px] font-medium transition-colors"
-              style={{ padding: '5px 12px', fontSize: 14, background: tab === i ? 'var(--accent-soft)' : 'transparent', color: tab === i ? 'var(--c-accent)' : 'var(--c-muted)' }}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
+        <span className="inline-flex items-center rounded-[6px] font-semibold" style={{ background: 'var(--accent-soft)', color: 'var(--c-accent)', padding: '3px 8px', fontSize: 14 }}>총 {services.length}개 서비스</span>
+        <span className="ml-auto text-muted" style={{ fontSize: 14 }}>최근 24시간</span>
       </header>
       <div className="flex gap-5 flex-1 min-h-0" style={{ marginTop: 14 }}>
         {/* 차트 영역 */}
         <div className="flex flex-col min-w-0" style={{ flex: '1 1 0' }}>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 shrink-0" style={{ marginBottom: 10 }}>
-            {BAR_MODELS.map((m) => (
+            {series.map((m) => (
               <span key={m.name} className="inline-flex items-center gap-1.5" style={{ fontSize: 14 }}>
                 <span style={{ width: 9, height: 9, borderRadius: 3, background: m.color }} />
                 <span className="text-text font-medium">{m.name}</span>
@@ -368,32 +362,30 @@ function BarCard() {
             ))}
           </div>
           <div className="flex-1 min-h-0">
-            <GroupedBars data={p.bars} max={p.max} yLabels={p.yLabels} />
+            <GroupedBars data={bars} max={max} yLabels={yLabels} series={series} />
           </div>
         </div>
         {/* 우측 통계 — 총량·최다모델 강조 + 지연 지표 행, 세로 중앙 정렬 */}
         <div className="flex flex-col justify-center shrink-0" style={{ width: 196 }}>
           {/* 총 토큰 사용량 (강조) */}
           <div className="min-w-0">
-            <div className="text-muted" style={{ fontSize: 14, lineHeight: 1.2 }}>총 토큰 사용량 · {TABS[tab]}</div>
+            <div className="text-muted" style={{ fontSize: 14, lineHeight: 1.2 }}>총 토큰 사용량 · 최근 24h</div>
             <div className="flex items-baseline gap-1.5 whitespace-nowrap" style={{ marginTop: 4 }}>
-              <span className="font-bold text-text" style={{ fontSize: 21, lineHeight: 1.1, letterSpacing: '-0.3px' }}>{p.total}</span>
-              <span className="text-muted" style={{ fontSize: 14 }}>Tokens</span>
+              <span className="font-bold text-text" style={{ fontSize: 21, lineHeight: 1.1, letterSpacing: '-0.3px' }}>{(data?.total ?? 0).toLocaleString()}</span>
+              <span className="text-muted" style={{ fontSize: 14 }}>Tokens/h</span>
             </div>
           </div>
-          {/* 최다 사용 모델 */}
+          {/* 주력 서비스 */}
           <div className="min-w-0" style={{ marginTop: 16 }}>
-            <div className="text-muted" style={{ fontSize: 14, lineHeight: 1.2 }}>최다 사용 모델</div>
-            <div className="font-bold text-text truncate" style={{ fontSize: 15, lineHeight: 1.2, marginTop: 4 }}>Llama 3 70B</div>
-            <div className="text-muted" style={{ fontSize: 14, marginTop: 2 }}>{p.topTokens} Tokens</div>
+            <div className="text-muted" style={{ fontSize: 14, lineHeight: 1.2 }}>주력 서비스</div>
+            <div className="font-bold text-text truncate" style={{ fontSize: 15, lineHeight: 1.2, marginTop: 4 }}>{services[0]?.name ?? '-'}</div>
+            <div className="text-muted" style={{ fontSize: 14, marginTop: 2 }}>{services.length}개 운영 중</div>
           </div>
           <div style={{ height: 1, background: 'var(--c-border)', margin: '16px 0' }} />
-          {/* 지연·횟수 지표 */}
+          {/* 요청·서비스 지표 */}
           <div className="flex flex-col" style={{ gap: 11 }}>
-            <StatRow label="총 요청 횟수" value={p.calls} unit="회" />
-            <StatRow label="평균 지연 시간" value={p.avgLat} unit="ms" />
-            <StatRow label="최대 지연 시간" value={p.maxLat} unit="ms" />
-            <StatRow label="토큰/초(평균값)" value={p.tps} />
+            <StatRow label="총 요청 횟수" value={String(data?.calls ?? 0)} unit="회/h" />
+            <StatRow label="운영 서비스" value={String(services.length)} unit="개" />
           </div>
         </div>
       </div>
