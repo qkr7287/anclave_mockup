@@ -11,8 +11,8 @@ import {
   FloatingButtons,
   CriticalAlert,
 } from '../components/ui'
-import { LineChart, ServerHexMap, bandColor } from '../components/charts'
-import type { ServerRegion, Bay } from '../components/charts'
+import { BandChart, SparkLine, ServerHexMap, bandColor } from '../components/charts'
+import type { ServerRegion, Bay, BandSeries, BandAxis } from '../components/charts'
 import { ServerIcon, CpuChipIcon, ChartBarSquareIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 import { servers, serverById, allGpus, userById, modelById, gpuRequests } from '../data'
 import type { Gpu, MigSlice, EventLog, Service, GpuServer } from '../data/types'
@@ -26,9 +26,9 @@ import {
   vramTotalMb,
   fmtNum,
   trend,
-  HOUR_LABELS,
 } from '../lib/metrics'
 import { events as allEvents } from '../data'
+import { RANGES, RANGE_LABEL, RangeProvider, useRange, useTelemetryBand, tsLabel } from './monitoring-telemetry'
 
 // ───────────────────────── 공통 부품 ─────────────────────────
 
@@ -310,9 +310,6 @@ function ServerKpi({ title, value, unit, link, delta, deltaTone, icon }: {
   )
 }
 
-function Legend({ c, label }: { c: string; label: string }) {
-  return <span className="inline-flex items-center" style={{ gap: 5, fontSize: 14 }}><span className="rounded-full" style={{ width: 9, height: 9, background: c }} /><span className="text-muted">{label}</span></span>
-}
 const abbrCalls = (n: number) => (n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1000 ? `${(n / 1000).toFixed(1)}K` : `${n}`)
 
 // 모델명 간단히 — 끝의 파라미터수(70B·32B·v3 등) 제거(좁은 슬라이스/카드에서 답답함 완화)
@@ -328,24 +325,8 @@ function seedOf(s: string): number {
   return h
 }
 
-// 미니 스파크라인 — 카드 내부 사용 추이(차트 축 없음, 면+선). fill=true면 컨테이너 높이를 꽉 채움(빈 공간 제거)
-function MiniSpark({ data, color, h = 28, fill = false }: { data: number[]; color: string; h?: number; fill?: boolean }) {
-  const W = 100
-  const H = fill ? 40 : h // viewBox 내부 좌표 기준(preserveAspectRatio none으로 컨테이너에 늘어남)
-  const top = Math.max(1, ...data)
-  const bot = Math.min(...data)
-  const span = Math.max(1, top - bot)
-  const n = data.length
-  const x = (i: number) => (n <= 1 ? 0 : (i * W) / (n - 1))
-  const y = (v: number) => 2 + (1 - (v - bot) / span) * (H - 4)
-  const line = data.map((v, i) => `${x(i)},${y(v)}`).join(' ')
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ width: '100%', height: fill ? '100%' : h, display: 'block' }} aria-hidden>
-      <polygon points={`0,${H} ${line} ${W},${H}`} fill={color} opacity={0.13} />
-      <polyline points={line} fill="none" stroke={color} strokeWidth={1.8} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-    </svg>
-  )
-}
+// 서비스 카드 사용 추이 임계치 — 사용률 90%(초과 구간은 SparkLine이 위험색 강조)
+const SVC_USAGE_THRESHOLD = 90
 
 // 서비스 카드 보조지표 한 칸(라벨 위 · 값 아래)
 function SvcMetric({ k, v, c }: { k: string; v: string; c?: string }) {
@@ -420,10 +401,10 @@ function GpuServicePanel({ gpu }: { gpu: Gpu }) {
               <span className="text-muted shrink-0" style={{ fontSize: 14 }}>사용량 · 비중 {share}%</span>
               <span className="tabular-nums shrink-0"><span className="font-bold" style={{ fontSize: 22, letterSpacing: '-0.3px' }}>{abbrCalls(s.usageCount)}</span><span className="text-muted" style={{ fontSize: 14 }}> 호출</span></span>
             </div>
-            {/* 사용 추이 — 2개+면 카드 남는 높이를 채우고(딱 맞게), 1개면 고정(거대화 방지) */}
+            {/* 사용 추이 — SparkLine(area fill 유지) + 임계 90% 점선·초과 위험색. 2개+면 남는 높이 채움, 1개면 고정 */}
             {single
-              ? <div className="min-w-0"><MiniSpark data={spark} color={isTop ? 'var(--c-accent)' : 'var(--c-accent2)'} h={48} /></div>
-              : <div className="flex-1 min-h-0 min-w-0" style={{ minHeight: 40 }}><MiniSpark data={spark} color={isTop ? 'var(--c-accent)' : 'var(--c-accent2)'} fill /></div>}
+              ? <div className="min-w-0"><SparkLine data={spark} color={isTop ? 'var(--c-accent)' : 'var(--c-accent2)'} height={48} threshold={SVC_USAGE_THRESHOLD} /></div>
+              : <div className="flex-1 min-h-0 min-w-0" style={{ minHeight: 40 }}><SparkLine data={spark} color={isTop ? 'var(--c-accent)' : 'var(--c-accent2)'} height={40} fill threshold={SVC_USAGE_THRESHOLD} /></div>}
             {/* 보조지표 — 레이턴시·처리량·에러율·최근 호출 */}
             <div className="grid shrink-0" style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '4px 14px' }}>
               <SvcMetric k="평균 레이턴시" v={`${latency}ms`} />
@@ -692,22 +673,86 @@ function GpuSummaryPanel({ server, onOpen }: { server: GpuServer; onOpen: () => 
   )
 }
 
-// 부하 추이 — Figma: 헤더 우측 범례 · 0~80 축. 툴팁은 호버 시에만(LineChart 내장 Recharts Tooltip).
-const LOAD_COL = { cpu: 'var(--c-accent)', mem: 'var(--c-accent2)', gpu: '#c74ddb' }
-function LoadTrend({ cpu, mem, gpu }: { cpu: number[]; mem: number[]; gpu: number[] }) {
+// 부하 추이 — 관제 모니터링 '클러스터 GPU 사용 추이'와 동일 비주얼: BandChart(버킷 min~max 밴드 +
+// 평균선·점) · 같은 색 토큰 · 같은 조회범위 페어(10분→10초 default / 2시간→1분 / 1일→30분 / 1달→6시간).
+// 데이터: GET /api/telemetry/band?kind=server&id=<serverId> — 해당 서버 것만(미연동 시 계약형 목).
+const LOAD_CYAN = '#22d3ee'
+const LOAD_SKY = '#7cc4f0'
+const LOAD_VIOLET = '#a78bfa'
+const LOAD_METRICS = ['cpu', 'mem', 'gpu']
+const LOAD_SERIES: BandSeries[] = [
+  { key: 'cpu', name: 'CPU', color: LOAD_CYAN, yAxisId: 'pct' },
+  { key: 'mem', name: 'RAM', color: LOAD_SKY, yAxisId: 'pct' },
+  { key: 'gpu', name: 'GPU', color: LOAD_VIOLET, yAxisId: 'pct' },
+]
+const LOAD_AXES: BandAxis[] = [{ id: 'pct', domain: [0, 100], ticks: [0, 25, 50, 75, 100], width: 36, suffix: '%' }]
+const loadFmt = (_k: string, v: number) => `${Math.round(v)}%`
+
+// 관제 모니터링과 동일한 범례(짧은 바)·조회범위 칩 스타일
+function LegendDot({ color, label }: { color: string; label: string }) {
   return (
-    <section className="bg-card2 border border-line rounded-xl overflow-hidden flex flex-col min-w-0 min-h-0" style={{ boxShadow: 'var(--shadow-card)' }}>
-      <header className="flex items-center justify-between gap-3 px-4 py-3 border-b border-line shrink-0">
-        <h3 className="text-[14px] font-bold truncate">부하 추이</h3>
-        <div className="flex items-center shrink-0" style={{ gap: 14 }}>
-          <Legend c={LOAD_COL.cpu} label="CPU" /><Legend c={LOAD_COL.mem} label="RAM" /><Legend c={LOAD_COL.gpu} label="GPU" />
-        </div>
-      </header>
-      <div className="flex-1 min-h-0 min-w-0" style={{ padding: 10 }}>
-        <LineChart max={80} labels={HOUR_LABELS}
-          series={[{ data: cpu, color: LOAD_COL.cpu, label: 'CPU' }, { data: mem, color: LOAD_COL.mem, label: 'RAM' }, { data: gpu, color: LOAD_COL.gpu, label: 'GPU' }]} />
+    <span className="inline-flex items-center gap-1.5" style={{ fontSize: 12, color: 'var(--c-muted)' }}>
+      <span style={{ width: 12, height: 3, background: color, borderRadius: 2 }} />
+      {label}
+    </span>
+  )
+}
+
+// 조회범위 토글(4종) + {범위 · 단위} 칩 — 모니터링 헤더 토글·PanelChip과 동일 스타일(카드 헤더용 컴팩트)
+function LoadRangeControls() {
+  const { range, unit, setRange } = useRange()
+  return (
+    <div className="flex items-center shrink-0" style={{ gap: 8 }}>
+      <div className="inline-flex items-center rounded-lg" style={{ padding: 2, gap: 2, background: 'var(--c-soft)', border: '1px solid var(--c-border)' }}>
+        {RANGES.map((r) => (
+          <button
+            key={r}
+            type="button"
+            onClick={() => setRange(r)}
+            className="rounded-md font-semibold transition-colors"
+            style={{ fontSize: 12, padding: '3px 10px', color: r === range ? 'var(--c-onaccent)' : 'var(--c-muted)', background: r === range ? 'var(--c-accent)' : 'transparent' }}
+          >
+            {RANGE_LABEL[r]}
+          </button>
+        ))}
       </div>
-    </section>
+      <span className="shrink-0 rounded-md font-semibold whitespace-nowrap" style={{ fontSize: 12, color: 'var(--c-muted)', padding: '3px 9px', background: 'var(--c-soft)', border: '1px solid var(--c-border)' }}>
+        {RANGE_LABEL[range]} · {unit}
+      </span>
+    </div>
+  )
+}
+
+function LoadBand({ server }: { server: GpuServer }) {
+  const { data, range } = useTelemetryBand('server', server.id, LOAD_METRICS, {
+    cpu: server.cpuUtil,
+    mem: server.memUtil,
+    gpu: serverAvgUtil(server),
+  })
+  return <BandChart data={data} xTickFormatter={tsLabel(range)} series={LOAD_SERIES} axes={LOAD_AXES} fmt={loadFmt} margin={{ top: 8, right: 8, bottom: 0, left: -8 }} />
+}
+
+function LoadTrend({ server }: { server: GpuServer }) {
+  // 이 카드 전용 조회범위 Context(모니터링과 같은 페어). 차트 영역 높이는 부모 grid가 고정.
+  return (
+    <RangeProvider initial="10m">
+      <section className="bg-card2 border border-line rounded-xl overflow-hidden flex flex-col min-w-0 min-h-0" style={{ boxShadow: 'var(--shadow-card)' }}>
+        <header className="flex items-center justify-between gap-3 px-4 py-3 border-b border-line shrink-0 min-w-0">
+          <h3 className="text-[14px] font-bold truncate">부하 추이</h3>
+          <div className="flex items-center shrink-0" style={{ gap: 12 }}>
+            <div className="flex items-center" style={{ gap: 10 }}>
+              <LegendDot color={LOAD_CYAN} label="CPU" />
+              <LegendDot color={LOAD_SKY} label="RAM" />
+              <LegendDot color={LOAD_VIOLET} label="GPU" />
+            </div>
+            <LoadRangeControls />
+          </div>
+        </header>
+        <div className="flex-1 min-h-0 min-w-0" style={{ padding: 10 }}>
+          <LoadBand server={server} />
+        </div>
+      </section>
+    </RangeProvider>
   )
 }
 
@@ -833,10 +878,6 @@ export function ServerDetail() {
   const server = serverById(serverId)
   if (!server) return <Navigate to="/resource-map" replace />
 
-  const avgUtil = serverAvgUtil(server)
-  const cpuS = trend(server.cpuUtil, 24, 14, 3)
-  const memS = trend(server.memUtil, 24, 10, 7)
-  const gpuS = trend(avgUtil, 24, 16, 11)
   const isMulti = server.gpus.length > 1 // GPU 여러 장=구 레이아웃(카드 행), 1장=신규 레이아웃
   const seed = seedOf(server.id)
   // 신규(단일 RTX) 서버 정보 = 호스트 정적 사양(2열 스펙시트). GPU 사양/지표는 GPU 정보 패널로 분리.
@@ -916,7 +957,7 @@ export function ServerDetail() {
               </div>
               {/* 부하 추이 · 서버 정보(2열) — 반반 배치 */}
               <div className="grid shrink-0" style={{ gridTemplateColumns: '1fr 1fr', gap: 12, height: 300 }}>
-                <LoadTrend cpu={cpuS} mem={memS} gpu={gpuS} />
+                <LoadTrend server={server} />
                 <Card fill title="서버 정보">
                   {/* 2열 스펙시트 — GPU 사양 포함, 행 높이 넉넉 · 옅은 hairline */}
                   <div className="grid h-full min-h-0" style={{ gridTemplateColumns: '1fr 1fr', columnGap: 32, gridAutoRows: 'minmax(0, 1fr)' }}>
@@ -933,7 +974,7 @@ export function ServerDetail() {
           ) : (
             /* 단일 GPU 노드(신규 레이아웃) — 부하 추이(좌, 넓게) · 우측 적층[서버 정보 + GPU 정보(텍스트)] */
             <div className="grid shrink-0" style={{ gridTemplateColumns: '1.5fr 1fr', gap: 12, height: 386 }}>
-              <LoadTrend cpu={cpuS} mem={memS} gpu={gpuS} />
+              <LoadTrend server={server} />
               <div className="grid min-h-0" style={{ gridTemplateRows: '1.12fr 0.88fr', gap: 12 }}>
                 <Card fill title="서버 정보">
                   {/* 2열 스펙시트 — 라벨(muted) 좌 · 값 우 · 행 높이 넉넉 · 옅은 hairline */}
@@ -971,6 +1012,11 @@ export function ServerDetail() {
 }
 
 // ───────────────────────── 4.4 GPU 상세 ─────────────────────────
+
+// KPI 추이 임계치 — 사용률 90% · 온도 85°C · 전력 = TDP의 95%(전력 추이는 %TDP 스케일)
+const UTIL_THRESHOLD_PCT = 90
+const TEMP_THRESHOLD_C = 85
+const POWER_THRESHOLD_PCT = 95
 
 // 최근 활동 · 올라간 서비스 상세 — 이 GPU에 올라간 서비스들의 최근 이벤트 타임라인(더미)
 type FeedTone = 'ok' | 'info' | 'warn' | 'danger' | 'accent'
@@ -1049,6 +1095,7 @@ export function GpuDetail() {
   // MIG 헤더 — N분할(표시 칸 수=분할+빈) · 사용 인스턴스/전체. 그리드와 동일 소스(migLayout)
   const mig = migLayout(gpu)
   const tdp = gpu.migCapable ? 600 : 250 // 대략 TDP(전력 기준)
+  const powerThW = Math.round(tdp * (POWER_THRESHOLD_PCT / 100)) // 전력 임계 = TDP의 95%
   // 미니 꺾은선 추이(결정적) — 작업률·VRAM·온도·전력. 전력은 TDP 대비 %로 형태만.
   const powerPct = Math.max(6, Math.round((gpu.power / tdp) * 100))
   const utilTrend = trend(gpu.smUtil, 16, 13, serialNum + 1)
@@ -1069,10 +1116,10 @@ export function GpuDetail() {
         actions={gpu.xid ? <Badge tone="danger" dot={false}>{gpu.xid}</Badge> : <HealthBadge health={gpu.health} />}
         kpis={
           <>
-            <KpiStat label="작업률" value={gpu.smUtil} unit="%" delta={gpu.smUtil > 85 ? '높음' : '정상'} deltaTone={gpu.smUtil > 85 ? 'warn' : 'ok'} trend={utilTrend} trendThreshold={85} trendFmt={(v) => `${Math.round(v)}%`} sub="적정 ≤85%" />
+            <KpiStat label="작업률" value={gpu.smUtil} unit="%" delta={gpu.smUtil > UTIL_THRESHOLD_PCT ? '높음' : '정상'} deltaTone={gpu.smUtil > UTIL_THRESHOLD_PCT ? 'warn' : 'ok'} trend={utilTrend} trendThreshold={UTIL_THRESHOLD_PCT} trendFmt={(v) => `${Math.round(v)}%`} sub={`임계 ${UTIL_THRESHOLD_PCT}%`} />
             <KpiStat label="VRAM" value={gpu.vramUtil} unit="%" delta={`${fmtNum(usedMb)} MB`} deltaTone="muted" trend={vramTrend} trendThreshold={90} trendFmt={(v) => `${Math.round(v)}% · ${fmtNum(Math.round((v / 100) * vramTotalMb(gpu)))} MB`} sub={`${fmtNum(usedMb)} / ${fmtNum(vramTotalMb(gpu))} MB`} />
-            <KpiStat label="온도" value={gpu.temp} unit="°C" delta={gpu.temp > 80 ? '위험' : gpu.temp > 70 ? '주의' : '정상'} deltaTone={gpu.temp > 80 ? 'danger' : gpu.temp > 70 ? 'warn' : 'ok'} trend={tempTrend} trendThreshold={80} trendFmt={(v) => `${Math.round(v)}°C`} gaugeColor="var(--c-warn)" sub="임계 80°C" />
-            <KpiStat label="전력" value={gpu.power} unit="W" delta={`TDP ${tdp}W`} deltaTone="muted" trend={powerTrend} trendThreshold={100} trendFmt={(v) => `${Math.round((v / 100) * tdp)} W`} sub={`효율 ${Math.round((gpu.smUtil / Math.max(1, gpu.power)) * 100)}%`} />
+            <KpiStat label="온도" value={gpu.temp} unit="°C" delta={gpu.temp > TEMP_THRESHOLD_C ? '위험' : gpu.temp > 70 ? '주의' : '정상'} deltaTone={gpu.temp > TEMP_THRESHOLD_C ? 'danger' : gpu.temp > 70 ? 'warn' : 'ok'} trend={tempTrend} trendThreshold={TEMP_THRESHOLD_C} trendFmt={(v) => `${Math.round(v)}°C`} gaugeColor="var(--c-warn)" sub={`임계 ${TEMP_THRESHOLD_C}°C`} />
+            <KpiStat label="전력" value={gpu.power} unit="W" delta={`TDP ${tdp}W`} deltaTone="muted" trend={powerTrend} trendThreshold={POWER_THRESHOLD_PCT} trendFmt={(v) => `${Math.round((v / 100) * tdp)} W`} sub={`임계 ${powerThW} W · 효율 ${Math.round((gpu.smUtil / Math.max(1, gpu.power)) * 100)}%`} />
           </>
         }
       >
