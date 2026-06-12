@@ -26,6 +26,7 @@ import {
 import { Card } from '../components/ui'
 import { servers, allGpus, events } from '../data'
 import { serverAvgUtil, vramUsedMb, vramTotalMb, fmtNum } from '../lib/metrics'
+import { useTelemetrySeries } from '../data/hooks/usePolling'
 
 // ─────────────────────────────────────────────────────────────────────────
 // G11 · 4.7 관제 모니터링 — 전체 서버 모니터링(재현) · Figma node 3-2 구조 1:1
@@ -60,6 +61,7 @@ const N = TIMES.length
 // 10분 간격 눈금(14:30·14:40…15:30) — 600초/10초 − 1
 const TICK_INTERVAL = (10 * 60) / STEP_SEC - 1
 const hhmm = (t: string) => t.slice(0, 5) // 축 라벨은 HH:MM만
+const toHMS = (iso: string) => new Date(iso).toTimeString().slice(0, 8) // ISO → "HH:MM:SS"
 
 const ACCENT = 'var(--c-accent)'
 const ACCENT2 = 'var(--c-accent2)'
@@ -272,15 +274,29 @@ const KPIS: KpiCardProps[] = [
 
 // ───────────────────────── ③ 클러스터 GPU 사용 추이 ─────────────────────────
 
-// 시드엔 시계열이 없으니 현재 집계값 기준으로 자연스러운 추이를 생성(엔티티는 시드 그대로)
-const clusterData = TIMES.map((t, i) => ({
-  t,
-  used: Math.max(0, Math.min(TOTAL_GPU, Math.round(wave(ACTIVE_GPU, 1.6, 3, N)[i] * 10) / 10)),
-  total: TOTAL_GPU,
-  avg: Math.round(wave(GPU_UTIL, 8, 5, N)[i]),
-}))
+// 차트 로딩/에러/빈 상태 가드 — null 이면 정상 렌더.
+function ChartMsg({ text, sub }: { text: string; sub?: string }) {
+  return (
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, color: 'var(--c-text-dim)', fontSize: 13 }}>
+      <span>{text}</span>{sub && <span style={{ fontSize: 11, opacity: 0.7 }}>{sub}</span>}
+    </div>
+  )
+}
+function chartGuard(isLoading: boolean, error: Error | null, count: number) {
+  if (error) return <ChartMsg text="연결 실패" sub={error.message} />
+  if (isLoading && !count) return <ChartMsg text="불러오는 중…" />
+  if (!count) return <ChartMsg text="데이터 없음" />
+  return null
+}
 
+// 전체 GPU 작업률(sm) 추이 — DB telemetry(kind=gpu, metric=sm) 집계. used/total 은 현재값 기준선.
 function ClusterTrend() {
+  const { data, error, isLoading } = useTelemetrySeries('gpu', 'sm')
+  const clusterData = (data ?? []).map((r) => ({
+    t: toHMS(r.ts), used: ACTIVE_GPU, total: TOTAL_GPU, avg: Math.round(Number(r.sm)),
+  }))
+  const guard = chartGuard(isLoading, error, clusterData.length)
+  if (guard) return guard
   return (
     <ResponsiveContainer width="100%" height="100%">
       <ComposedChart data={clusterData} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
@@ -313,13 +329,14 @@ function ClusterTrend() {
 
 // ───────────────────────── ④ 전력 / 온도 추이 ─────────────────────────
 
-const powerData = TIMES.map((t, i) => ({
-  t,
-  power: Math.round(wave(POWER_MEAN, 22, 4, N)[i]),
-  temp: Math.round(wave(TEMP_MEAN, 6, 8, N)[i]),
-}))
-
+// 평균 전력/온도 추이 — DB telemetry(kind=gpu, metric=power,temp) 집계.
 function PowerTempTrend() {
+  const { data, error, isLoading } = useTelemetrySeries('gpu', 'power,temp')
+  const powerData = (data ?? []).map((r) => ({
+    t: toHMS(r.ts), power: Math.round(Number(r.power)), temp: Math.round(Number(r.temp)),
+  }))
+  const guard = chartGuard(isLoading, error, powerData.length)
+  if (guard) return guard
   return (
     <ResponsiveContainer width="100%" height="100%">
       <ComposedChart data={powerData} margin={{ top: 8, right: 6, bottom: 0, left: 2 }}>
@@ -434,13 +451,14 @@ function GpuHeatmap() {
 
 // ───────────────────────── ⑥ 네트워크 Throughput ─────────────────────────
 
-const netData = TIMES.map((t, i) => ({
-  t,
-  in: Math.round(wave(70, 12, 2, N)[i]),
-  out: Math.round(wave(35, 9, 6, N)[i]),
-}))
-
+// 네트워크 In/Out 추이 — DB telemetry(kind=server, metric=net_in,net_out) 서버 평균.
 function NetworkThroughput() {
+  const { data, error, isLoading } = useTelemetrySeries('server', 'net_in,net_out')
+  const netData = (data ?? []).map((r) => ({
+    t: toHMS(r.ts), in: Math.round(Number(r.net_in)), out: Math.round(Number(r.net_out)),
+  }))
+  const guard = chartGuard(isLoading, error, netData.length)
+  if (guard) return guard
   return (
     <ResponsiveContainer width="100%" height="100%">
       <AreaChart data={netData} margin={{ top: 8, right: 8, bottom: 0, left: -10 }}>
