@@ -102,14 +102,113 @@ app.get('/api/telemetry', async (c) => {
   return c.json(rows)
 })
 
-// 밴드 시계열 — 각 버킷의 avg(가운데점) + min/max(밴드). Bollinger 스타일. 4.7.
+// ───── 밴드 계약 번역 레이어 — 화면 가상 메트릭 → 실시리즈 집계 ─────
+// cluster(4.7 관제): kind=cluster 의 가상 metric 을 (실kind, 실metric) cross-entity 평균으로.
+const CLUSTER_AVG = {
+  srvUtil: ['server', 'cpu_util'], gpuUtil: ['gpu', 'sm'], avg: ['gpu', 'sm'],
+  vramUtil: ['gpu', 'vram'], power: ['gpu', 'power'], temp: ['gpu', 'temp'],
+  in: ['server', 'net_in'], out: ['server', 'net_out'],
+}
+const ACTIVE_SM = 5 // 활성 GPU 판정 임계(작업률 %) — used/activeGpu/idle 산출
+// server 별칭(4.3 부하추이): cpu/mem → *_util(그 서버), gpu → 그 서버 소속 GPU 들의 sm 평균
+const SERVER_ALIAS = { cpu: 'cpu_util', mem: 'mem_util' }
+
+// cross-entity 집계 시계열: ts별 엔티티 평균 → 버킷 avg/min/max. ids 지정 시 해당 엔티티만.
+async function aggSeries(tier, bucket, win, srcKind, srcMetric, ids) {
+  const params = [srcKind, srcMetric]
+  let idClause = ''
+  if (ids) { params.push(ids); idClause = ` and id = any($${params.length})` }
+  const inner = tier === 'raw'
+    ? `select ts, avg(value) v, min(value) vmin, max(value) vmax`
+    : `select ts, avg(value) v, avg(v_min) vmin, avg(v_max) vmax`
+  const { rows } = await pool.query(
+    `with per_ts as (
+       ${inner} from telemetry_${tier}
+       where kind = $1 and metric = $2${idClause} and ts >= now() - interval '${win}'
+       group by ts)
+     select ${BUCKET(bucket)} ts, round(avg(v)::numeric,2)::float8 avg,
+            round(min(vmin)::numeric,2)::float8 min, round(max(vmax)::numeric,2)::float8 max
+       from per_ts group by 1 order by 1`, params)
+  return rows
+}
+
+// 활성 GPU 수 시계열: ts별 sm>임계 GPU 수 → 버킷 avg/min/max.
+async function usedSeries(tier, bucket, win) {
+  const { rows } = await pool.query(
+    `with per_ts as (
+       select ts, count(distinct id) filter (where value > ${ACTIVE_SM})::float8 v
+       from telemetry_${tier} where kind = 'gpu' and metric = 'sm' and ts >= now() - interval '${win}'
+       group by ts)
+     select ${BUCKET(bucket)} ts, round(avg(v)::numeric,1)::float8 avg,
+            min(v)::float8 min, max(v)::float8 max
+       from per_ts group by 1 order by 1`)
+  return rows
+}
+
+// metric 시리즈를 평탄 행으로 병합: row[m]=avg, row[m_min], row[m_max]
+function mergeSeries(out, key, rows, map = (r) => r) {
+  for (const r0 of rows) {
+    const r = map(r0)
+    const k = r0.ts.toISOString()
+    const row = out.get(k) ?? { ts: k }
+    row[key] = r.avg
+    row[`${key}_min`] = r.min
+    row[`${key}_max`] = r.max
+    out.set(k, row)
+  }
+}
+
+// 밴드 시계열 — 각 버킷의 avg(가운데점) + min/max(밴드). Bollinger 스타일. 4.7/4.3.
 // 예: /api/telemetry/band?kind=gpu&id=srv-08-gpu1&metrics=sm,temp&range=2h → [{ts, sm, sm_min, sm_max, ...}]
 app.get('/api/telemetry/band', async (c) => {
   const { kind, id, metrics, range = '10m' } = c.req.query()
-  if (!KINDS.has(kind) || !metrics) return c.json({ error: 'kind/metrics required' }, 400)
+  if (!metrics) return c.json({ error: 'kind/metrics required' }, 400)
   const ms = metrics.split(',').map((s) => s.trim()).filter(Boolean)
-  if (!ms.length || !ms.every((m) => METRICS.has(m))) return c.json({ error: 'invalid metric' }, 400)
+  if (!ms.length) return c.json({ error: 'invalid metric' }, 400)
   const [tier, bucket, win] = BAND_RANGE[range] ?? BAND_RANGE['10m']
+
+  // ① cluster 가상 kind — 화면 metric 을 실시리즈 집계로 번역(4.7 관제)
+  if (kind === 'cluster') {
+    const known = (m) => CLUSTER_AVG[m] || ['used', 'activeGpu', 'total', 'idle'].includes(m)
+    if (!ms.every(known)) return c.json({ error: 'invalid metric' }, 400)
+    const out = new Map()
+    let used = null
+    for (const m of ms) {
+      if (CLUSTER_AVG[m]) {
+        const [sk, sm] = CLUSTER_AVG[m]
+        mergeSeries(out, m, await aggSeries(tier, bucket, win, sk, sm, null))
+      } else if (m === 'used' || m === 'activeGpu') {
+        used ??= await usedSeries(tier, bucket, win)
+        mergeSeries(out, m, used)
+      }
+    }
+    if (ms.includes('total') || ms.includes('idle')) {
+      const total = (await pool.query(`select count(*)::int n from gpus`)).rows[0].n
+      used ??= await usedSeries(tier, bucket, win)
+      if (ms.includes('total')) mergeSeries(out, 'total', used, () => ({ avg: total, min: total, max: total }))
+      const pct = (u) => Math.round(((total - u) / Math.max(1, total)) * 1000) / 10
+      if (ms.includes('idle')) mergeSeries(out, 'idle', used, (r) => ({ avg: pct(r.avg), min: pct(r.max), max: pct(r.min) }))
+    }
+    return c.json([...out.values()].sort((a, b) => a.ts.localeCompare(b.ts)))
+  }
+
+  // ② server 별칭 — cpu/mem/gpu(4.3 부하추이): 그 서버 + 소속 GPU 평균
+  if (kind === 'server' && id && ms.some((m) => SERVER_ALIAS[m] || m === 'gpu')) {
+    if (!ms.every((m) => SERVER_ALIAS[m] || m === 'gpu')) return c.json({ error: 'invalid metric' }, 400)
+    const out = new Map()
+    for (const m of ms) {
+      if (m === 'gpu') {
+        const ids = (await pool.query(`select id from gpus where server_id = $1`, [id])).rows.map((r) => r.id)
+        mergeSeries(out, m, ids.length ? await aggSeries(tier, bucket, win, 'gpu', 'sm', ids) : [])
+      } else {
+        mergeSeries(out, m, await aggSeries(tier, bucket, win, 'server', SERVER_ALIAS[m], [id]))
+      }
+    }
+    return c.json([...out.values()].sort((a, b) => a.ts.localeCompare(b.ts)))
+  }
+
+  // ③ 기본 경로 — 실 kind/metric 직접 조회
+  if (!KINDS.has(kind) || !ms.every((m) => METRICS.has(m))) return c.json({ error: 'invalid kind/metric' }, 400)
   const isRaw = tier === 'raw'
   // raw 소스: avg/min/max(value). rollup(1m/hourly) 소스: avg(value)/min(v_min)/max(v_max).
   const cols = ms.map((m, i) => {
