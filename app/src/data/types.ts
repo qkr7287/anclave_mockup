@@ -40,6 +40,12 @@ export interface Model {
   params: string
   usageRank: number
   usageCount: number
+  // 모델별 권장 자원 요건(4.10a 심사 "자원 제한" 추천 기준) — GB·코어 단위.
+  // recommendedGpu·params 와 모순 없게(예: H100 ×4 → reqVramGb≈320). MoE(m3)는 실제 배치 기준.
+  reqVramGb: number
+  reqRamGb: number
+  reqStorageGb: number
+  reqCpuCores: number
 }
 
 export interface Service {
@@ -174,6 +180,10 @@ export interface GpuRequest {
   allocatedServerId?: string // 승인 시 할당 자원
   allocatedGpuId?: string
   allocatedSliceId?: string
+  // 승인 시 관리자가 확정한 자원 제한(4.10a 조회 모드 표시) — GB·코어. VRAM 은 할당 GPU 로 결정.
+  allocatedRamGb?: number
+  allocatedStorageGb?: number
+  allocatedCpuCores?: number
 }
 
 export interface GpuChangeRequest {
