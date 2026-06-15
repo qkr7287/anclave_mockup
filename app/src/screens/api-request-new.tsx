@@ -230,6 +230,16 @@ function SpecSheet({ f, svc, owner, modelName, userName, today, currentStep, rev
             <SpecRow label="예상 규모" value={f.scale} reviewing={reviewing} pendingW="35%" />
             <SpecRow label="사용 목적" value={f.purpose} reviewing={reviewing} pendingW="92%" last />
           </SpecSection>
+          {/* 안내 — 남는 높이를 끝까지 채움 */}
+          <div className="flex flex-col flex-1 min-h-0" style={{ padding: '6px 12px', minHeight: 92 }}>
+            <div className="flex items-center gap-2.5" style={{ marginBottom: 6 }}>
+              <span className="font-bold shrink-0" style={{ fontSize: 15, color: M.text }}>안내</span>
+              <span className="flex-1" style={{ height: 1, background: 'var(--c-border)' }} />
+            </div>
+            <div className="flex-1 min-h-0 rounded-[8px]" style={{ border: `1px dashed ${M.border}`, background: 'color-mix(in srgb, var(--c-muted) 5%, transparent)', padding: '12px 14px', overflow: 'auto' }}>
+              <p style={{ fontSize: 14, color: M.help, lineHeight: 1.65 }}>제출하면 <b style={{ color: M.text }}>{svc.name}</b> 소유자(<b style={{ color: M.text }}>{owner}</b>)에게 요청이 전달됩니다. 소유자가 API 키를 발급·승인하면 발급 키가 알림으로 전송돼요. 반려 시 사유가 함께 안내됩니다.</p>
+            </div>
+          </div>
         </div>
 
         {reviewing && (
