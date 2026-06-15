@@ -69,6 +69,25 @@ export function addLocalModel(model: Model): void {
   emit()
 }
 
+// ── 스캔 시작 시각(백그라운드 진행률) — 나갔다 와도 경과 시간으로 진행률 복원 ──
+const SCAN_KEY = 'anclave-scan-started'
+export function getScanStart(id: string): number | null {
+  const m = readJson<Record<string, number>>(SCAN_KEY, {})
+  return m[id] ?? null
+}
+export function setScanStart(id: string, ts: number): void {
+  const m = readJson<Record<string, number>>(SCAN_KEY, {})
+  m[id] = ts
+  localStorage.setItem(SCAN_KEY, JSON.stringify(m))
+}
+export function clearScanStart(id: string): void {
+  const m = readJson<Record<string, number>>(SCAN_KEY, {})
+  if (id in m) {
+    delete m[id]
+    localStorage.setItem(SCAN_KEY, JSON.stringify(m))
+  }
+}
+
 // 다음 신청 id — 시드 mr-NN + 로컬 누적 기준 증가.
 export function nextRequestId(): string {
   const n = modelRequests.length + getLocalRequests().length + 1

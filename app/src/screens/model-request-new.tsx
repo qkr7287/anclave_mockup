@@ -17,7 +17,9 @@ import {
   MorphFrame,
   MORPH_EASE,
   Pending,
+  SectionHead,
   SelectCard,
+  SpecSection,
   Stepper,
   inputBase,
 } from './model-wizard-ui'
@@ -61,20 +63,12 @@ function SpecRow({ label, value, pendingW = '60%', reviewing, last }: { label: s
   )
 }
 
-function SectionTitle({ text }: { text: string }) {
-  return (
-    <div className="flex items-center gap-2.5" style={{ margin: '14px 0 4px' }}>
-      <span className="font-bold shrink-0" style={{ fontSize: 14, color: M.text }}>{text}</span>
-      <span className="flex-1" style={{ height: 1, background: 'var(--c-border)' }} />
-    </div>
-  )
-}
-
-function RequestSpecSheet({ f, userName, today, reviewing, onSubmit, onBack, canSubmit }: {
+function RequestSpecSheet({ f, userName, today, reviewing, onEdit, onSubmit, onBack, canSubmit }: {
   f: ReqForm
   userName: string
   today: string
   reviewing: boolean
+  onEdit: () => void
   onSubmit: () => void
   onBack: () => void
   canSubmit: boolean
@@ -105,7 +99,7 @@ function RequestSpecSheet({ f, userName, today, reviewing, onSubmit, onBack, can
             <h3 className="font-bold min-w-0" style={{ fontSize: 18, color: M.text }}>모델 등록 신청서</h3>
             <span className="shrink-0 font-bold" style={{ alignSelf: 'flex-start', transform: 'rotate(-5deg)', border: `1.5px solid ${reviewing ? 'var(--c-warn)' : M.blue}`, color: reviewing ? 'var(--c-warn)' : M.blue, background: reviewing ? 'var(--warn-soft)' : 'var(--accent-soft)', borderRadius: 6, padding: '3px 10px', fontSize: 14 }}>{reviewing ? '검토' : '초안'}</span>
           </div>
-          <div className="flex items-center justify-between gap-2" style={{ marginTop: 8, fontSize: 13, color: M.help }}>
+          <div className="flex items-center justify-between gap-2" style={{ marginTop: 8, fontSize: 14, color: M.help }}>
             <span>문서번호 <span style={{ fontFamily: 'var(--font-mono)', color: M.meta }}>{docNo}</span></span>
             <span>발급 Anclave 모델관리</span>
           </div>
@@ -115,7 +109,7 @@ function RequestSpecSheet({ f, userName, today, reviewing, onSubmit, onBack, can
             <span style={{ fontFamily: 'var(--font-mono)' }}>{today}</span>
           </div>
           <div style={{ marginTop: 12 }}>
-            <div className="flex items-center justify-between" style={{ fontSize: 13, color: M.help, marginBottom: 6 }}>
+            <div className="flex items-center justify-between" style={{ fontSize: 14, color: M.help, marginBottom: 6 }}>
               <span>필수 항목</span>
               <span className="font-semibold" style={{ color: done ? 'var(--c-ok)' : M.blueText }}>{reqFilled} / 2</span>
             </div>
@@ -125,22 +119,25 @@ function RequestSpecSheet({ f, userName, today, reviewing, onSubmit, onBack, can
           </div>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-auto flex flex-col" style={{ padding: '6px 18px 14px' }}>
-          <SectionTitle text="신청 정보" />
-          <SpecRow label="신청자" value={userName} reviewing={reviewing} />
-          <SpecRow label="모델명" value={f.modelName} pendingW="70%" reviewing={reviewing} />
-          <SpecRow label="종류" value={f.kind || ''} pendingW="40%" reviewing={reviewing} />
-          <SpecRow label="출처" value={f.source ? <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}>{f.source}</span> : ''} pendingW="80%" reviewing={reviewing} last />
+        <div className="flex-1 min-h-0 overflow-auto flex flex-col" style={{ padding: '6px 12px 14px' }}>
+          <SpecSection title="신청 정보" active={!reviewing} reviewing={reviewing} onEdit={onEdit}>
+            <SpecRow label="신청자" value={userName} reviewing={reviewing} />
+            <SpecRow label="모델명" value={f.modelName} pendingW="70%" reviewing={reviewing} />
+            <SpecRow label="종류" value={f.kind || ''} pendingW="40%" reviewing={reviewing} />
+            <SpecRow label="출처" value={f.source ? <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14 }}>{f.source}</span> : ''} pendingW="80%" reviewing={reviewing} last />
+          </SpecSection>
 
-          <SectionTitle text="신청 사유" />
-          <SpecRow label="사유" value={f.reason} pendingW="92%" reviewing={reviewing} />
-          <SpecRow label="사용처" value={f.usage} pendingW="65%" reviewing={reviewing} last />
+          <SpecSection title="신청 사유" active={false} reviewing={reviewing} onEdit={onEdit}>
+            <SpecRow label="사유" value={f.reason} pendingW="92%" reviewing={reviewing} />
+            <SpecRow label="사용처" value={f.usage} pendingW="65%" reviewing={reviewing} last />
+          </SpecSection>
 
-          <SectionTitle text="참고 자료" />
-          <SpecRow label="첨부" value={f.files.length ? f.files.join(', ') : ''} pendingW="60%" reviewing={reviewing} last />
+          <SpecSection title="참고 자료" active={false} reviewing={reviewing} onEdit={onEdit}>
+            <SpecRow label="첨부" value={f.files.length ? f.files.join(', ') : ''} pendingW="60%" reviewing={reviewing} last />
+          </SpecSection>
 
-          <div className="flex flex-col flex-1 min-h-0" style={{ marginTop: 6, minHeight: 90 }}>
-            <SectionTitle text="비고" />
+          <div className="flex flex-col flex-1 min-h-0" style={{ marginTop: 6, minHeight: 90, padding: '0 12px' }}>
+            <SectionHead title="비고" active={false} reviewing={reviewing} onEdit={onEdit} />
             <div className="flex-1 min-h-0 rounded-[8px]" style={{ border: '1px dashed var(--c-border)', background: 'color-mix(in srgb, var(--c-muted) 5%, transparent)', padding: '11px 13px', overflow: 'auto' }}>
               {f.remark
                 ? <p className="anim-fade" style={{ fontSize: 14, color: M.text, lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{f.remark}</p>
@@ -231,7 +228,7 @@ export function ModelRequestNew() {
           {KIND_OPTS.map((k) => <SelectCard key={k} label={k} active={f.kind === k} onClick={() => set('kind', f.kind === k ? '' : k)} />)}
         </div>
         <FieldLabel text="출처" help="(선택) HuggingFace 등 모델 출처 URL." />
-        <input value={f.source} onChange={(e) => set('source', e.target.value)} placeholder="예: huggingface.co/Qwen/Qwen2.5-72B" style={{ ...inputBase, fontFamily: 'var(--font-mono)', fontSize: 13, marginBottom: 18 }} />
+        <input value={f.source} onChange={(e) => set('source', e.target.value)} placeholder="예: huggingface.co/Qwen/Qwen2.5-72B" style={{ ...inputBase, fontFamily: 'var(--font-mono)', fontSize: 14, marginBottom: 18 }} />
         <FieldLabel text="신청 사유" required help="이 모델이 필요한 이유를 입력해주세요." />
         <textarea value={f.reason} maxLength={300} onChange={(e) => set('reason', e.target.value)} placeholder="예: 코드 자동화 에이전트용 최신 LLM 필요" style={{ ...inputBase, height: 80, padding: '12px 14px', resize: 'none', lineHeight: 1.5, marginBottom: 18 }} />
         <FieldLabel text="사용처" help="(선택) 어떤 서비스·업무에 사용할 예정인가요?" />
@@ -296,6 +293,7 @@ export function ModelRequestNew() {
             userName={user.name}
             today={fmtNow().slice(0, 10)}
             reviewing={reviewing}
+            onEdit={() => setStep(0)}
             onSubmit={submit}
             onBack={() => setStep(0)}
             canSubmit={valid0}
