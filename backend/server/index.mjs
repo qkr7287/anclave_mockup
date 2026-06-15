@@ -321,28 +321,73 @@ app.post('/api/gpu-requests', async (c) => {
 })
 
 // 카탈로그용 전체 모델 — 자원요건(req_*) 포함. 4.10a 자원 제한 추천 기준.
+// models projection (snake→camel) — GET 카탈로그 / POST 배포 등록 공유.
+const MODEL_COLS = `id, name, kind, description, addons, license, recommended_gpu "recommendedGpu",
+  params, usage_rank "usageRank", usage_count "usageCount",
+  req_vram_gb "reqVramGb", req_ram_gb "reqRamGb", req_storage_gb "reqStorageGb", req_cpu_cores "reqCpuCores"`
+
 app.get('/api/models', async (c) => {
-  const { rows } = await pool.query(
-    `select id, name, kind, description, addons, license, recommended_gpu "recommendedGpu",
-            params, usage_rank "usageRank", usage_count "usageCount",
-            req_vram_gb "reqVramGb", req_ram_gb "reqRamGb", req_storage_gb "reqStorageGb", req_cpu_cores "reqCpuCores"
-       from models order by usage_rank`)
+  const { rows } = await pool.query(`select ${MODEL_COLS} from models order by usage_rank`)
   return c.json(rows)
 })
+
+// 배포 시 카탈로그 등록 — 모델 1건 insert. id 미지정 시 'lm-'+base36. usage_rank=max+1·usage_count=0.
+// ※ model_requests.registered_model_id FK → 배포는 반드시 이 POST(모델 insert) 먼저, 그 다음 PATCH 로 registeredModelId 기록.
+app.post('/api/models', async (c) => {
+  const b = await c.req.json().catch(() => ({}))
+  if (!b.name) return c.json({ error: 'name required' }, 400)
+  const id = b.id || `lm-${Date.now().toString(36)}`
+  const rank = (await pool.query(`select coalesce(max(usage_rank), 0) + 1 n from models`)).rows[0].n
+  const { rows } = await pool.query(
+    `insert into models(id, name, kind, description, addons, license, recommended_gpu, params,
+        usage_rank, usage_count, req_vram_gb, req_ram_gb, req_storage_gb, req_cpu_cores)
+     values($1,$2,$3,$4,$5,$6,$7,$8,$9,0,$10,$11,$12,$13)
+     returning ${MODEL_COLS}`,
+    [id, b.name, b.kind ?? null, b.description ?? null, b.addons ?? [], b.license ?? null,
+      b.recommendedGpu ?? null, b.params ?? null, rank,
+      b.reqVramGb ?? null, b.reqRamGb ?? null, b.reqStorageGb ?? null, b.reqCpuCores ?? null])
+  return c.json(rows[0], 201)
+})
+
+// model_requests projection (snake→camel) — GET 목록 / POST / PATCH 공유.
+const MR_COLS = `id, requester_user_id "requesterUserId", model_name "modelName", kind, source, reason,
+  status, stage, created_at "createdAt", reject_reason "rejectReason",
+  processed_at "processedAt", processed_by "processedBy",
+  file_name "fileName", format, scan, checksum, registered_model_id "registeredModelId"`
+
+// PATCH 동적 SET 화이트리스트(camelCase 바디 → snake 컬럼) — 들어온 키만 갱신.
+const MR_PATCH = {
+  stage: 'stage', status: 'status', fileName: 'file_name', format: 'format',
+  scan: 'scan', checksum: 'checksum', processedAt: 'processed_at',
+  processedBy: 'processed_by', rejectReason: 'reject_reason', registeredModelId: 'registered_model_id',
+}
 
 // 모델 신청 관리(4.14) — user 없으면 전체(공유 테이블), 있으면 그 사람 것만. created_at desc.
 app.get('/api/model-requests', async (c) => {
   const { user } = c.req.query()
   const { rows } = await pool.query(
-    `select id, requester_user_id "requesterUserId", model_name "modelName", kind, source, reason,
-            status, stage, created_at "createdAt", reject_reason "rejectReason",
-            processed_at "processedAt", processed_by "processedBy",
-            file_name "fileName", format, scan, checksum, registered_model_id "registeredModelId"
+    `select ${MR_COLS}
        from model_requests
       where ($1::text is null or requester_user_id = $1)
       order by created_at desc`,
     [user || null])
   return c.json(rows)
+})
+
+// 단계 전환·반입 처리 — 들어온 키만 동적 SET(화이트리스트). 부분 업데이트.
+// 배포 흐름: POST /api/models 로 모델 insert 후 여기서 registeredModelId+stage='deployed' 기록(FK 순서).
+app.patch('/api/model-requests/:id', async (c) => {
+  const id = c.req.param('id')
+  const b = await c.req.json().catch(() => ({}))
+  const sets = [], vals = []
+  for (const [k, col] of Object.entries(MR_PATCH))
+    if (k in b) { vals.push(b[k]); sets.push(`${col} = $${vals.length}`) }
+  if (!sets.length) return c.json({ error: 'no updatable fields' }, 400)
+  vals.push(id)
+  const { rows } = await pool.query(
+    `update model_requests set ${sets.join(', ')} where id = $${vals.length} returning ${MR_COLS}`, vals)
+  if (!rows.length) return c.json({ error: 'not found' }, 404)
+  return c.json(rows[0])
 })
 
 // 신규 모델 등록 신청 — stage=requested·status=pending. 바디 검증(필수: requesterUserId·modelName·reason).
@@ -354,8 +399,7 @@ app.post('/api/model-requests', async (c) => {
   const { rows } = await pool.query(
     `insert into model_requests(id, requester_user_id, model_name, kind, source, reason, status, stage)
      values($1, $2, $3, $4, $5, $6, 'pending', 'requested')
-     returning id, requester_user_id "requesterUserId", model_name "modelName", kind, source, reason,
-               status, stage, created_at "createdAt"`,
+     returning ${MR_COLS}`,
     [id, b.requesterUserId, b.modelName, b.kind ?? null, b.source ?? null, b.reason])
   return c.json(rows[0], 201)
 })
