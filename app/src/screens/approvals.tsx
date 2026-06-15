@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   ArrowDownTrayIcon,
   ArrowPathIcon,
@@ -7,6 +8,7 @@ import {
   CalendarDaysIcon,
   CheckCircleIcon,
   ChevronDownIcon,
+  ChevronRightIcon,
   ClipboardDocumentCheckIcon,
   ClockIcon,
   CpuChipIcon,
@@ -15,22 +17,22 @@ import {
   GlobeAltIcon,
   MagnifyingGlassIcon,
   MegaphoneIcon,
+  Squares2X2Icon,
   XCircleIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline'
-import { HealthBadge, useToast } from '../components/ui'
-import { Hexagon } from '../components/charts/Hexagon'
+import { KpiStat, useToast } from '../components/ui'
 import { useTheme } from '../lib/theme'
 import {
-  gpuRequests,
+  allGpus,
+  allSlices,
   modelById,
   publishRequests,
-  serverById,
-  servers,
   services,
   userById,
 } from '../data'
 import type { GpuRequest, PublishRequest, Status } from '../data/types'
+import { getGpuRequests } from './approval-store'
 
 // G4 · 승인 관리 — 게시·GPU "분리" 스펙.
 //  · ApprovalsGpu  (4.10 · /admin/approvals/gpu · 할당 관리 그룹) = "승인 관리"
@@ -258,38 +260,28 @@ function DrawerBtn({ children, variant, full, disabled, onClick }: { children: R
   )
 }
 
-type DrawerMode = 'view' | 'reject' | 'approve'
+type DrawerMode = 'view' | 'reject'
 
-interface DrawerRow { id: string; requester: string; team: string; email: string; status: Status; rejectReason?: string; serverId?: string }
+interface DrawerRow { id: string; requester: string; team: string; email: string; status: Status; rejectReason?: string }
 
-// 헥사곤 서버 선택 항목 — 부하 음영(util band) · 유휴=빗금
-const SERVER_HEX = servers.map((s, i) => {
-  const utils = s.gpus.map((g) => g.smUtil)
-  const usage = utils.length ? Math.round(utils.reduce((a, b) => a + b, 0) / utils.length) : 0
-  return { id: s.id, usage, free: s.health === 'inactive', label: String(i + 1).padStart(2, '0'), sublabel: s.health === 'inactive' ? '유휴' : `${usage}%` }
-})
-
-// ── 검토 드로어(공통) — 상세 + 승인/반려. needsServer면 승인 시 헥사곤 서버 선택. ──
-function ReviewDrawer({ row, typeLabel, TypeIcon, detail, reasonText, attachmentName, needsServer, approveLabel, resultExtra, onClose, onApprove, onReject }: {
+// ── 검토 드로어 — 상세 + 승인/반려. (GPU 심사는 4.10a 전용 페이지로 승격 — 게시 승인만 사용) ──
+function ReviewDrawer({ row, typeLabel, TypeIcon, detail, reasonText, attachmentName, resultExtra, onClose, onApprove, onReject }: {
   row: DrawerRow | null
   typeLabel: string
   TypeIcon: typeof CpuChipIcon
   detail: ReactNode
   reasonText: string
   attachmentName?: string
-  needsServer: boolean
-  approveLabel: string
   resultExtra?: ReactNode
   onClose: () => void
-  onApprove: (serverId?: string) => void
+  onApprove: () => void
   onReject: (reason: string) => void
 }) {
   const toast = useToast()
   const [mode, setMode] = useState<DrawerMode>('view')
   const [reason, setReason] = useState('')
-  const [serverId, setServerId] = useState<string | null>(null)
 
-  useEffect(() => { setMode('view'); setReason(''); setServerId(null) }, [row?.id])
+  useEffect(() => { setMode('view'); setReason('') }, [row?.id])
   useEffect(() => {
     if (!row) return
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
@@ -299,9 +291,6 @@ function ReviewDrawer({ row, typeLabel, TypeIcon, detail, reasonText, attachment
 
   if (!row) return null
   const pending = row.status === 'pending'
-  const selectedServer = serverId ? serverById(serverId) : null
-
-  const clickApprove = () => { if (needsServer) setMode('approve'); else onApprove() }
 
   return (
     <div className="fixed inset-0 z-50" style={{ background: 'var(--dim)' }} onClick={onClose} role="presentation">
@@ -367,27 +356,6 @@ function ReviewDrawer({ row, typeLabel, TypeIcon, detail, reasonText, attachment
               <span className="text-muted self-end" style={{ fontSize: 14 }}>{reason.length}/300</span>
             </DrawerSection>
           )}
-
-          {mode === 'approve' && needsServer && (
-            <DrawerSection title="할당 서버 선택">
-              <p className="text-muted" style={{ fontSize: 14, marginTop: -2 }}>승인 시 신청 자원을 배치할 서버를 선택하세요. (음영 = 현재 부하)</p>
-              <div className="flex justify-center" style={{ padding: '6px 0' }}>
-                <Hexagon items={SERVER_HEX} perRow={4} tileWidth={68} tileHeight={78} selectedId={serverId ?? undefined} onSelect={setServerId} />
-              </div>
-              {selectedServer ? (
-                <div className="rounded-[8px] border border-line flex items-center gap-3" style={{ background: 'var(--c-card)', padding: '10px 12px' }}>
-                  <CpuChipIcon width={18} height={18} style={{ color: 'var(--c-accent)' }} className="shrink-0" />
-                  <div className="min-w-0 flex-1">
-                    <div className="font-semibold text-text truncate" style={{ fontSize: 14 }}>{selectedServer.host} · GPU {selectedServer.gpus.length}장</div>
-                    <div className="text-muted truncate" style={{ fontSize: 14 }}>{selectedServer.note}</div>
-                  </div>
-                  <HealthBadge health={selectedServer.health} />
-                </div>
-              ) : (
-                <p className="text-muted text-center" style={{ fontSize: 14 }}>서버를 선택해주세요.</p>
-              )}
-            </DrawerSection>
-          )}
         </div>
 
         {pending && (
@@ -395,19 +363,13 @@ function ReviewDrawer({ row, typeLabel, TypeIcon, detail, reasonText, attachment
             {mode === 'view' && (
               <>
                 <DrawerBtn variant="danger" full onClick={() => setMode('reject')}><XCircleIcon width={16} height={16} />반려</DrawerBtn>
-                <DrawerBtn variant="primary" full onClick={clickApprove}><CheckCircleIcon width={16} height={16} />승인</DrawerBtn>
+                <DrawerBtn variant="primary" full onClick={onApprove}><CheckCircleIcon width={16} height={16} />승인</DrawerBtn>
               </>
             )}
             {mode === 'reject' && (
               <>
                 <DrawerBtn variant="ghost" onClick={() => { setMode('view'); setReason('') }}>취소</DrawerBtn>
                 <DrawerBtn variant="danger" full disabled={!reason.trim()} onClick={() => reason.trim() && onReject(reason.trim())}><XCircleIcon width={16} height={16} />반려 확정</DrawerBtn>
-              </>
-            )}
-            {mode === 'approve' && needsServer && (
-              <>
-                <DrawerBtn variant="ghost" onClick={() => { setMode('view'); setServerId(null) }}>취소</DrawerBtn>
-                <DrawerBtn variant="primary" full disabled={!serverId} onClick={() => serverId && onApprove(serverId)}><CheckCircleIcon width={16} height={16} />{approveLabel}</DrawerBtn>
               </>
             )}
           </footer>
@@ -423,16 +385,17 @@ function ReviewDrawer({ row, typeLabel, TypeIcon, detail, reasonText, attachment
 }
 
 // 검색·상태·기간 필터 바(GPU=기간 포함 / 게시=기간 생략) — date 슬롯 옵션
-function FilterBar({ q, setQ, statusF, setStatusF, dateStart, setDateStart, dateEnd, setDateEnd, withDate, dirty, onApply, onReset, placeholder }: {
+function FilterBar({ q, setQ, statusF, setStatusF, dateStart, setDateStart, dateEnd, setDateEnd, withDate, dirty, onApply, onReset, placeholder, marginTop = 32 }: {
   q: string; setQ: (v: string) => void
   statusF: string; setStatusF: (v: string) => void
   dateStart: string; setDateStart: (v: string) => void
   dateEnd: string; setDateEnd: (v: string) => void
   withDate: boolean; dirty: boolean
   onApply: () => void; onReset: () => void; placeholder: string
+  marginTop?: number // 위에 스트립이 있으면 줄여 리듬 맞춤(기본 32)
 }) {
   return (
-    <section className="bg-card2 border border-line rounded-[14px] shrink-0" style={{ marginTop: 32, padding: '14px 19px' }}>
+    <section className="bg-card2 border border-line rounded-[14px] shrink-0" style={{ marginTop, padding: '14px 19px' }}>
       <h2 className="font-bold text-text" style={{ fontSize: 14.5 }}>검색 및 필터</h2>
       <div className="flex items-center justify-between gap-3 flex-wrap" style={{ marginTop: 11 }}>
         <div className="flex items-center gap-4 min-w-0 flex-wrap">
@@ -470,15 +433,18 @@ function FilterBar({ q, setQ, statusF, setStatusF, dateStart, setDateStart, date
 
 // ════════════════════════════════ 4.10 승인 관리 (GPU 자원 · 할당 관리) ════════════════════════════════
 
-interface GpuRow extends DrawerRow {
+interface GpuRow {
+  id: string
+  requester: string
+  team: string
+  status: Status
   resource: string
   model: string
   serviceName: string
-  env: string
-  addons: string[]
   reason: string
+  period?: string
   date: string
-  attachmentName?: string
+  processedAt?: string
 }
 
 function gpuRow(r: GpuRequest): GpuRow {
@@ -488,35 +454,109 @@ function gpuRow(r: GpuRequest): GpuRow {
     id: r.id,
     requester: u?.name ?? r.requesterUserId,
     team: teamOf(r.requesterUserId),
-    email: u?.email ?? '—',
     status: r.status,
-    rejectReason: r.rejectReason,
     resource: `${r.capacity} ${unit}`,
     model: r.models.map((m) => modelById(m)?.name ?? m).join(', '),
     serviceName: r.serviceName,
-    env: r.env,
-    addons: r.addons,
     reason: r.purpose,
+    period: r.period,
     date: r.createdAt,
-    attachmentName: r.attachmentUrl ? r.attachmentUrl.split('/').pop() : undefined,
+    processedAt: r.processedAt,
   }
 }
 
 const GPU_COLS: Col[] = [
-  { key: 'requester', label: '신청자', width: 156 },
-  { key: 'resource', label: '자원 / 모델', width: 220 },
-  { key: 'reason', label: '요청 사유', width: 280 },
-  { key: 'date', label: '신청일', width: 152 },
-  { key: 'status', label: '상태', width: 128 },
-  { key: 'action', label: '액션', width: 120, align: 'right' },
+  { key: 'requester', label: '신청자', width: 150 },
+  { key: 'resource', label: '자원 / 모델', width: 200 },
+  { key: 'reason', label: '요청 사유', width: 236 },
+  { key: 'period', label: '기간', width: 84 },
+  { key: 'date', label: '신청일', width: 140 },
+  { key: 'status', label: '상태', width: 120 },
+  { key: 'action', label: '액션', width: 126, align: 'right' },
 ]
+
+// 자원 잔여 현황(시드 정적 파생) — 미할당 cluster GPU·전 슬라이스 미점유 MIG GPU = 잔여 카드
+const FREE_GPU_CARDS = allGpus.filter((g) =>
+  g.allocMode === 'cluster' ? !g.assignedServiceId : (g.slices ?? []).every((s) => !s.ownerUserId),
+).length
+const FREE_SLICES = allSlices.filter((s) => !s.ownerUserId).length
+const TOTAL_UNITS = allGpus.filter((g) => g.allocMode === 'cluster').length + allSlices.length
+const FREE_UNITS = allGpus.filter((g) => g.allocMode === 'cluster' && !g.assignedServiceId).length + FREE_SLICES
+const CLUSTER_AVAIL = Math.round((FREE_UNITS / Math.max(1, TOTAL_UNITS)) * 100)
+// 전체·할당(= 전체 − 잔여) — 스트립에서 잔여를 전체 대비로 보여주기 위함
+const TOTAL_GPU_CARDS = allGpus.length
+const ALLOC_GPU_CARDS = TOTAL_GPU_CARDS - FREE_GPU_CARDS
+const TOTAL_SLICES = allSlices.length
+const ALLOC_SLICES = TOTAL_SLICES - FREE_SLICES
+const CLUSTER_ALLOC = 100 - CLUSTER_AVAIL
+
+// 대기 행 = "심사"(primary) / 처리 완료 행 = "상세보기"(ghost) — 둘 다 4.10a 상세로
+function JudgePill({ pending, onClick }: { pending: boolean; onClick: (e: React.MouseEvent) => void }) {
+  const Icon = pending ? ClipboardDocumentCheckIcon : EyeIcon
+  const style: React.CSSProperties = pending
+    ? { background: 'var(--c-accent)', color: 'var(--c-onaccent)' }
+    : { background: 'transparent', color: 'var(--c-muted)', border: '1px solid var(--c-border)' }
+  return (
+    <button type="button" onClick={onClick} className="inline-flex items-center gap-1 font-semibold rounded-[8px] transition-[transform,filter,box-shadow] duration-100 hover:-translate-y-px active:translate-y-0 active:scale-[0.92] active:brightness-95 whitespace-nowrap hover:brightness-110 hover:shadow-[0_2px_6px_rgba(0,0,0,0.12)]" style={{ fontSize: 14, padding: '5px 12px', ...style }}>
+      <Icon style={{ width: 14, height: 14, opacity: 0.9 }} />
+      {pending ? '심사' : '상세보기'}
+    </button>
+  )
+}
+
+// KPI 아래 자원 잔여 현황 스트립 — 1행 고정(64px), 펼침 없음.
+// 좌(제목 앵커) · 중(라벨/값 2줄 밀도 지표) · 우(CTA) 컨텍스트 바 구성 — 떠 있는 숫자 방지.
+function StripMetric({ label, value, unit, secondary }: { label: string; value: number; unit: string; secondary: string }) {
+  return (
+    <div className="flex flex-col justify-center shrink-0" style={{ gap: 2 }}>
+      <span className="text-muted" style={{ fontSize: 13, lineHeight: 1.25 }}>{label}</span>
+      <span className="flex items-baseline" style={{ gap: 5 }}>
+        <span className="font-bold text-text" style={{ fontSize: 20, letterSpacing: '-0.3px', lineHeight: 1.1 }}>{value}</span>
+        <span className="text-muted" style={{ fontSize: 13, fontWeight: 500 }}>{unit}</span>
+        <span className="text-muted" style={{ fontSize: 12.5, marginLeft: 3 }}>{secondary}</span>
+      </span>
+    </div>
+  )
+}
+
+function ResourceStrip({ onMap }: { onMap: () => void }) {
+  const divider = <span className="shrink-0" style={{ width: 1, height: 34, background: 'var(--c-border)' }} />
+  return (
+    <section className="bg-card2 border border-line rounded-[14px] shrink-0 flex items-center" style={{ height: 64, marginTop: 18, padding: '0 16px 0 20px', gap: 22, boxShadow: 'var(--shadow-card)' }}>
+      {/* 좌 — 제목 앵커(부제로 '잔여율' 의미 설명) */}
+      <div className="flex items-center shrink-0" style={{ gap: 12 }}>
+        <span className="flex items-center justify-center shrink-0 rounded-[10px]" style={{ width: 38, height: 38, background: 'var(--accent-soft)', color: 'var(--c-accent)' }}>
+          <Squares2X2Icon width={20} height={20} />
+        </span>
+        <div className="flex flex-col" style={{ gap: 1 }}>
+          <span className="font-bold text-text" style={{ fontSize: 14.5, lineHeight: 1.25 }}>자원 잔여 현황</span>
+          <span className="text-muted" style={{ fontSize: 13, lineHeight: 1.25 }}>승인 시 배치 가능한 여유 자원</span>
+        </div>
+      </div>
+      {divider}
+      {/* 중 — 지표 묶음(라벨/값 2줄 + 전체·할당 보조) */}
+      <div className="flex items-center" style={{ gap: 22 }}>
+        <StripMetric label="잔여 GPU" value={FREE_GPU_CARDS} unit="카드" secondary={`전체 ${TOTAL_GPU_CARDS} · 할당 ${ALLOC_GPU_CARDS}`} />
+        {divider}
+        <StripMetric label="잔여 MIG 슬라이스" value={FREE_SLICES} unit="개" secondary={`전체 ${TOTAL_SLICES} · 할당 ${ALLOC_SLICES}`} />
+        {divider}
+        {/* 잔여율 = 전체 할당 가능 단위 중 비어 있는 비율(= 100 − 할당률) */}
+        <StripMetric label="잔여율" value={CLUSTER_AVAIL} unit="%" secondary={`할당 ${CLUSTER_ALLOC}%`} />
+      </div>
+      {/* 우 — CTA(accent-soft 칩으로 우측 균형) */}
+      <button type="button" onClick={onMap} className="ml-auto shrink-0 inline-flex items-center gap-1 font-semibold rounded-[9px] transition-[filter,transform] duration-100 hover:brightness-105 active:scale-[0.97]" style={{ fontSize: 14, padding: '8px 14px', color: 'var(--c-accent)', background: 'var(--accent-soft)' }}>
+        자원맵 보기<ChevronRightIcon width={15} height={15} />
+      </button>
+    </section>
+  )
+}
 
 export function ApprovalsGpu() {
   const toast = useToast()
   const mutedFix = useMutedFix()
-  const [rows, setRows] = useState<GpuRow[]>(() => gpuRequests.map(gpuRow))
-  const [reviewRow, setReviewRow] = useState<GpuRow | null>(null)
-  const [processedToday, setProcessedToday] = useState(0)
+  const navigate = useNavigate()
+  // 세션 store 사본 — 4.10a 상세에서 처리한 결과가 돌아왔을 때 반영되도록 store에서 로드
+  const [rows] = useState<GpuRow[]>(() => getGpuRequests().map(gpuRow))
   const [q, setQ] = useState('')
   const [statusF, setStatusF] = useState('전체')
   const [dateStart, setDateStart] = useState('')
@@ -525,18 +565,17 @@ export function ApprovalsGpu() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
 
-  const counts = useMemo(() => ({
-    pending: rows.filter((r) => r.status === 'pending').length,
-    approved: rows.filter((r) => r.status === 'approved').length,
-    rejected: rows.filter((r) => r.status === 'rejected').length,
-  }), [rows])
-
-  const STAT_CARDS: StatDef[] = [
-    { label: '대기', value: counts.pending, desc: '검토 대기 중인 GPU 신청', num: 'var(--c-warn)', box: 'var(--warn-soft)', Icon: ClockIcon },
-    { label: '승인', value: counts.approved, desc: '승인 및 서버 할당 완료', num: 'var(--c-ok)', box: 'var(--ok-soft)', Icon: CheckCircleIcon },
-    { label: '반려', value: counts.rejected, desc: '반려된 신청 건', num: 'var(--c-danger)', box: 'var(--danger-soft)', Icon: XCircleIcon },
-    { label: '오늘 처리', value: processedToday, desc: '이번 세션 검토 처리 건', num: 'var(--c-accent)', box: 'var(--accent-soft)', Icon: BoltIcon },
-  ]
+  const counts = useMemo(() => {
+    const d = new Date()
+    const p = (n: number) => String(n).padStart(2, '0')
+    const today = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+    return {
+      pending: rows.filter((r) => r.status === 'pending').length,
+      approved: rows.filter((r) => r.status === 'approved').length,
+      rejected: rows.filter((r) => r.status === 'rejected').length,
+      processedToday: rows.filter((r) => r.processedAt?.startsWith(today)).length,
+    }
+  }, [rows])
 
   const match = (r: GpuRow) => {
     if (applied.q.trim() && !`${r.requester} ${r.team} ${r.resource} ${r.model} ${r.reason} ${r.serviceName}`.toLowerCase().includes(applied.q.trim().toLowerCase())) return false
@@ -546,7 +585,10 @@ export function ApprovalsGpu() {
     if (applied.end && d > applied.end) return false
     return true
   }
-  const view = rows.filter(match)
+  // 기본 정렬 — 대기 우선 + 신청일 desc
+  const view = rows
+    .filter(match)
+    .sort((a, b) => (a.status === 'pending' ? 0 : 1) - (b.status === 'pending' ? 0 : 1) || b.date.localeCompare(a.date))
   const pageCount = Math.max(1, Math.ceil(view.length / pageSize))
   const curPage = Math.min(page, pageCount)
   const pageRows = view.slice((curPage - 1) * pageSize, curPage * pageSize)
@@ -570,38 +612,42 @@ export function ApprovalsGpu() {
   }
   const resetFilters = () => { setQ(''); setStatusF('전체'); setDateStart(''); setDateEnd(''); setApplied({ q: '', status: '전체', start: '', end: '' }) }
 
-  const approve = (row: GpuRow, serverId?: string) => {
-    setRows((cur) => cur.map((r) => (r.id === row.id ? { ...r, status: 'approved', serverId } : r)))
-    setProcessedToday((n) => n + 1)
-    setReviewRow(null)
-    const where = serverId ? ` · ${serverById(serverId)?.host} 할당` : ''
-    toast.push(`${row.requester}님의 GPU 신청을 승인했어요${where}. 신청자에게 알림이 전송됩니다.`, 'ok')
-  }
-  const reject = (row: GpuRow, reason: string) => {
-    setRows((cur) => cur.map((r) => (r.id === row.id ? { ...r, status: 'rejected', rejectReason: reason } : r)))
-    setProcessedToday((n) => n + 1)
-    setReviewRow(null)
-    toast.push(`${row.requester}님의 신청을 반려했어요. 사유가 알림으로 전송됩니다.`, 'warn')
-  }
+  // 심사·상세 모두 4.10a 전용 페이지에서 — 행/액션 클릭 시 이동
+  const openDetail = (r: GpuRow) => navigate(`/admin/approvals/gpu/${r.id}`)
 
   return (
-    <div className="anim-fade flex flex-col min-w-0 h-full" style={mutedFix}>
+    <div data-approvals className="anim-fade flex flex-col min-w-0 h-full" style={mutedFix}>
+      {/* 디테일 — 정적 텍스트 선택/드래그 차단 · 클릭 요소 pointer 커서 · 입력은 선택 유지 */}
+      <style>{`
+        [data-approvals]{user-select:none;-webkit-user-select:none}
+        [data-approvals] button:not(:disabled),[data-approvals] a,[data-approvals] select,[data-approvals] tr.cursor-pointer{cursor:pointer}
+        [data-approvals] button:disabled{cursor:not-allowed}
+        [data-approvals] input,[data-approvals] textarea{user-select:text;-webkit-user-select:text;cursor:auto}
+      `}</style>
       <header className="flex flex-col min-w-0 shrink-0">
         <h1 className="font-bold text-text" style={{ fontSize: 23, lineHeight: 1.2 }}>승인 관리</h1>
         <p className="text-muted" style={{ fontSize: 14, marginTop: 8 }}>GPU 자원 신청을 검토하고 승인(서버 할당) 또는 반려합니다. 대기 신청을 선택해 상세를 확인하세요.</p>
       </header>
 
       <div className="grid stagger shrink-0" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: 18, marginTop: 28 }}>
-        {STAT_CARDS.map((s) => <StatCard key={s.label} s={s} />)}
+        {/* 대기 — 값 색이 컨테이너 색을 상속해 경고색 강조 */}
+        <div style={{ color: 'var(--c-warn)' }}>
+          <KpiStat label="대기" value={counts.pending} unit="건" delta={counts.pending > 0 ? '검토 필요' : undefined} deltaTone="warn" sub="검토 대기 중인 GPU 신청" icon={<ClockIcon width={18} height={18} style={{ color: 'var(--c-warn)' }} />} />
+        </div>
+        <KpiStat label="승인" value={counts.approved} unit="건" sub="승인 및 서버 할당 완료" icon={<CheckCircleIcon width={18} height={18} style={{ color: 'var(--c-ok)' }} />} />
+        <KpiStat label="반려" value={counts.rejected} unit="건" sub="반려된 신청 건" icon={<XCircleIcon width={18} height={18} style={{ color: 'var(--c-danger)' }} />} />
+        <KpiStat label="오늘 처리" value={counts.processedToday} unit="건" sub="오늘 검토 처리한 건" icon={<BoltIcon width={18} height={18} style={{ color: 'var(--c-accent)' }} />} />
       </div>
 
-      <FilterBar q={q} setQ={setQ} statusF={statusF} setStatusF={setStatusF} dateStart={dateStart} setDateStart={setDateStart} dateEnd={dateEnd} setDateEnd={setDateEnd} withDate dirty={dirty} onApply={applyFilters} onReset={resetFilters} placeholder="신청자, 자원, 모델, 사유 검색" />
+      <ResourceStrip onMap={() => navigate('/resource-map')} />
+
+      <FilterBar q={q} setQ={setQ} statusF={statusF} setStatusF={setStatusF} dateStart={dateStart} setDateStart={setDateStart} dateEnd={dateEnd} setDateEnd={setDateEnd} withDate dirty={dirty} onApply={applyFilters} onReset={resetFilters} placeholder="신청자, 자원, 모델, 사유 검색" marginTop={18} />
 
       <TableCard
         headerLeft={<h2 className="font-bold text-text flex items-center gap-2" style={{ fontSize: 16 }}><CpuChipIcon style={{ width: 18, height: 18, color: 'var(--c-accent)' }} />GPU 자원 신청</h2>}
         cols={GPU_COLS}
         rows={pageRows}
-        onRowClick={setReviewRow}
+        onRowClick={openDetail}
         empty={hasFilter ? '검색 결과가 없어요. 검색어나 필터를 조정해보세요.' : '대기 중인 GPU 신청이 없어요.'}
         cells={(r) => (
           <>
@@ -611,9 +657,10 @@ export function ApprovalsGpu() {
               <div className="truncate text-muted" style={{ fontSize: 14 }}>{r.model}</div>
             </td>
             <td className="align-middle text-muted" style={{ fontSize: 14, padding: '14px 16px 14px 0', lineHeight: 1.4 }}><span className="line-clamp-2">{r.reason}</span></td>
+            <td className="align-middle truncate text-muted" style={{ fontSize: 14, padding: '14px 16px 14px 0' }}>{r.period ?? '—'}</td>
             <td className="align-middle truncate text-muted" style={{ fontSize: 14, padding: '14px 0' }}>{r.date}</td>
             <td className="align-middle" style={{ padding: '14px 0' }}><StatusCell status={r.status} /></td>
-            <td className="align-middle" style={{ padding: '14px 0', paddingRight: 24 }}><div className="flex items-center justify-end"><ReviewPill pending={r.status === 'pending'} onClick={(e) => { e.stopPropagation(); setReviewRow(r) }} /></div></td>
+            <td className="align-middle" style={{ padding: '14px 0', paddingRight: 24 }}><div className="flex items-center justify-end"><JudgePill pending={r.status === 'pending'} onClick={(e) => { e.stopPropagation(); openDetail(r) }} /></div></td>
           </>
         )}
         footer={
@@ -622,30 +669,6 @@ export function ApprovalsGpu() {
             page={curPage} pageCount={pageCount} setPage={setPage} pageSize={pageSize} setPageSize={setPageSize}
           />
         }
-      />
-
-      <ReviewDrawer
-        row={reviewRow}
-        typeLabel="GPU 승인"
-        TypeIcon={CpuChipIcon}
-        detail={reviewRow && (
-          <>
-            <KV k="요청 자원" v={reviewRow.resource} />
-            <KV k="모델" v={reviewRow.model} />
-            <KV k="서비스명" v={reviewRow.serviceName} />
-            <KV k="운영 환경" v={reviewRow.env || '—'} />
-            <KV k="부가 옵션" v={reviewRow.addons.length ? reviewRow.addons.join(', ') : '없음'} />
-            <KV k="신청일" v={reviewRow.date} />
-          </>
-        )}
-        reasonText={reviewRow?.reason ?? ''}
-        attachmentName={reviewRow?.attachmentName}
-        needsServer
-        approveLabel="승인 · 할당"
-        resultExtra={reviewRow?.serverId ? <KV k="할당 서버" v={serverById(reviewRow.serverId)?.host ?? reviewRow.serverId} /> : undefined}
-        onClose={() => setReviewRow(null)}
-        onApprove={(serverId) => reviewRow && approve(reviewRow, serverId)}
-        onReject={(reason) => reviewRow && reject(reviewRow, reason)}
       />
     </div>
   )
@@ -830,8 +853,6 @@ export function ApprovalsPublish() {
           </>
         )}
         reasonText={reviewRow?.reason ?? ''}
-        needsServer={false}
-        approveLabel="승인 · 게시"
         resultExtra={<KV k="게시" v="마켓플레이스 노출 완료" />}
         onClose={() => setReviewRow(null)}
         onApprove={() => reviewRow && approve(reviewRow)}
