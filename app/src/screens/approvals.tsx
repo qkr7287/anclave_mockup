@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  ArrowDownTrayIcon,
   ArrowLeftIcon,
   ArrowPathIcon,
   BoltIcon,
@@ -20,7 +19,6 @@ import {
   MegaphoneIcon,
   Squares2X2Icon,
   XCircleIcon,
-  XMarkIcon,
 } from '@heroicons/react/24/outline'
 import { KpiStat, useToast } from '../components/ui'
 import { useTheme } from '../lib/theme'
@@ -28,12 +26,12 @@ import {
   allGpus,
   allSlices,
   modelById,
-  publishRequests,
   services,
   userById,
 } from '../data'
-import type { GpuRequest, PublishRequest, Status } from '../data/types'
+import type { GpuRequest, Status } from '../data/types'
 import { fetchGpuRequests } from './approval-store'
+import { listPublishRequests, type PubRecord } from './publish-store'
 
 // G4 · 승인 관리 — 게시·GPU "분리" 스펙.
 //  · ApprovalsGpu  (4.10 · /admin/approvals/gpu · 할당 관리 그룹) = "승인 관리"
@@ -75,24 +73,6 @@ function StatBadge({ status }: { status: Status }) {
 }
 
 interface StatDef { label: string; value: number; desc: string; num: string; box: string; Icon: typeof ClockIcon }
-
-function StatCard({ s }: { s: StatDef }) {
-  const { Icon } = s
-  return (
-    <div className="relative bg-card2 border border-line rounded-[14px] overflow-hidden hover-lift" style={{ height: 128, boxShadow: 'var(--shadow-card)' }}>
-      <div className="flex items-start" style={{ gap: 16, padding: 23 }}>
-        <span className="flex items-center justify-center shrink-0 rounded-[14px]" style={{ width: 56, height: 56, background: s.box, color: s.num }}>
-          <Icon style={{ width: 28, height: 28 }} />
-        </span>
-        <div className="flex flex-col min-w-0">
-          <span className="font-semibold text-text" style={{ fontSize: 15, lineHeight: 1.3 }}>{s.label}</span>
-          <span className="font-bold" style={{ fontSize: 30, lineHeight: 1.2, color: s.num, letterSpacing: '-0.5px', marginTop: 2 }}>{s.value}</span>
-        </div>
-      </div>
-      <span className="absolute text-muted truncate" style={{ left: 23, right: 16, bottom: 15, fontSize: 14, lineHeight: 1 }}>{s.desc}</span>
-    </div>
-  )
-}
 
 // KpiStat 아이콘 — soft 배경 박스(g2 RequestStatus 스탯카드와 동일 외형: 30px·radius9·semantic soft)
 function StatIcon({ Icon, box, color }: { Icon: typeof ClockIcon; box: string; color: string }) {
@@ -137,7 +117,7 @@ function ReviewPill({ pending, onClick }: { pending: boolean; onClick: (e: React
   return (
     <button type="button" onClick={onClick} className="inline-flex items-center gap-1 font-medium rounded-[8px] transition-[transform,background-color,box-shadow] duration-100 active:scale-95 whitespace-nowrap hover:shadow-[0_1px_3px_rgba(0,0,0,0.08)]" style={{ fontSize: 14, padding: '5px 12px', background: pending ? 'var(--accent-soft)' : 'var(--c-soft)', color: pending ? 'var(--c-accent)' : 'var(--c-muted)' }}>
       <Icon style={{ width: 14, height: 14, opacity: 0.9 }} />
-      {pending ? '검토' : '상세'}
+      {pending ? '심사' : '상세'}
     </button>
   )
 }
@@ -233,160 +213,8 @@ function Pagination({ label, page, pageCount, setPage, pageSize, setPageSize }: 
   )
 }
 
-// ── 드로어 라벨-값 / 섹션 / 버튼 ──
-function KV({ k, v, vColor }: { k: string; v: ReactNode; vColor?: string }) {
-  return (
-    <div className="flex items-start gap-3">
-      <span className="shrink-0 text-muted" style={{ width: 80, fontSize: 14 }}>{k}</span>
-      <span className="min-w-0 flex-1 font-medium" style={{ fontSize: 14, color: vColor ?? 'var(--c-text)', lineHeight: 1.45, wordBreak: 'break-word' }}>{v}</span>
-    </div>
-  )
-}
-
-function DrawerSection({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="rounded-[12px] border border-line" style={{ background: 'var(--c-card)', padding: '14px 16px' }}>
-      <h3 className="font-bold text-text" style={{ fontSize: 14.5, marginBottom: 12 }}>{title}</h3>
-      <div className="flex flex-col" style={{ gap: 11 }}>{children}</div>
-    </section>
-  )
-}
-
-function DrawerBtn({ children, variant, full, disabled, onClick }: { children: ReactNode; variant: 'primary' | 'danger' | 'ghost'; full?: boolean; disabled?: boolean; onClick: () => void }) {
-  const style: React.CSSProperties =
-    variant === 'primary' ? { background: 'var(--c-accent)', color: 'var(--c-onaccent)' }
-      : variant === 'danger' ? { background: 'var(--danger-soft)', color: 'var(--c-danger)' }
-        : { background: 'transparent', color: 'var(--c-text)', border: '1px solid var(--c-border)' }
-  return (
-    <button type="button" onClick={onClick} disabled={disabled} className={`inline-flex items-center justify-center gap-1.5 font-semibold rounded-[8px] transition-[transform,filter,opacity] duration-100 enabled:active:scale-[0.97] enabled:hover:brightness-110 disabled:opacity-45 disabled:cursor-not-allowed ${full ? 'flex-1' : ''}`} style={{ height: 40, padding: '0 18px', fontSize: 14, ...style }}>
-      {children}
-    </button>
-  )
-}
-
-type DrawerMode = 'view' | 'reject'
-
+// 목록 행 기본 필드(PubRow의 베이스). 심사는 4.9a 전용 페이지(publish-detail.tsx)로 승격.
 interface DrawerRow { id: string; requester: string; team: string; email: string; status: Status; rejectReason?: string }
-
-// ── 검토 드로어 — 상세 + 승인/반려. (GPU 심사는 4.10a 전용 페이지로 승격 — 게시 승인만 사용) ──
-function ReviewDrawer({ row, typeLabel, TypeIcon, detail, reasonText, attachmentName, resultExtra, onClose, onApprove, onReject }: {
-  row: DrawerRow | null
-  typeLabel: string
-  TypeIcon: typeof CpuChipIcon
-  detail: ReactNode
-  reasonText: string
-  attachmentName?: string
-  resultExtra?: ReactNode
-  onClose: () => void
-  onApprove: () => void
-  onReject: (reason: string) => void
-}) {
-  const toast = useToast()
-  const [mode, setMode] = useState<DrawerMode>('view')
-  const [reason, setReason] = useState('')
-
-  useEffect(() => { setMode('view'); setReason('') }, [row?.id])
-  useEffect(() => {
-    if (!row) return
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [row, onClose])
-
-  if (!row) return null
-  const pending = row.status === 'pending'
-
-  return (
-    <div className="fixed inset-0 z-50" style={{ background: 'var(--dim)' }} onClick={onClose} role="presentation">
-      <aside className="absolute top-0 right-0 bottom-0 bg-card2 border-l border-line flex flex-col anim-fade" style={{ width: 504, maxWidth: '94vw', boxShadow: 'var(--shadow-pop)' }} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
-        <header className="flex items-center justify-between gap-3 shrink-0 border-b border-line" style={{ padding: '16px 20px' }}>
-          <div className="flex items-center gap-2.5 min-w-0">
-            <h2 className="font-bold text-text truncate" style={{ fontSize: 17 }}>신청 검토</h2>
-            <span className="text-muted shrink-0" style={{ fontSize: 14 }}>{row.id.toUpperCase()}</span>
-          </div>
-          <button type="button" onClick={onClose} aria-label="닫기" className="text-muted hover:text-text shrink-0"><XMarkIcon width={20} height={20} /></button>
-        </header>
-
-        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col" style={{ padding: 20, gap: 14 }}>
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full font-bold" style={{ fontSize: 14, padding: '3px 11px', background: 'var(--accent-soft)', color: 'var(--c-accent)' }}>
-              <TypeIcon width={14} height={14} />{typeLabel}
-            </span>
-            <StatBadge status={row.status} />
-          </div>
-
-          <DrawerSection title="신청자">
-            <div className="flex items-center gap-3">
-              <span className="flex items-center justify-center shrink-0" style={{ width: 42, height: 42, borderRadius: 12, background: 'var(--c-accent)', color: 'var(--c-onaccent)', fontSize: 16, fontWeight: 800 }}>{row.requester.slice(0, 1)}</span>
-              <div className="min-w-0">
-                <div className="font-semibold text-text truncate" style={{ fontSize: 14.5 }}>{row.requester} · {row.team}</div>
-                <div className="text-muted truncate" style={{ fontSize: 14 }}>{row.email}</div>
-              </div>
-            </div>
-          </DrawerSection>
-
-          <DrawerSection title="신청 내용">{detail}</DrawerSection>
-
-          <DrawerSection title="요청 사유">
-            <p style={{ fontSize: 14, color: 'var(--c-text)', lineHeight: 1.55 }}>{reasonText}</p>
-          </DrawerSection>
-
-          {attachmentName && (
-            <DrawerSection title="첨부 공문">
-              <div className="flex items-center gap-2.5 rounded-[8px] border border-line" style={{ background: 'var(--c-card)', height: 36, padding: '0 11px' }}>
-                <span className="flex items-center justify-center shrink-0 font-bold" style={{ width: 18, height: 18, borderRadius: 3, background: '#e8413a', color: '#fff', fontSize: 7 }}>PDF</span>
-                <span className="flex-1 truncate font-medium text-text" style={{ fontSize: 14 }}>{attachmentName}</span>
-                <button type="button" onClick={() => toast.push('공문 다운로드 (목업)', 'info')} className="shrink-0 text-muted hover:text-text transition-transform active:scale-90" aria-label="다운로드"><ArrowDownTrayIcon width={15} height={15} /></button>
-              </div>
-            </DrawerSection>
-          )}
-
-          {row.status === 'approved' && (
-            <DrawerSection title="처리 결과">
-              <KV k="결과" v="승인 완료" vColor="var(--c-ok)" />
-              {resultExtra}
-            </DrawerSection>
-          )}
-          {row.status === 'rejected' && (
-            <DrawerSection title="처리 결과">
-              <KV k="결과" v="반려됨" vColor="var(--c-danger)" />
-              <KV k="반려 사유" v={row.rejectReason || '—'} />
-            </DrawerSection>
-          )}
-
-          {mode === 'reject' && (
-            <DrawerSection title="반려 사유">
-              <textarea value={reason} onChange={(e) => setReason(e.target.value)} maxLength={300} autoFocus placeholder="반려 사유를 입력해주세요. 신청자에게 알림으로 전달됩니다." className="w-full rounded-[8px] border text-text" style={{ background: 'var(--c-bg)', borderColor: reason.trim() ? 'var(--c-border)' : 'var(--c-danger)', height: 96, padding: 12, fontSize: 14, outline: 'none', resize: 'none', lineHeight: 1.5 }} />
-              <span className="text-muted self-end" style={{ fontSize: 14 }}>{reason.length}/300</span>
-            </DrawerSection>
-          )}
-        </div>
-
-        {pending && (
-          <footer className="flex items-center gap-2.5 shrink-0 border-t border-line" style={{ padding: '14px 20px' }}>
-            {mode === 'view' && (
-              <>
-                <DrawerBtn variant="danger" full onClick={() => setMode('reject')}><XCircleIcon width={16} height={16} />반려</DrawerBtn>
-                <DrawerBtn variant="primary" full onClick={onApprove}><CheckCircleIcon width={16} height={16} />승인</DrawerBtn>
-              </>
-            )}
-            {mode === 'reject' && (
-              <>
-                <DrawerBtn variant="ghost" onClick={() => { setMode('view'); setReason('') }}>취소</DrawerBtn>
-                <DrawerBtn variant="danger" full disabled={!reason.trim()} onClick={() => reason.trim() && onReject(reason.trim())}><XCircleIcon width={16} height={16} />반려 확정</DrawerBtn>
-              </>
-            )}
-          </footer>
-        )}
-        {!pending && (
-          <footer className="flex items-center justify-end shrink-0 border-t border-line" style={{ padding: '14px 20px' }}>
-            <DrawerBtn variant="ghost" onClick={onClose}>닫기</DrawerBtn>
-          </footer>
-        )}
-      </aside>
-    </div>
-  )
-}
 
 // 검색·상태·기간 필터 바(GPU=기간 포함 / 게시=기간 생략) — date 슬롯 옵션
 function FilterBar({ q, setQ, statusF, setStatusF, dateStart, setDateStart, dateEnd, setDateEnd, withDate, dirty, onApply, onReset, placeholder, marginTop = 32 }: {
@@ -709,13 +537,16 @@ interface PubRow extends DrawerRow {
   hasApi: boolean
   tags: string[]
   usage: number
+  usageRank: number
+  intro: string
   serviceUrl: string
   demoUrl: string
   reason: string
   date: string
+  processedAt?: string
 }
 
-function pubRow(r: PublishRequest): PubRow {
+function pubRow(r: PubRecord): PubRow {
   const u = userById(r.requesterUserId)
   const svc = services.find((s) => s.name === r.serviceName)
   const [metaKind, metaModel] = (r.meta || '').split('·').map((s) => s.trim())
@@ -734,10 +565,13 @@ function pubRow(r: PublishRequest): PubRow {
     hasApi: svc?.hasApi ?? false,
     tags: svc?.tags ?? [],
     usage: svc?.usageCount ?? 0,
+    usageRank: svc?.usageRank ?? 0,
+    intro: svc?.description ?? '',
     serviceUrl: r.serviceUrl,
     demoUrl: r.demoUrl,
     reason: `${kind} 서비스를 마켓플레이스에 노출(게시)하기 위한 승인 요청`,
     date: r.createdAt,
+    processedAt: r.processedAt,
   }
 }
 
@@ -753,85 +587,102 @@ const PUB_COLS: Col[] = [
 export function ApprovalsPublish() {
   const toast = useToast()
   const mutedFix = useMutedFix()
-  const [rows, setRows] = useState<PubRow[]>(() => publishRequests.map(pubRow))
-  const [reviewRow, setReviewRow] = useState<PubRow | null>(null)
-  const [processedToday, setProcessedToday] = useState(0)
+  const navigate = useNavigate()
+  // 목록은 세션 스토어에서 로드 — 심사 페이지(publish-detail)에서 처리하면 목록 복귀 시 재마운트로 반영.
+  const [rows] = useState<PubRow[]>(() => listPublishRequests().map(pubRow))
   const [q, setQ] = useState('')
   const [statusF, setStatusF] = useState('전체')
-  const [applied, setApplied] = useState({ q: '', status: '전체' })
+  const [dateStart, setDateStart] = useState('')
+  const [dateEnd, setDateEnd] = useState('')
+  const [applied, setApplied] = useState({ q: '', status: '전체', start: '', end: '' })
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
 
-  const counts = useMemo(() => ({
-    pending: rows.filter((r) => r.status === 'pending').length,
-    approved: rows.filter((r) => r.status === 'approved').length,
-    rejected: rows.filter((r) => r.status === 'rejected').length,
-  }), [rows])
+  const counts = useMemo(() => {
+    const d = new Date()
+    const p = (n: number) => String(n).padStart(2, '0')
+    const today = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+    return {
+      pending: rows.filter((r) => r.status === 'pending').length,
+      approved: rows.filter((r) => r.status === 'approved').length,
+      rejected: rows.filter((r) => r.status === 'rejected').length,
+      processedToday: rows.filter((r) => r.processedAt?.startsWith(today)).length,
+    }
+  }, [rows])
 
   const STAT_CARDS: StatDef[] = [
     { label: '대기', value: counts.pending, desc: '게시 검토 대기 중', num: 'var(--c-warn)', box: 'var(--warn-soft)', Icon: ClockIcon },
     { label: '게시 중', value: counts.approved, desc: '마켓 노출 중인 서비스', num: 'var(--c-ok)', box: 'var(--ok-soft)', Icon: GlobeAltIcon },
     { label: '반려', value: counts.rejected, desc: '반려된 게시 신청', num: 'var(--c-danger)', box: 'var(--danger-soft)', Icon: XCircleIcon },
-    { label: '오늘 처리', value: processedToday, desc: '이번 세션 검토 처리 건', num: 'var(--c-accent)', box: 'var(--accent-soft)', Icon: BoltIcon },
+    { label: '오늘 처리', value: counts.processedToday, desc: '오늘 검토 처리한 건', num: 'var(--c-accent)', box: 'var(--accent-soft)', Icon: BoltIcon },
   ]
 
   const match = (r: PubRow) => {
     if (applied.q.trim() && !`${r.serviceName} ${r.requester} ${r.team} ${r.kind} ${r.model}`.toLowerCase().includes(applied.q.trim().toLowerCase())) return false
     if (applied.status !== '전체' && r.status !== STATUS_FROM_KO[applied.status]) return false
+    const d = r.date.slice(0, 10)
+    if (applied.start && d < applied.start) return false
+    if (applied.end && d > applied.end) return false
     return true
   }
   const view = rows.filter(match)
   const pageCount = Math.max(1, Math.ceil(view.length / pageSize))
   const curPage = Math.min(page, pageCount)
   const pageRows = view.slice((curPage - 1) * pageSize, curPage * pageSize)
-  const hasFilter = applied.q.trim() !== '' || applied.status !== '전체'
-  const dirty = q !== applied.q || statusF !== applied.status
+  const hasFilter = applied.q.trim() !== '' || applied.status !== '전체' || applied.start !== '' || applied.end !== ''
+  const dirty = q !== applied.q || statusF !== applied.status || dateStart !== applied.start || dateEnd !== applied.end
 
   useEffect(() => { setPage(1) }, [applied, pageSize])
 
   const applyFilters = () => {
-    const next = { q, status: statusF }
+    const next = { q, status: statusF, start: dateStart, end: dateEnd }
     setApplied(next)
     const cnt = rows.filter((r) => {
       if (next.q.trim() && !`${r.serviceName} ${r.requester} ${r.team} ${r.kind} ${r.model}`.toLowerCase().includes(next.q.trim().toLowerCase())) return false
       if (next.status !== '전체' && r.status !== STATUS_FROM_KO[next.status]) return false
+      const d = r.date.slice(0, 10)
+      if (next.start && d < next.start) return false
+      if (next.end && d > next.end) return false
       return true
     }).length
     toast.push(`필터 적용 — ${cnt}건 검색되었어요`, cnt ? 'info' : 'warn')
   }
-  const resetFilters = () => { setQ(''); setStatusF('전체'); setApplied({ q: '', status: '전체' }) }
+  const resetFilters = () => { setQ(''); setStatusF('전체'); setDateStart(''); setDateEnd(''); setApplied({ q: '', status: '전체', start: '', end: '' }) }
 
-  const approve = (row: PubRow) => {
-    setRows((cur) => cur.map((r) => (r.id === row.id ? { ...r, status: 'approved' } : r)))
-    setProcessedToday((n) => n + 1)
-    setReviewRow(null)
-    toast.push(`${row.serviceName} 게시를 승인했어요. 마켓플레이스에 노출됩니다.`, 'ok')
-  }
-  const reject = (row: PubRow, reason: string) => {
-    setRows((cur) => cur.map((r) => (r.id === row.id ? { ...r, status: 'rejected', rejectReason: reason } : r)))
-    setProcessedToday((n) => n + 1)
-    setReviewRow(null)
-    toast.push(`${row.serviceName} 게시를 반려했어요. 사유가 알림으로 전송됩니다.`, 'warn')
-  }
+  // 심사·상세 모두 4.9a 전용 페이지에서 — 행/액션 클릭 시 이동(처리 결과는 publish-store 공유).
+  const openDetail = (r: PubRow) => navigate(`/admin/approvals/publish/${r.id}`)
 
   return (
     <div className="anim-fade flex flex-col min-w-0 h-full" style={mutedFix}>
       <header className="flex flex-col min-w-0 shrink-0">
-        <h1 className="font-bold text-text" style={{ fontSize: 23, lineHeight: 1.2 }}>게시 승인 관리</h1>
+        <div className="flex items-center" style={{ gap: 10 }}>
+          <button
+            type="button"
+            aria-label="뒤로 가기"
+            onClick={() => navigate(-1)}
+            className="flex items-center justify-center rounded-[9px] border border-line bg-card2 text-muted hover:text-text hover:bg-soft cursor-pointer transition-colors shrink-0"
+            style={{ width: 34, height: 34 }}
+          >
+            <ArrowLeftIcon style={{ width: 18, height: 18 }} />
+          </button>
+          <h1 className="font-bold text-text" style={{ fontSize: 23, lineHeight: 1.2 }}>게시 승인 관리</h1>
+        </div>
         <p className="text-muted" style={{ fontSize: 14, marginTop: 8 }}>마켓플레이스에 노출(게시)될 서비스 신청을 검토하고 승인 또는 반려합니다.</p>
       </header>
 
       <div className="grid stagger shrink-0" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: 18, marginTop: 28 }}>
-        {STAT_CARDS.map((s) => <StatCard key={s.label} s={s} />)}
+        {STAT_CARDS.map((s) => (
+          <KpiStat key={s.label} label={s.label} value={s.value} sub={s.desc} icon={<StatIcon Icon={s.Icon} box={s.box} color={s.num} />} />
+        ))}
       </div>
 
-      <FilterBar q={q} setQ={setQ} statusF={statusF} setStatusF={setStatusF} dateStart="" setDateStart={() => {}} dateEnd="" setDateEnd={() => {}} withDate={false} dirty={dirty} onApply={applyFilters} onReset={resetFilters} placeholder="서비스명, 신청자, 모델 검색" />
+      <FilterBar q={q} setQ={setQ} statusF={statusF} setStatusF={setStatusF} dateStart={dateStart} setDateStart={setDateStart} dateEnd={dateEnd} setDateEnd={setDateEnd} withDate dirty={dirty} onApply={applyFilters} onReset={resetFilters} placeholder="서비스명, 신청자, 모델 검색" />
 
       <TableCard
         headerLeft={<h2 className="font-bold text-text flex items-center gap-2" style={{ fontSize: 16 }}><MegaphoneIcon style={{ width: 18, height: 18, color: 'var(--c-accent)' }} />마켓 게시 신청</h2>}
         cols={PUB_COLS}
         rows={pageRows}
-        onRowClick={setReviewRow}
+        onRowClick={openDetail}
         empty={hasFilter ? '검색 결과가 없어요. 검색어나 필터를 조정해보세요.' : '대기 중인 게시 신청이 없어요.'}
         cells={(r) => (
           <>
@@ -851,7 +702,7 @@ export function ApprovalsPublish() {
             </td>
             <td className="align-middle truncate text-muted" style={{ fontSize: 14, padding: '14px 0' }}>{r.date}</td>
             <td className="align-middle" style={{ padding: '14px 0' }}><StatusCell status={r.status} /></td>
-            <td className="align-middle" style={{ padding: '14px 0', paddingRight: 24 }}><div className="flex items-center justify-end"><ReviewPill pending={r.status === 'pending'} onClick={(e) => { e.stopPropagation(); setReviewRow(r) }} /></div></td>
+            <td className="align-middle" style={{ padding: '14px 0', paddingRight: 24 }}><div className="flex items-center justify-end"><ReviewPill pending={r.status === 'pending'} onClick={(e) => { e.stopPropagation(); openDetail(r) }} /></div></td>
           </>
         )}
         footer={
@@ -860,29 +711,6 @@ export function ApprovalsPublish() {
             page={curPage} pageCount={pageCount} setPage={setPage} pageSize={pageSize} setPageSize={setPageSize}
           />
         }
-      />
-
-      <ReviewDrawer
-        row={reviewRow}
-        typeLabel="게시 승인"
-        TypeIcon={MegaphoneIcon}
-        detail={reviewRow && (
-          <>
-            <KV k="서비스명" v={reviewRow.serviceName} />
-            <KV k="종류 / 모델" v={`${reviewRow.kind} · ${reviewRow.model}`} />
-            <KV k="API 제공" v={reviewRow.hasApi ? '예' : '아니오 (웹 UI)'} />
-            <KV k="태그" v={reviewRow.tags.length ? reviewRow.tags.join(', ') : '—'} />
-            <KV k="누적 호출" v={reviewRow.usage ? `${reviewRow.usage.toLocaleString('en-US')}회` : '신규'} />
-            <KV k="서비스 URL" v={<span style={{ color: 'var(--c-accent)' }}>{reviewRow.serviceUrl}</span>} />
-            <KV k="데모 URL" v={<span style={{ color: 'var(--c-accent)' }}>{reviewRow.demoUrl}</span>} />
-            <KV k="신청일" v={reviewRow.date} />
-          </>
-        )}
-        reasonText={reviewRow?.reason ?? ''}
-        resultExtra={<KV k="게시" v="마켓플레이스 노출 완료" />}
-        onClose={() => setReviewRow(null)}
-        onApprove={() => reviewRow && approve(reviewRow)}
-        onReject={(reason) => reviewRow && reject(reviewRow, reason)}
       />
     </div>
   )
