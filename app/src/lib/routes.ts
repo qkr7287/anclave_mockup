@@ -58,12 +58,14 @@ export const ROUTES: RouteDef[] = [
   // ④ 마켓플레이스 — 메뉴 순서: 둘러보기(4.17) → 게시 신청(4.29) → API 신청 관리(4.19) → 게시 승인 관리(4.9, 관리자)
   { key: 'marketplace', path: '/marketplace', screen: '4.17', title: '마켓플레이스', access: ['A', 'B', 'C'], group: 4, menu: ['A', 'B', 'C'], icon: 'bag' },
   { key: 'service-detail', path: '/marketplace/:id', screen: '4.18', title: '서비스 상세', access: ['A', 'B', 'C'] },
+  { key: 'api-request', path: '/marketplace/api-request/:id', screen: '4.20', title: 'API 키 요청', access: ['A', 'B', 'C'], group: 4, icon: 'key' },
   // 4.29 서비스 게시 신청 — 사용자가 자기 배포 서비스를 마켓 게시 신청(→ 4.9 게시 승인). 소유자 액션.
   { key: 'publish-request', path: '/marketplace/publish', screen: '4.29', title: '서비스 게시 신청', access: ['A', 'B', 'C'], group: 4, menu: ['B', 'C'], icon: 'megaphone' },
   { key: 'publish-new', path: '/marketplace/publish/new', screen: '4.29a', title: '신규 게시 신청', access: ['A', 'B', 'C'], group: 4, icon: 'megaphone' },
   { key: 'publish-view', path: '/marketplace/publish/:id', screen: '4.29b', title: '게시 신청 상세', access: ['A', 'B', 'C'], group: 4, icon: 'megaphone' },
   // 4.19 API 신청 관리 — 내 마켓 서비스에 온 타인의 API key 신청 관리 + 발급 요약. 소유자(B) 전용.
   { key: 'api-approvals', path: '/api-approvals', screen: '4.19', title: 'API 신청 관리', access: ['A', 'B'], group: 4, menu: ['B'], icon: 'key' },
+  { key: 'api-approval-detail', path: '/api-approvals/:id', screen: '4.19a', title: 'API 키 신청 심사', access: ['A', 'B'], group: 4, icon: 'key' },
   // 4.9 게시 승인 관리 — 마켓 게시(서비스 노출) 신청 승인. 관리자(A) 전용. (할당관리→마켓플레이스 그룹으로 이동)
   { key: 'approvals-publish', path: '/admin/approvals/publish', screen: '4.9', title: '게시 승인 관리', access: ['A'], group: 4, menu: ['A'], icon: 'megaphone' },
   { key: 'publish-detail', path: '/admin/approvals/publish/:id', screen: '4.9a', title: '게시 승인 심사', access: ['A'], group: 4, icon: 'megaphone' },
@@ -132,6 +134,8 @@ const HIGHLIGHT_PARENT: Record<string, string> = {
   'publish-detail': 'approvals-publish',
   'publish-new': 'publish-request',
   'publish-view': 'publish-request',
+  'api-request': 'marketplace',
+  'api-approval-detail': 'api-approvals',
 }
 export function sidebarHighlightKey(pathname: string): string | undefined {
   const m = matchRoute(pathname)

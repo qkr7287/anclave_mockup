@@ -20,6 +20,8 @@ import { ModelCatalog, ModelDetail } from './screens/catalog'
 import { ModelRequests } from './screens/model-requests'
 import { Marketplace, ServiceDetail } from './screens/market'
 import { ApiApprovals } from './screens/activation'
+import { ApiRequestNew } from './screens/api-request-new'
+import { ApiApprovalDetail } from './screens/api-approval-detail'
 import { PublishRequest } from './screens/publish-request'
 import { PublishNew } from './screens/publish-new'
 import { Events, Notifications } from './screens/events'
@@ -50,6 +52,8 @@ const REGISTRY: Record<string, ComponentType> = {
   marketplace: Marketplace,
   'service-detail': ServiceDetail,
   'api-approvals': ApiApprovals,
+  'api-request': ApiRequestNew,
+  'api-approval-detail': ApiApprovalDetail,
   'publish-request': PublishRequest,
   'publish-new': PublishNew,
   events: Events,
