@@ -75,7 +75,7 @@ function FieldLabel({ text, required, help }: { text: string; required?: boolean
         {text}
         {required && <span style={{ color: M.req, marginLeft: 5 }}>*</span>}
       </div>
-      {help && <div style={{ fontSize: 13, color: M.help, marginTop: 4 }}>{help}</div>}
+      {help && <div style={{ fontSize: 14, color: M.help, marginTop: 4 }}>{help}</div>}
     </div>
   )
 }
@@ -90,7 +90,7 @@ function SelectCard({ label, sub, active, onClick }: { label: string; sub?: stri
     >
       <span className="min-w-0">
         <span className="block truncate">{label}</span>
-        {sub && <span className="block font-normal truncate" style={{ fontSize: 12, color: M.help, marginTop: 2 }}>{sub}</span>}
+        {sub && <span className="block font-normal truncate" style={{ fontSize: 14, color: M.help, marginTop: 2 }}>{sub}</span>}
       </span>
       {active && <CheckIcon className="shrink-0" style={{ width: 16, height: 16, color: M.blue }} />}
     </button>
@@ -110,7 +110,7 @@ function Stepper({ current }: { current: number }) {
               <span className="flex items-center justify-center rounded-full font-semibold" style={{ width: 30, height: 30, fontSize: 14, background: done || active ? M.blue : 'transparent', border: done || active ? 'none' : `1.5px solid ${M.border}`, color: done || active ? M.onAccent : M.idle }}>
                 {done ? <CheckIcon style={{ width: 16, height: 16 }} /> : i + 1}
               </span>
-              <span className="font-medium whitespace-nowrap" style={{ fontSize: 13, marginTop: 8, color: done || active ? M.blueText : M.idle }}>{s}</span>
+              <span className="font-medium whitespace-nowrap" style={{ fontSize: 14, marginTop: 8, color: done || active ? M.blueText : M.idle }}>{s}</span>
             </div>
             {i < WIZARD_STEPS.length - 1 && <span style={{ flex: 1, height: 2, marginTop: 14, background: done ? M.blue : M.stepLine, borderRadius: 1 }} />}
           </div>
@@ -139,14 +139,14 @@ function ServiceCard({ svc, active, onClick }: { svc: Service; active: boolean; 
         <div className="min-w-0 flex-1" style={{ paddingRight: active ? 22 : 0 }}>
           <div className="flex items-center gap-1.5">
             <span className="font-bold truncate" style={{ fontSize: 14, color: M.text }}>{svc.name}</span>
-            <span className="shrink-0 rounded-[5px] font-medium" style={{ fontSize: 11, padding: '1px 6px', background: M.inputBg, border: `1px solid ${M.border}`, color: M.help }}>{svc.hasApi ? 'API' : '웹 UI'}</span>
+            <span className="shrink-0 rounded-[5px] font-medium" style={{ fontSize: 14, padding: '1px 6px', background: M.inputBg, border: `1px solid ${M.border}`, color: M.help }}>{svc.hasApi ? 'API' : '웹 UI'}</span>
           </div>
-          <div className="truncate" style={{ fontSize: 12.5, color: M.help, marginTop: 2 }}>{kindOf(svc)} · {modelOf(svc)}</div>
+          <div className="truncate" style={{ fontSize: 14, color: M.help, marginTop: 2 }}>{kindOf(svc)} · {modelOf(svc)}</div>
         </div>
       </div>
       <div className="flex items-center justify-between w-full" style={{ marginTop: 10 }}>
-        <span className="truncate rounded-[5px] font-medium" style={{ fontSize: 11, padding: '2px 7px', background: M.inputBg, border: `1px solid ${M.border}`, color: M.help }}>{allocLabel(svc)}</span>
-        <span className="shrink-0" style={{ fontSize: 11.5, color: M.help, marginLeft: 8 }}>호출 {svc.usageCount.toLocaleString('en-US')}</span>
+        <span className="truncate rounded-[5px] font-medium" style={{ fontSize: 14, padding: '2px 7px', background: M.inputBg, border: `1px solid ${M.border}`, color: M.help }}>{allocLabel(svc)}</span>
+        <span className="shrink-0" style={{ fontSize: 14, color: M.help, marginLeft: 8 }}>호출 {svc.usageCount.toLocaleString('en-US')}</span>
       </div>
     </button>
   )
@@ -177,8 +177,8 @@ function SectionHead({ title, active, reviewing, onEdit }: { title: string; acti
       <span className="font-bold shrink-0" style={{ fontSize: 15, color: active ? M.blueText : M.text }}>{title}</span>
       <span className="flex-1" style={{ height: 1, background: 'var(--c-border)' }} />
       {reviewing
-        ? <button type="button" onClick={onEdit} className="font-medium hover:underline shrink-0" style={{ fontSize: 13, color: M.blueText }}>수정</button>
-        : active && <span className="font-semibold shrink-0" style={{ fontSize: 13, color: M.blueText }}>입력 중</span>}
+        ? <button type="button" onClick={onEdit} className="font-medium hover:underline shrink-0" style={{ fontSize: 14, color: M.blueText }}>수정</button>
+        : active && <span className="font-semibold shrink-0" style={{ fontSize: 14, color: M.blueText }}>입력 중</span>}
     </div>
   )
 }
@@ -229,7 +229,7 @@ function SpecSheet({ f, svc, userName, today, currentStep, reviewing, onEdit, on
             <h3 className="font-bold min-w-0" style={{ fontSize: 18, color: M.text }}>서비스 게시 신청서</h3>
             <span className="shrink-0 font-bold" style={{ alignSelf: 'flex-start', transform: 'rotate(-5deg)', border: `1.5px solid ${reviewing ? 'var(--c-warn)' : M.blue}`, color: reviewing ? 'var(--c-warn)' : M.blue, background: reviewing ? 'var(--warn-soft)' : 'var(--accent-soft)', borderRadius: 6, padding: '3px 10px', fontSize: 14 }}>{reviewing ? '검토' : '초안'}</span>
           </div>
-          <div className="flex items-center justify-between gap-2" style={{ marginTop: 8, fontSize: 13, color: M.help }}>
+          <div className="flex items-center justify-between gap-2" style={{ marginTop: 8, fontSize: 14, color: M.help }}>
             <span>문서번호 <span style={{ fontFamily: 'var(--font-mono)', color: M.meta }}>{docNo}</span></span>
             <span>발급 Anclave 마켓플레이스</span>
           </div>
@@ -239,7 +239,7 @@ function SpecSheet({ f, svc, userName, today, currentStep, reviewing, onEdit, on
             <span style={{ fontFamily: 'var(--font-mono)' }}>{today}</span>
           </div>
           <div style={{ marginTop: 12 }}>
-            <div className="flex items-center justify-between" style={{ fontSize: 13, color: M.help, marginBottom: 6 }}>
+            <div className="flex items-center justify-between" style={{ fontSize: 14, color: M.help, marginBottom: 6 }}>
               <span>필수 항목</span>
               <span className="font-semibold" style={{ color: done ? 'var(--c-ok)' : M.blueText }}>{filled} / 3</span>
             </div>
@@ -340,9 +340,9 @@ export function PublishNew() {
               관리자 게시 승인 후 마켓플레이스에 노출됩니다. 진행 상태는 게시 신청 목록에서 확인할 수 있어요.
             </p>
             <div className="w-full rounded-[12px]" style={{ marginTop: 22, padding: '14px 16px', background: 'var(--c-soft)', border: '1px solid var(--c-border-s)' }}>
-              <div className="flex items-center justify-center gap-1.5 text-muted" style={{ fontSize: 12.5, fontWeight: 600, letterSpacing: '0.2px' }}>
+              <div className="flex items-center justify-center gap-1.5 text-muted" style={{ fontSize: 14, fontWeight: 600, letterSpacing: '0.2px' }}>
                 신청번호
-                <span className="rounded-[5px] font-semibold" style={{ fontSize: 11, padding: '1px 6px', background: 'var(--warn-soft)', color: 'var(--c-warn)' }}>검토 중</span>
+                <span className="rounded-[5px] font-semibold" style={{ fontSize: 14, padding: '1px 6px', background: 'var(--warn-soft)', color: 'var(--c-warn)' }}>검토 중</span>
               </div>
               <div className="flex items-center justify-center gap-2" style={{ marginTop: 7 }}>
                 <span className="font-bold text-text" style={{ fontSize: 18, fontFamily: 'var(--font-mono)', letterSpacing: '-0.2px' }}>{doneId.toUpperCase()}</span>
@@ -350,7 +350,7 @@ export function PublishNew() {
                   <ClipboardDocumentIcon style={{ width: 15, height: 15 }} />
                 </button>
               </div>
-              <div className="text-muted" style={{ fontSize: 12.5, lineHeight: 1.5, marginTop: 7 }}>이 번호로 게시 신청 목록에서 진행 상태를 조회할 수 있어요.</div>
+              <div className="text-muted" style={{ fontSize: 14, lineHeight: 1.5, marginTop: 7 }}>이 번호로 게시 신청 목록에서 진행 상태를 조회할 수 있어요.</div>
             </div>
             <div className="flex w-full" style={{ gap: 10, marginTop: 22 }}>
               <Button variant="outline" className="flex-1 justify-center" onClick={() => navigate('/marketplace')}>마켓플레이스로</Button>
@@ -395,7 +395,7 @@ export function PublishNew() {
             {wizardStep === 0 && (
               <div className="flex flex-col flex-1 min-h-0">
                 <h3 className="font-semibold shrink-0" style={{ fontSize: 15, color: M.text, marginBottom: 6 }}>게시할 서비스를 선택해주세요.</h3>
-                <p className="shrink-0" style={{ fontSize: 13, color: M.help, marginBottom: 14 }}>내가 배포한 서비스 {myServices.length}개 중 하나를 선택해 게시 신청해요.</p>
+                <p className="shrink-0" style={{ fontSize: 14, color: M.help, marginBottom: 14 }}>내가 배포한 서비스 {myServices.length}개 중 하나를 선택해 게시 신청해요.</p>
                 <div className="relative shrink-0" style={{ marginBottom: 12 }}>
                   <MagnifyingGlassIcon className="absolute" style={{ left: 14, top: 13, width: 16, height: 16, color: M.idle }} />
                   <input value={svcQ} onChange={(e) => setSvcQ(e.target.value)} placeholder="서비스명, 종류, 모델 검색" style={{ ...inputBase, height: 42, paddingLeft: 40 }} />
@@ -412,7 +412,7 @@ export function PublishNew() {
                   )}
                   {myServices.length > 0 && filteredSvcs.length === 0 && <div className="text-center" style={{ fontSize: 14, color: M.help, padding: '32px 0' }}>검색 결과가 없어요.</div>}
                 </div>
-                <div className="shrink-0 flex items-center" style={{ marginTop: 10, fontSize: 13, color: M.help }}>
+                <div className="shrink-0 flex items-center" style={{ marginTop: 10, fontSize: 14, color: M.help }}>
                   <span>{svc ? `선택: ${svc.name}` : '아직 선택한 서비스가 없어요'}</span>
                 </div>
               </div>
@@ -424,7 +424,7 @@ export function PublishNew() {
                 <FieldLabel text="서비스 소개" required help={`마켓플레이스 방문자에게 보일 소개를 작성해주세요. (최소 ${INTRO_MIN}자)`} />
                 <div className="relative shrink-0" style={{ marginBottom: 20 }}>
                   <textarea value={f.intro} maxLength={300} onChange={(e) => set('intro', e.target.value)} placeholder={svc ? `예: ${svc.description}` : '먼저 서비스를 선택해주세요.'} style={{ ...inputBase, height: 84, padding: '14px', resize: 'none', lineHeight: 1.5 }} />
-                  <span className="absolute" style={{ right: 14, bottom: 12, fontSize: 12, color: f.intro.trim().length >= INTRO_MIN ? M.meta : 'var(--c-danger)' }}>{f.intro.trim().length}/{INTRO_MIN}</span>
+                  <span className="absolute" style={{ right: 14, bottom: 12, fontSize: 14, color: f.intro.trim().length >= INTRO_MIN ? M.meta : 'var(--c-danger)' }}>{f.intro.trim().length}/{INTRO_MIN}</span>
                 </div>
                 <div className="shrink-0" style={{ marginBottom: 20 }}>
                   <FieldLabel text="공개 범위" required />
@@ -453,7 +453,7 @@ export function PublishNew() {
                       placeholder={'예:\n출처 조항 인용 답변\n권한 기반 문서 필터\n환각 억제(grounding)'}
                       style={{ ...inputBase, height: '100%', minHeight: 96, padding: '14px', resize: 'none', lineHeight: 1.6 }}
                     />
-                    <span className="absolute" style={{ right: 14, bottom: 12, fontSize: 12, color: M.meta }}>{f.features.length}/500</span>
+                    <span className="absolute" style={{ right: 14, bottom: 12, fontSize: 14, color: M.meta }}>{f.features.length}/500</span>
                   </div>
                 </div>
               </div>

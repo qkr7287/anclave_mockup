@@ -168,7 +168,7 @@ function PublishSpec({ req, reviewing, onCopy, footer }: { req: PubRecord; revie
             <h3 className="font-bold min-w-0" style={{ fontSize: 18, color: 'var(--c-text)' }}>서비스 게시 신청서 · 심사</h3>
             <span className="shrink-0 font-bold" style={{ alignSelf: 'flex-start', transform: 'rotate(-5deg)', border: `1.5px solid ${stamp}`, color: stamp, background: stampBg, borderRadius: 6, padding: '3px 10px', fontSize: 14 }}>{stampLabel}</span>
           </div>
-          <div className="flex items-center justify-between gap-2" style={{ marginTop: 8, fontSize: 13, color: 'var(--c-muted)' }}>
+          <div className="flex items-center justify-between gap-2" style={{ marginTop: 8, fontSize: 14, color: 'var(--c-muted)' }}>
             <span>문서번호 <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--c-text)' }}>{docNo}</span></span>
             <span>발급 Anclave 마켓플레이스</span>
           </div>
@@ -176,7 +176,7 @@ function PublishSpec({ req, reviewing, onCopy, footer }: { req: PubRecord; revie
             <span className="font-medium" style={{ color: 'var(--c-text)' }}>{m.name}</span>
             <span>·</span>
             <span style={{ fontFamily: 'var(--font-mono)' }}>{today}</span>
-            <span className="rounded-[5px] font-medium" style={{ marginLeft: 2, padding: '1px 8px', fontSize: 13, background: 'var(--accent-soft)', color: 'var(--c-accent)' }}>{req.id.toUpperCase()}</span>
+            <span className="rounded-[5px] font-medium" style={{ marginLeft: 2, padding: '1px 8px', fontSize: 14, background: 'var(--accent-soft)', color: 'var(--c-accent)' }}>{req.id.toUpperCase()}</span>
           </div>
         </div>
 
@@ -232,8 +232,8 @@ function Completion({ done, reqId, requesterName, processorName, serviceName, on
   const soft = ok ? 'var(--ok-soft)' : 'var(--danger-soft)'
   const Stub = ({ k, v, mono }: { k: string; v: ReactNode; mono?: boolean }) => (
     <div className="flex items-start gap-3" style={{ padding: '7px 0', borderTop: '1px dashed var(--c-border-s)' }}>
-      <span className="shrink-0 text-muted" style={{ width: 68, fontSize: 13 }}>{k}</span>
-      <span className="flex-1 min-w-0 font-medium text-text" style={{ fontSize: 13.5, lineHeight: 1.5, wordBreak: 'break-word', fontFamily: mono ? 'var(--font-mono)' : undefined }}>{v}</span>
+      <span className="shrink-0 text-muted" style={{ width: 68, fontSize: 14 }}>{k}</span>
+      <span className="flex-1 min-w-0 font-medium text-text" style={{ fontSize: 14, lineHeight: 1.5, wordBreak: 'break-word', fontFamily: mono ? 'var(--font-mono)' : undefined }}>{v}</span>
     </div>
   )
   return (
@@ -249,7 +249,7 @@ function Completion({ done, reqId, requesterName, processorName, serviceName, on
               {ok ? <CheckCircleIcon style={{ width: 40, height: 40 }} /> : <XCircleIcon style={{ width: 40, height: 40 }} />}
             </span>
           </div>
-          <span className="font-bold" style={{ fontSize: 12.5, letterSpacing: '0.14em', color: accent, marginTop: 16, fontFamily: 'var(--font-mono)' }}>{ok ? 'APPROVED' : 'REJECTED'}</span>
+          <span className="font-bold" style={{ fontSize: 14, letterSpacing: '0.14em', color: accent, marginTop: 16, fontFamily: 'var(--font-mono)' }}>{ok ? 'APPROVED' : 'REJECTED'}</span>
           <h2 className="font-bold text-text" style={{ fontSize: 21, marginTop: 5, letterSpacing: '-0.3px' }}>{ok ? '게시를 승인했습니다' : '게시를 반려했습니다'}</h2>
           <p className="text-muted" style={{ fontSize: 14, lineHeight: 1.55, marginTop: 8 }}>
             {ok ? `${requesterName}님께 알림이 전송되고 마켓플레이스에 노출됩니다.` : `${requesterName}님께 반려 사유가 알림으로 전송되었어요.`}
@@ -324,7 +324,7 @@ function PendingReview({ req }: { req: PubRecord }) {
         <div className="rounded-[10px] border" style={{ borderColor: 'var(--c-danger)', padding: '11px 13px' }}>
           <div className="font-bold" style={{ fontSize: 14, color: 'var(--c-danger)', marginBottom: 6 }}>반려 사유</div>
           <textarea value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} maxLength={300} autoFocus placeholder="반려 사유를 입력해주세요. 신청자에게 알림으로 전달됩니다." className="w-full rounded-[8px] border border-line text-text" style={{ background: 'var(--c-bg)', height: 70, padding: 11, fontSize: 14, outline: 'none', resize: 'none', lineHeight: 1.5 }} />
-          <div className="text-right" style={{ fontSize: 13, marginTop: 3, color: reasonOk ? 'var(--c-muted)' : 'var(--c-danger)' }}>{reasonOk ? `${rejectReason.length}/300` : `최소 ${REJECT_REASON_MIN}자 · ${rejectReason.trim().length}/${REJECT_REASON_MIN}`}</div>
+          <div className="text-right" style={{ fontSize: 14, marginTop: 3, color: reasonOk ? 'var(--c-muted)' : 'var(--c-danger)' }}>{reasonOk ? `${rejectReason.length}/300` : `최소 ${REJECT_REASON_MIN}자 · ${rejectReason.trim().length}/${REJECT_REASON_MIN}`}</div>
         </div>
       ) : (
         <div className="flex flex-col" style={{ gap: 6 }}>
