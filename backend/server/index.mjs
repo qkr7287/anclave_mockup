@@ -245,21 +245,61 @@ app.get('/api/telemetry/latest', async (c) => {
 })
 
 // GPU 자원 신청 — user 지정 시 그 사람 신청만(B/C), 없으면 전체(A). 4.6 자원 신청현황.
+// gpu_requests projection (snake→camel) — 목록/단건/POST/PATCH 공유(프론트 GpuRequest 타입 일치).
+const GR_COLS = `id, requester_user_id "requesterUserId", capacity, capacity_unit "capacityUnit",
+  models, env, addons, service_name "serviceName", purpose, attachment_url "attachmentUrl",
+  status, reject_reason "rejectReason", created_at "createdAt",
+  period, priority, admin_memo "adminMemo", processed_at "processedAt", processed_by "processedBy",
+  allocated_server_id "allocatedServerId", allocated_gpu_id "allocatedGpuId", allocated_slice_id "allocatedSliceId",
+  allocated_ram_gb "allocatedRamGb", allocated_storage_gb "allocatedStorageGb", allocated_cpu_cores "allocatedCpuCores",
+  team, start_date "startDate", security, scale, remark`
+
 app.get('/api/gpu-requests', async (c) => {
   const { user } = c.req.query()
   const { rows } = await pool.query(
-    `select id, requester_user_id "requesterUserId", capacity, capacity_unit "capacityUnit",
-            models, env, addons, service_name "serviceName", purpose, attachment_url "attachmentUrl",
-            status, reject_reason "rejectReason", created_at "createdAt",
-            period, priority, admin_memo "adminMemo", processed_at "processedAt", processed_by "processedBy",
-            allocated_server_id "allocatedServerId", allocated_gpu_id "allocatedGpuId", allocated_slice_id "allocatedSliceId",
-            allocated_ram_gb "allocatedRamGb", allocated_storage_gb "allocatedStorageGb", allocated_cpu_cores "allocatedCpuCores",
-            team, start_date "startDate", security, scale, remark
+    `select ${GR_COLS}
        from gpu_requests
       where ($1::text is null or requester_user_id = $1)
       order by created_at desc`,
     [user || null])
   return c.json(rows)
+})
+
+// 단건 조회 (4.10a 심사 상세)
+app.get('/api/gpu-requests/:id', async (c) => {
+  const { rows } = await pool.query(`select ${GR_COLS} from gpu_requests where id = $1`, [c.req.param('id')])
+  if (!rows.length) return c.json({ error: 'not found' }, 404)
+  return c.json(rows[0])
+})
+
+// 승인/반려 (4.10a) — pending→approved/rejected 전이 가드, processed_at 은 서버 now()(클라 값 불신).
+app.patch('/api/gpu-requests/:id', async (c) => {
+  const id = c.req.param('id')
+  const b = await c.req.json().catch(() => ({}))
+  if (b.action !== 'approve' && b.action !== 'reject')
+    return c.json({ error: 'action must be approve or reject' }, 400)
+  if (b.action === 'reject' && !b.rejectReason)
+    return c.json({ error: 'rejectReason required' }, 400)
+  const cur = await pool.query(`select status from gpu_requests where id = $1`, [id])
+  if (!cur.rows.length) return c.json({ error: 'not found' }, 404)
+  if (cur.rows[0].status !== 'pending') return c.json({ error: 'already processed' }, 409)
+
+  const { rows } = b.action === 'approve'
+    ? await pool.query(
+        `update gpu_requests set status='approved', processed_at=now(),
+            processed_by=$2, admin_memo=$3,
+            allocated_server_id=$4, allocated_gpu_id=$5, allocated_slice_id=$6,
+            allocated_ram_gb=$7, allocated_storage_gb=$8, allocated_cpu_cores=$9
+          where id=$1 returning ${GR_COLS}`,
+        [id, b.processedBy ?? null, b.adminMemo ?? null,
+          b.allocatedServerId ?? null, b.allocatedGpuId ?? null, b.allocatedSliceId ?? null,
+          b.allocatedRamGb ?? null, b.allocatedStorageGb ?? null, b.allocatedCpuCores ?? null])
+    : await pool.query(
+        `update gpu_requests set status='rejected', processed_at=now(),
+            processed_by=$2, reject_reason=$3, admin_memo=$4
+          where id=$1 returning ${GR_COLS}`,
+        [id, b.processedBy ?? null, b.rejectReason, b.adminMemo ?? null])
+  return c.json(rows[0])
 })
 
 // 신규 GPU 자원 신청(4.6b) — status='pending', id 서버 생성. created_at 은 DB default(클라 값 불신).
@@ -273,17 +313,21 @@ app.post('/api/gpu-requests', async (c) => {
         service_name, purpose, attachment_url, status,
         period, priority, team, start_date, security, scale, remark)
      values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'pending',$11,$12,$13,$14,$15,$16,$17)
-     returning id, requester_user_id "requesterUserId", capacity, capacity_unit "capacityUnit",
-               models, env, addons, service_name "serviceName", purpose, attachment_url "attachmentUrl",
-               status, reject_reason "rejectReason", created_at "createdAt",
-               period, priority, admin_memo "adminMemo", processed_at "processedAt", processed_by "processedBy",
-               allocated_server_id "allocatedServerId", allocated_gpu_id "allocatedGpuId", allocated_slice_id "allocatedSliceId",
-               allocated_ram_gb "allocatedRamGb", allocated_storage_gb "allocatedStorageGb", allocated_cpu_cores "allocatedCpuCores",
-               team, start_date "startDate", security, scale, remark`,
+     returning ${GR_COLS}`,
     [id, b.requesterUserId, b.capacity ?? 1, b.capacityUnit ?? 'card', b.models ?? [], b.env ?? null, b.addons ?? [],
      b.serviceName ?? null, b.purpose ?? null, b.attachmentUrl ?? null,
      b.period ?? null, b.priority ?? 'normal', b.team ?? null, b.startDate ?? null, b.security ?? null, b.scale ?? null, b.remark ?? null])
   return c.json(rows[0], 201)
+})
+
+// 카탈로그용 전체 모델 — 자원요건(req_*) 포함. 4.10a 자원 제한 추천 기준.
+app.get('/api/models', async (c) => {
+  const { rows } = await pool.query(
+    `select id, name, kind, description, addons, license, recommended_gpu "recommendedGpu",
+            params, usage_rank "usageRank", usage_count "usageCount",
+            req_vram_gb "reqVramGb", req_ram_gb "reqRamGb", req_storage_gb "reqStorageGb", req_cpu_cores "reqCpuCores"
+       from models order by usage_rank`)
+  return c.json(rows)
 })
 
 // 모델 신청 관리(4.14) — user 없으면 전체(공유 테이블), 있으면 그 사람 것만. created_at desc.
