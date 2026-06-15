@@ -203,7 +203,7 @@ create table model_requests (
   format              text check (format in ('safetensors','other')),
   scan                text check (scan in ('pass','fail','pending')),
   checksum            text,
-  registered_model_id text references models(id)
+  registered_model_id text references models(id) on delete set null  -- 모델 회수 시 참조 자동 정리
 );
 create index on model_requests (status, created_at desc);
 create index on model_requests (requester_user_id);

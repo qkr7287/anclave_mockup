@@ -362,6 +362,17 @@ const MR_PATCH = {
   processedBy: 'processed_by', rejectReason: 'reject_reason', registeredModelId: 'registered_model_id',
 }
 
+// 모델 회수/취소 — 카탈로그에서 제거. registered_model_id FK 는 ON DELETE SET NULL 로 자동 정리.
+// 서비스에 묶인 모델은 회수 불가(409). 없는 id 는 404(idempotent 성격).
+app.delete('/api/models/:id', async (c) => {
+  const id = c.req.param('id')
+  const inUse = (await pool.query(`select count(*)::int n from services where model_id = $1`, [id])).rows[0].n
+  if (inUse > 0) return c.json({ error: 'model in use by services' }, 409)
+  const { rowCount } = await pool.query(`delete from models where id = $1`, [id])
+  if (!rowCount) return c.json({ error: 'not found' }, 404)
+  return c.json({ deleted: id })
+})
+
 // 모델 신청 관리(4.14) — user 없으면 전체(공유 테이블), 있으면 그 사람 것만. created_at desc.
 app.get('/api/model-requests', async (c) => {
   const { user } = c.req.query()
