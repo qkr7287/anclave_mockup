@@ -54,17 +54,18 @@ function fmtNow(): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
-// 서비스가 배포된 할당 자원(서버·GPU) 라벨 — assignedServiceId 또는 owner·model 슬라이스로 역추적.
-function allocLabel(svc: Service): string {
+// 서비스가 배포된 할당 자원 — 서버명·자원(GPU/슬라이스) 분리. assignedServiceId 또는 owner·model 슬라이스로 역추적.
+function allocInfo(svc: Service): { server: string; resource: string } {
   for (const server of servers) {
     for (const gpu of server.gpus) {
-      if (gpu.assignedServiceId === svc.id) return `${server.host} · ${gpu.name}`
+      if (gpu.assignedServiceId === svc.id) return { server: server.host, resource: gpu.name }
       const slice = gpu.slices?.find((sl) => sl.ownerUserId === svc.ownerUserId && sl.modelId === svc.model)
-      if (slice) return `${server.host} · ${gpu.name} · ${slice.profile}`
+      if (slice) return { server: server.host, resource: `${gpu.name} · ${slice.profile}` }
     }
   }
-  return '할당 정보 없음'
+  return { server: '미할당', resource: '할당 정보 없음' }
 }
+const allocText = (svc: Service) => { const a = allocInfo(svc); return `${a.server} · ${a.resource}` }
 const kindOf = (svc: Service) => svc.kind
 const modelOf = (svc: Service) => modelById(svc.model)?.name ?? svc.model
 
@@ -120,8 +121,19 @@ function Stepper({ current }: { current: number }) {
   )
 }
 
-// 서비스 카드(단일 선택) — 로고 + 이름 + 종류·모델 + 할당 자원
+// 카드 내 라벨-값 한 줄 (서버 / 할당된 자원 / 누적 호출) — 라벨 폭 고정으로 정렬.
+function CardKV({ k, v }: { k: string; v: string }) {
+  return (
+    <div className="flex items-baseline min-w-0" style={{ fontSize: 14, gap: 8 }}>
+      <span className="shrink-0" style={{ color: M.help, width: 72 }}>{k}</span>
+      <span className="truncate font-medium" style={{ color: M.text }}>{v}</span>
+    </div>
+  )
+}
+
+// 서비스 카드(단일 선택) — 로고 + 이름 + 종류·모델 + 할당 자원(서버·자원 라벨)
 function ServiceCard({ svc, active, onClick }: { svc: Service; active: boolean; onClick: () => void }) {
+  const alloc = allocInfo(svc)
   return (
     <button
       type="button"
@@ -144,9 +156,10 @@ function ServiceCard({ svc, active, onClick }: { svc: Service; active: boolean; 
           <div className="truncate" style={{ fontSize: 14, color: M.help, marginTop: 2 }}>{kindOf(svc)} · {modelOf(svc)}</div>
         </div>
       </div>
-      <div className="flex items-center justify-between w-full" style={{ marginTop: 10 }}>
-        <span className="truncate rounded-[5px] font-medium" style={{ fontSize: 14, padding: '2px 7px', background: M.inputBg, border: `1px solid ${M.border}`, color: M.help }}>{allocLabel(svc)}</span>
-        <span className="shrink-0" style={{ fontSize: 14, color: M.help, marginLeft: 8 }}>호출 {svc.usageCount.toLocaleString('en-US')}</span>
+      <div className="flex flex-col w-full rounded-[8px]" style={{ marginTop: 12, padding: '9px 11px', gap: 5, background: M.inputBg, border: `1px solid ${M.border}` }}>
+        <CardKV k="서버" v={alloc.server} />
+        <CardKV k="할당된 자원" v={alloc.resource} />
+        <CardKV k="누적 호출" v={`${svc.usageCount.toLocaleString('en-US')}회`} />
       </div>
     </button>
   )
@@ -253,7 +266,7 @@ function SpecSheet({ f, svc, userName, today, currentStep, reviewing, onEdit, on
           <SpecSection title="서비스" index={0} currentStep={currentStep} reviewing={reviewing} onEdit={() => onEdit(0)}>
             <SpecRow label="서비스명" value={svc?.name} reviewing={reviewing} pendingW="70%" />
             <SpecRow label="종류 / 모델" value={svc ? `${kindOf(svc)} · ${modelOf(svc)}` : undefined} reviewing={reviewing} pendingW="60%" />
-            <SpecRow label="할당 자원" value={svc ? allocLabel(svc) : undefined} reviewing={reviewing} pendingW="55%" last />
+            <SpecRow label="할당 자원" value={svc ? allocText(svc) : undefined} reviewing={reviewing} pendingW="55%" last />
           </SpecSection>
           <SpecSection title="게시 정보" index={1} currentStep={currentStep} reviewing={reviewing} onEdit={() => onEdit(1)}>
             <SpecRow label="소개" value={f.intro} reviewing={reviewing} pendingW="92%" />
