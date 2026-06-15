@@ -162,6 +162,36 @@ body {
   outline-offset: 2px;
 }
 
+/* 클릭 가능한 컨트롤 — 포인터 커서 */
+button,
+[role="button"],
+[role="tab"],
+a[href],
+select,
+summary,
+label:has(input[type="checkbox"]),
+label:has(input[type="radio"]),
+input[type="checkbox"],
+input[type="radio"] {
+  cursor: pointer;
+}
+button:disabled,
+[aria-disabled="true"],
+[disabled] {
+  cursor: not-allowed;
+}
+
+/* 컨트롤·내비 텍스트는 드래그 선택 방지(실수 선택 방지). 본문 데이터는 선택 가능 유지 */
+button,
+[role="button"],
+[role="tab"],
+label,
+select,
+.no-select {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 /* thin scrollbars to match dense dashboard tone */
 * {
   scrollbar-width: thin;

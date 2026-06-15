@@ -70,7 +70,7 @@ export function Header() {
 
   return (
     <header
-      className="flex items-center justify-between shrink-0 relative z-20"
+      className="flex items-center justify-between shrink-0 relative z-20 no-select"
       style={{ height: 64, padding: '0 16px', gap: 14, background: 'var(--c-card2)' }}
     >
       {/* 좌: 브레드크럼(헤더 통합·단계 클릭 이동, 현재=비활성) */}

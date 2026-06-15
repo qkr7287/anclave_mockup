@@ -121,7 +121,7 @@ export function Sidebar({ access, collapsed, onToggle }: SidebarProps) {
   }
 
   return (
-    <nav className="shrink-0 h-full overflow-y-auto flex flex-col relative" aria-label="주 메뉴"
+    <nav className="shrink-0 h-full overflow-y-auto flex flex-col relative no-select" aria-label="주 메뉴"
       style={{ width: collapsed ? 64 : 270, background: 'var(--c-card2)', padding: '24px 0', gap: 36, transition: 'width .15s' }}>
       {/* 로고 */}
       <div className="flex items-center justify-between shrink-0" style={{ padding: '0 16px' }}>
