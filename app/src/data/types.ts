@@ -238,14 +238,37 @@ export interface Notification {
   link?: string
 }
 
-export interface ModelImport {
+// 4.14 모델 신청 진행 단계. 카탈로그는 'deployed'(Model 등록)만 노출,
+// 그 외(미배포)는 모델 신청 관리 테이블에만 보인다.
+export type ModelStage =
+  | 'requested' // 신청됨 — 관리자 검토/반입 전
+  | 'scanning' // 반입 파일 보안 점검 중(서버 비동기)
+  | 'scanned' // 점검 완료 — 명세 작성/등록 대기
+  | 'deployed' // 카탈로그(+마켓) 등록 완료 = 배포
+  | 'rejected' // 반려
+
+// 4.14 모델 신청 관리 — 사용자는 등록 신청만, 관리자가 반입·보안점검·등록.
+// 한 엔티티에 신청 단계 + 관리자 처리(반입) 단계를 함께 담는다(GpuRequest 패턴).
+export interface ModelRequest {
   id: string
-  fileName: string
-  format: 'safetensors' | 'other'
-  scan: 'pass' | 'fail' | 'pending'
-  checksum: string
-  status: Status
+  // 신청 단계 (사용자 B/C)
+  requesterUserId: string
+  modelName: string // 요청 모델명(예: 'Qwen2.5-72B')
+  kind?: ModelKind // 모델 종류(선택)
+  source?: string // 출처(HuggingFace URL 등, 선택)
+  reason: string // 신청 사유
+  status: Status // 큰 분류(대기/승인/반려) — 필터·배지용
+  stage: ModelStage // 세부 진행 단계
   createdAt: string
+  rejectReason?: string
+  // 관리자 처리(반입) 단계 — 승인 진행 시 채워짐
+  processedAt?: string
+  processedBy?: string
+  fileName?: string // 반입 파일명
+  format?: 'safetensors' | 'other'
+  scan?: 'pass' | 'fail' | 'pending' // 보안 점검 결과
+  checksum?: string
+  registeredModelId?: string // 등록 완료된 카탈로그 모델 id
 }
 
 export interface ActivationStat {
@@ -264,15 +287,6 @@ export interface AuditLog {
   target: string
   ip?: string
   createdAt: string
-}
-
-export interface Agent {
-  id: string
-  nodeId: string
-  serverId: string
-  version: string
-  status: 'active' | 'stale' | 'down'
-  deployedAt: string
 }
 
 export interface BoardPost {

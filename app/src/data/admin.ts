@@ -1,22 +1,9 @@
 import type {
   AccessPolicy,
-  Agent,
   BoardPost,
   Capability,
   InfraIntegration,
 } from './types'
-
-// 4.16 데몬·에이전트 (노드별 · 자동 배포)
-export const agents: Agent[] = [
-  { id: 'ag-01', nodeId: 'node-a01', serverId: 'srv-01', version: 'v1.8.2', status: 'active', deployedAt: '2026-06-04 02:10' },
-  { id: 'ag-02', nodeId: 'node-a02', serverId: 'srv-02', version: 'v1.8.2', status: 'active', deployedAt: '2026-06-04 02:10' },
-  { id: 'ag-03', nodeId: 'node-a03', serverId: 'srv-03', version: 'v1.8.2', status: 'active', deployedAt: '2026-06-04 02:10' },
-  { id: 'ag-04', nodeId: 'node-b01', serverId: 'srv-04', version: 'v1.8.1', status: 'stale', deployedAt: '2026-05-21 02:10' },
-  { id: 'ag-05', nodeId: 'node-b02', serverId: 'srv-05', version: 'v1.8.2', status: 'active', deployedAt: '2026-06-04 02:10' },
-  { id: 'ag-06', nodeId: 'node-b03', serverId: 'srv-06', version: 'v1.8.2', status: 'active', deployedAt: '2026-06-04 02:10' },
-  { id: 'ag-07', nodeId: 'node-c01', serverId: 'srv-07', version: 'v1.8.2', status: 'down', deployedAt: '2026-06-04 02:10' },
-  { id: 'ag-08', nodeId: 'node-c02', serverId: 'srv-08', version: 'v1.8.2', status: 'active', deployedAt: '2026-06-04 02:10' },
-]
 
 // 4.23 게시판 — 공지/문의·Q&A/매뉴얼
 export const boardPosts: BoardPost[] = [
@@ -33,13 +20,13 @@ export const boardPosts: BoardPost[] = [
 export const accessPolicies: AccessPolicy[] = [
   { id: 'ap-01', role: 'admin', resource: '전체 자원맵 / 관제 모니터링', allow: true },
   { id: 'ap-02', role: 'admin', resource: 'GPU·게시 승인 / 회수', allow: true },
-  { id: 'ap-03', role: 'admin', resource: '신규 모델 반입(보안 점검)', allow: true },
+  { id: 'ap-03', role: 'admin', resource: '모델 신청 관리(반입·보안 점검)', allow: true },
   { id: 'ap-04', role: 'admin', resource: '감사 로그 / 시스템 설정', allow: true },
   { id: 'ap-05', role: 'user', resource: '마켓·모델 카탈로그 열람', allow: true },
   { id: 'ap-06', role: 'user', resource: 'GPU·API·게시 신청(보내기)', allow: true },
   { id: 'ap-07', role: 'user', resource: '받은 API 신청 승인(자기 서비스)', allow: true },
   { id: 'ap-08', role: 'user', resource: '전체 자원맵 / 관제 모니터링', allow: false },
-  { id: 'ap-09', role: 'user', resource: '신규 모델 반입 / 감사 로그', allow: false },
+  { id: 'ap-09', role: 'user', resource: '모델 신청 관리 / 감사 로그', allow: false },
 ]
 
 // 4.26 능력 탐지·기능 플래그 (지원 매트릭스)
