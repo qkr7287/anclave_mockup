@@ -21,6 +21,7 @@ import { ModelRequests } from './screens/model-requests'
 import { Marketplace, ServiceDetail } from './screens/market'
 import { ApiApprovals } from './screens/activation'
 import { PublishRequest } from './screens/publish-request'
+import { PublishNew } from './screens/publish-new'
 import { Events, Notifications } from './screens/events'
 import { Board } from './screens/board'
 import { AuditLogScreen, AccessControl } from './screens/audit'
@@ -49,6 +50,7 @@ const REGISTRY: Record<string, ComponentType> = {
   'service-detail': ServiceDetail,
   'api-approvals': ApiApprovals,
   'publish-request': PublishRequest,
+  'publish-new': PublishNew,
   events: Events,
   notifications: Notifications,
   board: Board,
