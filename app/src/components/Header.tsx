@@ -38,6 +38,13 @@ function useCrumbs(): Crumb[] {
     crumbs[crumbs.length - 1] = { label: crumbs[crumbs.length - 1].label } // 현재 = 비활성
     return crumbs
   }
+  if (pathname === '/admin/models/requests/new' || pathname === '/models/request/new') {
+    return [
+      { label: '모델 관리' },
+      { label: '모델 신청 관리', to: '/admin/models/requests' },
+      { label: '신규 모델 신청' },
+    ]
+  }
   const route = [...ROUTES].filter((r) => r.path !== '/' && pathname.startsWith(r.path)).sort((a, b) => b.path.length - a.path.length)[0]
   const group = route ? IA_GROUPS.find((g) => g.id === route.group) : undefined
   return [{ label: group?.label ?? '대시보드' }, { label: route?.title ?? '전체 서버 현황' }]
