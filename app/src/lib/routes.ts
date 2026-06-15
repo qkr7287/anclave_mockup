@@ -64,6 +64,7 @@ export const ROUTES: RouteDef[] = [
   { key: 'api-approvals', path: '/api-approvals', screen: '4.19', title: 'API 신청 관리', access: ['A', 'B'], group: 4, menu: ['B'], icon: 'key' },
   // 4.9 게시 승인 관리 — 마켓 게시(서비스 노출) 신청 승인. 관리자(A) 전용. (할당관리→마켓플레이스 그룹으로 이동)
   { key: 'approvals-publish', path: '/admin/approvals/publish', screen: '4.9', title: '게시 승인 관리', access: ['A'], group: 4, menu: ['A'], icon: 'megaphone' },
+  { key: 'publish-detail', path: '/admin/approvals/publish/:id', screen: '4.9a', title: '게시 승인 심사', access: ['A'], group: 4, icon: 'megaphone' },
 
   // ⑤ 이벤트 · 알림
   { key: 'events', path: '/events', screen: '4.21', title: '에러 · 이벤트 관제', access: ['A', 'B', 'C'], group: 5, menu: ['A', 'B', 'C'], icon: 'alert' },
@@ -126,6 +127,7 @@ const HIGHLIGHT_PARENT: Record<string, string> = {
   'approvals-gpu-detail': 'approvals-gpu',
   'requests-status-detail': 'requests-status',
   'requests-new': 'requests-status',
+  'publish-detail': 'approvals-publish',
 }
 export function sidebarHighlightKey(pathname: string): string | undefined {
   const m = matchRoute(pathname)
