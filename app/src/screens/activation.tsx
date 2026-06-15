@@ -1,102 +1,60 @@
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
+  BoltIcon,
+  CheckCircleIcon,
+  ClockIcon,
+  EyeIcon,
   KeyIcon,
-  ClipboardDocumentIcon,
-  CheckIcon,
-  SignalIcon,
-  CpuChipIcon,
-  InboxArrowDownIcon,
+  XCircleIcon,
 } from '@heroicons/react/24/outline'
-import { PageShell, SectionGrid } from '../components/PageShell'
-import {
-  Card,
-  KpiStat,
-  Table,
-  Button,
-  Badge,
-  StatusBadge,
-  EmptyState,
-  useToast,
-} from '../components/ui'
+import { PageShell } from '../components/PageShell'
+import { Card, KpiStat, Table, StatusBadge } from '../components/ui'
 import type { Column } from '../components/ui'
-import {
-  services,
-  apiRequests,
-  apiKeyUsages,
-  publishRequests,
-  userById,
-  serviceById,
-  modelById,
-} from '../data'
-import type { ApiRequest } from '../data/types'
+import { modelById, serviceById, services, userById } from '../data'
+import type { Status } from '../data/types'
+import { useRole } from '../lib/role'
+import { listApiRequests, type ApiRecord } from './api-store'
 
-// G9 · 내 마켓 활동 관점 — 4.19 API 신청 관리(B·소유자): 내 서비스에 온 key 신청 관리 + 서비스별 발급 요약.
-//                       4.29 서비스 게시 신청(B=C): 자원 신청현황(4.6) 톤의 깔끔한 내 신청 목록 + 신규 신청 모달.
-// 더미는 src/data 시드(apiRequests·apiKeyUsages·publishRequests·services)를 정본으로 사용.
+// G8 · 4.19 API 신청 관리 (B · 소유자) — 내가 올린 서비스에 온 API 키 신청을 5188 자원 신청현황 톤 테이블로.
+// 상세 → 4.19a 심사 페이지(키 발급 → 명세서 검토 → 승인). 상태는 api-store 세션 사본 공유.
 
-const fmtInt = (n: number) => n.toLocaleString('en-US')
-const maskKey = (k: string) => (k.length > 14 ? `${k.slice(0, 12)}••••${k.slice(-4)}` : k)
-const randomKey = (slug: string) => {
-  const hex = Array.from({ length: 10 }, () => Math.floor(Math.random() * 16).toString(16)).join('')
-  return `ak_live_${slug}_${hex}`
+const STATUS_FROM_KO: Record<string, Status> = { 대기: 'pending', 승인: 'approved', 반려: 'rejected' }
+const STATUS_FILTERS = ['전체', '대기', '승인', '반려'] as const
+
+function StatIcon({ Icon, box, color }: { Icon: typeof ClockIcon; box: string; color: string }) {
+  return (
+    <span className="flex items-center justify-center rounded-[9px]" style={{ width: 30, height: 30, background: box, color }}>
+      <Icon style={{ width: 17, height: 17 }} />
+    </span>
+  )
 }
 
-// ════════════════════════ 4.19 API 신청 관리 (B · 소유자) ════════════════════════
-// 내가 마켓에 올린 서비스에 대해 다른 사용자가 요청한 API key 신청을 승인·관리한다.
-
 export function ApiApprovals() {
-  const { push: toast } = useToast()
+  const navigate = useNavigate()
+  const { user } = useRole()
 
-  // 마켓플레이스에 올라와 있는(게시 승인된) 서비스만 = API 키 신청·발급의 대상.
-  // publishRequests approved → serviceName 매칭으로 마켓 등록 서비스 추출.
-  const marketServices = useMemo(() => {
-    const listed = new Set(publishRequests.filter((p) => p.status === 'approved').map((p) => p.serviceName))
-    return services.filter((s) => s.hasApi && listed.has(s.name))
-  }, [])
-  const marketIds = useMemo(() => new Set(marketServices.map((s) => s.id)), [marketServices])
+  // 내가 소유한(올린) API 서비스 → 그 서비스에 온 API 키 신청만.
+  const myServiceIds = useMemo(() => new Set(services.filter((s) => s.ownerUserId === user.id && s.hasApi).map((s) => s.id)), [user.id])
+  const [rows] = useState<ApiRecord[]>(() => listApiRequests().filter((r) => myServiceIds.has(r.serviceId)))
+  const [filter, setFilter] = useState<(typeof STATUS_FILTERS)[number]>('전체')
 
-  // 받은 신청도 마켓 등록 서비스 대상 건만(대상 서비스 = 마켓에 올라와 있는 서비스).
-  const [reqs, setReqs] = useState<ApiRequest[]>(() =>
-    apiRequests.filter((r) => marketIds.has(r.serviceId)).map((r) => ({ ...r })),
-  )
+  const counts = useMemo(() => {
+    const d = new Date()
+    const p = (n: number) => String(n).padStart(2, '0')
+    const today = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+    return {
+      pending: rows.filter((r) => r.status === 'pending').length,
+      approved: rows.filter((r) => r.status === 'approved').length,
+      rejected: rows.filter((r) => r.status === 'rejected').length,
+      today: rows.filter((r) => r.processedAt?.startsWith(today)).length,
+    }
+  }, [rows])
 
-  const apiServices = marketServices
-  const usageOf = (sid: string) => apiKeyUsages.find((u) => u.serviceId === sid)
-  const issuedOf = (sid: string) => reqs.filter((r) => r.status === 'approved' && r.serviceId === sid).length
+  const shown = filter === '전체' ? rows : rows.filter((r) => r.status === STATUS_FROM_KO[filter])
+  const goDetail = (id: string) => navigate(`/api-approvals/${id}`)
 
-  const approve = (id: string) => {
-    setReqs((cur) =>
-      cur.map((r) => {
-        if (r.id !== id) return r
-        const slug = serviceById(r.serviceId)?.name.split('-')[0] ?? 'svc'
-        return { ...r, status: 'approved', apiKey: randomKey(slug) }
-      }),
-    )
-    toast('API 키를 발급했어요. 신청자에게 알림이 전송됩니다.', 'ok')
-  }
-
-  const reject = (id: string) => {
-    setReqs((cur) =>
-      cur.map((r) => (r.id === id ? { ...r, status: 'rejected', rejectReason: '대상 서비스 URL이 사내망에서 확인되지 않아요.' } : r)),
-    )
-    toast('신청을 반려했어요.', 'warn')
-  }
-
-  const copyKey = (key: string) => {
-    navigator.clipboard?.writeText(key).then(
-      () => toast('API 키를 클립보드에 복사했어요.', 'info'),
-      () => toast('복사에 실패했어요. 수동으로 선택해 복사해 주세요.', 'danger'),
-    )
-  }
-
-  const pending = reqs.filter((r) => r.status === 'pending').length
-  const totalIssued = reqs.filter((r) => r.status === 'approved').length
-  const activeConnections = apiServices.reduce((a, s) => a + (usageOf(s.id)?.connections ?? 0), 0)
-  const issuedSpark = apiServices.map((s) => issuedOf(s.id) || 0.001)
-  const connSpark = apiServices.map((s) => usageOf(s.id)?.connections ?? 0)
-  const backlog = reqs.length > 0 ? Math.round((pending / reqs.length) * 100) : 0
-
-  const columns: Column<ApiRequest>[] = [
+  const columns: Column<ApiRecord>[] = [
     {
       key: 'requester',
       header: '요청자',
@@ -105,8 +63,8 @@ export function ApiApprovals() {
         const u = userById(r.requesterUserId)
         return (
           <div className="flex flex-col min-w-0">
-            <span className="font-semibold truncate">{u?.name ?? r.requesterUserId}</span>
-            <span className="text-muted truncate" style={{ fontSize: 13 }}>{u?.email ?? ''}</span>
+            <span className="font-semibold truncate" style={{ fontSize: 14 }}>{u?.name ?? r.requesterUserId}</span>
+            <span className="text-muted truncate" style={{ fontSize: 14 }}>{u?.email ?? ''}</span>
           </div>
         )
       },
@@ -119,17 +77,23 @@ export function ApiApprovals() {
         const s = serviceById(r.serviceId)
         return (
           <div className="flex flex-col min-w-0">
-            <span className="font-semibold truncate">{s?.name ?? r.serviceId}</span>
-            <span className="text-muted truncate" style={{ fontSize: 13 }}>{[s?.kind, modelById(r.model)?.name ?? r.model].filter(Boolean).join(' · ')}</span>
+            <span className="font-semibold truncate" style={{ fontSize: 14 }}>{s?.name ?? r.serviceId}</span>
+            <span className="text-muted truncate" style={{ fontSize: 14 }}>{[s?.kind, modelById(r.model)?.name ?? r.model].filter(Boolean).join(' · ')}</span>
           </div>
         )
       },
     },
     {
+      key: 'url',
+      header: '사용처 URL',
+      width: '24%',
+      render: (r) => <span className="text-muted truncate inline-block max-w-full" style={{ fontSize: 14 }} title={r.targetServiceUrl}>{r.targetServiceUrl}</span>,
+    },
+    {
       key: 'created',
       header: '신청일',
       width: '14%',
-      render: (r) => <span className="text-muted" style={{ fontSize: 13 }}>{r.createdAt}</span>,
+      render: (r) => <span className="text-muted" style={{ fontSize: 14 }}>{r.createdAt}</span>,
     },
     {
       key: 'status',
@@ -139,172 +103,70 @@ export function ApiApprovals() {
     },
     {
       key: 'action',
-      header: '검토 · 키',
-      width: '34%',
+      header: '',
+      width: '10%',
       align: 'right',
-      render: (r) => {
-        if (r.status === 'pending') {
-          return (
-            <div className="flex items-center justify-end gap-1.5">
-              <Button variant="primary" onClick={() => approve(r.id)} style={{ padding: '5px 12px', fontSize: 13 }}>
-                <CheckIcon width={14} height={14} /> 승인 · 발급
-              </Button>
-              <Button variant="danger" onClick={() => reject(r.id)} style={{ padding: '5px 12px', fontSize: 13 }}>반려</Button>
-            </div>
-          )
-        }
-        if (r.status === 'approved' && r.apiKey) {
-          return (
-            <button
-              type="button"
-              onClick={() => copyKey(r.apiKey!)}
-              className="inline-flex items-center gap-1.5 rounded-lg float-right max-w-full"
-              style={{ padding: '5px 10px', fontSize: 13, background: 'var(--c-soft)', border: '1px solid var(--c-border)' }}
-              title="API 키 복사"
-            >
-              <KeyIcon width={13} height={13} className="text-accent shrink-0" />
-              <span className="truncate" style={{ fontFamily: 'var(--font-mono)' }}>{maskKey(r.apiKey)}</span>
-              <ClipboardDocumentIcon width={14} height={14} className="text-muted shrink-0" />
-            </button>
-          )
-        }
-        return (
-          <span className="text-muted truncate inline-block max-w-full" style={{ fontSize: 13 }} title={r.rejectReason}>
-            {r.rejectReason ?? '반려됨'}
-          </span>
-        )
-      },
+      render: (r) => (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); goDetail(r.id) }}
+          className="inline-flex items-center gap-1 font-medium rounded-[8px] transition-[transform,background-color] duration-100 active:scale-95 whitespace-nowrap hover:bg-[var(--accent-soft)] hover:text-[color:var(--c-accent)]"
+          style={{ fontSize: 14, padding: '5px 10px', background: r.status === 'pending' ? 'var(--accent-soft)' : 'var(--c-soft)', color: r.status === 'pending' ? 'var(--c-accent)' : 'var(--c-muted)' }}
+        >
+          {r.status === 'pending' ? <KeyIcon style={{ width: 14, height: 14 }} /> : <EyeIcon style={{ width: 14, height: 14 }} />}
+          {r.status === 'pending' ? '심사' : '상세'}
+        </button>
+      ),
     },
   ]
 
   return (
     <PageShell
+      fill
       screen="4.19"
       title="API 신청 관리"
-      desc="마켓플레이스에 게시된 내 서비스에 들어온 API 키 신청을 검토·발급하고, 서비스별 발급 현황을 관리해요. (소유자)"
-      actions={<Badge tone={pending > 0 ? 'warn' : 'ok'}>{pending > 0 ? `대기 신청 ${pending}건` : '대기 신청 없음'}</Badge>}
+      desc="마켓플레이스에 게시된 내 서비스에 들어온 API 키 신청을 검토하고, 키를 발급(승인)하거나 반려해요. (소유자)"
       kpis={
         <>
-          <KpiStat
-            label="총 발급 키"
-            value={totalIssued}
-            unit="개"
-            sub={`마켓 게시 서비스 ${apiServices.length}개`}
-            deltaTone="ok"
-            spark={issuedSpark}
-            icon={<KeyIcon width={18} height={18} />}
-          />
-          <KpiStat
-            label="대기 신청"
-            value={pending}
-            unit="건"
-            sub={`누적 신청 ${reqs.length}건`}
-            delta={pending > 0 ? '검토 필요' : '처리 완료'}
-            deltaTone={pending > 0 ? 'warn' : 'ok'}
-            gauge={backlog}
-            gaugeColor="var(--c-warn)"
-          />
-          <KpiStat
-            label="활성 연결"
-            value={activeConnections}
-            unit="개"
-            sub="내 서비스 소비자 연결"
-            deltaTone="ok"
-            spark={connSpark}
-            icon={<SignalIcon width={18} height={18} />}
-          />
+          <div style={{ color: 'var(--c-warn)' }}>
+            <KpiStat label="대기" value={counts.pending} unit="건" delta={counts.pending > 0 ? '검토 필요' : undefined} deltaTone="warn" sub="키 발급 대기 중" icon={<StatIcon Icon={ClockIcon} box="var(--warn-soft)" color="var(--c-warn)" />} />
+          </div>
+          <KpiStat label="발급" value={counts.approved} unit="건" sub="키 발급(승인) 완료" icon={<StatIcon Icon={CheckCircleIcon} box="var(--ok-soft)" color="var(--c-ok)" />} />
+          <KpiStat label="반려" value={counts.rejected} unit="건" sub="반려한 신청 건" icon={<StatIcon Icon={XCircleIcon} box="var(--danger-soft)" color="var(--c-danger)" />} />
+          <KpiStat label="오늘 처리" value={counts.today} unit="건" sub="오늘 검토 처리한 건" icon={<StatIcon Icon={BoltIcon} box="var(--accent-soft)" color="var(--c-accent)" />} />
         </>
       }
     >
-      <SectionGrid
-        ratio="1.55fr 1fr"
-        main={
-          <Card
-            flush
-            title={
-              <span className="flex items-center gap-2">
-                <InboxArrowDownIcon width={15} height={15} className="text-accent" /> 받은 API 키 신청
-                <span className="rounded-full" style={{ padding: '1px 8px', fontSize: 12, fontWeight: 700, color: 'var(--c-accent)', background: 'var(--accent-soft)' }}>{reqs.length}</span>
-              </span>
-            }
-            action={<span className="text-muted" style={{ fontSize: 13 }}>승인 시 즉시 키 발급 · 행에서 복사</span>}
-          >
-            <Table columns={columns} rows={reqs} rowKey={(r) => r.id} empty="아직 받은 API 키 신청이 없어요." />
-          </Card>
+      <Card
+        flush
+        fill
+        title={
+          <span className="flex items-center gap-2">
+            받은 API 키 신청
+            <span className="rounded-full" style={{ padding: '1px 9px', fontSize: 14, fontWeight: 700, color: 'var(--c-accent)', background: 'var(--accent-soft)' }}>{shown.length}</span>
+          </span>
         }
-        side={
-          <Card
-            flush
-            title={
-              <span className="flex items-center gap-2">
-                <CpuChipIcon width={15} height={15} className="text-accent" /> 서비스별 발급 현황
-                <span className="rounded-full" style={{ padding: '1px 8px', fontSize: 12, fontWeight: 700, color: 'var(--c-accent)', background: 'var(--accent-soft)' }}>{apiServices.length}</span>
-              </span>
-            }
-          >
-            {apiServices.length === 0 ? (
-              <EmptyState title="마켓 게시 서비스가 없어요" description="게시 승인된 서비스가 있어야 API 키를 발급할 수 있어요." />
-            ) : (
-            <div className="flex flex-col">
-              {apiServices.map((s, i) => {
-                const usage = usageOf(s.id)
-                const issued = issuedOf(s.id)
-                const weekly = usage ? usage.calls.reduce((a, b) => a + b, 0) : 0
-                return (
-                  <div
-                    key={s.id}
-                    className="flex items-center gap-3"
-                    style={{ padding: '12px 14px', borderTop: i === 0 ? 'none' : '1px solid var(--c-border-s)' }}
-                  >
-                    <div className="flex flex-col min-w-0 flex-1" style={{ gap: 3 }}>
-                      <span className="font-semibold truncate" style={{ fontSize: 14 }}>{s.name}</span>
-                      <span className="text-muted truncate" style={{ fontSize: 12.5 }}>{[s.kind, modelById(s.model)?.name ?? s.model].filter(Boolean).join(' · ')}</span>
-                      <div className="flex items-center gap-2" style={{ marginTop: 1 }}>
-                        <span className="rounded-md whitespace-nowrap" style={{ padding: '2px 8px', fontSize: 12, fontWeight: 700, color: issued > 0 ? 'var(--c-accent)' : 'var(--c-muted)', background: issued > 0 ? 'var(--accent-soft)' : 'var(--c-active)' }}>
-                          발급 {issued}개
-                        </span>
-                        <span className="flex items-center gap-1 text-muted whitespace-nowrap" style={{ fontSize: 12 }}>
-                          <SignalIcon width={12} height={12} /> 연결 {usage?.connections ?? 0}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-end shrink-0" style={{ gap: 4, width: 92 }}>
-                      {usage ? (
-                        <>
-                          <MiniSpark data={usage.calls} />
-                          <span className="text-muted whitespace-nowrap" style={{ fontSize: 11.5 }}>주 {fmtInt(weekly)}회</span>
-                        </>
-                      ) : (
-                        <span className="text-muted" style={{ fontSize: 12 }}>호출 없음</span>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-            )}
-          </Card>
+        action={
+          <div className="flex items-center gap-1.5">
+            {STATUS_FILTERS.map((f) => {
+              const on = filter === f
+              return (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => setFilter(f)}
+                  className="rounded-lg whitespace-nowrap transition-colors"
+                  style={{ padding: '4px 11px', fontSize: 14, fontWeight: 600, color: on ? 'var(--c-accent)' : 'var(--c-muted)', background: on ? 'var(--accent-soft)' : 'transparent', border: `1px solid ${on ? 'var(--c-accent)' : 'var(--c-border)'}` }}
+                >
+                  {f}
+                </button>
+              )
+            })}
+          </div>
         }
-      />
+      >
+        <Table columns={columns} rows={shown} rowKey={(r) => r.id} onRowClick={(r) => goDetail(r.id)} empty="아직 받은 API 키 신청이 없어요." />
+      </Card>
     </PageShell>
-  )
-}
-
-// 서비스별 주간 호출 미니 스파크(가로 채움 막대 아님 — 꺾은선 면적).
-function MiniSpark({ data }: { data: number[] }) {
-  const W = 88, H = 26
-  const top = Math.max(1, ...data)
-  const bot = Math.min(...data)
-  const span = Math.max(1, top - bot)
-  const n = data.length
-  const x = (i: number) => (n <= 1 ? 0 : (i * W) / (n - 1))
-  const y = (v: number) => 2 + (1 - (v - bot) / span) * (H - 4)
-  const line = data.map((v, i) => `${x(i)},${y(v)}`).join(' ')
-  const area = `0,${H} ${line} ${W},${H}`
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ width: W, height: H, display: 'block' }} aria-hidden>
-      <polygon points={area} fill="var(--c-accent)" opacity={0.13} />
-      <polyline points={line} fill="none" stroke="var(--c-accent)" strokeWidth={1.8} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-    </svg>
   )
 }
