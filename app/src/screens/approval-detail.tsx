@@ -18,7 +18,6 @@ import {
 } from '@heroicons/react/24/outline'
 import {
   Badge,
-  Breadcrumb,
   Button,
   EmptyState,
   StatusBadge,
@@ -614,8 +613,7 @@ function PendingReview({ req }: { req: GpuRequest }) {
   return (
     <div data-approval className="anim-fade flex flex-col min-w-0 h-full" style={mutedFix}>
       <PolishCss />
-      <header className="flex flex-col shrink-0" style={{ gap: 10 }}>
-        <Breadcrumb items={[{ label: "할당 관리" }, { label: "승인 관리", to: "/admin/approvals/gpu" }, { label: `${req.id.toUpperCase()} 심사` }]} />
+      <header className="flex flex-col shrink-0">
         <div className="flex items-center flex-wrap" style={{ gap: 12 }}>
           <h1 className="font-bold text-text" style={{ fontSize: 23, lineHeight: 1.2, fontFamily: 'var(--font-mono)', letterSpacing: '0.5px' }}>{req.id.toUpperCase()}</h1>
           <span className="inline-flex items-center gap-1.5 rounded-full font-bold" style={{ fontSize: 14, padding: '3px 11px', background: 'var(--accent-soft)', color: 'var(--c-accent)' }}>
@@ -915,8 +913,7 @@ export function ApprovalDetail() {
   return (
     <div data-approval className="anim-fade flex flex-col min-w-0 h-full" style={mutedFix}>
       <PolishCss />
-      <header className="flex flex-col shrink-0" style={{ gap: 10 }}>
-        <Breadcrumb items={[{ label: "할당 관리" }, { label: "승인 관리", to: "/admin/approvals/gpu" }, { label: `${req.id.toUpperCase()} 심사` }]} />
+      <header className="flex flex-col shrink-0">
         <div className="flex items-center flex-wrap" style={{ gap: 12 }}>
           <h1 className="font-bold text-text" style={{ fontSize: 23, lineHeight: 1.2, fontFamily: 'var(--font-mono)', letterSpacing: '0.5px' }}>{req.id.toUpperCase()}</h1>
           <span className="inline-flex items-center gap-1.5 rounded-full font-bold" style={{ fontSize: 14, padding: '3px 11px', background: 'var(--accent-soft)', color: 'var(--c-accent)' }}>
