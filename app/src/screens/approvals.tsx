@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ArrowDownTrayIcon,
+  ArrowLeftIcon,
   ArrowPathIcon,
   BoltIcon,
   CalendarDaysIcon,
@@ -32,7 +33,7 @@ import {
   userById,
 } from '../data'
 import type { GpuRequest, PublishRequest, Status } from '../data/types'
-import { getGpuRequests } from './approval-store'
+import { fetchGpuRequests } from './approval-store'
 
 // G4 · 승인 관리 — 게시·GPU "분리" 스펙.
 //  · ApprovalsGpu  (4.10 · /admin/approvals/gpu · 할당 관리 그룹) = "승인 관리"
@@ -50,7 +51,6 @@ function useMutedFix(): React.CSSProperties | undefined {
 }
 
 const STATUS_KO: Record<Status, string> = { pending: '대기', approved: '승인', rejected: '반려' }
-const STATUS_SUB: Record<Status, string> = { pending: '검토 대기', approved: '승인 완료', rejected: '반려됨' }
 const BADGE: Record<Status, { bg: string; fg: string }> = {
   pending: { bg: 'var(--warn-soft)', fg: 'var(--c-warn)' },
   approved: { bg: 'var(--ok-soft)', fg: 'var(--c-ok)' },
@@ -68,7 +68,7 @@ function teamOf(userId: string): string {
 function StatBadge({ status }: { status: Status }) {
   const b = BADGE[status]
   return (
-    <span className="inline-flex items-center rounded-[7px] font-semibold whitespace-nowrap" style={{ background: b.bg, color: b.fg, padding: '3px 12px', fontSize: 14, lineHeight: 1.35 }}>
+    <span className="inline-flex items-center justify-center rounded-[7px] font-semibold whitespace-nowrap" style={{ background: b.bg, color: b.fg, padding: '3px 12px', minWidth: 56, fontSize: 14, lineHeight: 1.35 }}>
       {STATUS_KO[status]}
     </span>
   )
@@ -91,6 +91,15 @@ function StatCard({ s }: { s: StatDef }) {
       </div>
       <span className="absolute text-muted truncate" style={{ left: 23, right: 16, bottom: 15, fontSize: 14, lineHeight: 1 }}>{s.desc}</span>
     </div>
+  )
+}
+
+// KpiStat 아이콘 — soft 배경 박스(g2 RequestStatus 스탯카드와 동일 외형: 30px·radius9·semantic soft)
+function StatIcon({ Icon, box, color }: { Icon: typeof ClockIcon; box: string; color: string }) {
+  return (
+    <span className="flex items-center justify-center rounded-[9px]" style={{ width: 30, height: 30, background: box, color }}>
+      <Icon style={{ width: 17, height: 17 }} />
+    </span>
   )
 }
 
@@ -147,15 +156,10 @@ function RequesterCell({ name, team }: { name: string; team: string }) {
 }
 
 function StatusCell({ status }: { status: Status }) {
-  return (
-    <div className="flex flex-col items-start" style={{ gap: 5 }}>
-      <StatBadge status={status} />
-      <span className="text-muted" style={{ fontSize: 14 }}>{STATUS_SUB[status]}</span>
-    </div>
-  )
+  return <StatBadge status={status} />
 }
 
-interface Col { key: string; label: string; width: number; align?: 'right' }
+interface Col { key: string; label: string; width: number; align?: 'center' | 'right' }
 
 // 신청 목록 테이블 카드(헤더 + 표 + 푸터) — GPU/게시 두 화면 공통 셸
 function TableCard<T extends { id: string; status: Status }>({ headerLeft, cols, rows, cells, onRowClick, empty, footer }: {
@@ -472,7 +476,7 @@ const GPU_COLS: Col[] = [
   { key: 'period', label: '기간', width: 84 },
   { key: 'date', label: '신청일', width: 140 },
   { key: 'status', label: '상태', width: 120 },
-  { key: 'action', label: '액션', width: 126, align: 'right' },
+  { key: 'action', label: '액션', width: 132 },
 ]
 
 // 자원 잔여 현황(시드 정적 파생) — 미할당 cluster GPU·전 슬라이스 미점유 MIG GPU = 잔여 카드
@@ -490,16 +494,17 @@ const TOTAL_SLICES = allSlices.length
 const ALLOC_SLICES = TOTAL_SLICES - FREE_SLICES
 const CLUSTER_ALLOC = 100 - CLUSTER_AVAIL
 
-// 대기 행 = "심사"(primary) / 처리 완료 행 = "상세보기"(ghost) — 둘 다 4.10a 상세로
-function JudgePill({ pending, onClick }: { pending: boolean; onClick: (e: React.MouseEvent) => void }) {
-  const Icon = pending ? ClipboardDocumentCheckIcon : EyeIcon
-  const style: React.CSSProperties = pending
-    ? { background: 'var(--c-accent)', color: 'var(--c-onaccent)' }
-    : { background: 'transparent', color: 'var(--c-muted)', border: '1px solid var(--c-border)' }
+// 모든 행 공통 "상세 보기" — 대기는 상세에서 심사, 처리 완료는 조회. (4.6 자원 신청현황 ActionLink 펠릿 스타일)
+function DetailLink({ onClick }: { onClick: (e: React.MouseEvent) => void }) {
   return (
-    <button type="button" onClick={onClick} className="inline-flex items-center gap-1 font-semibold rounded-[8px] transition-[transform,filter,box-shadow] duration-100 hover:-translate-y-px active:translate-y-0 active:scale-[0.92] active:brightness-95 whitespace-nowrap hover:brightness-110 hover:shadow-[0_2px_6px_rgba(0,0,0,0.12)]" style={{ fontSize: 14, padding: '5px 12px', ...style }}>
-      <Icon style={{ width: 14, height: 14, opacity: 0.9 }} />
-      {pending ? '심사' : '상세보기'}
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex items-center gap-1 font-medium rounded-[8px] transition-[transform,background-color,box-shadow] duration-100 active:scale-95 whitespace-nowrap hover:bg-[var(--accent-soft)] hover:text-[color:var(--c-accent)] hover:shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
+      style={{ fontSize: 14, padding: '5px 10px', background: 'var(--c-soft)', color: 'var(--c-muted)' }}
+    >
+      <EyeIcon style={{ width: 14, height: 14, opacity: 0.9 }} />
+      상세 보기
     </button>
   )
 }
@@ -555,8 +560,18 @@ export function ApprovalsGpu() {
   const toast = useToast()
   const mutedFix = useMutedFix()
   const navigate = useNavigate()
-  // 세션 store 사본 — 4.10a 상세에서 처리한 결과가 돌아왔을 때 반영되도록 store에서 로드
-  const [rows] = useState<GpuRow[]>(() => getGpuRequests().map(gpuRow))
+  // backend(REST)에서 GPU 신청 목록 로드 — 4.10a 상세에서 처리하면 목록 복귀 시 재조회로 반영
+  const [rows, setRows] = useState<GpuRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
+  useEffect(() => {
+    let alive = true
+    fetchGpuRequests()
+      .then((data) => { if (alive) { setRows(data.map(gpuRow)); setLoadError(false) } })
+      .catch(() => { if (alive) setLoadError(true) })
+      .finally(() => { if (alive) setLoading(false) })
+    return () => { alive = false }
+  }, [])
   const [q, setQ] = useState('')
   const [statusF, setStatusF] = useState('전체')
   const [dateStart, setDateStart] = useState('')
@@ -625,18 +640,29 @@ export function ApprovalsGpu() {
         [data-approvals] input,[data-approvals] textarea{user-select:text;-webkit-user-select:text;cursor:auto}
       `}</style>
       <header className="flex flex-col min-w-0 shrink-0">
-        <h1 className="font-bold text-text" style={{ fontSize: 23, lineHeight: 1.2 }}>승인 관리</h1>
+        <div className="flex items-center" style={{ gap: 12 }}>
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            aria-label="뒤로 가기"
+            className="flex items-center justify-center shrink-0 rounded-[10px] border border-line bg-card2 text-muted transition-[transform,background-color,color] duration-100 hover:bg-soft hover:text-text active:scale-90"
+            style={{ width: 38, height: 38, boxShadow: 'var(--shadow-card)' }}
+          >
+            <ArrowLeftIcon style={{ width: 18, height: 18 }} />
+          </button>
+          <h1 className="font-bold text-text" style={{ fontSize: 23, lineHeight: 1.2 }}>승인 관리</h1>
+        </div>
         <p className="text-muted" style={{ fontSize: 14, marginTop: 8 }}>GPU 자원 신청을 검토하고 승인(서버 할당) 또는 반려합니다. 대기 신청을 선택해 상세를 확인하세요.</p>
       </header>
 
       <div className="grid stagger shrink-0" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: 18, marginTop: 28 }}>
         {/* 대기 — 값 색이 컨테이너 색을 상속해 경고색 강조 */}
         <div style={{ color: 'var(--c-warn)' }}>
-          <KpiStat label="대기" value={counts.pending} unit="건" delta={counts.pending > 0 ? '검토 필요' : undefined} deltaTone="warn" sub="검토 대기 중인 GPU 신청" icon={<ClockIcon width={18} height={18} style={{ color: 'var(--c-warn)' }} />} />
+          <KpiStat label="대기" value={counts.pending} unit="건" delta={counts.pending > 0 ? '검토 필요' : undefined} deltaTone="warn" sub="검토 대기 중인 GPU 신청" icon={<StatIcon Icon={ClockIcon} box="var(--warn-soft)" color="var(--c-warn)" />} />
         </div>
-        <KpiStat label="승인" value={counts.approved} unit="건" sub="승인 및 서버 할당 완료" icon={<CheckCircleIcon width={18} height={18} style={{ color: 'var(--c-ok)' }} />} />
-        <KpiStat label="반려" value={counts.rejected} unit="건" sub="반려된 신청 건" icon={<XCircleIcon width={18} height={18} style={{ color: 'var(--c-danger)' }} />} />
-        <KpiStat label="오늘 처리" value={counts.processedToday} unit="건" sub="오늘 검토 처리한 건" icon={<BoltIcon width={18} height={18} style={{ color: 'var(--c-accent)' }} />} />
+        <KpiStat label="승인" value={counts.approved} unit="건" sub="승인 및 서버 할당 완료" icon={<StatIcon Icon={CheckCircleIcon} box="var(--ok-soft)" color="var(--c-ok)" />} />
+        <KpiStat label="반려" value={counts.rejected} unit="건" sub="반려된 신청 건" icon={<StatIcon Icon={XCircleIcon} box="var(--danger-soft)" color="var(--c-danger)" />} />
+        <KpiStat label="오늘 처리" value={counts.processedToday} unit="건" sub="오늘 검토 처리한 건" icon={<StatIcon Icon={BoltIcon} box="var(--accent-soft)" color="var(--c-accent)" />} />
       </div>
 
       <ResourceStrip onMap={() => navigate('/resource-map')} />
@@ -648,19 +674,19 @@ export function ApprovalsGpu() {
         cols={GPU_COLS}
         rows={pageRows}
         onRowClick={openDetail}
-        empty={hasFilter ? '검색 결과가 없어요. 검색어나 필터를 조정해보세요.' : '대기 중인 GPU 신청이 없어요.'}
+        empty={loading ? '신청 목록을 불러오는 중…' : loadError ? '목록을 불러오지 못했어요. 잠시 후 다시 시도해주세요.' : hasFilter ? '검색 결과가 없어요. 검색어나 필터를 조정해보세요.' : '대기 중인 GPU 신청이 없어요.'}
         cells={(r) => (
           <>
-            <td className="align-middle" style={{ padding: '14px 0', paddingLeft: 24 }}><RequesterCell name={r.requester} team={r.team} /></td>
-            <td className="align-middle" style={{ padding: '14px 16px 14px 0' }}>
+            <td className="align-middle" style={{ padding: '15px 0', paddingLeft: 24 }}><RequesterCell name={r.requester} team={r.team} /></td>
+            <td className="align-middle" style={{ padding: '15px 16px 15px 0' }}>
               <div className="truncate text-text font-medium" style={{ fontSize: 14 }}>{r.resource}</div>
               <div className="truncate text-muted" style={{ fontSize: 14 }}>{r.model}</div>
             </td>
-            <td className="align-middle text-muted" style={{ fontSize: 14, padding: '14px 16px 14px 0', lineHeight: 1.4 }}><span className="line-clamp-2">{r.reason}</span></td>
-            <td className="align-middle truncate text-muted" style={{ fontSize: 14, padding: '14px 16px 14px 0' }}>{r.period ?? '—'}</td>
-            <td className="align-middle truncate text-muted" style={{ fontSize: 14, padding: '14px 0' }}>{r.date}</td>
-            <td className="align-middle" style={{ padding: '14px 0' }}><StatusCell status={r.status} /></td>
-            <td className="align-middle" style={{ padding: '14px 0', paddingRight: 24 }}><div className="flex items-center justify-end"><JudgePill pending={r.status === 'pending'} onClick={(e) => { e.stopPropagation(); openDetail(r) }} /></div></td>
+            <td className="align-middle text-muted" style={{ fontSize: 14, padding: '15px 16px 15px 0', lineHeight: 1.4 }}><span className="line-clamp-2">{r.reason}</span></td>
+            <td className="align-middle truncate text-muted" style={{ fontSize: 14, padding: '15px 16px 15px 0' }}>{r.period ?? '—'}</td>
+            <td className="align-middle truncate text-muted" style={{ fontSize: 14, padding: '15px 0' }}>{r.date}</td>
+            <td className="align-middle" style={{ padding: '15px 0' }}><StatusCell status={r.status} /></td>
+            <td className="align-middle" style={{ padding: '15px 0', paddingRight: 24 }}><div className="flex items-center" style={{ gap: 6 }}><DetailLink onClick={(e) => { e.stopPropagation(); openDetail(r) }} /></div></td>
           </>
         )}
         footer={

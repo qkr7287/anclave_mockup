@@ -27,7 +27,7 @@ import { useTheme } from '../lib/theme'
 import { useRole } from '../lib/role'
 import { modelById, serverById, servers, services, userById } from '../data'
 import type { GpuRequest } from '../data/types'
-import { getGpuRequestById, nowStamp, patchGpuRequest } from './approval-store'
+import { approveGpuRequest, fetchGpuRequestById, nowStamp, rejectGpuRequest } from './approval-store'
 
 // 4.10a 신청 상세 심사 (/admin/approvals/gpu/:id) — 4.10 승인 관리의 드로어를 전용 페이지로 승격.
 // pending = 2컬럼(좌 할당 판단[멀티스텝 서버→GPU→MIG 슬라이스 · 검색/필터] / 우 신청 상세[명세서 자리]).
@@ -50,6 +50,21 @@ function PolishCss() {
       [data-approval] input,[data-approval] textarea{user-select:text;-webkit-user-select:text;cursor:auto}
       [data-morph]{transition-duration:.8s !important}
     `}</style>
+  )
+}
+
+// 헤더 뒤로가기 버튼 — 4.10 목록과 동일 외형(38px·border·soft 그림자). 제목 행 인라인 선두 배치.
+function BackButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="뒤로 가기"
+      className="flex items-center justify-center shrink-0 rounded-[10px] border border-line bg-card2 text-muted transition-[transform,background-color,color] duration-100 hover:bg-soft hover:text-text active:scale-90"
+      style={{ width: 38, height: 38, boxShadow: 'var(--shadow-card)' }}
+    >
+      <ArrowLeftIcon style={{ width: 18, height: 18 }} />
+    </button>
   )
 }
 
@@ -546,6 +561,7 @@ function PendingReview({ req }: { req: GpuRequest }) {
   const [rejecting, setRejecting] = useState(false)
   const [rejectReason, setRejectReason] = useState('')
   const [done, setDone] = useState<null | DoneState>(null)
+  const [submitting, setSubmitting] = useState(false)
 
   const limitsDirty = ram !== rec.ramGb || storage !== rec.storageGb || cpu !== rec.cpuCores
   const resetLimits = () => { setRam(rec.ramGb); setStorage(rec.storageGb); setCpu(rec.cpuCores) }
@@ -581,24 +597,34 @@ function PendingReview({ req }: { req: GpuRequest }) {
   const requesterName = userById(req.requesterUserId)?.name ?? req.requesterUserId
   const processorName = `${admin.name}${admin.department ? ` · ${admin.department}` : ''}`
 
-  const confirmApprove = () => {
-    if (!node || !gpu || !valid) return
-    const at = nowStamp()
-    patchGpuRequest(req.id, {
-      status: 'approved', processedAt: at, processedBy: admin.id, adminMemo: memo.trim() || undefined,
-      allocatedServerId: node.id, allocatedGpuId: gpu.id, allocatedSliceId: sliceId ?? undefined,
-      allocatedRamGb: ram, allocatedStorageGb: storage, allocatedCpuCores: cpu,
-    })
-    toast.push(`${requesterName}님의 GPU 신청을 승인했어요 · ${node.host} 할당 (RAM ${ram}GB · 디스크 ${storage}GB · CPU ${cpu}코어).`, 'ok')
-    setDone({ mode: 'approved', detail: `${node.host} · ${gpuLabel}`, limits: `메모리 ${ram}GB · 저장 ${storage}GB · CPU ${cpu}코어`, processedAt: at, mapLink: serverById(node.id) ? { serverId: node.id, gpuId: gpu.id } : undefined })
+  const confirmApprove = async () => {
+    if (!node || !gpu || !valid || submitting) return
+    setSubmitting(true)
+    try {
+      const updated = await approveGpuRequest(req.id, {
+        processedBy: admin.id, adminMemo: memo.trim() || undefined,
+        allocatedServerId: node.id, allocatedGpuId: gpu.id, allocatedSliceId: sliceId ?? undefined,
+        allocatedRamGb: ram, allocatedStorageGb: storage, allocatedCpuCores: cpu,
+      })
+      toast.push(`${requesterName}님의 GPU 신청을 승인했어요 · ${node.host} 할당 (RAM ${ram}GB · 디스크 ${storage}GB · CPU ${cpu}코어).`, 'ok')
+      setDone({ mode: 'approved', detail: `${node.host} · ${gpuLabel}`, limits: `메모리 ${ram}GB · 저장 ${storage}GB · CPU ${cpu}코어`, processedAt: updated.processedAt ?? nowStamp(), mapLink: serverById(node.id) ? { serverId: node.id, gpuId: gpu.id } : undefined })
+    } catch {
+      toast.push('승인 처리에 실패했어요. 잠시 후 다시 시도해주세요.', 'danger')
+      setSubmitting(false)
+    }
   }
-  const confirmReject = () => {
+  const confirmReject = async () => {
     const reason = rejectReason.trim()
-    if (!reason) return
-    const at = nowStamp()
-    patchGpuRequest(req.id, { status: 'rejected', rejectReason: reason, processedAt: at, processedBy: admin.id, adminMemo: memo.trim() || undefined })
-    toast.push(`${requesterName}님의 신청을 반려했어요. 사유가 알림으로 전송됩니다.`, 'warn')
-    setDone({ mode: 'rejected', detail: reason, processedAt: at })
+    if (!reason || submitting) return
+    setSubmitting(true)
+    try {
+      const updated = await rejectGpuRequest(req.id, { processedBy: admin.id, rejectReason: reason, adminMemo: memo.trim() || undefined })
+      toast.push(`${requesterName}님의 신청을 반려했어요. 사유가 알림으로 전송됩니다.`, 'warn')
+      setDone({ mode: 'rejected', detail: reason, processedAt: updated.processedAt ?? nowStamp() })
+    } catch {
+      toast.push('반려 처리에 실패했어요. 잠시 후 다시 시도해주세요.', 'danger')
+      setSubmitting(false)
+    }
   }
 
   if (done) return (
@@ -615,6 +641,7 @@ function PendingReview({ req }: { req: GpuRequest }) {
       <PolishCss />
       <header className="flex flex-col shrink-0">
         <div className="flex items-center flex-wrap" style={{ gap: 12 }}>
+          <BackButton onClick={() => navigate('/admin/approvals/gpu')} />
           <h1 className="font-bold text-text" style={{ fontSize: 23, lineHeight: 1.2, fontFamily: 'var(--font-mono)', letterSpacing: '0.5px' }}>{req.id.toUpperCase()}</h1>
           <span className="inline-flex items-center gap-1.5 rounded-full font-bold" style={{ fontSize: 14, padding: '3px 11px', background: 'var(--accent-soft)', color: 'var(--c-accent)' }}>
             <CpuChipIcon width={14} height={14} />GPU 승인
@@ -892,9 +919,28 @@ export function ApprovalDetail() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
   const mutedFix = useMutedFix()
-  const req = getGpuRequestById(id)
+  const [req, setReq] = useState<GpuRequest | null>(null)
+  const [state, setState] = useState<'loading' | 'ready' | 'notfound'>('loading')
 
-  if (!req) {
+  useEffect(() => {
+    let alive = true
+    setState('loading')
+    fetchGpuRequestById(id)
+      .then((r) => { if (alive) { setReq(r); setState('ready') } })
+      .catch(() => { if (alive) setState('notfound') })
+    return () => { alive = false }
+  }, [id])
+
+  if (state === 'loading') {
+    return (
+      <div data-approval className="anim-fade flex items-center justify-center" style={{ minHeight: 360 }}>
+        <PolishCss />
+        <span className="text-muted" style={{ fontSize: 14 }}>신청 정보를 불러오는 중…</span>
+      </div>
+    )
+  }
+
+  if (state === 'notfound' || !req) {
     return (
       <div data-approval className="anim-fade flex items-center justify-center" style={{ minHeight: 360 }}>
         <PolishCss />
@@ -915,6 +961,7 @@ export function ApprovalDetail() {
       <PolishCss />
       <header className="flex flex-col shrink-0">
         <div className="flex items-center flex-wrap" style={{ gap: 12 }}>
+          <BackButton onClick={() => navigate('/admin/approvals/gpu')} />
           <h1 className="font-bold text-text" style={{ fontSize: 23, lineHeight: 1.2, fontFamily: 'var(--font-mono)', letterSpacing: '0.5px' }}>{req.id.toUpperCase()}</h1>
           <span className="inline-flex items-center gap-1.5 rounded-full font-bold" style={{ fontSize: 14, padding: '3px 11px', background: 'var(--accent-soft)', color: 'var(--c-accent)' }}>
             <CpuChipIcon width={14} height={14} />GPU 승인
