@@ -20,6 +20,7 @@ import {
   Badge,
   Button,
   EmptyState,
+  Modal,
   StatusBadge,
   useToast,
 } from '../components/ui'
@@ -560,6 +561,7 @@ function PendingReview({ req }: { req: GpuRequest }) {
   const [memo, setMemo] = useState('')
   const [rejecting, setRejecting] = useState(false)
   const [rejectReason, setRejectReason] = useState('')
+  const [rejectOpen, setRejectOpen] = useState(false) // step 1·2 마법사 footer 반려 모달
   const [done, setDone] = useState<null | DoneState>(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -783,7 +785,11 @@ function PendingReview({ req }: { req: GpuRequest }) {
 
             {/* 하단 바 — 이전 / 검토하기 */}
             <div className="flex items-center justify-between shrink-0 border-t border-line" style={{ padding: '14px 16px' }}>
-              <Button variant="ghost" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0}>이전</Button>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0}>이전</Button>
+                {/* 서버/GPU 선택 단계에서도 즉시 반려 — 사유 모달 */}
+                <Button variant="danger" onClick={() => { setRejectReason(''); setRejectOpen(true) }}><XCircleIcon width={16} height={16} />반려</Button>
+              </div>
               <div className="flex items-center gap-3">
                 {step === 0
                   ? <span className="text-muted" style={{ fontSize: 14 }}>가용 서버를 선택하면 다음으로 이동해요.</span>
@@ -810,6 +816,36 @@ function PendingReview({ req }: { req: GpuRequest }) {
           />
         </div>
       </div>
+
+      {/* step 1·2(서버·GPU 선택) 즉시 반려 모달 — 사유 입력 후 confirmReject */}
+      <Modal
+        open={rejectOpen}
+        onClose={() => { if (!submitting) setRejectOpen(false) }}
+        title="신청 반려"
+        width={460}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setRejectOpen(false)} disabled={submitting}>취소</Button>
+            <Button variant="danger" onClick={confirmReject} disabled={!rejectReason.trim() || submitting}>
+              <XCircleIcon width={16} height={16} />반려 확정
+            </Button>
+          </>
+        }
+      >
+        <p className="text-muted" style={{ fontSize: 14, marginBottom: 10, lineHeight: 1.5 }}>
+          <b className="text-text">{requesterName}</b>님의 GPU 신청을 반려합니다. 사유는 신청자에게 알림으로 전달됩니다.
+        </p>
+        <textarea
+          value={rejectReason}
+          onChange={(e) => setRejectReason(e.target.value)}
+          maxLength={300}
+          autoFocus
+          placeholder="반려 사유를 입력해주세요."
+          className="w-full rounded-[8px] border border-line text-text"
+          style={{ background: 'var(--c-bg)', height: 96, padding: 11, fontSize: 14, outline: 'none', resize: 'none', lineHeight: 1.5 }}
+        />
+        <div className="text-muted text-right" style={{ fontSize: 13, marginTop: 4 }}>{rejectReason.length}/300</div>
+      </Modal>
     </div>
   )
 }
