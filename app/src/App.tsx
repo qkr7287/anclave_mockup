@@ -15,8 +15,7 @@ import { AdminMonitoring } from './screens/monitoring'
 import { Requests, GpuChange } from './screens/allocation'
 import { ApprovalsPublish, ApprovalsGpu } from './screens/approvals'
 import { ModelCatalog, ModelDetail } from './screens/catalog'
-import { ModelImportNew } from './screens/mymodels'
-import { Agents } from './screens/agents'
+import { ModelRequests } from './screens/model-requests'
 import { Marketplace, ServiceDetail } from './screens/market'
 import { ApiApprovals, PublishRequest } from './screens/activation'
 import { Events, Notifications } from './screens/events'
@@ -40,8 +39,7 @@ const REGISTRY: Record<string, ComponentType> = {
   'gpu-change': GpuChange,
   models: ModelCatalog,
   'model-detail': ModelDetail,
-  'models-new': ModelImportNew,
-  agents: Agents,
+  'model-requests': ModelRequests,
   marketplace: Marketplace,
   'service-detail': ServiceDetail,
   'api-approvals': ApiApprovals,

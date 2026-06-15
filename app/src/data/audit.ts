@@ -1,4 +1,4 @@
-import type { ActivationStat, AuditLog, ModelImport } from './types'
+import type { ActivationStat, AuditLog } from './types'
 
 // §5 감사 로그 20+ — 콘솔 세션 · 마켓 API 호출 · 권한·할당 변경 (1년+ 보관)
 export const auditLogs: AuditLog[] = [
@@ -37,10 +37,4 @@ export const activationStats: ActivationStat[] = [
   { serviceId: 'svc-stt', modelId: 'm9', consumerUserId: 'u-kim', tokens: 760000, calls: 240, period: '2026-06' },
 ]
 
-// 4.14 신규 모델 반입 보안 점검 (safetensors·scan·checksum)
-export const modelImports: ModelImport[] = [
-  { id: 'mi-01', fileName: 'qwen2.5-72b.safetensors', format: 'safetensors', scan: 'pass', checksum: 'sha256:9f2a…c41e', status: 'approved', createdAt: '2026-06-05 10:50' },
-  { id: 'mi-02', fileName: 'deepseek-v3.safetensors', format: 'safetensors', scan: 'pass', checksum: 'sha256:1b77…0a2f', status: 'approved', createdAt: '2026-06-02 14:20' },
-  { id: 'mi-03', fileName: 'custom-lora.bin', format: 'other', scan: 'fail', checksum: 'sha256:—', status: 'rejected', createdAt: '2026-06-04 09:10' },
-  { id: 'mi-04', fileName: 'gemma2-27b.safetensors', format: 'safetensors', scan: 'pending', checksum: '계산 중', status: 'pending', createdAt: '2026-06-06 09:40' },
-]
+// 4.14 모델 신청(modelRequests)은 seed.json 정본 → data/requests.ts 에서 로드.

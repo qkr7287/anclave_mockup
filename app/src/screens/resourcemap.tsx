@@ -1081,10 +1081,24 @@ function GpuActivityFeed({ gpu }: { gpu: Gpu }) {
 }
 
 export function GpuDetail() {
+  // KPI 추이 band(useTelemetryBand)는 useRange Context 필요 → RangeProvider 로 감싼다(4.4는 범위 UI 없어 10m 고정).
+  return (
+    <RangeProvider initial="10m">
+      <GpuDetailInner />
+    </RangeProvider>
+  )
+}
+
+const GPU_KPI_METRICS = ['sm', 'vram', 'temp', 'power'] // 4.4 KPI 추이 metric(DB telemetry)
+
+function GpuDetailInner() {
   const { serverId = '', gpuId = '' } = useParams()
   const [drawer, setDrawer] = useState(false)
   const server = serverById(serverId)
   const gpu = server?.gpus.find((g) => g.id === gpuId)
+  // KPI 추이 = 단일 GPU 텔레메트리 band(DB). hook 규칙상 early return 전에 호출(gpu 없으면 빈 id→빈 결과, Navigate로 폐기).
+  const { data: kpiBand } = useTelemetryBand('gpu', gpu?.id ?? '', GPU_KPI_METRICS,
+    gpu ? { sm: gpu.smUtil, vram: gpu.vramUtil, temp: gpu.temp, power: gpu.power } : undefined)
   if (!server || !gpu) return <Navigate to="/resource-map" replace />
 
   const usedMb = vramUsedMb(gpu)
@@ -1096,12 +1110,16 @@ export function GpuDetail() {
   const mig = migLayout(gpu)
   const tdp = gpu.migCapable ? 600 : 250 // 대략 TDP(전력 기준)
   const powerThW = Math.round(tdp * (POWER_THRESHOLD_PCT / 100)) // 전력 임계 = TDP의 95%
-  // 미니 꺾은선 추이(결정적) — 작업률·VRAM·온도·전력. 전력은 TDP 대비 %로 형태만.
-  const powerPct = Math.max(6, Math.round((gpu.power / tdp) * 100))
-  const utilTrend = trend(gpu.smUtil, 16, 13, serialNum + 1)
-  const vramTrend = trend(gpu.vramUtil, 16, 9, serialNum + 5)
-  const tempTrend = trend(gpu.temp, 16, 5, serialNum + 9)
-  const powerTrend = trend(powerPct, 16, 11, serialNum + 13)
+  // 미니 꺾은선 추이 = DB band avg 시계열(작업률·VRAM·온도 %·전력 W). 빈 응답이면 정적값 폴백.
+  const utilTrend = kpiBand.map((d) => Number(d.sm) || 0)
+  const vramTrend = kpiBand.map((d) => Number(d.vram) || 0)
+  const tempTrend = kpiBand.map((d) => Number(d.temp) || 0)
+  const powerTrend = kpiBand.map((d) => Number(d.power) || 0)
+  const lastOr = (a: number[], fb: number) => (a.length ? a[a.length - 1] : fb)
+  const smNow = Math.round(lastOr(utilTrend, gpu.smUtil))
+  const vramNow = Math.round(lastOr(vramTrend, gpu.vramUtil))
+  const tempNow = Math.round(lastOr(tempTrend, gpu.temp))
+  const powerNow = Math.round(lastOr(powerTrend, gpu.power))
   const migTitle = gpu.migCapable
     ? `MIG 인스턴스 분할 · ${mig.cells}분할 · 사용 ${mig.usedInstances}/${mig.total}`
     : `GPU 단일 할당 · ${gpu.model}`
@@ -1116,10 +1134,10 @@ export function GpuDetail() {
         actions={gpu.xid ? <Badge tone="danger" dot={false}>{gpu.xid}</Badge> : <HealthBadge health={gpu.health} />}
         kpis={
           <>
-            <KpiStat label="작업률" value={gpu.smUtil} unit="%" delta={gpu.smUtil > UTIL_THRESHOLD_PCT ? '높음' : '정상'} deltaTone={gpu.smUtil > UTIL_THRESHOLD_PCT ? 'warn' : 'ok'} trend={utilTrend} trendThreshold={UTIL_THRESHOLD_PCT} trendFmt={(v) => `${Math.round(v)}%`} sub={`임계 ${UTIL_THRESHOLD_PCT}%`} />
-            <KpiStat label="VRAM" value={gpu.vramUtil} unit="%" delta={`${fmtNum(usedMb)} MB`} deltaTone="muted" trend={vramTrend} trendThreshold={90} trendFmt={(v) => `${Math.round(v)}% · ${fmtNum(Math.round((v / 100) * vramTotalMb(gpu)))} MB`} sub={`${fmtNum(usedMb)} / ${fmtNum(vramTotalMb(gpu))} MB`} />
-            <KpiStat label="온도" value={gpu.temp} unit="°C" delta={gpu.temp > TEMP_THRESHOLD_C ? '위험' : gpu.temp > 70 ? '주의' : '정상'} deltaTone={gpu.temp > TEMP_THRESHOLD_C ? 'danger' : gpu.temp > 70 ? 'warn' : 'ok'} trend={tempTrend} trendThreshold={TEMP_THRESHOLD_C} trendFmt={(v) => `${Math.round(v)}°C`} gaugeColor="var(--c-warn)" sub={`임계 ${TEMP_THRESHOLD_C}°C`} />
-            <KpiStat label="전력" value={gpu.power} unit="W" delta={`TDP ${tdp}W`} deltaTone="muted" trend={powerTrend} trendThreshold={POWER_THRESHOLD_PCT} trendFmt={(v) => `${Math.round((v / 100) * tdp)} W`} sub={`임계 ${powerThW} W · 효율 ${Math.round((gpu.smUtil / Math.max(1, gpu.power)) * 100)}%`} />
+            <KpiStat label="작업률" value={smNow} unit="%" delta={smNow > UTIL_THRESHOLD_PCT ? '높음' : '정상'} deltaTone={smNow > UTIL_THRESHOLD_PCT ? 'warn' : 'ok'} trend={utilTrend} trendThreshold={UTIL_THRESHOLD_PCT} trendAutoPad trendFmt={(v) => `${Math.round(v)}%`} sub={`임계 ${UTIL_THRESHOLD_PCT}%`} />
+            <KpiStat label="VRAM" value={vramNow} unit="%" delta={`${fmtNum(usedMb)} MB`} deltaTone="muted" trend={vramTrend} trendThreshold={90} trendAutoPad trendFmt={(v) => `${Math.round(v)}% · ${fmtNum(Math.round((v / 100) * vramTotalMb(gpu)))} MB`} sub={`${fmtNum(usedMb)} / ${fmtNum(vramTotalMb(gpu))} MB`} />
+            <KpiStat label="온도" value={tempNow} unit="°C" delta={tempNow > TEMP_THRESHOLD_C ? '위험' : tempNow > 70 ? '주의' : '정상'} deltaTone={tempNow > TEMP_THRESHOLD_C ? 'danger' : tempNow > 70 ? 'warn' : 'ok'} trend={tempTrend} trendThreshold={TEMP_THRESHOLD_C} trendAutoPad trendFmt={(v) => `${Math.round(v)}°C`} gaugeColor="var(--c-warn)" sub={`임계 ${TEMP_THRESHOLD_C}°C`} />
+            <KpiStat label="전력" value={powerNow} unit="W" delta={`TDP ${tdp}W`} deltaTone="muted" trend={powerTrend} trendThreshold={powerThW} trendAutoPad trendFmt={(v) => `${Math.round(v)} W`} sub={`임계 ${powerThW} W · 효율 ${Math.round((smNow / Math.max(1, powerNow)) * 100)}%`} />
           </>
         }
       >

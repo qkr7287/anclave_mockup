@@ -46,15 +46,14 @@ export const ROUTES: RouteDef[] = [
   { key: 'requests', path: '/requests', screen: '4.8', title: '신청 관리', access: ['A', 'B', 'C'], group: 2, icon: 'doc-plus' },
   // 4.10 GPU 자원 승인 = 할당 관리 '승인 관리'. (게시 승인 4.9는 마켓플레이스 그룹으로 이동 — 아래 ④ 참고)
   { key: 'approvals-gpu', path: '/admin/approvals/gpu', screen: '4.10', title: '승인 관리', access: ['A'], group: 2, menu: ['A'], icon: 'check-badge' },
-  { key: 'approvals-gpu-detail', path: '/admin/approvals/gpu/:id', screen: '4.10a', title: '신청 상세 심사', access: ['A'], group: 2, icon: 'check-badge' },
+  { key: 'approvals-gpu-detail', path: '/admin/approvals/gpu/:id', screen: '4.10a', title: '신청 상세', access: ['A'], group: 2, icon: 'check-badge' },
   // 4.11 변경·확장·이전·회수 — 사용자(B=C)는 '자원 신청현황 상세보기'에서 진입(메뉴 제외). 관리자는 메뉴 유지(승인 측).
   { key: 'gpu-change', path: '/requests/gpu-change', screen: '4.11', title: '변경 · 확장 · 이전 · 회수', access: ['A', 'B', 'C'], group: 2, menu: ['A'], icon: 'arrows' },
 
   // ③ 모델 관리
   { key: 'models', path: '/models', screen: '4.12', title: '모델 카탈로그', access: ['A', 'B', 'C'], group: 3, menu: ['A', 'B', 'C'], icon: 'cube' },
   { key: 'model-detail', path: '/models/:id', screen: '4.13', title: '모델 상세', access: ['A', 'B', 'C'] },
-  { key: 'models-new', path: '/admin/models/new', screen: '4.14', title: '신규 모델 반입', access: ['A'], group: 3, menu: ['A'], icon: 'plus-circle' },
-  { key: 'agents', path: '/admin/agents', screen: '4.16', title: '데몬 · 에이전트 관리', access: ['A'], group: 3, menu: ['A'], icon: 'server' },
+  { key: 'model-requests', path: '/admin/models/requests', screen: '4.14', title: '모델 신청 관리', access: ['A'], group: 3, menu: ['A'], icon: 'doc-plus' },
 
   // ④ 마켓플레이스 — 메뉴 순서: 둘러보기(4.17) → 게시 신청(4.29) → API 신청 관리(4.19) → 게시 승인 관리(4.9, 관리자)
   { key: 'marketplace', path: '/marketplace', screen: '4.17', title: '마켓플레이스', access: ['A', 'B', 'C'], group: 4, menu: ['A', 'B', 'C'], icon: 'bag' },
@@ -132,4 +131,9 @@ export function sidebarHighlightKey(pathname: string): string | undefined {
   const m = matchRoute(pathname)
   if (!m) return undefined
   return HIGHLIGHT_PARENT[m.key] ?? m.key
+}
+
+// 상세(드릴다운) 라우트의 부모 key — 브레드크럼 중간 단계 생성용.
+export function parentRouteKey(key: string): string | undefined {
+  return HIGHLIGHT_PARENT[key]
 }

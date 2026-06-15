@@ -176,7 +176,11 @@
       "recommendedGpu": "RTX PRO 4500 16GB MIG",
       "params": "8B",
       "usageRank": 1,
-      "usageCount": 121300
+      "usageCount": 121300,
+      "reqVramGb": 16,
+      "reqRamGb": 24,
+      "reqStorageGb": 30,
+      "reqCpuCores": 6
     },
     {
       "id": "m12",
@@ -191,7 +195,11 @@
       "recommendedGpu": "RTX PRO 4500 16GB MIG",
       "params": "7B",
       "usageRank": 2,
-      "usageCount": 142800
+      "usageCount": 142800,
+      "reqVramGb": 16,
+      "reqRamGb": 24,
+      "reqStorageGb": 28,
+      "reqCpuCores": 6
     },
     {
       "id": "m13",
@@ -206,7 +214,11 @@
       "recommendedGpu": "RTX 2070 8GB 단일",
       "params": "7B",
       "usageRank": 3,
-      "usageCount": 87600
+      "usageCount": 87600,
+      "reqVramGb": 16,
+      "reqRamGb": 24,
+      "reqStorageGb": 28,
+      "reqCpuCores": 6
     },
     {
       "id": "m5",
@@ -220,7 +232,11 @@
       "recommendedGpu": "RTX 3060 Ti 8GB 단일",
       "params": "7B",
       "usageRank": 4,
-      "usageCount": 76300
+      "usageCount": 76300,
+      "reqVramGb": 18,
+      "reqRamGb": 28,
+      "reqStorageGb": 32,
+      "reqCpuCores": 8
     },
     {
       "id": "m8",
@@ -234,7 +250,11 @@
       "recommendedGpu": "RTX 5070 12GB 단일",
       "params": "3.5B",
       "usageRank": 5,
-      "usageCount": 52400
+      "usageCount": 52400,
+      "reqVramGb": 12,
+      "reqRamGb": 24,
+      "reqStorageGb": 30,
+      "reqCpuCores": 8
     },
     {
       "id": "m9",
@@ -248,7 +268,11 @@
       "recommendedGpu": "RTX 2070 SUPER 8GB 단일",
       "params": "1.5B",
       "usageRank": 6,
-      "usageCount": 27600
+      "usageCount": 27600,
+      "reqVramGb": 10,
+      "reqRamGb": 16,
+      "reqStorageGb": 20,
+      "reqCpuCores": 6
     },
     {
       "id": "m10",
@@ -262,7 +286,11 @@
       "recommendedGpu": "RTX 2060 SUPER 8GB 단일",
       "params": "0.6B",
       "usageRank": 7,
-      "usageCount": 19400
+      "usageCount": 19400,
+      "reqVramGb": 8,
+      "reqRamGb": 16,
+      "reqStorageGb": 15,
+      "reqCpuCores": 4
     },
     {
       "id": "m1",
@@ -278,7 +306,11 @@
       "recommendedGpu": "H100 ×2 (cluster)",
       "params": "70B",
       "usageRank": 8,
-      "usageCount": 184200
+      "usageCount": 184200,
+      "reqVramGb": 160,
+      "reqRamGb": 200,
+      "reqStorageGb": 160,
+      "reqCpuCores": 24
     },
     {
       "id": "m2",
@@ -293,7 +325,11 @@
       "recommendedGpu": "H100 ×2 (cluster)",
       "params": "72B",
       "usageRank": 9,
-      "usageCount": 162800
+      "usageCount": 162800,
+      "reqVramGb": 160,
+      "reqRamGb": 200,
+      "reqStorageGb": 160,
+      "reqCpuCores": 24
     },
     {
       "id": "m7",
@@ -308,7 +344,11 @@
       "recommendedGpu": "H100 ×1 (3g 슬라이스)",
       "params": "32B",
       "usageRank": 10,
-      "usageCount": 98700
+      "usageCount": 98700,
+      "reqVramGb": 48,
+      "reqRamGb": 80,
+      "reqStorageGb": 80,
+      "reqCpuCores": 16
     },
     {
       "id": "m4",
@@ -322,7 +362,11 @@
       "recommendedGpu": "H100 1g 슬라이스",
       "params": "24B",
       "usageRank": 11,
-      "usageCount": 61200
+      "usageCount": 61200,
+      "reqVramGb": 48,
+      "reqRamGb": 64,
+      "reqStorageGb": 60,
+      "reqCpuCores": 12
     },
     {
       "id": "m3",
@@ -336,7 +380,11 @@
       "recommendedGpu": "H100 ×4 (cluster)",
       "params": "671B (MoE)",
       "usageRank": 12,
-      "usageCount": 141500
+      "usageCount": 141500,
+      "reqVramGb": 320,
+      "reqRamGb": 512,
+      "reqStorageGb": 700,
+      "reqCpuCores": 48
     },
     {
       "id": "m6",
@@ -350,7 +398,11 @@
       "recommendedGpu": "H100 2g 슬라이스",
       "params": "27B",
       "usageRank": 13,
-      "usageCount": 38900
+      "usageCount": 38900,
+      "reqVramGb": 54,
+      "reqRamGb": 80,
+      "reqStorageGb": 70,
+      "reqCpuCores": 12
     }
   ],
   "services": [
@@ -737,7 +789,10 @@
       "priority": "normal",
       "processedAt": "2026-05-22 09:40",
       "processedBy": "u-admin",
-      "adminMemo": "우선 슬라이스 1개 할당. 사용량 추이 보고 확장 검토 예정."
+      "adminMemo": "우선 슬라이스 1개 할당. 사용량 추이 보고 확장 검토 예정.",
+      "allocatedRamGb": 24,
+      "allocatedStorageGb": 28,
+      "allocatedCpuCores": 6
     },
     {
       "id": "gr-02",
@@ -758,7 +813,10 @@
       "period": "6개월",
       "priority": "normal",
       "processedAt": "2026-05-24 11:15",
-      "processedBy": "u-admin"
+      "processedBy": "u-admin",
+      "allocatedRamGb": 28,
+      "allocatedStorageGb": 32,
+      "allocatedCpuCores": 8
     },
     {
       "id": "gr-03",
@@ -781,7 +839,10 @@
       "priority": "normal",
       "processedAt": "2026-05-25 14:05",
       "processedBy": "u-admin",
-      "adminMemo": "검색 임베딩용 단일 카드 충분. 모니터링 애드온 권장."
+      "adminMemo": "검색 임베딩용 단일 카드 충분. 모니터링 애드온 권장.",
+      "allocatedRamGb": 16,
+      "allocatedStorageGb": 15,
+      "allocatedCpuCores": 4
     },
     {
       "id": "gr-04",
@@ -802,7 +863,10 @@
       "period": "무기한",
       "priority": "normal",
       "processedAt": "2026-05-26 16:20",
-      "processedBy": "u-admin"
+      "processedBy": "u-admin",
+      "allocatedRamGb": 24,
+      "allocatedStorageGb": 30,
+      "allocatedCpuCores": 8
     },
     {
       "id": "gr-05",
@@ -823,7 +887,10 @@
       "period": "3개월",
       "priority": "normal",
       "processedAt": "2026-05-28 09:40",
-      "processedBy": "u-admin"
+      "processedBy": "u-admin",
+      "allocatedRamGb": 16,
+      "allocatedStorageGb": 20,
+      "allocatedCpuCores": 6
     },
     {
       "id": "gr-06",
@@ -846,7 +913,10 @@
       "period": "6개월",
       "priority": "normal",
       "processedAt": "2026-05-30 11:15",
-      "processedBy": "u-admin"
+      "processedBy": "u-admin",
+      "allocatedRamGb": 24,
+      "allocatedStorageGb": 28,
+      "allocatedCpuCores": 6
     },
     {
       "id": "gr-07",
@@ -868,7 +938,10 @@
       "priority": "normal",
       "processedAt": "2026-05-31 14:05",
       "processedBy": "u-admin",
-      "adminMemo": "동일 서버 내 잔여 슬롯 배정."
+      "adminMemo": "동일 서버 내 잔여 슬롯 배정.",
+      "allocatedRamGb": 24,
+      "allocatedStorageGb": 30,
+      "allocatedCpuCores": 6
     },
     {
       "id": "gr-08",
@@ -972,6 +1045,99 @@
       "processedAt": "2026-05-29 16:20",
       "processedBy": "u-admin",
       "adminMemo": "운영 전환 일정 확정 후 재신청 안내함."
+    }
+  ],
+  "modelRequests": [
+    {
+      "id": "mr-01",
+      "requesterUserId": "u-kim",
+      "modelName": "Qwen2.5-72B",
+      "kind": "LLM",
+      "source": "huggingface.co/Qwen/Qwen2.5-72B",
+      "reason": "코드 자동화 에이전트용 최신 LLM 필요",
+      "status": "approved",
+      "stage": "deployed",
+      "createdAt": "2026-06-05 09:30",
+      "processedAt": "2026-06-05 10:50",
+      "processedBy": "u-admin",
+      "fileName": "qwen2.5-72b.safetensors",
+      "format": "safetensors",
+      "scan": "pass",
+      "checksum": "sha256:9f2a…c41e",
+      "registeredModelId": "m12"
+    },
+    {
+      "id": "mr-02",
+      "requesterUserId": "u-park",
+      "modelName": "DeepSeek-V3",
+      "kind": "LLM",
+      "source": "huggingface.co/deepseek-ai/DeepSeek-V3",
+      "reason": "RAG 추론 품질 개선용",
+      "status": "approved",
+      "stage": "deployed",
+      "createdAt": "2026-06-02 11:10",
+      "processedAt": "2026-06-02 14:20",
+      "processedBy": "u-admin",
+      "fileName": "deepseek-v3.safetensors",
+      "format": "safetensors",
+      "scan": "pass",
+      "checksum": "sha256:1b77…0a2f",
+      "registeredModelId": "m5"
+    },
+    {
+      "id": "mr-05",
+      "requesterUserId": "u-park",
+      "modelName": "Phi-3.5-mini",
+      "kind": "LLM",
+      "source": "huggingface.co/microsoft/Phi-3.5-mini-instruct",
+      "reason": "소형 온디바이스 추론 실험용",
+      "status": "pending",
+      "stage": "scanned",
+      "createdAt": "2026-06-06 08:10",
+      "fileName": "phi-3.5-mini.safetensors",
+      "format": "safetensors",
+      "scan": "pass",
+      "checksum": "sha256:7c3d…b81a"
+    },
+    {
+      "id": "mr-06",
+      "requesterUserId": "u-kim",
+      "modelName": "Mistral Small 3",
+      "kind": "LLM",
+      "source": "huggingface.co/mistralai/Mistral-Small-3",
+      "reason": "한국어 요약 파이프라인용",
+      "status": "pending",
+      "stage": "scanning",
+      "createdAt": "2026-06-06 10:20",
+      "fileName": "mistral-small-3.safetensors",
+      "format": "safetensors",
+      "scan": "pending"
+    },
+    {
+      "id": "mr-03",
+      "requesterUserId": "u-lee",
+      "modelName": "custom-lora (사내 파인튜닝)",
+      "reason": "사내 파인튜닝 LoRA 어댑터 적용 필요",
+      "status": "rejected",
+      "stage": "rejected",
+      "createdAt": "2026-06-04 08:40",
+      "processedAt": "2026-06-04 09:10",
+      "processedBy": "u-admin",
+      "fileName": "custom-lora.bin",
+      "format": "other",
+      "scan": "fail",
+      "rejectReason": "picklescan 검출 — pickle 직렬화 위험 코드 발견. safetensors 포맷으로 재신청 바랍니다."
+    },
+    {
+      "id": "mr-04",
+      "requesterUserId": "u-hwang",
+      "modelName": "Gemma2-27B",
+      "kind": "LLM",
+      "source": "huggingface.co/google/gemma-2-27b",
+      "reason": "경량 모델 비교 평가용",
+      "status": "pending",
+      "stage": "requested",
+      "createdAt": "2026-06-06 09:40"
     }
   ],
   "apiRequests": [

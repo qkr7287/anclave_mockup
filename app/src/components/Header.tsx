@@ -12,7 +12,7 @@ import { useTheme } from '../lib/theme'
 import { accessOf, useRole } from '../lib/role'
 import { userById, users } from '../data/users'
 import { notifications } from '../data/events'
-import { IA_GROUPS, ROUTES } from '../lib/routes'
+import { IA_GROUPS, matchRoute, parentRouteKey, routeByKey } from '../lib/routes'
 
 const DEMO_IDS = users.map((u) => u.id)
 const ACCESS_LABEL: Record<string, string> = {
@@ -38,9 +38,19 @@ function useCrumbs(): Crumb[] {
     crumbs[crumbs.length - 1] = { label: crumbs[crumbs.length - 1].label } // 현재 = 비활성
     return crumbs
   }
-  const route = [...ROUTES].filter((r) => r.path !== '/' && pathname.startsWith(r.path)).sort((a, b) => b.path.length - a.path.length)[0]
-  const group = route ? IA_GROUPS.find((g) => g.id === route.group) : undefined
-  return [{ label: group?.label ?? '대시보드' }, { label: route?.title ?? '전체 서버 현황' }]
+  // :param 정확 매칭(matchRoute) + 상세→부모(HIGHLIGHT_PARENT) 재사용 → 드릴다운 뎁스.
+  const route = matchRoute(pathname)
+  if (!route) return [{ label: '대시보드' }]
+  const parentKey = parentRouteKey(route.key)
+  const parent = parentKey ? routeByKey(parentKey) : undefined
+  // 상세 라우트가 group 미지정(model-detail 등)이면 부모의 group 으로 그룹 라벨 결정.
+  const group = IA_GROUPS.find((g) => g.id === (route.group ?? parent?.group))
+  const crumbs: Crumb[] = [{ label: group?.label ?? '대시보드' }]
+  if (parent && parent.key !== route.key) {
+    crumbs.push({ label: parent.title, to: parent.path })
+  }
+  crumbs.push({ label: route.title }) // 마지막 = 현재(비활성)
+  return crumbs
 }
 
 // Q2/Q18 헤더(Figma) — 좌: 브레드크럼 / 우: 검색·알림·테마·프로필. GNB 없음.
