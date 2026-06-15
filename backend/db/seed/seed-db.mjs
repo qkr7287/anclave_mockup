@@ -35,11 +35,11 @@ async function main() {
       ['id', 'username', 'name', 'role', 'email', 'has_hosting', 'initial_route'],
       [u.id, u.username, u.name, u.role, u.email, !!u.hasHosting, u.initialRoute])
 
-  // --- models ---
+  // --- models (자원요건 req_* 포함 — 프론트 Model 싱크) ---
   for (const m of seed.models)
     await ins('models',
-      ['id', 'name', 'kind', 'description', 'addons', 'license', 'recommended_gpu', 'params', 'usage_rank', 'usage_count'],
-      [m.id, m.name, m.kind, m.description ?? null, m.addons ?? [], m.license ?? null, m.recommendedGpu ?? null, m.params ?? null, m.usageRank ?? null, m.usageCount ?? 0])
+      ['id', 'name', 'kind', 'description', 'addons', 'license', 'recommended_gpu', 'params', 'usage_rank', 'usage_count', 'req_vram_gb', 'req_ram_gb', 'req_storage_gb', 'req_cpu_cores'],
+      [m.id, m.name, m.kind, m.description ?? null, m.addons ?? [], m.license ?? null, m.recommendedGpu ?? null, m.params ?? null, m.usageRank ?? null, m.usageCount ?? 0, m.reqVramGb ?? null, m.reqRamGb ?? null, m.reqStorageGb ?? null, m.reqCpuCores ?? null])
 
   // --- services (listed=true: 기존 7개는 이미 게시된 상태) ---
   for (const s of seed.services)
@@ -47,11 +47,13 @@ async function main() {
       ['id', 'name', 'kind', 'has_api', 'model_id', 'service_url', 'test_url', 'description', 'manual_url', 'owner_user_id', 'deployer_user_id', 'tags', 'usage_count', 'usage_rank', 'listed'],
       [s.id, s.name, s.kind ?? null, !!s.hasApi, s.model ?? null, s.serviceUrl ?? null, s.testUrl ?? null, s.description ?? null, s.manualUrl ?? null, s.ownerUserId, s.deployerUserId ?? null, s.tags ?? [], s.usageCount ?? 0, s.usageRank ?? null, true])
 
-  // --- gpu_requests (먼저: 아래 mig_slices.request_id FK 가 참조) ---
+  // --- gpu_requests (먼저: 아래 mig_slices.request_id FK 가 참조) — 심사 확장 + 확정 자원 제한 포함 ---
   for (const r of seed.gpuRequests)
     await ins('gpu_requests',
-      ['id', 'requester_user_id', 'capacity', 'capacity_unit', 'models', 'env', 'addons', 'service_name', 'purpose', 'attachment_url', 'status', 'reject_reason', 'created_at'],
-      [r.id, r.requesterUserId, r.capacity, r.capacityUnit, r.models ?? [], r.env ?? null, r.addons ?? [], r.serviceName ?? null, r.purpose ?? null, r.attachmentUrl ?? null, r.status, r.rejectReason ?? null, r.createdAt])
+      ['id', 'requester_user_id', 'capacity', 'capacity_unit', 'models', 'env', 'addons', 'service_name', 'purpose', 'attachment_url', 'status', 'reject_reason', 'created_at',
+        'period', 'priority', 'admin_memo', 'processed_at', 'processed_by', 'allocated_server_id', 'allocated_gpu_id', 'allocated_slice_id', 'allocated_ram_gb', 'allocated_storage_gb', 'allocated_cpu_cores'],
+      [r.id, r.requesterUserId, r.capacity, r.capacityUnit, r.models ?? [], r.env ?? null, r.addons ?? [], r.serviceName ?? null, r.purpose ?? null, r.attachmentUrl ?? null, r.status, r.rejectReason ?? null, r.createdAt,
+        r.period ?? null, r.priority ?? null, r.adminMemo ?? null, r.processedAt ?? null, r.processedBy ?? null, r.allocatedServerId ?? null, r.allocatedGpuId ?? null, r.allocatedSliceId ?? null, r.allocatedRamGb ?? null, r.allocatedStorageGb ?? null, r.allocatedCpuCores ?? null])
 
   // --- fleet → gpu_servers / gpus / mig_slices (servers.ts 빌드 로직 재현, 엔티티 컬럼만) ---
   for (const node of seed.fleet) {
@@ -117,6 +119,12 @@ async function main() {
       ['id', 'requester_user_id', 'type', 'reason', 'status', 'reject_reason', 'created_at'],
       [r.id, r.requesterUserId, r.type, r.reason ?? null, r.status, r.rejectReason ?? null, r.createdAt])
 
+  // --- model_requests (4.14 모델 신청 관리 — 프론트 ModelRequest 싱크, 구 model_imports 대체) ---
+  for (const r of seed.modelRequests ?? [])
+    await ins('model_requests',
+      ['id', 'requester_user_id', 'model_name', 'kind', 'source', 'reason', 'status', 'stage', 'created_at', 'reject_reason', 'processed_at', 'processed_by', 'file_name', 'format', 'scan', 'checksum', 'registered_model_id'],
+      [r.id, r.requesterUserId, r.modelName, r.kind ?? null, r.source ?? null, r.reason ?? null, r.status, r.stage, r.createdAt, r.rejectReason ?? null, r.processedAt ?? null, r.processedBy ?? null, r.fileName ?? null, r.format ?? null, r.scan ?? null, r.checksum ?? null, r.registeredModelId ?? null])
+
   for (const k of seed.apiKeyUsages ?? [])
     await ins('api_key_usage', ['key_id', 'service_id', 'connections'],
       [k.keyId, k.serviceId ?? null, k.connections ?? 0])
@@ -126,7 +134,8 @@ async function main() {
     (select count(*) from users) users, (select count(*) from models) models,
     (select count(*) from services) services, (select count(*) from gpu_servers) servers,
     (select count(*) from gpus) gpus, (select count(*) from mig_slices) slices,
-    (select count(*) from gpu_requests) gpu_requests, (select count(*) from api_requests) api_requests`)
+    (select count(*) from gpu_requests) gpu_requests, (select count(*) from api_requests) api_requests,
+    (select count(*) from model_requests) model_requests`)
   console.log('counts:', rows[0])
   await client.end()
 }

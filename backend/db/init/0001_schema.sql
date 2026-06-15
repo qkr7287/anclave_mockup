@@ -33,7 +33,12 @@ create table models (
   recommended_gpu text,
   params          text,
   usage_rank      int,
-  usage_count     int not null default 0
+  usage_count     int not null default 0,
+  -- 모델별 권장 자원 요건(4.10a 심사 "자원 제한" 추천 기준) — 프론트 Model 싱크
+  req_vram_gb     int,
+  req_ram_gb      int,
+  req_storage_gb  int,
+  req_cpu_cores   int
 );
 
 create table services (
@@ -101,7 +106,25 @@ create table gpu_requests (
   attachment_url    text,
   status            status not null default 'pending',
   reject_reason     text,
-  created_at        timestamptz not null default now()
+  created_at        timestamptz not null default now(),
+  -- 신청 상세·심사(4.6a/4.10a) 확장 + 승인 시 확정 자원 제한 — 프론트 GpuRequest 싱크(전부 nullable)
+  period               text,
+  priority             text,
+  admin_memo           text,
+  processed_at         timestamptz,
+  processed_by         text,
+  allocated_server_id  text,
+  allocated_gpu_id     text,
+  allocated_slice_id   text,
+  allocated_ram_gb     int,
+  allocated_storage_gb int,
+  allocated_cpu_cores  int,
+  -- 4.6b 신규 신청 폼 수집 필드(프론트 request-new) — 전부 nullable. start_date 는 'YYYY-MM-DD' 문자열이라 text.
+  team        text,
+  start_date  text,
+  security    text,
+  scale       text,
+  remark      text
 );
 create index on gpu_requests (status, created_at desc);
 create index on gpu_requests (requester_user_id);
@@ -160,15 +183,30 @@ create table publish_requests (
   created_at        timestamptz not null default now()
 );
 
-create table model_imports (
-  id         text primary key,
-  file_name  text not null,
-  format     text check (format in ('safetensors','other')),
-  scan       text check (scan in ('pass','fail','pending')) default 'pending',
-  checksum   text,
-  status     status not null default 'pending',
-  created_at timestamptz not null default now()
+-- 모델 신청 관리(4.14 재정의) — 사용자 등록 신청 + 관리자 반입/보안점검/등록을 한 엔티티에.
+-- 프론트 ModelRequest 와 1:1. (구 model_imports 대체)
+create table model_requests (
+  id                  text primary key,
+  requester_user_id   text not null,   -- FK 없음(정본 시드가 비정규 user id 포함) — 지시서 plain text
+  model_name          text not null,
+  kind                text,
+  source              text,
+  reason              text,
+  status              status not null default 'pending',
+  stage               text not null default 'requested'
+                        check (stage in ('requested','scanning','scanned','deployed','rejected')),
+  created_at          timestamptz not null default now(),
+  reject_reason       text,
+  processed_at        timestamptz,
+  processed_by        text,
+  file_name           text,
+  format              text check (format in ('safetensors','other')),
+  scan                text check (scan in ('pass','fail','pending')),
+  checksum            text,
+  registered_model_id text references models(id)
 );
+create index on model_requests (status, created_at desc);
+create index on model_requests (requester_user_id);
 
 -- ============================================================
 -- 로그 · 알림 · 게시판
@@ -242,15 +280,6 @@ create table access_policies (
   role     role_t not null,
   resource text not null,
   allow    boolean not null default false
-);
-
-create table agents (
-  id          text primary key,
-  node_id     text not null,
-  server_id   text references gpu_servers(id),
-  version     text,
-  status      text not null check (status in ('active','stale','down')),
-  deployed_at timestamptz
 );
 
 create table infra_integrations (

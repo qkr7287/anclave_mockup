@@ -249,13 +249,71 @@ app.get('/api/gpu-requests', async (c) => {
   const { user } = c.req.query()
   const { rows } = await pool.query(
     `select id, requester_user_id "requesterUserId", capacity, capacity_unit "capacityUnit",
-            models, service_name "serviceName", purpose,
-            status, reject_reason "rejectReason", created_at "createdAt"
+            models, env, addons, service_name "serviceName", purpose, attachment_url "attachmentUrl",
+            status, reject_reason "rejectReason", created_at "createdAt",
+            period, priority, admin_memo "adminMemo", processed_at "processedAt", processed_by "processedBy",
+            allocated_server_id "allocatedServerId", allocated_gpu_id "allocatedGpuId", allocated_slice_id "allocatedSliceId",
+            allocated_ram_gb "allocatedRamGb", allocated_storage_gb "allocatedStorageGb", allocated_cpu_cores "allocatedCpuCores",
+            team, start_date "startDate", security, scale, remark
        from gpu_requests
       where ($1::text is null or requester_user_id = $1)
       order by created_at desc`,
     [user || null])
   return c.json(rows)
+})
+
+// 신규 GPU 자원 신청(4.6b) — status='pending', id 서버 생성. created_at 은 DB default(클라 값 불신).
+app.post('/api/gpu-requests', async (c) => {
+  const b = await c.req.json().catch(() => ({}))
+  if (!b.requesterUserId) return c.json({ error: 'requesterUserId required' }, 400)
+  const id = `gr-${Date.now().toString(36)}`
+  const { rows } = await pool.query(
+    `insert into gpu_requests(
+        id, requester_user_id, capacity, capacity_unit, models, env, addons,
+        service_name, purpose, attachment_url, status,
+        period, priority, team, start_date, security, scale, remark)
+     values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'pending',$11,$12,$13,$14,$15,$16,$17)
+     returning id, requester_user_id "requesterUserId", capacity, capacity_unit "capacityUnit",
+               models, env, addons, service_name "serviceName", purpose, attachment_url "attachmentUrl",
+               status, reject_reason "rejectReason", created_at "createdAt",
+               period, priority, admin_memo "adminMemo", processed_at "processedAt", processed_by "processedBy",
+               allocated_server_id "allocatedServerId", allocated_gpu_id "allocatedGpuId", allocated_slice_id "allocatedSliceId",
+               allocated_ram_gb "allocatedRamGb", allocated_storage_gb "allocatedStorageGb", allocated_cpu_cores "allocatedCpuCores",
+               team, start_date "startDate", security, scale, remark`,
+    [id, b.requesterUserId, b.capacity ?? 1, b.capacityUnit ?? 'card', b.models ?? [], b.env ?? null, b.addons ?? [],
+     b.serviceName ?? null, b.purpose ?? null, b.attachmentUrl ?? null,
+     b.period ?? null, b.priority ?? 'normal', b.team ?? null, b.startDate ?? null, b.security ?? null, b.scale ?? null, b.remark ?? null])
+  return c.json(rows[0], 201)
+})
+
+// 모델 신청 관리(4.14) — user 없으면 전체(공유 테이블), 있으면 그 사람 것만. created_at desc.
+app.get('/api/model-requests', async (c) => {
+  const { user } = c.req.query()
+  const { rows } = await pool.query(
+    `select id, requester_user_id "requesterUserId", model_name "modelName", kind, source, reason,
+            status, stage, created_at "createdAt", reject_reason "rejectReason",
+            processed_at "processedAt", processed_by "processedBy",
+            file_name "fileName", format, scan, checksum, registered_model_id "registeredModelId"
+       from model_requests
+      where ($1::text is null or requester_user_id = $1)
+      order by created_at desc`,
+    [user || null])
+  return c.json(rows)
+})
+
+// 신규 모델 등록 신청 — stage=requested·status=pending. 바디 검증(필수: requesterUserId·modelName·reason).
+app.post('/api/model-requests', async (c) => {
+  const b = await c.req.json().catch(() => ({}))
+  if (!b.requesterUserId || !b.modelName || !b.reason)
+    return c.json({ error: 'requesterUserId, modelName, reason required' }, 400)
+  const id = `mr-${Date.now().toString(36)}`
+  const { rows } = await pool.query(
+    `insert into model_requests(id, requester_user_id, model_name, kind, source, reason, status, stage)
+     values($1, $2, $3, $4, $5, $6, 'pending', 'requested')
+     returning id, requester_user_id "requesterUserId", model_name "modelName", kind, source, reason,
+               status, stage, created_at "createdAt"`,
+    [id, b.requesterUserId, b.modelName, b.kind ?? null, b.source ?? null, b.reason])
+  return c.json(rows[0], 201)
 })
 
 // 내 할당 — user 의 게시된 서비스 + 각 서비스가 올라간 gpu/server. 4.5 내 할당 자원.
