@@ -10,6 +10,7 @@ import {
   XMarkIcon,
   DocumentArrowUpIcon,
   CalendarDaysIcon,
+  ClipboardDocumentIcon,
 } from '@heroicons/react/24/outline'
 import { Button, StepBack, useToast } from '../components/ui'
 import { models } from '../data'
@@ -546,18 +547,42 @@ export function RequestNew() {
     return (
       <div className="anim-fade flex flex-col h-full" style={mutedFix}>
         <div className="flex-1 min-h-0 flex items-center justify-center">
-          <div className="bg-card2 border border-line rounded-[14px] flex flex-col items-center text-center" style={{ boxShadow: 'var(--shadow-card)', padding: '44px 48px', maxWidth: 460, width: '100%' }}>
-            <span className="flex items-center justify-center rounded-full" style={{ width: 64, height: 64, background: 'var(--ok-soft)', color: 'var(--c-ok)' }}>
-              <CheckCircleIcon style={{ width: 36, height: 36 }} />
+          <div className="bg-card2 border border-line rounded-[16px] flex flex-col items-center text-center" style={{ boxShadow: 'var(--shadow-card)', padding: '40px 44px', maxWidth: 480, width: '100%' }}>
+            <span className="relative flex items-center justify-center rounded-full" style={{ width: 66, height: 66, background: 'var(--ok-soft)', color: 'var(--c-ok)' }}>
+              <span className="absolute rounded-full" style={{ inset: 0, boxShadow: '0 0 0 6px var(--ok-soft)', opacity: 0.5 }} />
+              <CheckCircleIcon style={{ width: 38, height: 38 }} />
             </span>
-            <h2 className="font-bold text-text" style={{ fontSize: 19, marginTop: 18 }}>신청이 접수되었습니다</h2>
+            <h2 className="font-bold text-text" style={{ fontSize: 20, marginTop: 18 }}>신청이 접수되었습니다</h2>
             <p className="text-muted" style={{ fontSize: 14, lineHeight: 1.55, marginTop: 8 }}>
-              관리자 검토 후 자원이 할당됩니다. 처리 결과는 신청 현황과 알림 센터에서 확인할 수 있어요.
+              관리자 검토 후 자원이 할당됩니다. 진행 상태는 신청 현황과 알림 센터에서 확인할 수 있어요.
             </p>
-            <div className="rounded-[10px] font-bold" style={{ marginTop: 18, padding: '10px 22px', background: 'var(--c-soft)', fontSize: 16, color: 'var(--c-text)', fontFamily: 'var(--font-mono)', letterSpacing: '-0.2px' }}>
-              {doneId}
+            {/* 신청번호 — 라벨·상태·복사로 맥락 부여(정체불명 코드처럼 보이지 않게) */}
+            <div className="w-full rounded-[12px]" style={{ marginTop: 22, padding: '14px 16px', background: 'var(--c-soft)', border: '1px solid var(--c-border-s)' }}>
+              <div className="flex items-center justify-center gap-1.5 text-muted" style={{ fontSize: 12.5, fontWeight: 600, letterSpacing: '0.2px' }}>
+                신청번호
+                <span className="rounded-[5px] font-semibold" style={{ fontSize: 11, padding: '1px 6px', background: 'var(--warn-soft)', color: 'var(--c-warn)' }}>검토 중</span>
+              </div>
+              <div className="flex items-center justify-center gap-2" style={{ marginTop: 7 }}>
+                <span className="font-bold text-text" style={{ fontSize: 18, fontFamily: 'var(--font-mono)', letterSpacing: '-0.2px' }}>{doneId}</span>
+                <button
+                  type="button"
+                  aria-label="신청번호 복사"
+                  onClick={() => { navigator.clipboard?.writeText(doneId).then(() => toast.push('신청번호를 복사했어요.', 'ok')).catch(() => {}) }}
+                  className="flex items-center justify-center rounded-[7px] border border-line bg-card2 text-muted hover:text-text hover:bg-soft cursor-pointer transition-colors"
+                  style={{ width: 28, height: 28 }}
+                >
+                  <ClipboardDocumentIcon style={{ width: 15, height: 15 }} />
+                </button>
+              </div>
+              <div className="text-muted" style={{ fontSize: 12.5, lineHeight: 1.5, marginTop: 7 }}>
+                이 번호로 신청 현황에서 진행 상태를 조회할 수 있어요.
+              </div>
             </div>
-            <Button onClick={() => navigate('/requests/status')} style={{ marginTop: 22 }}>신청 현황으로</Button>
+            {/* 액션 — 현황 / 방금 신청 상세 */}
+            <div className="flex w-full" style={{ gap: 10, marginTop: 22 }}>
+              <Button variant="outline" className="flex-1 justify-center" onClick={() => navigate('/requests/status')}>신청 현황으로</Button>
+              <Button className="flex-1 justify-center" onClick={() => navigate(`/requests/status/${doneId}`)}>신청 상세 보기</Button>
+            </div>
           </div>
         </div>
       </div>
