@@ -76,8 +76,27 @@ function seedItem(g: GpuRequest): RequestItem {
   }
 }
 
-// DB 행 → RequestItem. 확장 필드는 같은 id의 시드에서 백필(목업 정합), 신규 행은 undefined 유지.
+// GpuRequestRow 타입(usePolling, 잠금)이 확장 필드를 노출 안 해 캐스팅으로 DB 실값을 읽는다.
+type DbRowExt = GpuRequestRow & {
+  env?: string | null; addons?: string[] | null; attachmentUrl?: string | null
+  period?: string | null; priority?: string | null; adminMemo?: string | null
+  processedAt?: string | null; processedBy?: string | null
+  allocatedServerId?: string | null; allocatedGpuId?: string | null; allocatedSliceId?: string | null
+  team?: string | null; startDate?: string | null; security?: string | null; scale?: string | null; remark?: string | null
+}
+
+// ISO timestamptz → 'YYYY-MM-DD HH:mm' (시드와 표시 일관). 빈값/파싱불가면 undefined/원본.
+function fmtTs(v?: string | null): string | undefined {
+  if (!v) return undefined
+  const d = new Date(v)
+  if (isNaN(d.getTime())) return v
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
+
+// DB 행 → RequestItem. DB 실값 우선, null 확장필드는 시드/데모로 백필(기존 시드 13건 표시 완성도).
 function fromDbRow(r: GpuRequestRow): RequestItem {
+  const x = r as DbRowExt
   const seed = seedById(r.id)
   const sd = seed ? seedItem(seed) : undefined
   return {
@@ -90,52 +109,27 @@ function fromDbRow(r: GpuRequestRow): RequestItem {
     purpose: r.purpose ?? seed?.purpose ?? '',
     status: r.status as Status,
     rejectReason: r.rejectReason ?? seed?.rejectReason,
-    createdAt: r.createdAt,
-    env: seed?.env,
-    addons: seed?.addons,
-    attachmentUrl: seed?.attachmentUrl,
-    period: seed?.period,
-    priority: seed?.priority,
-    adminMemo: seed?.adminMemo,
-    processedAt: seed?.processedAt,
-    processedBy: seed?.processedBy,
-    allocatedServerId: seed?.allocatedServerId,
-    allocatedGpuId: seed?.allocatedGpuId,
-    allocatedSliceId: seed?.allocatedSliceId,
-    team: sd?.team ?? userById(r.requesterUserId)?.department,
-    security: sd?.security,
-    scale: sd?.scale,
-    startDate: sd?.startDate,
-    remark: sd?.remark,
+    createdAt: fmtTs(r.createdAt) ?? r.createdAt,
+    env: x.env ?? seed?.env,
+    addons: x.addons ?? seed?.addons,
+    attachmentUrl: x.attachmentUrl ?? seed?.attachmentUrl,
+    period: x.period ?? seed?.period,
+    priority: (x.priority ?? seed?.priority) as RequestItem['priority'],
+    adminMemo: x.adminMemo ?? seed?.adminMemo,
+    processedAt: fmtTs(x.processedAt) ?? seed?.processedAt,
+    processedBy: x.processedBy ?? seed?.processedBy,
+    allocatedServerId: x.allocatedServerId ?? seed?.allocatedServerId,
+    allocatedGpuId: x.allocatedGpuId ?? seed?.allocatedGpuId,
+    allocatedSliceId: x.allocatedSliceId ?? seed?.allocatedSliceId,
+    team: x.team ?? sd?.team ?? userById(r.requesterUserId)?.department,
+    security: x.security ?? sd?.security,
+    scale: x.scale ?? sd?.scale,
+    startDate: x.startDate ?? sd?.startDate,
+    remark: x.remark ?? sd?.remark,
   }
 }
 
-// ── 로컬 신규 신청(4.6b 제출, 목업) — localStorage 보존 ──
-const LOCAL_KEY = 'anclave-local-requests'
-
-export function getLocalRequests(): RequestItem[] {
-  try {
-    const raw = localStorage.getItem(LOCAL_KEY)
-    return raw ? (JSON.parse(raw) as RequestItem[]) : []
-  } catch {
-    return []
-  }
-}
-
-export function addLocalRequest(item: RequestItem): void {
-  localStorage.setItem(LOCAL_KEY, JSON.stringify([item, ...getLocalRequests()]))
-}
-
-// 신청번호 — REQ-YYYYMMDD-NNN (로컬 추가분 기준 증가)
-export function nextRequestId(): string {
-  const d = new Date()
-  const p = (n: number) => String(n).padStart(2, '0')
-  const stamp = `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}`
-  const seq = getLocalRequests().length + 1
-  return `REQ-${stamp}-${String(seq).padStart(3, '0')}`
-}
-
-// 신청 목록 — DB 우선, backend 미기동(error) 시 시드 폴백. 로컬 신규 신청을 앞에 병합.
+// 신청 목록 — DB(backend)에서만 조회. backend 미기동(error) 시 시드 폴백(데모 안전망).
 // isLoading: 첫 fetch가 아직 끝나지 않음(data·error 모두 없음) — 빈 상태/로딩 구분용.
 export function useRequests(userId?: string): { items: RequestItem[]; isLoading: boolean } {
   const { data, error, isLoading } = useGpuRequests(userId)
@@ -145,8 +139,7 @@ export function useRequests(userId?: string): { items: RequestItem[]; isLoading:
       : error
         ? ALL_SEED.filter((r) => !userId || r.requesterUserId === userId).map(seedItem)
         : []
-    const locals = getLocalRequests().filter((r) => !userId || r.requesterUserId === userId)
-    return { items: [...locals, ...db], isLoading: isLoading && !data && !error }
+    return { items: db, isLoading: isLoading && !data && !error }
   }, [data, error, isLoading, userId])
 }
 
@@ -161,13 +154,11 @@ export function allocationLink(item: RequestItem, isAdmin: boolean): string | nu
   return alloc ? `/resource-map/${alloc.serverId}/${alloc.gpuId}` : null
 }
 
-// 단건 조회(4.6a 상세) — 로컬 → DB(시드 폴백) 순.
+// 단건 조회(4.6a 상세) — DB 우선, backend 미기동 시 시드 폴백.
 export function useRequestItem(id?: string): { item: RequestItem | null; isLoading: boolean } {
   const { data, error } = useGpuRequests()
   return useMemo(() => {
     if (!id) return { item: null, isLoading: false }
-    const local = getLocalRequests().find((r) => r.id === id)
-    if (local) return { item: local, isLoading: false }
     if (data) {
       const row = data.find((r) => r.id === id)
       return { item: row ? fromDbRow(row) : null, isLoading: false }
@@ -180,10 +171,8 @@ export function useRequestItem(id?: string): { item: RequestItem | null; isLoadi
   }, [id, data, error])
 }
 
-// 재신청 프리필(4.6b ?from=) — 동기 조회: 로컬 → 시드(목업에서 DB=시드).
+// 재신청 프리필(4.6b ?from=) — 동기 조회(시드). 신규 DB 신청은 프리필 대상 아님.
 export function findRequestSync(id: string): RequestItem | null {
-  const local = getLocalRequests().find((r) => r.id === id)
-  if (local) return local
   const s = seedById(id)
   return s ? seedItem(s) : null
 }
