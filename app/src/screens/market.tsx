@@ -734,6 +734,7 @@ function BulletList({ items }: { items: ReactNode[] }) {
 
 function ServiceDetailCard({ service: s, narrow, reserveClose }: { service: Service; narrow: boolean; reserveClose?: boolean }) {
   const p = usePalette()
+  const navigate = useNavigate()
   const tone = toneOf(s.status)
   const apiAvailable = hasApiOf(s)
   const usageStats: [string, string][] = [
@@ -840,7 +841,7 @@ function ServiceDetailCard({ service: s, narrow, reserveClose }: { service: Serv
         <div className="flex items-center gap-2.5 shrink-0">
           <Button variant="outline">서비스 문의</Button>
           {apiAvailable
-            ? <Button><KeyIcon width={15} height={15} /> API 키 요청</Button>
+            ? <Button onClick={() => navigate(`/marketplace/api-request/${s.id}`)}><KeyIcon width={15} height={15} /> API 키 요청</Button>
             : <Button>워크스페이스 열기</Button>}
         </div>
       </div>
