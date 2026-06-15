@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ComponentType, ReactNode, SVGProps } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Button } from '../components/ui'
 import { useTheme } from '../lib/theme'
 import {
@@ -890,9 +890,25 @@ export function Marketplace() {
   const [filters, setFilters] = useState<Filters>(emptyFilters)
   const [sort, setSort] = useState<SortKey>('recent') // 기본 = Figma 노출 순서(시드순)
   const [selected, setSelected] = useState<Service | null>(null)
+  const [params, setParams] = useSearchParams()
   const set = (patch: Partial<Filters>) => setFilters((prev) => ({ ...prev, ...patch }))
   const reset = () => setFilters(emptyFilters())
   const results = useMemo(() => applyFilters(filters, sort), [filters, sort])
+
+  // ?service=<id> 진입 시 해당 서비스 상세 팝업 자동 오픈(예: API 키 요청 완료 → 서비스 상세로).
+  useEffect(() => {
+    const sid = params.get('service')
+    if (!sid) return
+    const found = SERVICES.find((s) => s.id === sid)
+    if (found) setSelected(found)
+  }, [params])
+  const closeDetail = () => {
+    setSelected(null)
+    if (params.get('service')) {
+      params.delete('service')
+      setParams(params, { replace: true })
+    }
+  }
 
   return (
     <div className="anim-fade flex flex-col min-w-0" style={{ gap: 14, height: fill ? '100%' : 'auto', overflow: fill ? 'hidden' : 'visible' }}>
@@ -919,7 +935,7 @@ export function Marketplace() {
         <RankingPanel fill={fill} onOpen={setSelected} />
       </div>
 
-      {selected && <DetailModal service={selected} onClose={() => setSelected(null)} />}
+      {selected && <DetailModal service={selected} onClose={closeDetail} />}
     </div>
   )
 }

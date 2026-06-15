@@ -340,7 +340,7 @@ export function ApiRequestNew() {
             </div>
             <div className="flex w-full" style={{ gap: 10, marginTop: 22 }}>
               <Button variant="outline" className="flex-1 justify-center" onClick={() => navigate('/marketplace')}>마켓플레이스로</Button>
-              <Button className="flex-1 justify-center" onClick={() => navigate(`/marketplace/${svc.id}`)}>서비스 상세로</Button>
+              <Button className="flex-1 justify-center" onClick={() => navigate(`/marketplace?service=${encodeURIComponent(id)}`)}>서비스 상세로</Button>
             </div>
           </div>
         </div>
