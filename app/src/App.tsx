@@ -12,6 +12,7 @@ import { MyResources, RequestStatus } from './screens/dashboard'
 import { AdminMonitoring } from './screens/monitoring'
 import { Requests, GpuChange } from './screens/allocation'
 import { ApprovalsPublish, ApprovalsGpu } from './screens/approvals'
+import { ApprovalDetail } from './screens/approval-detail'
 import { ModelCatalog, ModelDetail } from './screens/catalog'
 import { ModelRequests } from './screens/model-requests'
 import { Marketplace, ServiceDetail } from './screens/market'
@@ -32,6 +33,7 @@ const REGISTRY: Record<string, ComponentType> = {
   requests: Requests,
   'approvals-publish': ApprovalsPublish,
   'approvals-gpu': ApprovalsGpu,
+  'approvals-gpu-detail': ApprovalDetail,
   'gpu-change': GpuChange,
   models: ModelCatalog,
   'model-detail': ModelDetail,
