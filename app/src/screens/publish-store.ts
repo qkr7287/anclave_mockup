@@ -12,9 +12,26 @@ export interface PubRecord extends PublishRequest {
 }
 
 let store: PubRecord[] = publishRequests.map((p) => ({ ...p }))
+let seq = 1
 
 export function listPublishRequests(): PubRecord[] {
   return store.map((r) => ({ ...r }))
+}
+
+// 사용자 신규 게시 신청(4.29 마법사) — 대기 상태로 목록 선두에 추가. 관리자 심사(4.9a) 대상이 된다.
+export function createPublishRequest(input: { requesterUserId: string; serviceName: string; serviceUrl: string; demoUrl: string; meta: string }): PubRecord {
+  const rec: PubRecord = {
+    id: `pr-new-${seq++}`,
+    requesterUserId: input.requesterUserId,
+    serviceName: input.serviceName,
+    serviceUrl: input.serviceUrl,
+    demoUrl: input.demoUrl,
+    meta: input.meta,
+    status: 'pending',
+    createdAt: nowStamp(),
+  }
+  store = [rec, ...store]
+  return rec
 }
 
 export function getPublishRequest(id: string): PubRecord | undefined {
