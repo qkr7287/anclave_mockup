@@ -16,7 +16,8 @@ import { models } from '../data'
 import type { Model } from '../data/types'
 import { useRole } from '../lib/role'
 import { useTheme } from '../lib/theme'
-import { addLocalRequest, nextRequestId, findRequestSync } from './requests-shared'
+import { findRequestSync } from './requests-shared'
+import { apiPost } from '../lib/api'
 import { Logo, providerName } from './catalog'
 
 // G2 · 4.6b 신규 신청(/requests/new) — 좌: 멀티스텝 / 우: 신청 명세서(실시간 채움) → 검토 시 명세서 센터.
@@ -482,6 +483,7 @@ export function RequestNew() {
   const [modelQ, setModelQ] = useState('')
   const [modelKind, setModelKind] = useState('전체')
   const [doneId, setDoneId] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const set = <K extends keyof ReqForm>(k: K, v: ReqForm[K]) => setF((p) => ({ ...p, [k]: v }))
   const toggleModel = (id: string) => setF((p) => ({ ...p, modelIds: p.modelIds.includes(id) ? p.modelIds.filter((x) => x !== id) : [...p.modelIds, id] }))
@@ -498,33 +500,37 @@ export function RequestNew() {
   const wizardStep = reviewing ? 2 : step // 슬라이드아웃 동안 직전(상세 설정) 내용 유지
   const go = (d: number) => setStep((s) => Math.max(0, Math.min(WIZARD_STEPS.length - 1, s + d)))
 
-  const submit = () => {
-    const id = nextRequestId()
-    addLocalRequest({
-      id,
-      requesterUserId: user.id,
-      capacity: 1,
-      capacityUnit: 'card',
-      models: f.modelIds,
-      serviceName: f.serviceName.trim(),
-      purpose: f.reason.trim(),
-      status: 'pending',
-      createdAt: fmtNow(),
-      attachmentUrl: f.files[0] ? `/docs/${f.files[0]}` : undefined,
-      period: f.period,
-      priority: PRIORITY_EN[f.priority] ?? 'normal',
-      team: f.team || undefined,
-      startDate: f.startDate || undefined,
-      security: f.security,
-      scale: f.scale,
-      remark: f.remark.trim() || undefined,
-    })
-    setDoneId(id)
-    toast.push('신규 자원 신청이 접수되었어요. (검토중)', 'ok')
+  // 신규 신청 — backend(/api/gpu-requests)로 POST. id·status·createdAt 은 서버 생성.
+  const submit = async () => {
+    if (submitting) return
+    setSubmitting(true)
+    try {
+      const created = await apiPost<{ id: string }>('/api/gpu-requests', {
+        requesterUserId: user.id,
+        capacity: 1,
+        capacityUnit: 'card',
+        models: f.modelIds,
+        serviceName: f.serviceName.trim(),
+        purpose: f.reason.trim(),
+        attachmentUrl: f.files[0] ? `/docs/${f.files[0]}` : undefined,
+        period: f.period,
+        priority: PRIORITY_EN[f.priority] ?? 'normal',
+        team: f.team || undefined,
+        startDate: f.startDate || undefined,
+        security: f.security,
+        scale: f.scale,
+        remark: f.remark.trim() || undefined,
+      })
+      setDoneId(created.id)
+      toast.push('신규 자원 신청이 접수되었어요. (검토중)', 'ok')
+    } catch {
+      setSubmitting(false)
+      toast.push('신청 제출에 실패했어요. 잠시 후 다시 시도해 주세요.', 'warn')
+    }
   }
   const next = () => {
     if (!canNext) return
-    if (isLast) submit()
+    if (isLast) void submit()
     else go(1)
   }
 
@@ -791,7 +797,7 @@ export function RequestNew() {
             onEdit={(i) => setStep(i)}
             onBack={() => setStep(2)}
             onSubmit={submit}
-            canSubmit={valid[0] && valid[1] && valid[2]}
+            canSubmit={valid[0] && valid[1] && valid[2] && !submitting}
           />
         </div>
       </div>

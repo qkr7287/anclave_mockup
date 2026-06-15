@@ -23,6 +23,7 @@ import {
   XMarkIcon,
   EyeIcon,
   ArrowTopRightOnSquareIcon,
+  ArrowLeftIcon,
 } from '@heroicons/react/24/outline'
 import { EmptyState, Button, KpiStat, useToast } from '../components/ui'
 import { useRole } from '../lib/role'
@@ -616,11 +617,7 @@ interface ReqRow {
   reason: string
   date: string
   status: ReqStatus
-  statusSub: string
   procDate: string
-  procStatus: string
-  memo: string
-  memoDanger: boolean
   allocPath?: string // 승인 행 '자원 보기' 딥링크(/resource-map/:serverId/:gpuId), 도출 불가 시 undefined
 }
 
@@ -636,7 +633,6 @@ function toReqRow(r: RequestItem, isAdmin: boolean): ReqRow {
   const status = STATUS_KR[r.status] ?? '대기'
   const unit = r.capacityUnit === 'slice' ? '슬라이스' : 'GPU'
   const date = fmtReqDate(r.createdAt)
-  const sub = status === '대기' ? '검토중' : status === '승인' ? '할당 완료' : '반려됨'
   return {
     no: r.id,
     resource: `${r.capacity} ${unit}`,
@@ -644,11 +640,7 @@ function toReqRow(r: RequestItem, isAdmin: boolean): ReqRow {
     reason: r.purpose || r.serviceName || '-',
     date,
     status,
-    statusSub: sub,
-    procDate: r.processedAt ? fmtReqDate(r.processedAt) : date,
-    procStatus: status === '대기' ? '접수 완료' : sub,
-    memo: r.adminMemo ?? r.rejectReason ?? '—',
-    memoDanger: status === '반려',
+    procDate: r.processedAt ? fmtReqDate(r.processedAt) : '—',
     allocPath: allocationLink(r, isAdmin) ?? undefined,
   }
 }
@@ -671,7 +663,6 @@ const COLS = [
   { key: 'date', label: '신청일', width: 150 },
   { key: 'status', label: '상태', width: 110 },
   { key: 'proc', label: '최근 처리', width: 150 },
-  { key: 'memo', label: '메모 / 반려 사유', width: 138 },
   { key: 'action', label: '액션', width: 196 },
 ] as const
 
@@ -710,7 +701,7 @@ function ActionLink({ label, accent, Icon, onClick, disabled }: { label: string;
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="inline-flex items-center gap-1 font-medium rounded-[8px] transition-[transform,background-color,box-shadow] duration-100 active:enabled:scale-95 whitespace-nowrap hover:enabled:shadow-[0_1px_3px_rgba(0,0,0,0.08)] disabled:opacity-40 disabled:cursor-not-allowed"
+      className="inline-flex items-center gap-1 font-medium rounded-[8px] cursor-pointer transition-[transform,background-color,box-shadow] duration-100 active:enabled:scale-95 whitespace-nowrap hover:enabled:shadow-[0_1px_3px_rgba(0,0,0,0.08)] disabled:opacity-40 disabled:cursor-not-allowed"
       style={{
         fontSize: 14,
         padding: '5px 10px',
@@ -847,9 +838,20 @@ export function RequestStatus() {
 
   return (
     <div className="anim-fade flex flex-col min-w-0 h-full" style={mutedFix}>
-      {/* 1) 헤더 — 제목 + 부제 (신규 신청 버튼은 표 카드 헤더로 이동) */}
+      {/* 1) 헤더 — 뒤로가기 + 제목 + 부제 (신규 신청 버튼은 표 카드 헤더로 이동) */}
       <header className="flex flex-col min-w-0 shrink-0">
-        <h1 className="font-bold text-text" style={{ fontSize: 23, lineHeight: 1.2 }}>자원 신청현황</h1>
+        <div className="flex items-center" style={{ gap: 10 }}>
+          <button
+            type="button"
+            aria-label="뒤로 가기"
+            onClick={() => navigate(-1)}
+            className="flex items-center justify-center rounded-[9px] border border-line bg-card2 text-muted hover:text-text hover:bg-soft cursor-pointer transition-colors shrink-0"
+            style={{ width: 34, height: 34 }}
+          >
+            <ArrowLeftIcon style={{ width: 18, height: 18 }} />
+          </button>
+          <h1 className="font-bold text-text" style={{ fontSize: 23, lineHeight: 1.2 }}>자원 신청현황</h1>
+        </div>
         <p className="text-muted" style={{ fontSize: 14, marginTop: 8 }}>
           자원 신청의 승인 상태, 반려 사유 및 최근 처리 내역을 확인할 수 있습니다.
         </p>
@@ -959,7 +961,7 @@ export function RequestStatus() {
             <tbody>
               {view.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="text-muted text-center" style={{ fontSize: 14, padding: '40px 0' }}>
+                  <td colSpan={8} className="text-muted text-center" style={{ fontSize: 14, padding: '40px 0' }}>
                     검색 결과가 없어요. 검색어나 필터를 조정해보세요.
                   </td>
                 </tr>
@@ -993,25 +995,13 @@ export function RequestStatus() {
                   <td className="align-middle truncate text-muted" style={{ fontSize: 14, padding: '15px 0' }}>
                     {r.date}
                   </td>
-                  {/* 상태 = 배지 + 하단 sub */}
+                  {/* 상태 = 배지 */}
                   <td className="align-middle" style={{ padding: '15px 0' }}>
-                    <div className="flex flex-col items-start" style={{ gap: 5 }}>
-                      <StatBadge status={r.status} />
-                      <span className="text-muted" style={{ fontSize: 14 }}>{r.statusSub}</span>
-                    </div>
+                    <StatBadge status={r.status} />
                   </td>
-                  {/* 최근 처리 = 일시 + 상태 */}
+                  {/* 최근 처리 = 일시 */}
                   <td className="align-middle" style={{ padding: '15px 0' }}>
-                    <div className="flex flex-col" style={{ gap: 4 }}>
-                      <span className="truncate" style={{ fontSize: 14, color: 'var(--c-text)', opacity: 0.82 }}>{r.procDate}</span>
-                      <span className="text-muted" style={{ fontSize: 14 }}>{r.procStatus}</span>
-                    </div>
-                  </td>
-                  {/* 메모 / 반려 사유 — 1줄 말줄임, 반려는 danger색, adminMemo 우선 */}
-                  <td className="align-middle" style={{ fontSize: 14, padding: '15px 16px 15px 0' }}>
-                    <span className="block truncate" style={{ lineHeight: 1.4, color: r.memoDanger ? 'var(--c-danger)' : 'var(--c-muted)' }} title={r.memo}>
-                      {r.memo}
-                    </span>
+                    <span className="truncate text-muted" style={{ fontSize: 14 }}>{r.procDate}</span>
                   </td>
                   {/* 액션 — 승인=자원 보기(자원맵 딥링크, 도출 불가 시 비활성) / 모두 상세 보기(/requests/status/:id) */}
                   <td className="align-middle" style={{ padding: '15px 0', paddingRight: 24 }}>

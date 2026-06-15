@@ -9,6 +9,7 @@ import {
   XCircleIcon,
   ServerStackIcon,
   CpuChipIcon,
+  ArrowLeftIcon,
 } from '@heroicons/react/24/outline'
 import { Card, Button, StepBack, EmptyState } from '../components/ui'
 import { userById, serverById, gpuById } from '../data'
@@ -238,7 +239,20 @@ export function RequestDetail() {
 
   return (
     <div className="anim-fade flex flex-col min-w-0 h-full" style={mutedFix}>
-      {/* 진행 타임라인 — 상단 브레드크럼은 전역 헤더가 표기(신청번호·상태는 명세서 레터헤드). */}
+      {/* 상단 — 뒤로가기(목록 4.6 목록 페이지와 동일 버튼). 신청번호·상태는 명세서 레터헤드. */}
+      <header className="shrink-0" style={{ marginBottom: 14 }}>
+        <button
+          type="button"
+          aria-label="뒤로 가기"
+          onClick={() => navigate(-1)}
+          className="flex items-center justify-center rounded-[9px] border border-line bg-card2 text-muted hover:text-text hover:bg-soft cursor-pointer transition-colors"
+          style={{ width: 34, height: 34 }}
+        >
+          <ArrowLeftIcon style={{ width: 18, height: 18 }} />
+        </button>
+      </header>
+
+      {/* 진행 타임라인 — 상단 브레드크럼은 전역 헤더가 표기. */}
       <section className="bg-card2 border border-line rounded-[14px] shrink-0" style={{ boxShadow: 'var(--shadow-card)', padding: '22px 28px 16px' }}>
         <FlowStepper steps={buildFlow(item)} />
       </section>
