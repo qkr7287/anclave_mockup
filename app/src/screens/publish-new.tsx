@@ -41,11 +41,6 @@ const VIS_OPTS = [
   { v: '팀 한정', desc: '소속 팀·부서만 접근' },
   { v: '링크 보유자', desc: '링크를 받은 사용자만' },
 ] as const
-const PRICE_OPTS = [
-  { v: '무료', desc: '제한 없이 무료 제공' },
-  { v: '구독형', desc: '월 단위 정액 과금' },
-  { v: '종량제', desc: '호출량 기반 과금' },
-] as const
 const INTRO_MIN = 10
 
 const inputBase: React.CSSProperties = {
@@ -211,15 +206,15 @@ function CornerMarks() {
   )
 }
 
-interface PubForm { serviceId: string; intro: string; visibility: string; pricing: string; tags: string; demoNote: string }
+interface PubForm { serviceId: string; intro: string; visibility: string; tags: string; demoNote: string }
 
 function SpecSheet({ f, svc, userName, today, currentStep, reviewing, onEdit, onBack, onSubmit, canSubmit }: {
   f: PubForm; svc: Service | undefined; userName: string; today: string
   currentStep: number; reviewing: boolean; onEdit: (i: number) => void; onBack: () => void; onSubmit: () => void; canSubmit: boolean
 }) {
-  const filled = [!!f.serviceId, f.intro.trim().length >= INTRO_MIN, !!f.visibility, !!f.pricing].filter(Boolean).length
-  const pct = Math.round((filled / 4) * 100)
-  const done = filled === 4
+  const filled = [!!f.serviceId, f.intro.trim().length >= INTRO_MIN, !!f.visibility].filter(Boolean).length
+  const pct = Math.round((filled / 3) * 100)
+  const done = filled === 3
   const docNo = `게시-${today.slice(0, 4)}-${today.slice(5, 7)}${today.slice(8, 10)}`
   return (
     <div data-morph="sheet" className="relative flex flex-col h-full" style={{ background: M.surface, border: `1px solid ${M.border}`, borderRadius: 14, boxShadow: reviewing ? 'var(--shadow-pop)' : 'var(--shadow-card)', overflow: 'hidden', width: '100%', maxWidth: 880, margin: '0 auto', transform: reviewing ? 'scale(1)' : 'scale(0.99)', transition: `box-shadow .6s ease, transform .8s ${MORPH_EASE}` }}>
@@ -246,7 +241,7 @@ function SpecSheet({ f, svc, userName, today, currentStep, reviewing, onEdit, on
           <div style={{ marginTop: 12 }}>
             <div className="flex items-center justify-between" style={{ fontSize: 13, color: M.help, marginBottom: 6 }}>
               <span>필수 항목</span>
-              <span className="font-semibold" style={{ color: done ? 'var(--c-ok)' : M.blueText }}>{filled} / 4</span>
+              <span className="font-semibold" style={{ color: done ? 'var(--c-ok)' : M.blueText }}>{filled} / 3</span>
             </div>
             <div style={{ height: 4, borderRadius: 2, background: M.border, overflow: 'hidden' }}>
               <div style={{ height: '100%', width: `${pct}%`, background: done ? 'var(--c-ok)' : M.blue, borderRadius: 2, transition: 'width .45s cubic-bezier(.4,0,.2,1), background .3s' }} />
@@ -263,7 +258,6 @@ function SpecSheet({ f, svc, userName, today, currentStep, reviewing, onEdit, on
           <SpecSection title="게시 정보" index={1} currentStep={currentStep} reviewing={reviewing} onEdit={() => onEdit(1)}>
             <SpecRow label="소개" value={f.intro} reviewing={reviewing} pendingW="92%" />
             <SpecRow label="공개 범위" value={f.visibility} reviewing={reviewing} pendingW="35%" />
-            <SpecRow label="요금제" value={f.pricing} reviewing={reviewing} pendingW="30%" />
             <SpecRow label="태그" value={f.tags} emptyText="없음" reviewing={reviewing} pendingW="50%" />
             <SpecRow label="데모 안내" value={f.demoNote} emptyText="없음" reviewing={reviewing} pendingW="60%" last />
           </SpecSection>
@@ -293,7 +287,7 @@ export function PublishNew() {
   const myServices = services.filter((s) => s.ownerUserId === user.id)
 
   const [step, setStep] = useState(0)
-  const [f, setF] = useState<PubForm>({ serviceId: '', intro: '', visibility: VIS_OPTS[0].v, pricing: PRICE_OPTS[0].v, tags: '', demoNote: '' })
+  const [f, setF] = useState<PubForm>({ serviceId: '', intro: '', visibility: VIS_OPTS[0].v, tags: '', demoNote: '' })
   const [svcQ, setSvcQ] = useState('')
   const [doneId, setDoneId] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -302,7 +296,7 @@ export function PublishNew() {
   const svc = myServices.find((s) => s.id === f.serviceId)
   const valid = [
     !!f.serviceId,
-    f.intro.trim().length >= INTRO_MIN && !!f.visibility && !!f.pricing,
+    f.intro.trim().length >= INTRO_MIN && !!f.visibility,
     true,
   ]
   const canNext = valid[step]
@@ -431,18 +425,10 @@ export function PublishNew() {
                   <textarea value={f.intro} maxLength={300} onChange={(e) => set('intro', e.target.value)} placeholder={svc ? `예: ${svc.description}` : '먼저 서비스를 선택해주세요.'} style={{ ...inputBase, height: 96, padding: '14px', resize: 'none', lineHeight: 1.5 }} />
                   <span className="absolute" style={{ right: 14, bottom: 12, fontSize: 12, color: f.intro.trim().length >= INTRO_MIN ? M.meta : 'var(--c-danger)' }}>{f.intro.trim().length}/{INTRO_MIN}</span>
                 </div>
-                <div className="grid grid-cols-2" style={{ gap: 18, marginBottom: 22 }}>
-                  <div>
-                    <FieldLabel text="공개 범위" required />
-                    <div className="flex flex-col" style={{ gap: 10 }}>
-                      {VIS_OPTS.map((o) => <SelectCard key={o.v} label={o.v} sub={o.desc} active={f.visibility === o.v} onClick={() => set('visibility', o.v)} />)}
-                    </div>
-                  </div>
-                  <div>
-                    <FieldLabel text="요금제" required />
-                    <div className="flex flex-col" style={{ gap: 10 }}>
-                      {PRICE_OPTS.map((o) => <SelectCard key={o.v} label={o.v} sub={o.desc} active={f.pricing === o.v} onClick={() => set('pricing', o.v)} />)}
-                    </div>
+                <div style={{ marginBottom: 22 }}>
+                  <FieldLabel text="공개 범위" required />
+                  <div className="grid grid-cols-3" style={{ gap: 10 }}>
+                    {VIS_OPTS.map((o) => <SelectCard key={o.v} label={o.v} sub={o.desc} active={f.visibility === o.v} onClick={() => set('visibility', o.v)} />)}
                   </div>
                 </div>
                 <div className="grid grid-cols-2 flex-1 min-h-0" style={{ gap: 18 }}>
