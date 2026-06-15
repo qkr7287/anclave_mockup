@@ -21,15 +21,15 @@ import {
   ChevronRightIcon,
   RocketLaunchIcon,
   XMarkIcon,
-  CheckIcon,
-  ArrowDownTrayIcon,
   EyeIcon,
   ArrowTopRightOnSquareIcon,
 } from '@heroicons/react/24/outline'
-import { EmptyState, Button, useToast } from '../components/ui'
+import { EmptyState, Button, KpiStat, useToast } from '../components/ui'
 import { useRole } from '../lib/role'
 import { useTheme } from '../lib/theme'
-import { useGpuRequests, useAllocations, useTelemetrySeries, useEvents, useServiceTokens, type GpuRequestRow, type AllocationRow, type SeriesPoint } from '../data/hooks/usePolling'
+import { useAllocations, useTelemetrySeries, useEvents, useServiceTokens, type AllocationRow, type SeriesPoint } from '../data/hooks/usePolling'
+import { modelById } from '../data'
+import { useRequests, allocationLink, type RequestItem } from './requests-shared'
 
 // 다크 테마에서 공유 --c-muted(#525872)가 카드 대비 ~2.7:1로 너무 어두움 → 페이지 루트에서만 더 밝게 오버라이드.
 // (index.css는 공유 파일이라 수정 불가 → 스코프 오버라이드로 text-muted 일괄 개선. 라이트는 기본값 유지.)
@@ -620,17 +620,19 @@ interface ReqRow {
   procDate: string
   procStatus: string
   memo: string
-  action: '상세보기' | '재신청'
+  memoDanger: boolean
+  allocPath?: string // 승인 행 '자원 보기' 딥링크(/resource-map/:serverId/:gpuId), 도출 불가 시 undefined
 }
 
-// DB(gpu_requests) → 화면 행(ReqRow) 변환. 4.6 DB 연동.
-const STATUS_KR: Record<GpuRequestRow['status'], ReqStatus> = { pending: '대기', approved: '승인', rejected: '반려' }
+// 신청(RequestItem: DB + 시드 폴백 + 로컬 신규) → 화면 행 변환. 확장 필드는 optional — '—' 폴백.
+const STATUS_KR: Record<RequestItem['status'], ReqStatus> = { pending: '대기', approved: '승인', rejected: '반려' }
 function fmtReqDate(iso: string): string {
   const d = new Date(iso)
+  if (isNaN(d.getTime())) return iso
   const p = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
-function toReqRow(r: GpuRequestRow): ReqRow {
+function toReqRow(r: RequestItem, isAdmin: boolean): ReqRow {
   const status = STATUS_KR[r.status] ?? '대기'
   const unit = r.capacityUnit === 'slice' ? '슬라이스' : 'GPU'
   const date = fmtReqDate(r.createdAt)
@@ -638,15 +640,16 @@ function toReqRow(r: GpuRequestRow): ReqRow {
   return {
     no: r.id,
     resource: `${r.capacity} ${unit}`,
-    model: r.models?.[0] ?? '-',
-    reason: r.purpose ?? r.serviceName ?? '-',
+    model: r.models?.[0] ? (modelById(r.models[0])?.name ?? r.models[0]) : '-',
+    reason: r.purpose || r.serviceName || '-',
     date,
     status,
     statusSub: sub,
-    procDate: date,
+    procDate: r.processedAt ? fmtReqDate(r.processedAt) : date,
     procStatus: status === '대기' ? '접수 완료' : sub,
-    memo: r.rejectReason ?? (status === '승인' ? '리소스 할당됨' : '-'),
-    action: status === '반려' ? '재신청' : '상세보기',
+    memo: r.adminMemo ?? r.rejectReason ?? '—',
+    memoDanger: status === '반려',
+    allocPath: allocationLink(r, isAdmin) ?? undefined,
   }
 }
 function computeStats(rows: ReqRow[]): StatDef[] {
@@ -678,7 +681,7 @@ function matchReq(r: ReqRow, f: ReqFilter): boolean {
   if (f.q.trim() && !`${r.no} ${r.resource} ${r.model} ${r.reason}`.toLowerCase().includes(f.q.trim().toLowerCase())) return false
   if (f.status !== '전체' && r.status !== f.status) return false
   if (f.type !== '전체') {
-    const isMig = r.resource.includes('MIG')
+    const isMig = r.resource.includes('슬라이스')
     if (f.type === 'MIG' && !isMig) return false
     if (f.type === 'GPU' && isMig) return false
   }
@@ -701,12 +704,13 @@ function StatBadge({ status }: { status: ReqStatus }) {
 }
 
 // 테이블 액션 펠릿(아이콘 + 라벨) — 소프트 채움, 테두리 없이 은은하게
-function ActionLink({ label, accent, Icon, onClick }: { label: string; accent?: boolean; Icon: IconType; onClick: (e: React.MouseEvent) => void }) {
+function ActionLink({ label, accent, Icon, onClick, disabled }: { label: string; accent?: boolean; Icon: IconType; onClick: (e: React.MouseEvent) => void; disabled?: boolean }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center gap-1 font-medium rounded-[8px] transition-[transform,background-color,box-shadow] duration-100 active:scale-95 whitespace-nowrap hover:shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
+      disabled={disabled}
+      className="inline-flex items-center gap-1 font-medium rounded-[8px] transition-[transform,background-color,box-shadow] duration-100 active:enabled:scale-95 whitespace-nowrap hover:enabled:shadow-[0_1px_3px_rgba(0,0,0,0.08)] disabled:opacity-40 disabled:cursor-not-allowed"
       style={{
         fontSize: 14,
         padding: '5px 10px',
@@ -720,31 +724,20 @@ function ActionLink({ label, accent, Icon, onClick }: { label: string; accent?: 
   )
 }
 
-function StatCard({ s }: { s: StatDef }) {
+// KPI 카드 — 공용 KpiStat + 상태색 아이콘 박스. 값은 실데이터 카운트(computeStats).
+function StatKpi({ s }: { s: StatDef }) {
   const { Icon } = s
   return (
-    <div
-      className="relative bg-card2 border border-line rounded-[14px] overflow-hidden hover-lift"
-      style={{ height: 128, boxShadow: 'var(--shadow-card)' }}
-    >
-      <div className="flex items-start" style={{ gap: 16, padding: 23 }}>
-        <span
-          className="flex items-center justify-center shrink-0 rounded-[14px]"
-          style={{ width: 56, height: 56, background: s.box, color: s.num }}
-        >
-          <Icon style={{ width: 28, height: 28 }} />
+    <KpiStat
+      label={s.label}
+      value={s.value}
+      sub={s.desc}
+      icon={
+        <span className="flex items-center justify-center rounded-[9px]" style={{ width: 30, height: 30, background: s.box, color: s.num }}>
+          <Icon style={{ width: 17, height: 17 }} />
         </span>
-        <div className="flex flex-col min-w-0">
-          <span className="font-semibold text-text" style={{ fontSize: 15, lineHeight: 1.3 }}>{s.label}</span>
-          <span className="font-bold" style={{ fontSize: 30, lineHeight: 1.2, color: s.num, letterSpacing: '-0.5px', marginTop: 2 }}>
-            {s.value}
-          </span>
-        </div>
-      </div>
-      <span className="absolute text-muted" style={{ left: 23, bottom: 15, fontSize: 14, lineHeight: 1 }}>
-        {s.desc}
-      </span>
-    </div>
+      }
+    />
   )
 }
 
@@ -801,591 +794,16 @@ function PageBtn({ children, active, onClick, disabled }: { children: ReactNode;
   )
 }
 
-// ── 신규 자원 요청 마법사 모달 — Figma node 31:2 (4-step) ──
-// 테마 토큰 매핑: 라이트 테마=라이트 모달 / 다크 테마=다크 모달 (오버레이는 var(--dim)).
-// 보조 텍스트는 본문색의 반투명(color-mix)으로 → 테마 자동 적응 + 대비 보장(다크에서 muted가 너무 어두운 문제 해결).
-const M = {
-  surface: 'var(--c-card2)', text: 'var(--c-text)', label: 'var(--c-text)',
-  help: 'color-mix(in srgb, var(--c-text) 68%, transparent)',
-  ph: 'color-mix(in srgb, var(--c-text) 62%, transparent)',
-  meta: 'color-mix(in srgb, var(--c-text) 64%, transparent)',
-  idle: 'color-mix(in srgb, var(--c-text) 66%, transparent)',
-  req: 'var(--c-danger)', inputBg: 'var(--c-bg)', border: 'var(--c-border)', divider: 'var(--c-border)',
-  stepLine: 'var(--c-border)', blue: 'var(--c-accent)', blueText: 'var(--c-accent)',
-  cancelBg: 'var(--c-soft)', cancelBorder: 'var(--c-border)', value: 'var(--c-text)',
-  onAccent: 'var(--c-onaccent)', activeBg: 'var(--accent-soft)',
-}
-const WIZARD_STEPS = ['기본 정보', '모델 및 자원 선택', '상세 설정', '요청 내용 확인']
-
-interface ReqForm {
-  serviceName: string
-  team: string
-  reason: string
-  model: string
-  period: string
-  priority: string
-  addons: string[]
-}
-const EMPTY_FORM: ReqForm = { serviceName: '', team: '', reason: '', model: '', period: '', priority: '보통', addons: [] }
-
-const TEAMS = ['플랫폼팀', 'AI 연구팀', '서비스개발팀', '데이터팀', '클라우드인프라팀']
-const PERIOD_OPTS = ['1개월', '3개월', '6개월', '무기한']
-const PRIORITY_OPTS = ['낮음', '보통', '높음']
-const ADDON_OPTS = ['주피터 노트북', 'API 엔드포인트', '모니터링 대시보드']
-
-// 모델 카탈로그(미니) — Figma '모델 카탈로그 (구현)' node 9:2 기반. 로고는 app/public/models/*.png.
-interface CatalogModel { name: string; provider: string; img: string; desc: string; tags: string[]; usage: string; popular?: boolean }
-const CATALOG: CatalogModel[] = [
-  { name: 'GPT-4o', provider: 'OpenAI', img: '/models/gpt-4o.png', desc: '멀티모달 지원 고성능 범용 모델', tags: ['LLM', '멀티모달'], usage: '35.6%', popular: true },
-  { name: 'Claude 3.5 Sonnet', provider: 'Anthropic', img: '/models/claude.png', desc: '코딩 및 분석에 최적화된 모델', tags: ['LLM'], usage: '22.1%', popular: true },
-  { name: 'Llama 3.1 70B', provider: 'Meta', img: '/models/llama.png', desc: '오픈 소스 고성능 언어 모델', tags: ['LLM'], usage: '15.8%', popular: true },
-  { name: 'Gemini 1.5 Pro', provider: 'Google', img: '/models/gemini.png', desc: '맥락 이해에 특화된 모델', tags: ['LLM', '멀티모달'], usage: '10.4%' },
-  { name: 'GPT-4o mini', provider: 'OpenAI', img: '/models/gpt-4o.png', desc: '저비용 경량 멀티모달 모델', tags: ['LLM', '멀티모달'], usage: '9.2%', popular: true },
-  { name: 'Claude 3 Opus', provider: 'Anthropic', img: '/models/claude.png', desc: '최고 성능 추론·작문 모델', tags: ['LLM'], usage: '8.4%' },
-  { name: 'Mistral Large 2', provider: 'Mistral AI', img: '/models/mistral.png', desc: '고성능 오픈 가중치 모델', tags: ['LLM'], usage: '6.1%' },
-  { name: 'Gemini 1.5 Flash', provider: 'Google', img: '/models/gemini.png', desc: '빠른 응답 경량 멀티모달', tags: ['LLM', '멀티모달'], usage: '5.7%' },
-  { name: 'Llama 3.1 405B', provider: 'Meta', img: '/models/llama.png', desc: '초대형 오픈 소스 프런티어 모델', tags: ['LLM'], usage: '4.8%' },
-  { name: 'Claude 3 Haiku', provider: 'Anthropic', img: '/models/claude.png', desc: '초경량 고속 응답 모델', tags: ['LLM'], usage: '4.1%' },
-  { name: 'Phi-3 Medium', provider: 'Microsoft', img: '/models/phi3.png', desc: '경량화된 고성능 추론 모델', tags: ['LLM'], usage: '3.2%' },
-  { name: 'Mixtral 8x22B', provider: 'Mistral AI', img: '/models/mistral.png', desc: 'MoE 기반 고효율 모델', tags: ['LLM'], usage: '2.9%' },
-  { name: 'Command R+', provider: 'Cohere', img: '/models/command-r.png', desc: '엔터프라이즈 최적화 모델', tags: ['LLM'], usage: '2.1%' },
-  { name: 'Gemma 2 27B', provider: 'Google', img: '/models/gemini.png', desc: '경량 오픈 가중치 모델', tags: ['LLM'], usage: '2.0%' },
-  { name: 'Yi-1.5 34B', provider: '01.AI', img: '/models/yi.png', desc: '중국어/영어에 특화된 모델', tags: ['LLM'], usage: '1.7%' },
-  { name: 'Llama 3.1 8B', provider: 'Meta', img: '/models/llama.png', desc: '경량 온디바이스 오픈 모델', tags: ['LLM'], usage: '1.4%' },
-  { name: 'Phi-3 mini', provider: 'Microsoft', img: '/models/phi3.png', desc: '초경량 SLM 추론 모델', tags: ['LLM'], usage: '1.1%' },
-  { name: 'Command R', provider: 'Cohere', img: '/models/command-r.png', desc: 'RAG 특화 검색 증강 모델', tags: ['LLM'], usage: '0.9%' },
-]
-
-// 모달 라벨(필수 표시 + 헬퍼)
-function FieldLabel({ text, required, help }: { text: string; required?: boolean; help?: string }) {
-  return (
-    <div style={{ marginBottom: 10 }}>
-      <div className="font-semibold" style={{ fontSize: 14, color: M.label }}>
-        {text}
-        {required && <span style={{ color: M.req, marginLeft: 5 }}>*</span>}
-      </div>
-      {help && <div style={{ fontSize: 13, color: M.help, marginTop: 4 }}>{help}</div>}
-    </div>
-  )
-}
-
-// 선택 카드(모델/자원/기간/우선순위)
-function SelectCard({ label, active, onClick, full }: { label: string; active: boolean; onClick: () => void; full?: boolean }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex items-center justify-between rounded-[8px] transition-colors text-left"
-      style={{
-        height: 44,
-        padding: '0 14px',
-        width: full ? '100%' : undefined,
-        background: active ? M.activeBg : M.inputBg,
-        border: `1px solid ${active ? M.blue : M.border}`,
-        color: active ? M.text : M.value,
-        fontSize: 14,
-        fontWeight: active ? 600 : 500,
-      }}
-    >
-      {label}
-      {active && <CheckIcon style={{ width: 16, height: 16, color: M.blue }} />}
-    </button>
-  )
-}
-
-// 모달 내 카탈로그 페이지 버튼(테마)
-function ModelPageBtn({ children, active, disabled, onClick }: { children: ReactNode; active?: boolean; disabled?: boolean; onClick?: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className="flex items-center justify-center rounded-[7px] font-medium transition-[transform,background-color] duration-100 disabled:opacity-40 disabled:cursor-not-allowed active:enabled:scale-90"
-      style={{ minWidth: 30, height: 30, padding: '0 9px', fontSize: 14, background: active ? M.blue : 'transparent', color: active ? M.onAccent : M.help, border: active ? 'none' : `1px solid ${M.border}` }}
-    >
-      {children}
-    </button>
-  )
-}
-
-function Stepper({ current }: { current: number }) {
-  return (
-    <div className="flex items-start" style={{ padding: '0 4px' }}>
-      {WIZARD_STEPS.map((s, i) => {
-        const done = i <= current
-        return (
-          <div key={s} className={i < WIZARD_STEPS.length - 1 ? 'flex items-start flex-1' : 'flex items-start'}>
-            <div className="flex flex-col items-center" style={{ width: 96 }}>
-              <span
-                className="flex items-center justify-center rounded-full font-semibold"
-                style={{
-                  width: 28, height: 28, fontSize: 13,
-                  background: done ? M.blue : 'transparent',
-                  border: done ? 'none' : `1.5px solid ${M.border}`,
-                  color: done ? M.onAccent : M.idle,
-                }}
-              >
-                {i < current ? <CheckIcon style={{ width: 15, height: 15 }} /> : i + 1}
-              </span>
-              <span className="font-medium" style={{ fontSize: 12.5, marginTop: 8, color: i <= current ? M.blueText : M.idle, whiteSpace: 'nowrap' }}>{s}</span>
-            </div>
-            {i < WIZARD_STEPS.length - 1 && (
-              <span style={{ flex: 1, height: 2, marginTop: 13, background: i < current ? M.blue : M.stepLine, borderRadius: 1 }} />
-            )}
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
-function NewRequestModal({ open, onClose, onSubmit }: { open: boolean; onClose: () => void; onSubmit: (f: ReqForm) => void }) {
-  const [step, setStep] = useState(0)
-  const [f, setF] = useState<ReqForm>(EMPTY_FORM)
-  const [modelQ, setModelQ] = useState('')
-  const [modelPage, setModelPage] = useState(1)
-  const set = <K extends keyof ReqForm>(k: K, v: ReqForm[K]) => setF((p) => ({ ...p, [k]: v }))
-
-  // 열릴 때 초기화
-  useEffect(() => {
-    if (open) {
-      setStep(0)
-      setF(EMPTY_FORM)
-      setModelQ('')
-      setModelPage(1)
-    }
-  }, [open])
-
-  // ESC 닫기
-  useEffect(() => {
-    if (!open) return
-    const h = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', h)
-    return () => window.removeEventListener('keydown', h)
-  }, [open, onClose])
-
-  if (!open) return null
-
-  const valid = [
-    Boolean(f.serviceName.trim() && f.team && f.reason.trim()),
-    Boolean(f.model),
-    Boolean(f.period && f.priority),
-    true,
-  ]
-  const canNext = valid[step]
-  const isLast = step === 3
-  const go = (d: number) => setStep((s) => Math.max(0, Math.min(3, s + d)))
-  const next = () => {
-    if (!canNext) return
-    if (isLast) onSubmit(f)
-    else go(1)
-  }
-
-  const inputBase: React.CSSProperties = {
-    height: 44, width: '100%', background: M.inputBg, border: `1px solid ${M.border}`,
-    borderRadius: 8, padding: '0 14px', fontSize: 14, color: M.text, outline: 'none',
-  }
-
-  return (
-    <div
-      className="fixed inset-0 flex items-center justify-center anim-fade"
-      style={{ background: 'var(--dim)', zIndex: 60, padding: 20 }}
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-    >
-      <div
-        className="flex flex-col rounded-[16px] overflow-hidden"
-        style={{ width: 761, maxWidth: '94vw', maxHeight: '92vh', background: M.surface, boxShadow: 'var(--shadow-pop)' }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* 헤더 */}
-        <div className="flex items-center justify-between shrink-0" style={{ padding: '24px 36px 22px' }}>
-          <h2 className="font-bold" style={{ fontSize: 18, color: M.text }}>신규 자원 요청</h2>
-          <button type="button" onClick={onClose} aria-label="닫기" style={{ color: M.idle }} className="transition-transform duration-100 hover:opacity-70 active:scale-90">
-            <XMarkIcon style={{ width: 22, height: 22 }} />
-          </button>
-        </div>
-        <div style={{ height: 1, background: M.divider }} />
-
-        {/* 스텝퍼 */}
-        <div className="shrink-0" style={{ padding: '20px 36px 14px' }}>
-          <Stepper current={step} />
-        </div>
-
-        {/* 본문 */}
-        <div className="flex-1 min-h-0 overflow-auto" style={{ padding: '6px 36px 24px' }}>
-          {step === 0 && (
-            <div className="flex flex-col">
-              <h3 className="font-semibold" style={{ fontSize: 14, color: M.text, marginBottom: 18 }}>기본 정보를 입력해주세요.</h3>
-              {/* 서비스명 */}
-              <FieldLabel text="서비스명" required help="서비스를 식별할 수 있는 이름을 입력해주세요." />
-              <div className="relative" style={{ marginBottom: 24 }}>
-                <input
-                  value={f.serviceName}
-                  maxLength={50}
-                  onChange={(e) => set('serviceName', e.target.value)}
-                  placeholder="예: 고객 챗봇 서비스"
-                  style={inputBase}
-                />
-                <span className="absolute" style={{ right: 14, top: 15, fontSize: 12, color: M.meta }}>{f.serviceName.length}/50</span>
-              </div>
-              {/* 소속 팀/부서 */}
-              <FieldLabel text="소속 팀/부서" required />
-              <div className="relative" style={{ marginBottom: 24 }}>
-                <select
-                  value={f.team}
-                  onChange={(e) => set('team', e.target.value)}
-                  style={{ ...inputBase, appearance: 'none', color: f.team ? M.text : M.ph, cursor: 'pointer' }}
-                >
-                  <option value="">선택해주세요</option>
-                  {TEAMS.map((t) => <option key={t} value={t}>{t}</option>)}
-                </select>
-                <ChevronDownIcon className="absolute pointer-events-none" style={{ right: 14, top: 14, width: 16, height: 16, color: M.idle }} />
-              </div>
-              {/* 요청자 */}
-              <FieldLabel text="요청자" />
-              <input readOnly value="홍길동 (hongildong@company.com)" style={{ ...inputBase, color: M.value, marginBottom: 24, cursor: 'default' }} />
-              {/* 요청 사유 */}
-              <FieldLabel text="요청 사유" required help="자원 요청 목적과 사용 계획을 간단히 입력해주세요." />
-              <div className="relative">
-                <textarea
-                  value={f.reason}
-                  maxLength={300}
-                  onChange={(e) => set('reason', e.target.value)}
-                  placeholder="예: 고객 상담 자동화를 위한 LLM 추론 서비스 운영"
-                  style={{ ...inputBase, height: 108, padding: '14px', resize: 'none', lineHeight: 1.5 }}
-                />
-                <span className="absolute" style={{ right: 14, bottom: 12, fontSize: 12, color: M.meta }}>{f.reason.length}/300</span>
-              </div>
-            </div>
-          )}
-
-          {step === 1 && (() => {
-            const list = CATALOG.filter((m) => {
-              const s = modelQ.trim().toLowerCase()
-              return !s || `${m.name} ${m.provider} ${m.desc} ${m.tags.join(' ')}`.toLowerCase().includes(s)
-            })
-            const PER = 6
-            const mPageCount = Math.max(1, Math.ceil(list.length / PER))
-            const mCur = Math.min(modelPage, mPageCount)
-            const paged = list.slice((mCur - 1) * PER, mCur * PER)
-            return (
-              <div className="flex flex-col">
-                <h3 className="font-semibold" style={{ fontSize: 14, color: M.text, marginBottom: 6 }}>사용할 모델을 선택해주세요.</h3>
-                <p style={{ fontSize: 13, color: M.help, marginBottom: 14 }}>추론에 사용할 기반 모델을 카탈로그에서 검색·선택하세요. (총 {CATALOG.length}개)</p>
-                {/* 검색 */}
-                <div className="relative" style={{ marginBottom: 14 }}>
-                  <MagnifyingGlassIcon className="absolute" style={{ left: 14, top: 13, width: 16, height: 16, color: M.idle }} />
-                  <input
-                    value={modelQ}
-                    onChange={(e) => { setModelQ(e.target.value); setModelPage(1) }}
-                    placeholder="모델명, 제공사 검색 (예: GPT, Llama, Anthropic)"
-                    style={{ height: 42, width: '100%', background: M.inputBg, border: `1px solid ${M.border}`, borderRadius: 8, padding: '0 14px 0 40px', fontSize: 14, color: M.text, outline: 'none' }}
-                  />
-                </div>
-                {/* 모델 카드 그리드 */}
-                <div className="grid grid-cols-2" style={{ gap: 10 }}>
-                  {paged.map((m) => {
-                    const on = f.model === m.name
-                    return (
-                      <button
-                        key={m.name}
-                        type="button"
-                        onClick={() => set('model', m.name)}
-                        className="relative text-left rounded-[12px] transition-[transform,background-color,border-color] duration-100 active:scale-[0.985]"
-                        style={{ padding: 14, background: on ? M.activeBg : M.inputBg, border: `1px solid ${on ? M.blue : M.border}` }}
-                      >
-                        <div className="flex items-start gap-3">
-                          <img src={m.img} alt={m.provider} width={36} height={36} className="rounded-[9px] shrink-0" style={{ objectFit: 'cover' }} />
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-bold truncate" style={{ fontSize: 14, color: M.text }}>{m.name}</span>
-                              {m.popular && <span className="shrink-0 rounded-[5px] font-medium" style={{ fontSize: 10.5, padding: '1px 6px', background: M.activeBg, color: M.blue }}>인기</span>}
-                            </div>
-                            <div className="truncate" style={{ fontSize: 12, color: M.help }}>{m.provider}</div>
-                          </div>
-                          {on && <span className="shrink-0 flex items-center justify-center rounded-full" style={{ width: 20, height: 20, background: M.blue }}><CheckIcon style={{ width: 13, height: 13, color: M.onAccent }} /></span>}
-                        </div>
-                        <p className="truncate" style={{ fontSize: 12.5, color: M.value, marginTop: 10 }}>{m.desc}</p>
-                        <div className="flex items-center justify-between" style={{ marginTop: 10 }}>
-                          <div className="flex gap-1.5">
-                            {m.tags.map((t) => (
-                              <span key={t} className="rounded-[5px] font-medium" style={{ fontSize: 10.5, padding: '2px 7px', background: M.inputBg, border: `1px solid ${M.border}`, color: M.help }}>{t}</span>
-                            ))}
-                          </div>
-                          <span style={{ fontSize: 11.5, color: M.help }}>사용률 {m.usage}</span>
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
-                {list.length === 0 && <div className="text-center" style={{ fontSize: 14, color: M.help, padding: '32px 0' }}>검색 결과가 없어요.</div>}
-                {mPageCount > 1 && (
-                  <div className="flex items-center justify-center gap-1.5" style={{ marginTop: 16 }}>
-                    <ModelPageBtn disabled={mCur === 1} onClick={() => setModelPage(mCur - 1)}>‹</ModelPageBtn>
-                    {Array.from({ length: mPageCount }, (_, i) => i + 1).map((p) => (
-                      <ModelPageBtn key={p} active={p === mCur} onClick={() => setModelPage(p)}>{p}</ModelPageBtn>
-                    ))}
-                    <ModelPageBtn disabled={mCur === mPageCount} onClick={() => setModelPage(mCur + 1)}>›</ModelPageBtn>
-                  </div>
-                )}
-              </div>
-            )
-          })()}
-
-          {step === 2 && (
-            <div className="flex flex-col">
-              <h3 className="font-semibold" style={{ fontSize: 14, color: M.text, marginBottom: 18 }}>세부 운영 조건을 설정해주세요.</h3>
-              <FieldLabel text="사용 기간" required />
-              <div className="grid grid-cols-4" style={{ gap: 10, marginBottom: 24 }}>
-                {PERIOD_OPTS.map((p) => <SelectCard key={p} label={p} active={f.period === p} onClick={() => set('period', p)} full />)}
-              </div>
-              <FieldLabel text="우선순위" required />
-              <div className="grid grid-cols-3" style={{ gap: 10, marginBottom: 24 }}>
-                {PRIORITY_OPTS.map((p) => <SelectCard key={p} label={p} active={f.priority === p} onClick={() => set('priority', p)} full />)}
-              </div>
-              <FieldLabel text="부가 옵션" help="필요한 운영 도구를 선택해주세요. (선택)" />
-              <div className="flex flex-col" style={{ gap: 10 }}>
-                {ADDON_OPTS.map((a) => {
-                  const on = f.addons.includes(a)
-                  return (
-                    <button
-                      key={a}
-                      type="button"
-                      onClick={() => set('addons', on ? f.addons.filter((x) => x !== a) : [...f.addons, a])}
-                      className="flex items-center rounded-[8px] transition-colors text-left"
-                      style={{ height: 44, padding: '0 14px', background: M.inputBg, border: `1px solid ${on ? M.blue : M.border}`, color: on ? M.text : M.value, fontSize: 14 }}
-                    >
-                      <span className="flex items-center justify-center rounded-[5px]" style={{ width: 18, height: 18, marginRight: 10, background: on ? M.blue : 'transparent', border: on ? 'none' : `1.5px solid ${M.border}` }}>
-                        {on && <CheckIcon style={{ width: 13, height: 13, color: M.onAccent }} />}
-                      </span>
-                      {a}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-
-          {step === 3 && (
-            <div className="flex flex-col">
-              <h3 className="font-semibold" style={{ fontSize: 14, color: M.text, marginBottom: 18 }}>요청 내용을 확인해주세요.</h3>
-              <div className="rounded-[10px]" style={{ background: M.inputBg, border: `1px solid ${M.border}`, padding: '6px 18px' }}>
-                <SummaryRow k="서비스명" v={f.serviceName || '—'} />
-                <SummaryRow k="소속 팀/부서" v={f.team || '—'} />
-                <SummaryRow k="요청자" v="홍길동 (hongildong@company.com)" />
-                <SummaryRow k="모델" v={f.model || '—'} />
-                <SummaryRow k="사용 기간" v={f.period || '—'} />
-                <SummaryRow k="우선순위" v={f.priority || '—'} />
-                <SummaryRow k="부가 옵션" v={f.addons.length ? f.addons.join(', ') : '없음'} />
-                <SummaryRow k="요청 사유" v={f.reason || '—'} last />
-              </div>
-              <p style={{ fontSize: 12.5, color: M.help, marginTop: 14 }}>제출 시 신청이 접수되며, 검토 후 자원이 할당됩니다.</p>
-            </div>
-          )}
-        </div>
-
-        {/* 푸터 */}
-        <div style={{ height: 1, background: M.divider }} />
-        <div className="flex items-center justify-between shrink-0" style={{ padding: '20px 36px' }}>
-          <div>
-            {step > 0 && (
-              <button type="button" onClick={() => go(-1)} className="rounded-[8px] font-medium transition-transform duration-100 hover:opacity-80 active:scale-[0.97]" style={{ padding: '11px 20px', fontSize: 14, color: M.value, background: 'transparent', border: `1px solid ${M.cancelBorder}` }}>이전</button>
-            )}
-          </div>
-          <div className="flex items-center" style={{ gap: 10 }}>
-            <button type="button" onClick={onClose} className="rounded-[8px] font-medium transition-transform duration-100 hover:opacity-80 active:scale-[0.97]" style={{ padding: '11px 24px', fontSize: 14, color: M.value, background: M.cancelBg, border: `1px solid ${M.cancelBorder}` }}>취소</button>
-            <button
-              type="button"
-              onClick={next}
-              disabled={!canNext}
-              className="rounded-[8px] font-semibold transition-[transform,opacity] duration-100 enabled:hover:brightness-110 enabled:active:scale-[0.97]"
-              style={{ padding: '11px 26px', fontSize: 14, color: M.onAccent, background: M.blue, opacity: canNext ? 1 : 0.45, cursor: canNext ? 'pointer' : 'not-allowed' }}
-            >
-              {isLast ? '제출' : '다음'}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function SummaryRow({ k, v, last }: { k: string; v: string; last?: boolean }) {
-  return (
-    <div className="flex items-start gap-4" style={{ padding: '12px 0', borderBottom: last ? 'none' : `1px solid ${M.border}` }}>
-      <span className="shrink-0" style={{ width: 110, fontSize: 14, color: M.help }}>{k}</span>
-      <span className="flex-1 min-w-0 font-medium" style={{ fontSize: 14, color: M.text, lineHeight: 1.45, wordBreak: 'break-word' }}>{v}</span>
-    </div>
-  )
-}
-
-// ── 신청 상세보기 모달 (테마 연동) — 행/상세보기·재신청 클릭 시 ──
-// "YYYY-MM-DD HH:MM"에 시간 더하기(타임라인 중간 시각 합성용)
-function addHours(s: string, h: number): string {
-  const [d, t] = s.split(' ')
-  const dt = new Date(`${d}T${t || '00:00'}:00`)
-  if (isNaN(dt.getTime())) return s
-  dt.setHours(dt.getHours() + h)
-  const p = (n: number) => String(n).padStart(2, '0')
-  return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())} ${p(dt.getHours())}:${p(dt.getMinutes())}`
-}
-
-// 상세 모달 카드 / 라벨-값 행
-function DCard({ title, children, gap = 14, grow }: { title: string; children: ReactNode; gap?: number; grow?: boolean }) {
-  return (
-    <section className={grow ? 'flex-1 min-h-0' : ''} style={{ background: M.surface, border: `1px solid ${M.border}`, borderRadius: 12, padding: '15px 17px', boxShadow: '0 1px 1.5px rgba(0,0,0,0.04)' }}>
-      <h3 className="font-bold" style={{ fontSize: 14.5, color: M.text, marginBottom: 13 }}>{title}</h3>
-      <div className="flex flex-col" style={{ gap }}>{children}</div>
-    </section>
-  )
-}
-function DKV({ k, v, vColor, right }: { k: string; v: ReactNode; vColor?: string; right?: boolean }) {
-  return (
-    <div className="flex items-center gap-3">
-      <span className="shrink-0" style={{ width: 92, fontSize: 13, color: M.help }}>{k}</span>
-      <span className={`min-w-0 flex-1 ${right ? 'text-right' : ''}`} style={{ fontSize: 13, fontWeight: 500, color: vColor ?? M.value }}>{v}</span>
-    </div>
-  )
-}
-
-interface TStep { time: string; label: string; state: 'done' | 'current' | 'pending'; tone?: string }
-function DetailTimeline({ steps }: { steps: TStep[] }) {
-  return (
-    <div className="flex flex-col">
-      {steps.map((s, i) => (
-        <div key={i} className="relative flex gap-3" style={{ paddingBottom: i < steps.length - 1 ? 22 : 0 }}>
-          {i < steps.length - 1 && <span className="absolute" style={{ left: 8.25, top: 18, bottom: 0, width: 1.5, background: M.border }} />}
-          <span className="relative shrink-0 flex items-center justify-center rounded-full" style={{ width: 18, height: 18, zIndex: 1, background: s.state === 'done' ? (s.tone || 'var(--c-ok)') : 'var(--c-card2)', border: s.state === 'done' ? 'none' : `2px solid ${s.state === 'current' ? 'var(--c-accent)' : M.border}` }}>
-            {s.state === 'done' && <CheckIcon style={{ width: 11, height: 11, color: 'var(--c-onaccent)' }} />}
-            {s.state === 'current' && <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--c-accent)' }} />}
-          </span>
-          <div style={{ marginTop: -2 }}>
-            {s.time && <div style={{ fontSize: 12.5, fontWeight: 500, color: M.value }}>{s.time}</div>}
-            <div style={{ fontSize: 12, color: M.help, marginTop: s.time ? 2 : 0 }}>{s.label}</div>
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function RequestDetailModal({ row, onClose }: { row: ReqRow | null; onClose: () => void }) {
-  const toast = useToast()
-  useEffect(() => {
-    if (!row) return
-    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', h)
-    return () => window.removeEventListener('keydown', h)
-  }, [row, onClose])
-  if (!row) return null
-  const resultColor = row.status === '승인' ? 'var(--c-ok)' : row.status === '반려' ? 'var(--c-danger)' : 'var(--c-warn)'
-  const typeTag = row.resource.includes('MIG') ? 'MIG' : 'GPU'
-  const steps: TStep[] =
-    row.status === '승인'
-      ? [
-          { time: row.date, label: '접수 완료', state: 'done' },
-          { time: addHours(row.date, 3), label: '검토 진행', state: 'done' },
-          { time: row.procDate, label: '승인 및 할당 완료', state: 'done' },
-        ]
-      : row.status === '반려'
-        ? [
-            { time: row.date, label: '접수 완료', state: 'done' },
-            { time: addHours(row.date, 3), label: '검토 진행', state: 'done' },
-            { time: row.procDate, label: '반려됨', state: 'done', tone: 'var(--c-danger)' },
-          ]
-        : [
-            { time: row.date, label: '접수 완료', state: 'done' },
-            { time: row.procDate, label: '검토 진행', state: 'current' },
-            { time: '', label: '승인 대기', state: 'pending' },
-          ]
-  return (
-    <div className="fixed inset-0 flex items-center justify-center anim-fade" style={{ background: 'var(--dim)', zIndex: 60, padding: 20 }} onClick={onClose} role="dialog" aria-modal="true">
-      <div className="flex flex-col rounded-[18px] overflow-hidden" style={{ width: 767, maxWidth: '95vw', maxHeight: '92vh', background: M.surface, boxShadow: 'var(--shadow-pop)' }} onClick={(e) => e.stopPropagation()}>
-        {/* 헤더 */}
-        <div className="flex items-center justify-between shrink-0" style={{ padding: '20px 32px' }}>
-          <h2 className="font-bold" style={{ fontSize: 19, color: M.text }}>신청 상세보기</h2>
-          <button type="button" onClick={onClose} aria-label="닫기" className="transition-transform duration-100 hover:opacity-70 active:scale-90" style={{ color: M.idle }}>
-            <XMarkIcon style={{ width: 20, height: 20 }} />
-          </button>
-        </div>
-        <div style={{ height: 1, background: M.divider }} />
-        {/* 부제: 신청번호 + 상태 */}
-        <div className="flex items-center gap-3 shrink-0" style={{ padding: '15px 32px' }}>
-          <span className="font-bold" style={{ fontSize: 18, color: M.text }}>{row.no}</span>
-          <StatBadge status={row.status} />
-        </div>
-        {/* 본문 — 2열 카드 그리드 */}
-        <div className="flex-1 min-h-0 overflow-auto" style={{ padding: '0 32px 24px' }}>
-          <div className="grid grid-cols-2 items-stretch" style={{ gap: 16 }}>
-            {/* 좌 */}
-            <div className="flex flex-col" style={{ gap: 14 }}>
-              <DCard title="기본 정보">
-                <DKV k="신청유형" v={<span className="inline-flex items-center font-medium" style={{ background: 'var(--accent-soft)', color: 'var(--c-accent)', borderRadius: 11, padding: '3px 10px', fontSize: 12 }}>{typeTag}</span>} />
-                <DKV k="신청 자원" v={row.resource} />
-                <DKV k="모델" v={row.model} />
-                <DKV k="신청일" v={row.date} />
-                <DKV k="요청자" v="홍길동" />
-              </DCard>
-              <DCard title="요청 사유">
-                <p style={{ fontSize: 13, color: M.value, lineHeight: 1.55 }}>{row.reason}</p>
-              </DCard>
-              <DCard title="운영 환경 / 부가 서비스" gap={10}>
-                <DKV k="운영환경" v="Ubuntu 22.04 / Python 3.10" />
-                <DKV k="부가서비스" v="PyTorch, Jupyter" />
-              </DCard>
-              <DCard title="첨부 파일" grow>
-                <div className="flex items-center gap-2.5" style={{ background: M.inputBg, border: `1px solid ${M.border}`, borderRadius: 8, height: 32, padding: '0 10px' }}>
-                  <span className="flex items-center justify-center shrink-0 font-bold" style={{ width: 16, height: 16, borderRadius: 3, background: '#e8413a', color: '#fff', fontSize: 6 }}>PDF</span>
-                  <span className="flex-1 truncate font-medium" style={{ fontSize: 12.5, color: M.value }}>결재 공문.pdf</span>
-                  <button type="button" onClick={() => toast.push('결재 공문.pdf 다운로드 (목업)', 'info')} className="shrink-0 transition-transform active:scale-90 hover:text-text" style={{ color: M.help }} aria-label="다운로드"><ArrowDownTrayIcon style={{ width: 14, height: 14 }} /></button>
-                </div>
-              </DCard>
-            </div>
-            {/* 우 */}
-            <div className="flex flex-col" style={{ gap: 14 }}>
-              <DCard title="처리 현황">
-                <DKV k="현재 상태" right v={<StatBadge status={row.status} />} />
-                <DKV k="최근 처리" right v={row.procDate} />
-                <DKV k="처리 결과" right v={row.procStatus} vColor={resultColor} />
-                <DKV k="담당자" right v="관리자" />
-              </DCard>
-              <DCard title="처리 이력">
-                <DetailTimeline steps={steps} />
-              </DCard>
-              <DCard title="메모" grow>
-                <p style={{ fontSize: 13, color: M.value, lineHeight: 1.55 }}>{row.memo === '-' ? '메모 없음' : row.memo}</p>
-              </DCard>
-            </div>
-          </div>
-        </div>
-        {/* 푸터 */}
-        <div style={{ height: 1, background: M.divider }} />
-        <div className="flex items-center justify-end shrink-0" style={{ padding: '15px 32px', gap: 10 }}>
-          <button type="button" onClick={onClose} className="rounded-[8px] font-medium transition-transform duration-100 hover:bg-soft active:scale-[0.97]" style={{ padding: '11px 24px', fontSize: 14, color: M.value, background: 'transparent', border: `1px solid ${M.border}` }}>닫기</button>
-          <button type="button" onClick={onClose} className="rounded-[8px] font-medium transition-transform duration-100 hover:brightness-110 active:scale-[0.97]" style={{ padding: '11px 28px', fontSize: 14, color: M.onAccent, background: 'var(--c-accent)' }}>확인</button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
+// 신규 신청 마법사 → /requests/new (request-new.tsx) · 신청 상세 모달 → /requests/status/:id (request-detail.tsx)로 승격.
 export function RequestStatus() {
   const toast = useToast()
   const navigate = useNavigate()
   const mutedFix = useMutedFix()
   const { user, isAdmin } = useRole()
-  // A=전체 신청, B/C=내 신청만(requester=나)
-  const { data: dbReqs } = useGpuRequests(isAdmin ? undefined : user.id)
-  const [extraRows, setExtraRows] = useState<ReqRow[]>([]) // 신규 신청(로컬 추가)
-  const dbRows = useMemo(() => (dbReqs ?? []).map(toReqRow), [dbReqs])
-  const rows = useMemo(() => [...extraRows, ...dbRows], [extraRows, dbRows])
+  // A=전체 신청, B/C=내 신청만(requester=나). DB 우선 · backend 미기동 시 시드 폴백 · 로컬 신규 신청(4.6b 제출) 병합.
+  const { items: reqItems, isLoading } = useRequests(isAdmin ? undefined : user.id)
+  const rows = useMemo(() => reqItems.map((it) => toReqRow(it, isAdmin)), [reqItems, isAdmin])
   const total = rows.length
-  const [modalOpen, setModalOpen] = useState(false)
-  const [detailRow, setDetailRow] = useState<ReqRow | null>(null)
   // 검색·필터: draft(입력값) → '필터 적용' 시 applied 로 반영(실제 검색)
   const [q, setQ] = useState('')
   const [statusF, setStatusF] = useState('전체')
@@ -1425,27 +843,7 @@ export function RequestStatus() {
     setPage(1)
   }
 
-  const handleSubmit = (form: ReqForm) => {
-    const seq = total + 1
-    const stamp = '2025-05-14 16:02'
-    const row: ReqRow = {
-      no: `REQ-2025-0514-${String(seq).padStart(3, '0')}`,
-      resource: '할당 대기',
-      model: form.model,
-      reason: form.reason || form.serviceName,
-      date: stamp,
-      status: '대기',
-      statusSub: '검토중',
-      procDate: stamp,
-      procStatus: '접수 완료',
-      memo: '-',
-      action: '상세보기',
-    }
-    setExtraRows((cur) => [row, ...cur])
-    setPage(1)
-    setModalOpen(false)
-    toast.push('신규 자원 요청이 접수되었어요. (검토중)', 'ok')
-  }
+  const openDetail = (r: ReqRow) => navigate(`/requests/status/${r.no}`)
 
   return (
     <div className="anim-fade flex flex-col min-w-0 h-full" style={mutedFix}>
@@ -1457,10 +855,10 @@ export function RequestStatus() {
         </p>
       </header>
 
-      {/* 2) stat 카드 4개 */}
+      {/* 2) KPI 4카드(전체/대기/승인/반려) — 공용 KpiStat · 실데이터 카운트 */}
       <div className="grid stagger shrink-0" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: 18, marginTop: 28 }}>
         {computeStats(rows).map((s) => (
-          <StatCard key={s.label} s={s} />
+          <StatKpi key={s.label} s={s} />
         ))}
       </div>
 
@@ -1510,13 +908,28 @@ export function RequestStatus() {
 
       {/* 4) 내 신청 현황 테이블 — 화면 하단까지 채움 */}
       <section className="bg-card2 border border-line rounded-[14px] overflow-hidden flex flex-col flex-1 min-h-0" style={{ marginTop: 11 }}>
-        {/* 카드 헤더: 제목(좌) + 신규 신청(우) */}
+        {/* 카드 헤더: 제목(좌) + 신규 신청(우) — /requests/new 페이지로 이동 */}
         <div className="flex items-center justify-between gap-3 shrink-0" style={{ padding: '16px 24px' }}>
           <h2 className="font-bold text-text" style={{ fontSize: 16 }}>내 신청 현황</h2>
-          <NewRequestButton onClick={() => setModalOpen(true)} />
+          <NewRequestButton onClick={() => navigate('/requests/new')} />
         </div>
 
-        {/* 표 본문 — 남는 높이를 채우고 내부 스크롤 */}
+        {/* 로딩 중(첫 fetch 미완) — 빈 상태 대신 로딩 표시. 영역 높이는 테이블과 동일 유지 */}
+        {isLoading && total === 0 ? (
+          <div className="flex-1 min-h-0 flex items-center justify-center">
+            <span className="text-muted" style={{ fontSize: 14 }}>신청 내역을 불러오는 중…</span>
+          </div>
+        ) : total === 0 ? (
+          /* 빈 상태(신청 0건) — 안내 + 신규 신청 CTA 중앙 */
+          <div className="flex-1 min-h-0 flex items-center justify-center">
+            <EmptyState
+              icon={<DocumentTextIcon width={26} height={26} />}
+              title="아직 신청한 자원이 없어요"
+              description="신규 신청으로 GPU 자원을 요청하면 승인 상태와 처리 내역을 이곳에서 확인할 수 있어요."
+              cta={<Button onClick={() => navigate('/requests/new')}>신규 신청</Button>}
+            />
+          </div>
+        ) : (
         <div className="flex-1 min-h-0 overflow-auto">
           <table className="w-full" style={{ tableLayout: 'fixed', borderCollapse: 'collapse' }}>
             <colgroup>
@@ -1555,7 +968,7 @@ export function RequestStatus() {
                 <tr
                   key={r.no}
                   className="cursor-pointer"
-                  onClick={() => setDetailRow(r)}
+                  onClick={() => openDetail(r)}
                   style={{ borderBottom: '1px solid var(--c-border-s)' }}
                   onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--accent-soft)')}
                   onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
@@ -1594,20 +1007,19 @@ export function RequestStatus() {
                       <span className="text-muted" style={{ fontSize: 14 }}>{r.procStatus}</span>
                     </div>
                   </td>
-                  {/* 메모 / 반려 사유 */}
-                  <td className="align-middle text-muted" style={{ fontSize: 14, padding: '15px 16px 15px 0', lineHeight: 1.4 }}>
-                    {r.memo}
+                  {/* 메모 / 반려 사유 — 1줄 말줄임, 반려는 danger색, adminMemo 우선 */}
+                  <td className="align-middle" style={{ fontSize: 14, padding: '15px 16px 15px 0' }}>
+                    <span className="block truncate" style={{ lineHeight: 1.4, color: r.memoDanger ? 'var(--c-danger)' : 'var(--c-muted)' }} title={r.memo}>
+                      {r.memo}
+                    </span>
                   </td>
-                  {/* 액션 — 승인=자원 보기(→대시보드)·상세보기 / 반려=재신청·상세보기 / 대기=상세보기 */}
+                  {/* 액션 — 승인=자원 보기(자원맵 딥링크, 도출 불가 시 비활성) / 모두 상세 보기(/requests/status/:id) */}
                   <td className="align-middle" style={{ padding: '15px 0', paddingRight: 24 }}>
                     <div className="flex items-center" style={{ gap: 6 }}>
                       {r.status === '승인' && (
-                        <ActionLink label="자원 보기" accent Icon={ArrowTopRightOnSquareIcon} onClick={(e) => { e.stopPropagation(); toast.push('할당된 자원 화면으로 이동합니다.', 'info'); navigate('/dashboard') }} />
+                        <ActionLink label="자원 보기" accent Icon={ArrowTopRightOnSquareIcon} disabled={!r.allocPath} onClick={(e) => { e.stopPropagation(); if (r.allocPath) navigate(r.allocPath) }} />
                       )}
-                      {r.status === '반려' && (
-                        <ActionLink label="재신청" accent Icon={ArrowPathIcon} onClick={(e) => { e.stopPropagation(); setModalOpen(true) }} />
-                      )}
-                      <ActionLink label="상세보기" Icon={EyeIcon} onClick={(e) => { e.stopPropagation(); setDetailRow(r) }} />
+                      <ActionLink label="상세 보기" Icon={EyeIcon} onClick={(e) => { e.stopPropagation(); openDetail(r) }} />
                     </div>
                   </td>
                 </tr>
@@ -1615,6 +1027,7 @@ export function RequestStatus() {
             </tbody>
           </table>
         </div>
+        )}
 
         {/* 푸터 — 카드 하단 고정: 전체 N건 · 페이지네이션 · 페이지 크기 */}
         <div className="flex items-center justify-between gap-3 shrink-0" style={{ borderTop: '1px solid var(--c-border)', padding: '14px 24px' }}>
@@ -1641,9 +1054,6 @@ export function RequestStatus() {
           </div>
         </div>
       </section>
-
-      <NewRequestModal open={modalOpen} onClose={() => setModalOpen(false)} onSubmit={handleSubmit} />
-      <RequestDetailModal row={detailRow} onClose={() => setDetailRow(null)} />
     </div>
   )
 }
