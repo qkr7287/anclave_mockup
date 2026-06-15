@@ -9,7 +9,6 @@ import {
   MegaphoneIcon,
   LockClosedIcon,
   Cog6ToothIcon,
-  ChevronUpIcon,
   ChevronDownIcon,
   ChevronDoubleLeftIcon,
 } from '@heroicons/react/24/outline'
@@ -92,30 +91,33 @@ export function Sidebar({ access, collapsed, onToggle }: SidebarProps) {
             <Icon width={18} height={18} className="shrink-0" style={{ color: groupActive ? 'var(--c-text)' : 'var(--c-muted)' }} />
             <span className="truncate" style={{ fontSize: 15, fontWeight: 500, letterSpacing: '-0.4px', color: groupActive ? 'var(--c-text)' : 'var(--c-muted)' }}>{g.group.label}</span>
           </span>
-          {open ? <ChevronUpIcon width={16} height={16} style={{ color: 'var(--c-muted)' }} className="shrink-0" />
-            : <ChevronDownIcon width={16} height={16} style={{ color: 'var(--c-muted)' }} className="shrink-0" />}
+          <ChevronDownIcon width={16} height={16} className="shrink-0"
+            style={{ color: 'var(--c-muted)', transition: 'transform .26s cubic-bezier(0.4,0,0.2,1)', transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }} />
         </button>
-        {open && (
-          <div className="flex flex-col" style={{ paddingLeft: 22, marginTop: 2 }}>
-            {g.items.map((it) => {
-              const active = it.key === 'resource-map' ? pathname === '/resource-map' : it.key === activeKey
-              return (
-                <div key={it.key}>
-                  <NavLink to={it.path} end={it.path === '/resource-map'}
-                    className="flex items-center" style={{ gap: 10, paddingLeft: 24, padding: '8px 0 8px 24px', borderLeft: active ? '2px solid var(--c-accent)' : '1px solid var(--c-border)', marginLeft: active ? -0.5 : 0 }}>
-                    <span className="truncate" style={{ fontSize: 14, fontWeight: active ? 600 : 400, letterSpacing: '-0.4px', color: active ? 'var(--c-accent)' : 'var(--c-muted)' }}>{it.title}</span>
-                  </NavLink>
-                  {it.key === 'resource-map' && resourceSubs.map((sub) => (
-                    <NavLink key={sub.key} to={sub.path}
-                      className="flex items-center" style={{ gap: 10, padding: '7px 0 7px 40px', borderLeft: sub.active ? '2px solid var(--c-accent)' : '1px solid var(--c-border)', marginLeft: sub.active ? -0.5 : 0 }}>
-                      <span className="truncate" style={{ fontSize: 14, fontWeight: sub.active ? 600 : 400, letterSpacing: '-0.4px', color: sub.active ? 'var(--c-accent)' : 'var(--c-muted)' }}>{sub.title}</span>
+        {/* 아코디언 펼침 — grid-rows 0fr↔1fr 로 높이 트랜지션(스르륵) */}
+        <div className="acc-panel" style={{ display: 'grid', gridTemplateRows: open ? '1fr' : '0fr', transition: 'grid-template-rows .26s cubic-bezier(0.4,0,0.2,1)' }}>
+          <div style={{ overflow: 'hidden', minHeight: 0 }}>
+            <div className="flex flex-col" style={{ paddingLeft: 22, paddingTop: 2 }}>
+              {g.items.map((it) => {
+                const active = it.key === 'resource-map' ? pathname === '/resource-map' : it.key === activeKey
+                return (
+                  <div key={it.key}>
+                    <NavLink to={it.path} end={it.path === '/resource-map'} tabIndex={open ? 0 : -1}
+                      className="flex items-center" style={{ gap: 10, paddingLeft: 24, padding: '8px 0 8px 24px', borderLeft: active ? '2px solid var(--c-accent)' : '1px solid var(--c-border)', marginLeft: active ? -0.5 : 0 }}>
+                      <span className="truncate" style={{ fontSize: 14, fontWeight: active ? 600 : 400, letterSpacing: '-0.4px', color: active ? 'var(--c-accent)' : 'var(--c-muted)' }}>{it.title}</span>
                     </NavLink>
-                  ))}
-                </div>
-              )
-            })}
+                    {it.key === 'resource-map' && resourceSubs.map((sub) => (
+                      <NavLink key={sub.key} to={sub.path} tabIndex={open ? 0 : -1}
+                        className="flex items-center" style={{ gap: 10, padding: '7px 0 7px 40px', borderLeft: sub.active ? '2px solid var(--c-accent)' : '1px solid var(--c-border)', marginLeft: sub.active ? -0.5 : 0 }}>
+                        <span className="truncate" style={{ fontSize: 14, fontWeight: sub.active ? 600 : 400, letterSpacing: '-0.4px', color: sub.active ? 'var(--c-accent)' : 'var(--c-muted)' }}>{sub.title}</span>
+                      </NavLink>
+                    ))}
+                  </div>
+                )
+              })}
+            </div>
           </div>
-        )}
+        </div>
       </div>
     )
   }
