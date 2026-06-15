@@ -53,7 +53,7 @@ export const ROUTES: RouteDef[] = [
   // ③ 모델 관리
   { key: 'models', path: '/models', screen: '4.12', title: '모델 카탈로그', access: ['A', 'B', 'C'], group: 3, menu: ['A', 'B', 'C'], icon: 'cube' },
   { key: 'model-detail', path: '/models/:id', screen: '4.13', title: '모델 상세', access: ['A', 'B', 'C'] },
-  { key: 'models-new', path: '/admin/models/new', screen: '4.14', title: '신규 모델 반입', access: ['A'], group: 3, menu: ['A'], icon: 'plus-circle' },
+  { key: 'model-requests', path: '/admin/models/requests', screen: '4.14', title: '모델 신청 관리', access: ['A'], group: 3, menu: ['A'], icon: 'doc-plus' },
   { key: 'agents', path: '/admin/agents', screen: '4.16', title: '데몬 · 에이전트 관리', access: ['A'], group: 3, menu: ['A'], icon: 'server' },
 
   // ④ 마켓플레이스 — 메뉴 순서: 둘러보기(4.17) → 게시 신청(4.29) → API 신청 관리(4.19) → 게시 승인 관리(4.9, 관리자)

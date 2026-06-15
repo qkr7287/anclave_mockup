@@ -238,14 +238,27 @@ export interface Notification {
   link?: string
 }
 
-export interface ModelImport {
+// 4.14 모델 신청 관리 — 사용자는 등록 신청만, 관리자가 반입·보안점검·등록.
+// 한 엔티티에 신청 단계 + 관리자 처리(반입) 단계를 함께 담는다(GpuRequest 패턴).
+export interface ModelRequest {
   id: string
-  fileName: string
-  format: 'safetensors' | 'other'
-  scan: 'pass' | 'fail' | 'pending'
-  checksum: string
+  // 신청 단계 (사용자 B/C)
+  requesterUserId: string
+  modelName: string // 요청 모델명(예: 'Qwen2.5-72B')
+  kind?: ModelKind // 모델 종류(선택)
+  source?: string // 출처(HuggingFace URL 등, 선택)
+  reason: string // 신청 사유
   status: Status
   createdAt: string
+  rejectReason?: string
+  // 관리자 처리(반입) 단계 — 승인 진행 시 채워짐
+  processedAt?: string
+  processedBy?: string
+  fileName?: string // 반입 파일명
+  format?: 'safetensors' | 'other'
+  scan?: 'pass' | 'fail' | 'pending' // 보안 점검 결과
+  checksum?: string
+  registeredModelId?: string // 등록 완료된 카탈로그 모델 id
 }
 
 export interface ActivationStat {
