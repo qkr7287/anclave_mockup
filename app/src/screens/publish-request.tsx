@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MegaphoneIcon, PlusIcon } from '@heroicons/react/24/outline'
+import { EyeIcon, MegaphoneIcon, PlusIcon } from '@heroicons/react/24/outline'
 import { PageShell } from '../components/PageShell'
 import { Card, Table, Button, StatusBadge, EmptyState } from '../components/ui'
 import type { Column } from '../components/ui'
@@ -36,12 +36,13 @@ export function PublishRequest() {
   const shown = filter === 'all' ? items : items.filter((p) => p.status === filter)
 
   const goNew = () => navigate('/marketplace/publish/new')
+  const goView = (id: string) => navigate(`/marketplace/publish/${id}`)
 
   const columns: Column<PubRecord>[] = [
     {
       key: 'service',
       header: '서비스',
-      width: '26%',
+      width: '24%',
       render: (p) => (
         <div className="flex items-center gap-2 min-w-0">
           <span className="flex items-center justify-center rounded-lg shrink-0" style={{ width: 30, height: 30, background: 'var(--accent-soft)', color: 'var(--c-accent)' }}>
@@ -57,26 +58,25 @@ export function PublishRequest() {
     {
       key: 'meta',
       header: '게시 정보',
-      width: '34%',
+      width: '30%',
       render: (p) => <span className="text-muted truncate" style={{ fontSize: 13.5 }}>{p.meta}</span>,
     },
     {
       key: 'created',
       header: '신청일',
-      width: '16%',
+      width: '14%',
       render: (p) => <span className="text-muted" style={{ fontSize: 13 }}>{p.createdAt}</span>,
     },
     {
       key: 'status',
       header: '상태',
-      width: '12%',
+      width: '10%',
       render: (p) => <StatusBadge status={p.status} />,
     },
     {
       key: 'note',
       header: '비고',
       width: '12%',
-      align: 'right',
       render: (p) =>
         p.status === 'rejected' && p.rejectReason ? (
           <span className="text-danger truncate inline-block max-w-full" style={{ fontSize: 13 }} title={p.rejectReason}>반려 사유</span>
@@ -85,6 +85,22 @@ export function PublishRequest() {
         ) : (
           <span className="text-muted" style={{ fontSize: 13 }}>검토 중</span>
         ),
+    },
+    {
+      key: 'action',
+      header: '',
+      width: '10%',
+      align: 'right',
+      render: (p) => (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); goView(p.id) }}
+          className="inline-flex items-center gap-1 font-medium rounded-[8px] transition-[transform,background-color] duration-100 active:scale-95 whitespace-nowrap hover:bg-[var(--accent-soft)] hover:text-[color:var(--c-accent)]"
+          style={{ fontSize: 13, padding: '5px 10px', background: 'var(--c-soft)', color: 'var(--c-muted)' }}
+        >
+          <EyeIcon style={{ width: 14, height: 14, opacity: 0.9 }} /> 상세보기
+        </button>
+      ),
     },
   ]
 
@@ -141,7 +157,7 @@ export function PublishRequest() {
             cta={<Button variant="primary" onClick={goNew}><PlusIcon width={15} height={15} /> 신규 게시 신청</Button>}
           />
         ) : (
-          <Table columns={columns} rows={shown} rowKey={(p) => p.id} />
+          <Table columns={columns} rows={shown} rowKey={(p) => p.id} onRowClick={(p) => goView(p.id)} />
         )}
       </Card>
     </PageShell>

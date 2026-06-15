@@ -359,15 +359,15 @@ function PendingReview({ req }: { req: PubRecord }) {
   )
 }
 
-// 공통 헤더 — 뒤로가기 + 신청번호 + 게시 승인 배지 + 상태 + 신청일.
-function Header({ req, onBack }: { req: PubRecord; onBack: () => void }) {
+// 공통 헤더 — 뒤로가기 + 신청번호 + 배지(게시 승인/게시 신청) + 상태 + 신청일.
+function Header({ req, onBack, label = '게시 승인' }: { req: PubRecord; onBack: () => void; label?: string }) {
   return (
     <header className="flex flex-col shrink-0">
       <div className="flex items-center flex-wrap" style={{ gap: 12 }}>
         <BackButton onClick={onBack} />
         <h1 className="font-bold text-text" style={{ fontSize: 23, lineHeight: 1.2, fontFamily: 'var(--font-mono)', letterSpacing: '0.5px' }}>{req.id.toUpperCase()}</h1>
         <span className="inline-flex items-center gap-1.5 rounded-full font-bold" style={{ fontSize: 14, padding: '3px 11px', background: 'var(--accent-soft)', color: 'var(--c-accent)' }}>
-          <MegaphoneIcon width={14} height={14} />게시 승인
+          <MegaphoneIcon width={14} height={14} />{label}
         </span>
         <StatusBadge status={req.status} />
         <span className="text-muted" style={{ fontSize: 14 }}>신청일 {req.createdAt}</span>
@@ -426,6 +426,54 @@ export function PublishDetail() {
     <div data-pubdetail className="anim-fade flex flex-col min-w-0 h-full" style={mutedFix}>
       <PolishCss />
       <Header req={req} onBack={() => navigate('/admin/approvals/publish')} />
+      <div className="flex-1 min-h-0 anim-fade flex" style={{ marginTop: 18 }}>
+        <PublishSpec req={req} reviewing={false} onCopy={copyUrl} />
+      </div>
+    </div>
+  )
+}
+
+// 4.29b 게시 신청 상세 — 신청자(사용자)용 읽기전용 명세서 조회. 수정·심사 불가, 명세서만 본다.
+export function PublishView() {
+  const { id = '' } = useParams()
+  const navigate = useNavigate()
+  const mutedFix = useMutedFix()
+  const [req, setReq] = useState<PubRecord | null>(null)
+  const [state, setState] = useState<'loading' | 'ready' | 'notfound'>('loading')
+
+  useEffect(() => {
+    const found = getPublishRequest(id)
+    if (found) { setReq(found); setState('ready') }
+    else setState('notfound')
+  }, [id])
+
+  if (state === 'loading') {
+    return (
+      <div data-pubdetail className="anim-fade flex items-center justify-center" style={{ minHeight: 360 }}>
+        <PolishCss />
+        <span className="text-muted" style={{ fontSize: 14 }}>신청 정보를 불러오는 중…</span>
+      </div>
+    )
+  }
+
+  if (state === 'notfound' || !req) {
+    return (
+      <div data-pubdetail className="anim-fade flex items-center justify-center" style={{ minHeight: 360 }}>
+        <PolishCss />
+        <EmptyState
+          title="신청을 찾을 수 없음"
+          description="삭제되었거나 주소가 잘못된 게시 신청이에요."
+          cta={<Button onClick={() => navigate('/marketplace/publish')}>목록으로</Button>}
+        />
+      </div>
+    )
+  }
+
+  const copyUrl = (url: string) => { navigator.clipboard?.writeText(url) }
+  return (
+    <div data-pubdetail className="anim-fade flex flex-col min-w-0 h-full" style={mutedFix}>
+      <PolishCss />
+      <Header req={req} label="게시 신청" onBack={() => navigate('/marketplace/publish')} />
       <div className="flex-1 min-h-0 anim-fade flex" style={{ marginTop: 18 }}>
         <PublishSpec req={req} reviewing={false} onCopy={copyUrl} />
       </div>
