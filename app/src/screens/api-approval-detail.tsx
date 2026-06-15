@@ -378,7 +378,7 @@ function PendingReview({ req }: { req: ApiRecord }) {
           </section>
         </div>
         <div data-morph="spec" style={{ width: reviewing ? '100%' : '44%', flex: '0 0 auto', minWidth: 0, paddingLeft: reviewing ? 0 : 16, transition: `width .8s ${MORPH_EASE}, padding .8s ${MORPH_EASE}` }}>
-          <ApiSpec req={req} reviewing issuedKey={apiKey.trim() || undefined} footer={footer} />
+          <ApiSpec req={req} reviewing={reviewing} issuedKey={apiKey.trim() || undefined} footer={reviewing ? footer : undefined} />
         </div>
       </div>
     </div>
