@@ -17,6 +17,8 @@ interface KpiStatProps {
   trend?: number[]
   /** 미니 꺾은선 임계선(데이터와 같은 스케일) */
   trendThreshold?: number
+  /** 미니 꺾은선 도메인 = 데이터 범위 + 여백(실제값 중앙·천장 헤드룸). KPI 추이 권장 */
+  trendAutoPad?: boolean
   /** 미니 꺾은선 호버 값 포맷 */
   trendFmt?: (v: number) => string
   /** 게이지/추이 색(기본 deltaTone색) */
@@ -119,6 +121,7 @@ export function KpiStat({
   gauge,
   trend,
   trendThreshold,
+  trendAutoPad,
   trendFmt,
   gaugeColor,
   sub,
@@ -152,7 +155,7 @@ export function KpiStat({
         </div>
         {/* 우 — SparkLine 꽉 채움(d3 기본 톤 라인 + area fill + peak 마커 + 임계 점선 + 호버 툴팁) */}
         <div className="flex-1 min-w-0 min-h-0 flex items-stretch">
-          <SparkLine data={trend} color={gColor} height={40} fill peak threshold={trendThreshold} fmt={trendFmt ?? ((v) => String(Math.round(v)))} />
+          <SparkLine data={trend} color={gColor} height={40} fill peak threshold={trendThreshold} autoPad={trendAutoPad} fmt={trendFmt ?? ((v) => String(Math.round(v)))} />
         </div>
       </div>
     )
