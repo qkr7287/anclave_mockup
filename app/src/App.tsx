@@ -14,7 +14,7 @@ import { RequestNew } from './screens/request-new'
 import { AdminMonitoring } from './screens/monitoring'
 import { Requests, GpuChange } from './screens/allocation'
 import { ApprovalsPublish, ApprovalsGpu } from './screens/approvals'
-import { PublishDetail } from './screens/publish-detail'
+import { PublishDetail, PublishView } from './screens/publish-detail'
 import { ApprovalDetail } from './screens/approval-detail'
 import { ModelCatalog, ModelDetail } from './screens/catalog'
 import { ModelRequests } from './screens/model-requests'
@@ -40,6 +40,7 @@ const REGISTRY: Record<string, ComponentType> = {
   requests: Requests,
   'approvals-publish': ApprovalsPublish,
   'publish-detail': PublishDetail,
+  'publish-view': PublishView,
   'approvals-gpu': ApprovalsGpu,
   'approvals-gpu-detail': ApprovalDetail,
   'gpu-change': GpuChange,

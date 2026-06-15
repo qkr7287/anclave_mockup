@@ -61,6 +61,7 @@ export const ROUTES: RouteDef[] = [
   // 4.29 서비스 게시 신청 — 사용자가 자기 배포 서비스를 마켓 게시 신청(→ 4.9 게시 승인). 소유자 액션.
   { key: 'publish-request', path: '/marketplace/publish', screen: '4.29', title: '서비스 게시 신청', access: ['A', 'B', 'C'], group: 4, menu: ['B', 'C'], icon: 'megaphone' },
   { key: 'publish-new', path: '/marketplace/publish/new', screen: '4.29a', title: '신규 게시 신청', access: ['A', 'B', 'C'], group: 4, icon: 'megaphone' },
+  { key: 'publish-view', path: '/marketplace/publish/:id', screen: '4.29b', title: '게시 신청 상세', access: ['A', 'B', 'C'], group: 4, icon: 'megaphone' },
   // 4.19 API 신청 관리 — 내 마켓 서비스에 온 타인의 API key 신청 관리 + 발급 요약. 소유자(B) 전용.
   { key: 'api-approvals', path: '/api-approvals', screen: '4.19', title: 'API 신청 관리', access: ['A', 'B'], group: 4, menu: ['B'], icon: 'key' },
   // 4.9 게시 승인 관리 — 마켓 게시(서비스 노출) 신청 승인. 관리자(A) 전용. (할당관리→마켓플레이스 그룹으로 이동)
@@ -130,6 +131,7 @@ const HIGHLIGHT_PARENT: Record<string, string> = {
   'requests-new': 'requests-status',
   'publish-detail': 'approvals-publish',
   'publish-new': 'publish-request',
+  'publish-view': 'publish-request',
 }
 export function sidebarHighlightKey(pathname: string): string | undefined {
   const m = matchRoute(pathname)
