@@ -9,6 +9,8 @@ import { useRole } from './lib/role'
 import { Login } from './screens/auth/Login'
 import { ResourceMap, ServerDetail, GpuDetail } from './screens/resourcemap'
 import { MyResources, RequestStatus } from './screens/dashboard'
+import { RequestDetail } from './screens/request-detail'
+import { RequestNew } from './screens/request-new'
 import { AdminMonitoring } from './screens/monitoring'
 import { Requests, GpuChange } from './screens/allocation'
 import { ApprovalsPublish, ApprovalsGpu } from './screens/approvals'
@@ -29,6 +31,8 @@ const REGISTRY: Record<string, ComponentType> = {
   'resource-map-gpu': GpuDetail,
   dashboard: MyResources,
   'requests-status': RequestStatus,
+  'requests-status-detail': RequestDetail,
+  'requests-new': RequestNew,
   'admin-monitoring': AdminMonitoring,
   requests: Requests,
   'approvals-publish': ApprovalsPublish,

@@ -85,13 +85,16 @@ const BRAND: Record<string, Brand> = {
   m2: { name: 'Alibaba', mark: <QwenMark /> },
   m5: { name: 'Alibaba', mark: <QwenMark /> },
   m7: { name: 'Alibaba', mark: <QwenMark /> },
+  m12: { name: 'Alibaba', mark: <QwenMark /> },
+  m13: { name: 'Alibaba', mark: <QwenMark /> },
+  m11: { name: 'Meta', img: '/logos/meta.png' },
   m3: { name: 'DeepSeek', mark: <DeepSeekMark /> },
   m8: { name: 'Stability AI', mark: <StabilityMark /> },
   m10: { name: 'BAAI', mark: <BaaiMark /> },
 }
-const providerName = (id: string) => BRAND[id]?.name ?? '—'
+export const providerName = (id: string) => BRAND[id]?.name ?? '—'
 
-function Logo({ id, size = 38 }: { id: string; size?: number }) {
+export function Logo({ id, size = 38 }: { id: string; size?: number }) {
   const b = BRAND[id]
   const radius = size * 0.27
   if (b?.img) {
