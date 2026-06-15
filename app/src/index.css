@@ -326,4 +326,9 @@ select,
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
+  /* 작고 기능적인 펼침/회전은 reduced-motion 에서도 유지(사이드바 아코디언) */
+  .acc-panel,
+  .acc-caret {
+    transition-duration: 0.24s !important;
+  }
 }

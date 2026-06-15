@@ -91,7 +91,7 @@ export function Sidebar({ access, collapsed, onToggle }: SidebarProps) {
             <Icon width={18} height={18} className="shrink-0" style={{ color: groupActive ? 'var(--c-text)' : 'var(--c-muted)' }} />
             <span className="truncate" style={{ fontSize: 15, fontWeight: 500, letterSpacing: '-0.4px', color: groupActive ? 'var(--c-text)' : 'var(--c-muted)' }}>{g.group.label}</span>
           </span>
-          <ChevronDownIcon width={16} height={16} className="shrink-0"
+          <ChevronDownIcon width={16} height={16} className="shrink-0 acc-caret"
             style={{ color: 'var(--c-muted)', transition: 'transform .26s cubic-bezier(0.4,0,0.2,1)', transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }} />
         </button>
         {/* 아코디언 펼침 — grid-rows 0fr↔1fr 로 높이 트랜지션(스르륵) */}
