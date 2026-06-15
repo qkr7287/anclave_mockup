@@ -23,7 +23,7 @@ import {
   Stepper,
   inputBase,
 } from './model-wizard-ui'
-import { addLocalRequest, nextRequestId } from './model-requests-shared'
+import { createRequest } from './model-requests-shared'
 
 // G5 · 4.14 사용자(B/C) 모델 등록 신청 — 별도 페이지. g2 request-new 와 같은 좌우+morph.
 // 사용자는 신청만, 반입·스캔·명세·배포는 전부 관리자(A) 몫.
@@ -180,20 +180,15 @@ export function ModelRequestNew() {
     setF((p) => ({ ...p, files: [...p.files, ...names.filter((n) => !p.files.includes(n))] }))
   }
 
-  const submit = () => {
-    const id = nextRequestId()
-    addLocalRequest({
-      id,
+  const submit = async () => {
+    const created = await createRequest({
       requesterUserId: user.id,
       modelName: f.modelName.trim(),
       kind: f.kind || undefined,
       source: f.source.trim() || undefined,
       reason: f.reason.trim(),
-      status: 'pending',
-      stage: 'requested',
-      createdAt: fmtNow(),
     })
-    setDoneId(id)
+    setDoneId(created.id) // 서버 발급 id
     toast.push('모델 등록 신청이 접수되었어요. (검토 대기)', 'ok')
   }
 

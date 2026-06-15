@@ -15,7 +15,7 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline'
 import { Button } from '../components/ui'
-import { allGpus, models } from '../data'
+import { allGpus } from '../data'
 import type { Model, ModelKind, ModelRequest } from '../data/types'
 import { useRole } from '../lib/role'
 import {
@@ -33,16 +33,14 @@ import {
   inputBase,
 } from './model-wizard-ui'
 import {
-  addLocalModel,
-  addLocalRequest,
   clearScanStart,
-  getLocalModels,
+  createModel,
+  createRequest,
   getRequest,
   getScanStart,
-  nextModelId,
-  nextRequestId,
   patchRequest,
   setScanStart,
+  useCatalogModels,
   useModelRequests,
 } from './model-requests-shared'
 
@@ -479,6 +477,7 @@ function ModelSpecSheet({ f, recommend, reviewing, currentStep, onEdit, onDeploy
 export function ModelImport() {
   const navigate = useNavigate()
   const requests = useModelRequests()
+  const catalog = useCatalogModels()
   const [params] = useSearchParams()
   const idParam = params.get('id')
   const { user } = useRole()
@@ -509,41 +508,41 @@ export function ModelImport() {
   }, [req?.stage, req])
 
   // 스캔 완료 처리 — 포맷에 따라 pass/fail. 진행 중일 때만(중복·역전 방지). 백그라운드 setTimeout/게이지 양쪽에서 호출.
-  const finishScan = (id: string, format: 'safetensors' | 'other') => {
+  const finishScan = async (id: string, format: 'safetensors' | 'other') => {
     const cur = getRequest(id)
     if (!cur || cur.stage !== 'scanning') return
     const pass = format === 'safetensors'
-    patchRequest(id, { stage: 'scanned', scan: pass ? 'pass' : 'fail', checksum: 'sha256:' + id.replace(/\D/g, '').padEnd(4, '0') + '…a1f3' })
+    await patchRequest(id, { stage: 'scanned', scan: pass ? 'pass' : 'fail', checksum: 'sha256:' + id.replace(/\D/g, '').padEnd(4, '0') + '…a1f3' })
     clearScanStart(id)
   }
 
-  const onUpload = (fileName: string) => {
+  const onUpload = async (fileName: string) => {
     const format: 'safetensors' | 'other' = /\.safetensors$/i.test(fileName) ? 'safetensors' : 'other'
     const patch: Partial<ModelRequest> = { stage: 'scanning', fileName, format, scan: 'pending' }
     let id: string
     if (req) {
       id = req.id
-      patchRequest(req.id, patch)
+      await patchRequest(req.id, patch)
     } else {
-      id = nextRequestId()
-      addLocalRequest({
-        id, requesterUserId: user.id, modelName: guessModelName(fileName), kind: 'LLM',
-        reason: '관리자 직접 반입', status: 'pending', stage: 'scanning', createdAt: fmtNow(),
-        fileName, format, scan: 'pending',
+      // 직접 반입 — 신청 생성(서버 id 발급) 후 scanning 전환(POST→PATCH 2콜).
+      const created = await createRequest({
+        requesterUserId: user.id, modelName: guessModelName(fileName), kind: 'LLM', reason: '관리자 직접 반입',
       })
+      id = created.id
       setCreatedId(id)
+      await patchRequest(id, patch)
     }
     setScanStart(id, Date.now())
     // 백그라운드 — 페이지를 벗어나도 SCAN_DURATION 후 자동 완료.
-    window.setTimeout(() => finishScan(id, format), SCAN_DURATION)
+    window.setTimeout(() => void finishScan(id, format), SCAN_DURATION)
     setStep(1) // 업로드 → 보안 스캔 스텝으로 진행
   }
   const onScanDone = () => {
-    if (req) finishScan(req.id, req.format ?? 'safetensors')
+    if (req) void finishScan(req.id, req.format ?? 'safetensors')
   }
   // 보안 점검 실패 → 신청 반려(관리자 입력 사유).
   const reject = () => {
-    if (req) patchRequest(req.id, { stage: 'rejected', status: 'rejected', processedAt: fmtNow(), processedBy: user.id, rejectReason: rejectReason.trim() || '보안 점검 실패로 반려되었습니다.' })
+    if (req) void patchRequest(req.id, { stage: 'rejected', status: 'rejected', processedAt: fmtNow(), processedBy: user.id, rejectReason: rejectReason.trim() || '보안 점검 실패로 반려되었습니다.' })
   }
 
   const addTag = () => {
@@ -557,11 +556,10 @@ export function ModelImport() {
     reader.onload = () => set('imageUrl', String(reader.result))
     reader.readAsDataURL(file)
   }
-  const deploy = () => {
+  const deploy = async () => {
     if (!req) return
-    const modelId = nextModelId()
-    const model: Model = {
-      id: modelId,
+    // FK 순서: 모델 insert(서버 id 발급) → 그 id 로 신청을 deployed 기록.
+    const created = await createModel({
       name: f.name.trim(),
       kind: f.kind,
       description: f.description.trim(),
@@ -569,12 +567,9 @@ export function ModelImport() {
       license: f.license.trim() || 'Apache-2.0',
       recommendedGpu: f.recommendedGpu.trim() || `VRAM ${f.vram}GB+`,
       params: f.params.trim() || '—',
-      usageRank: models.length + getLocalModels().length + 1,
-      usageCount: 0,
       reqVramGb: Number(f.vram), reqRamGb: Number(f.ram), reqStorageGb: Number(f.storage), reqCpuCores: Number(f.cpu),
-    }
-    addLocalModel(model)
-    patchRequest(req.id, { stage: 'deployed', status: 'approved', processedAt: fmtNow(), processedBy: user.id, scan: 'pass', registeredModelId: modelId })
+    })
+    await patchRequest(req.id, { stage: 'deployed', status: 'approved', processedAt: fmtNow(), processedBy: user.id, scan: 'pass', registeredModelId: created.id })
   }
 
   // ── 단계 파생 ──
@@ -601,7 +596,7 @@ export function ModelImport() {
   // 종료(배포/반려). 배포는 등록된 Model 로 읽기전용 명세서, 반려는 사유 카드.
   const terminal = req && (req.stage === 'deployed' || req.stage === 'rejected')
   const deployedModel = req?.stage === 'deployed' && req.registeredModelId
-    ? [...models, ...getLocalModels()].find((m) => m.id === req.registeredModelId) ?? null
+    ? catalog.find((m) => m.id === req.registeredModelId) ?? null
     : null
 
   // 자원 슬라이더(게이지 바) — 트랙·채움·추천 마커 + 네이티브 range(투명 트랙·커스텀 thumb).
