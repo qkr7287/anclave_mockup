@@ -89,9 +89,7 @@ export function profileFor(s) {
 // 개별 옥타브는 시리즈별 결(밴드 폭·heatmap 차이), 5초 텍스처는 미세 질감.
 const MIN_MS = 60_000
 export function valueAt(s, prof, t, smooth) {
-  const d = new Date(t)
-  const hod = d.getUTCHours() + d.getUTCMinutes() / 60
-  const day = Math.sin(2 * Math.PI * (hod - 9) / 24)
+  // 7일 주기 추세 — 6시간 버킷에 28점/주기라 톱니 안 남(일주기는 4점/주기라 제거).
   const week = 0.4 * Math.sin(2 * Math.PI * t / (7 * 24 * HOUR))
   const jit = smooth ? prof.jitter * 0.5 : prof.jitter
   const gk = `${s.kind}|${s.metric}`
@@ -102,8 +100,8 @@ export function valueAt(s, prof, t, smooth) {
   // 공유 wave(kind|metric): 같은 종류가 함께 출렁여 9개 평균에도 굽이침 유지(10분·2시간 뷰).
   // 개별 wave(시리즈키): 엔티티별 결(밴드 폭·heatmap).
   const n = waveAt(gk, t) * 1.15 + waveAt(s.key, t) * 0.5
-  // 일주기 거의 제거(0.15): 6시간 버킷 언더샘플 톱니의 근원 → 변동은 매크로 wave 가 담당.
-  const v = prof.base + prof.dayAmp * 0.15 * (day + week) + jit * macro * 1.7 + jit * n * 2.0
+  // 일주기(24h) 완전 제거: 6시간 버킷 언더샘플 톱니의 근원 → 변동은 7일 추세+매크로 wave 가 담당.
+  const v = prof.base + prof.dayAmp * 0.15 * week + jit * macro * 1.9 + jit * n * 2.0
   return Math.round(clamp(v, prof.floor, prof.ceil) * 100) / 100
 }
 
