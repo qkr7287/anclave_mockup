@@ -10,7 +10,9 @@ import {
   Drawer,
   FloatingButtons,
   CriticalAlert,
+  Picker,
 } from '../components/ui'
+import type { PickerOption } from '../components/ui'
 import { BandChart, SparkLine, ServerHexMap, bandColor } from '../components/charts'
 import type { ServerRegion, Bay, BandSeries, BandAxis } from '../components/charts'
 import { ServerIcon, CpuChipIcon, ChartBarSquareIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
@@ -36,6 +38,23 @@ import { RANGES, RANGE_LABEL, RangeProvider, useRange, useTelemetryBand, tsLabel
 // 서버/GPU 호버 테두리 색 팔레트(hue) — 호버 시에만 서버별 다른 색
 const HUES = [210, 180, 145, 270, 35, 330, 0, 248, 300, 160, 50, 190]
 const hueLine = (hue: number) => `hsl(${hue}, 62%, 60%)`
+
+// health → dot 색 · 라벨(Picker 옵션 표기용)
+const HEALTH_META: Record<string, { color: string; label: string }> = {
+  normal: { color: 'var(--c-ok)', label: '정상' },
+  warn: { color: 'var(--c-warn)', label: '경고' },
+  danger: { color: 'var(--c-danger)', label: '장애' },
+  inactive: { color: 'var(--c-inactive)', label: '유휴' },
+}
+
+// 서버 스위처 옵션(정적 — seed.json 단일 소스). 4.3·4.4 공용.
+const SERVER_OPTIONS: PickerOption[] = servers.map((s) => ({
+  id: s.id,
+  label: s.name,
+  hint: `${serverAvgUtil(s)}%`,
+  status: HEALTH_META[s.health]?.label,
+  dotColor: HEALTH_META[s.health]?.color,
+}))
 
 // 4.2 전체 — 단일 연속 벌집(모든 GPU hex 밀착) + 서버 영역 외곽선·라벨·헬스색(HyperCube 구조 베이스)
 function ServerHoneycomb({ onSelect }: { onSelect: (id: string) => void }) {
@@ -588,6 +607,7 @@ export function ResourceMap() {
 
   return (
     <>
+      <div className="no-select h-full">
       <PageShell
         fill
         bare
@@ -612,6 +632,7 @@ export function ResourceMap() {
           </div>
         </div>
       </PageShell>
+      </div>
 
       <Drawer open={drawer} onClose={() => setDrawer(false)} title="전체 이벤트 로그"><EventList rows={allEvents} /></Drawer>
       {critServer && (
@@ -940,11 +961,21 @@ export function ServerDetail() {
 
   return (
     <>
+      <div className="no-select h-full">
       <PageShell fill bare screen="4.3">
         <div className="flex flex-col h-full min-h-0" style={{ gap: 12 }}>
-          {/* 헤더 — 랙명 · 상태 · GPU 수 */}
+          {/* 헤더 — 서버 스위처(검색 드롭다운) · 상태 · GPU 수 */}
           <div className="flex items-center gap-3 shrink-0 min-w-0">
-            <h2 className="font-bold truncate" style={{ fontSize: 18 }}>{server.name}</h2>
+            <Picker
+              size="lg"
+              value={server.id}
+              options={SERVER_OPTIONS}
+              onSelect={(id) => navigate(`/resource-map/${id}`)}
+              searchable
+              searchPlaceholder="서버 검색"
+              ariaLabel="서버 선택"
+              menuWidth={264}
+            />
             <HealthBadge health={server.health} />
             <span className="rounded-full border border-line text-muted shrink-0" style={{ fontSize: 14, padding: '2px 11px' }}>GPU {server.gpus.length}장</span>
           </div>
@@ -964,7 +995,7 @@ export function ServerDetail() {
                     {infoOld.map(([k, v]) => (
                       <div key={k} className="flex items-center justify-between gap-3 min-w-0" style={{ borderBottom: '1px solid var(--c-border-s)' }}>
                         <span className="shrink-0" style={{ fontSize: 13, color: '#5B6480' }}>{k}</span>
-                        <span className="font-medium truncate text-right min-w-0" style={{ fontSize: 14 }}>{v}</span>
+                        <span className="font-medium truncate text-right min-w-0 selectable" style={{ fontSize: 14 }}>{v}</span>
                       </div>
                     ))}
                   </div>
@@ -982,7 +1013,7 @@ export function ServerDetail() {
                     {info.map(([k, v]) => (
                       <div key={k} className="flex items-center justify-between gap-3 min-w-0" style={{ borderBottom: '1px solid var(--c-border-s)' }}>
                         <span className="shrink-0" style={{ fontSize: 13, color: '#5B6480' }}>{k}</span>
-                        <span className="font-medium truncate text-right min-w-0" style={{ fontSize: 14 }}>{v}</span>
+                        <span className="font-medium truncate text-right min-w-0 selectable" style={{ fontSize: 14 }}>{v}</span>
                       </div>
                     ))}
                   </div>
@@ -1004,6 +1035,7 @@ export function ServerDetail() {
           </div>
         </div>
       </PageShell>
+      </div>
 
       <FloatingButtons target={server.name} onEventLog={() => setDrawer(true)} />
       <Drawer open={drawer} onClose={() => setDrawer(false)} title={`${server.name} 이벤트 로그`}><EventList rows={serverEvents(server.id)} /></Drawer>
@@ -1082,6 +1114,7 @@ function GpuActivityFeed({ gpu }: { gpu: Gpu }) {
 
 export function GpuDetail() {
   const { serverId = '', gpuId = '' } = useParams()
+  const navigate = useNavigate()
   const [drawer, setDrawer] = useState(false)
   const server = serverById(serverId)
   const gpu = server?.gpus.find((g) => g.id === gpuId)
@@ -1106,14 +1139,56 @@ export function GpuDetail() {
     ? `MIG 인스턴스 분할 · ${mig.cells}분할 · 사용 ${mig.usedInstances}/${mig.total}`
     : `GPU 단일 할당 · ${gpu.model}`
 
+  // 이 서버의 GPU 스위처 옵션 — 순번(GPU N) 라벨 + 모델 보조(같은 모델 다수도 구분).
+  // 장애=danger, 그 외 health.
+  const gpuOptions: PickerOption[] = server.gpus.map((g, i) => ({
+    id: g.id,
+    label: `GPU ${i + 1}`,
+    hint: g.xid ? undefined : `${g.smUtil}%`,
+    status: g.xid ? '장애' : HEALTH_META[g.health]?.label,
+    dotColor: g.xid ? 'var(--c-danger)' : HEALTH_META[g.health]?.color,
+  }))
+
   return (
     <>
+      <div className="no-select h-full">
       <PageShell
         fill
         screen="4.4"
-        title={`GPU 상세 현황 — ${gpu.name}`}
-        desc={`${server.name} · ${gpu.serial} · ${gpu.migCapable ? 'MIG 분할' : 'GPU 단일 할당'}`}
-        actions={gpu.xid ? <Badge tone="danger" dot={false}>{gpu.xid}</Badge> : <HealthBadge health={gpu.health} />}
+        title="GPU 상세 현황"
+        desc={`${gpu.model} · ${gpu.serial} · ${gpu.migCapable ? 'MIG 분할' : 'GPU 단일 할당'}`}
+        actions={
+          <div className="flex items-center gap-2 min-w-0">
+            {/* 서버 전환 — 바꾸면 해당 서버의 첫 GPU로 */}
+            <Picker
+              size="sm"
+              align="right"
+              value={server.id}
+              options={SERVER_OPTIONS}
+              onSelect={(id) => {
+                const s = serverById(id)
+                if (s) navigate(`/resource-map/${id}/${s.gpus[0].id}`)
+              }}
+              searchable
+              searchPlaceholder="서버 검색"
+              ariaLabel="서버 선택"
+              menuWidth={244}
+            />
+            {/* GPU 전환 — 같은 서버 내 */}
+            <Picker
+              size="sm"
+              align="right"
+              value={gpu.id}
+              options={gpuOptions}
+              onSelect={(id) => navigate(`/resource-map/${server.id}/${id}`)}
+              searchable
+              searchPlaceholder="GPU 검색"
+              ariaLabel="GPU 선택"
+              menuWidth={244}
+            />
+            {gpu.xid ? <Badge tone="danger" dot={false}>{gpu.xid}</Badge> : <HealthBadge health={gpu.health} />}
+          </div>
+        }
         kpis={
           <>
             <KpiStat label="작업률" value={gpu.smUtil} unit="%" delta={gpu.smUtil > UTIL_THRESHOLD_PCT ? '높음' : '정상'} deltaTone={gpu.smUtil > UTIL_THRESHOLD_PCT ? 'warn' : 'ok'} trend={utilTrend} trendThreshold={UTIL_THRESHOLD_PCT} trendFmt={(v) => `${Math.round(v)}%`} sub={`임계 ${UTIL_THRESHOLD_PCT}%`} />
@@ -1170,6 +1245,7 @@ export function GpuDetail() {
           </div>
         </div>
       </PageShell>
+      </div>
 
       <FloatingButtons target={gpu.name} onEventLog={() => setDrawer(true)} />
       <Drawer open={drawer} onClose={() => setDrawer(false)} title={`${gpu.name} 이벤트 로그`}><EventList rows={gpuEvents(gpu.id)} /></Drawer>
@@ -1182,7 +1258,7 @@ function Info({ k, v, tone }: { k: string; v: ReactNode; tone?: string }) {
   return (
     <div className="flex items-center justify-between gap-3 min-w-0 border-b border-line" style={{ minHeight: 30 }}>
       <span className="text-muted shrink-0" style={{ fontSize: 14 }}>{k}</span>
-      <span className="truncate font-semibold font-mono flex items-center" style={{ fontSize: 14, gap: 6 }}>
+      <span className="truncate font-semibold font-mono flex items-center selectable" style={{ fontSize: 14, gap: 6 }}>
         {tone && <span className="rounded-full shrink-0" style={{ width: 7, height: 7, background: tone }} />}
         {v}
       </span>
@@ -1293,7 +1369,7 @@ function SliceCell({ slice, gpu }: { slice: MigSlice; gpu: Gpu }) {
           <div className="min-w-0 flex flex-col" style={{ gap: 2, lineHeight: 1.25 }}>
             <div className="font-bold truncate" style={{ fontSize: 15 }}>{svcName}</div>
             <div className="text-muted truncate" style={{ fontSize: 14 }}>{owner ?? '—'} · {model ?? '—'}</div>
-            <div className="text-muted truncate font-mono" style={{ fontSize: 14 }}>{slice.containerId ?? '—'}</div>
+            <div className="text-muted truncate font-mono selectable" style={{ fontSize: 14 }}>{slice.containerId ?? '—'}</div>
           </div>
           {/* stat — 핵심 3개(작업·VRAM·온도). 하단 고정·flex-wrap(잘림 0) */}
           <div className="flex flex-wrap items-baseline min-w-0 shrink-0" style={{ marginTop: 'auto', gap: '2px 14px', lineHeight: 1.25 }}>
