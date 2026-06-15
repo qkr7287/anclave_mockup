@@ -132,3 +132,8 @@ export function sidebarHighlightKey(pathname: string): string | undefined {
   if (!m) return undefined
   return HIGHLIGHT_PARENT[m.key] ?? m.key
 }
+
+// 상세(드릴다운) 라우트의 부모 key — 브레드크럼 중간 단계 생성용.
+export function parentRouteKey(key: string): string | undefined {
+  return HIGHLIGHT_PARENT[key]
+}
