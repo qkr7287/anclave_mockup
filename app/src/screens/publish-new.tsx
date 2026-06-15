@@ -206,7 +206,7 @@ function CornerMarks() {
   )
 }
 
-interface PubForm { serviceId: string; intro: string; visibility: string; tags: string; demoNote: string }
+interface PubForm { serviceId: string; intro: string; visibility: string; features: string; tags: string; demoNote: string }
 
 function SpecSheet({ f, svc, userName, today, currentStep, reviewing, onEdit, onBack, onSubmit, canSubmit }: {
   f: PubForm; svc: Service | undefined; userName: string; today: string
@@ -258,6 +258,7 @@ function SpecSheet({ f, svc, userName, today, currentStep, reviewing, onEdit, on
           <SpecSection title="게시 정보" index={1} currentStep={currentStep} reviewing={reviewing} onEdit={() => onEdit(1)}>
             <SpecRow label="소개" value={f.intro} reviewing={reviewing} pendingW="92%" />
             <SpecRow label="공개 범위" value={f.visibility} reviewing={reviewing} pendingW="35%" />
+            <SpecRow label="주요 기능" value={f.features ? <span style={{ whiteSpace: 'pre-line' }}>{f.features}</span> : undefined} emptyText="없음" reviewing={reviewing} pendingW="80%" />
             <SpecRow label="태그" value={f.tags} emptyText="없음" reviewing={reviewing} pendingW="50%" />
             <SpecRow label="데모 안내" value={f.demoNote} emptyText="없음" reviewing={reviewing} pendingW="60%" last />
           </SpecSection>
@@ -287,7 +288,7 @@ export function PublishNew() {
   const myServices = services.filter((s) => s.ownerUserId === user.id)
 
   const [step, setStep] = useState(0)
-  const [f, setF] = useState<PubForm>({ serviceId: '', intro: '', visibility: VIS_OPTS[0].v, tags: '', demoNote: '' })
+  const [f, setF] = useState<PubForm>({ serviceId: '', intro: '', visibility: VIS_OPTS[0].v, features: '', tags: '', demoNote: '' })
   const [svcQ, setSvcQ] = useState('')
   const [doneId, setDoneId] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -421,24 +422,38 @@ export function PublishNew() {
               <div className="flex flex-col flex-1 min-h-0">
                 <h3 className="font-semibold shrink-0" style={{ fontSize: 15, color: M.text, marginBottom: 18 }}>마켓플레이스에 노출될 상세 내용을 작성해주세요.</h3>
                 <FieldLabel text="서비스 소개" required help={`마켓플레이스 방문자에게 보일 소개를 작성해주세요. (최소 ${INTRO_MIN}자)`} />
-                <div className="relative shrink-0" style={{ marginBottom: 22 }}>
-                  <textarea value={f.intro} maxLength={300} onChange={(e) => set('intro', e.target.value)} placeholder={svc ? `예: ${svc.description}` : '먼저 서비스를 선택해주세요.'} style={{ ...inputBase, height: 96, padding: '14px', resize: 'none', lineHeight: 1.5 }} />
+                <div className="relative shrink-0" style={{ marginBottom: 20 }}>
+                  <textarea value={f.intro} maxLength={300} onChange={(e) => set('intro', e.target.value)} placeholder={svc ? `예: ${svc.description}` : '먼저 서비스를 선택해주세요.'} style={{ ...inputBase, height: 84, padding: '14px', resize: 'none', lineHeight: 1.5 }} />
                   <span className="absolute" style={{ right: 14, bottom: 12, fontSize: 12, color: f.intro.trim().length >= INTRO_MIN ? M.meta : 'var(--c-danger)' }}>{f.intro.trim().length}/{INTRO_MIN}</span>
                 </div>
-                <div style={{ marginBottom: 22 }}>
+                <div className="shrink-0" style={{ marginBottom: 20 }}>
                   <FieldLabel text="공개 범위" required />
                   <div className="grid grid-cols-3" style={{ gap: 10 }}>
                     {VIS_OPTS.map((o) => <SelectCard key={o.v} label={o.v} sub={o.desc} active={f.visibility === o.v} onClick={() => set('visibility', o.v)} />)}
                   </div>
                 </div>
-                <div className="grid grid-cols-2 flex-1 min-h-0" style={{ gap: 18 }}>
-                  <div className="flex flex-col min-h-0">
-                    <FieldLabel text="태그" help="쉼표로 구분해 입력해주세요. (선택)" />
+                <div className="grid grid-cols-2 shrink-0" style={{ gap: 18, marginBottom: 20 }}>
+                  <div>
+                    <FieldLabel text="태그" help="쉼표로 구분. (선택)" />
                     <input value={f.tags} onChange={(e) => set('tags', e.target.value)} placeholder="예: RAG, 검색, 문서" style={inputBase} />
                   </div>
-                  <div className="flex flex-col min-h-0">
-                    <FieldLabel text="데모 안내" help="데모 사용 방법·계정 등 안내. (선택)" />
-                    <input value={f.demoNote} onChange={(e) => set('demoNote', e.target.value)} placeholder="예: 게스트 계정으로 바로 체험 가능" style={inputBase} />
+                  <div>
+                    <FieldLabel text="데모 안내" help="데모 사용법·계정 등. (선택)" />
+                    <input value={f.demoNote} onChange={(e) => set('demoNote', e.target.value)} placeholder="예: 게스트 계정으로 바로 체험" style={inputBase} />
+                  </div>
+                </div>
+                {/* 주요 기능 — 남는 높이를 끝까지 채움 */}
+                <div className="flex flex-col flex-1 min-h-0">
+                  <FieldLabel text="주요 기능" help="마켓 상세에 노출됩니다. 한 줄에 하나씩 적어주세요. (선택)" />
+                  <div className="relative flex-1 min-h-0">
+                    <textarea
+                      value={f.features}
+                      maxLength={500}
+                      onChange={(e) => set('features', e.target.value)}
+                      placeholder={'예:\n출처 조항 인용 답변\n권한 기반 문서 필터\n환각 억제(grounding)'}
+                      style={{ ...inputBase, height: '100%', minHeight: 96, padding: '14px', resize: 'none', lineHeight: 1.6 }}
+                    />
+                    <span className="absolute" style={{ right: 14, bottom: 12, fontSize: 12, color: M.meta }}>{f.features.length}/500</span>
                   </div>
                 </div>
               </div>

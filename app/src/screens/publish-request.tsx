@@ -106,6 +106,7 @@ export function PublishRequest() {
 
   return (
     <PageShell
+      fill
       screen="4.29"
       title="서비스 게시 신청"
       desc="내가 배포한 AI 서비스를 마켓플레이스에 게시 신청해요. 관리자 검토(게시 승인) 후 마켓에 노출됩니다."
@@ -125,6 +126,7 @@ export function PublishRequest() {
     >
       <Card
         flush
+        fill
         title={
           <span className="flex items-center gap-2">
             내 게시 신청
