@@ -49,8 +49,8 @@ export function PublishRequest() {
             <MegaphoneIcon width={16} height={16} />
           </span>
           <div className="flex flex-col min-w-0">
-            <span className="font-semibold truncate">{p.serviceName}</span>
-            <span className="text-muted truncate" style={{ fontSize: 12.5 }}>{kindByName(p.serviceName) ?? '서비스'}</span>
+            <span className="font-semibold truncate" style={{ fontSize: 14 }}>{p.serviceName}</span>
+            <span className="text-muted truncate" style={{ fontSize: 14 }}>{kindByName(p.serviceName) ?? '서비스'}</span>
           </div>
         </div>
       ),
@@ -59,13 +59,13 @@ export function PublishRequest() {
       key: 'meta',
       header: '게시 정보',
       width: '30%',
-      render: (p) => <span className="text-muted truncate" style={{ fontSize: 13.5 }}>{p.meta}</span>,
+      render: (p) => <span className="text-muted truncate" style={{ fontSize: 14 }}>{p.meta}</span>,
     },
     {
       key: 'created',
       header: '신청일',
       width: '14%',
-      render: (p) => <span className="text-muted" style={{ fontSize: 13 }}>{p.createdAt}</span>,
+      render: (p) => <span className="text-muted" style={{ fontSize: 14 }}>{p.createdAt}</span>,
     },
     {
       key: 'status',
@@ -79,11 +79,11 @@ export function PublishRequest() {
       width: '12%',
       render: (p) =>
         p.status === 'rejected' && p.rejectReason ? (
-          <span className="text-danger truncate inline-block max-w-full" style={{ fontSize: 13 }} title={p.rejectReason}>반려 사유</span>
+          <span className="text-danger truncate inline-block max-w-full" style={{ fontSize: 14 }} title={p.rejectReason}>반려 사유</span>
         ) : p.status === 'approved' ? (
-          <span className="text-muted" style={{ fontSize: 13 }}>마켓 노출</span>
+          <span className="text-muted" style={{ fontSize: 14 }}>마켓 노출</span>
         ) : (
-          <span className="text-muted" style={{ fontSize: 13 }}>검토 중</span>
+          <span className="text-muted" style={{ fontSize: 14 }}>검토 중</span>
         ),
     },
     {
@@ -96,7 +96,7 @@ export function PublishRequest() {
           type="button"
           onClick={(e) => { e.stopPropagation(); goView(p.id) }}
           className="inline-flex items-center gap-1 font-medium rounded-[8px] transition-[transform,background-color] duration-100 active:scale-95 whitespace-nowrap hover:bg-[var(--accent-soft)] hover:text-[color:var(--c-accent)]"
-          style={{ fontSize: 13, padding: '5px 10px', background: 'var(--c-soft)', color: 'var(--c-muted)' }}
+          style={{ fontSize: 14, padding: '5px 10px', background: 'var(--c-soft)', color: 'var(--c-muted)' }}
         >
           <EyeIcon style={{ width: 14, height: 14, opacity: 0.9 }} /> 상세보기
         </button>
@@ -106,6 +106,7 @@ export function PublishRequest() {
 
   return (
     <PageShell
+      fill
       screen="4.29"
       title="서비스 게시 신청"
       desc="내가 배포한 AI 서비스를 마켓플레이스에 게시 신청해요. 관리자 검토(게시 승인) 후 마켓에 노출됩니다."
@@ -125,10 +126,11 @@ export function PublishRequest() {
     >
       <Card
         flush
+        fill
         title={
           <span className="flex items-center gap-2">
             내 게시 신청
-            <span className="rounded-full" style={{ padding: '1px 8px', fontSize: 12, fontWeight: 700, color: 'var(--c-accent)', background: 'var(--accent-soft)' }}>{shown.length}</span>
+            <span className="rounded-full" style={{ padding: '1px 9px', fontSize: 14, fontWeight: 700, color: 'var(--c-accent)', background: 'var(--accent-soft)' }}>{shown.length}</span>
           </span>
         }
         action={
@@ -141,7 +143,7 @@ export function PublishRequest() {
                   type="button"
                   onClick={() => setFilter(fopt.key)}
                   className="rounded-lg whitespace-nowrap transition-colors"
-                  style={{ padding: '4px 11px', fontSize: 13, fontWeight: 600, color: on ? 'var(--c-accent)' : 'var(--c-muted)', background: on ? 'var(--accent-soft)' : 'transparent', border: `1px solid ${on ? 'var(--c-accent)' : 'var(--c-border)'}` }}
+                  style={{ padding: '4px 11px', fontSize: 14, fontWeight: 600, color: on ? 'var(--c-accent)' : 'var(--c-muted)', background: on ? 'var(--accent-soft)' : 'transparent', border: `1px solid ${on ? 'var(--c-accent)' : 'var(--c-border)'}` }}
                 >
                   {fopt.label}
                 </button>
