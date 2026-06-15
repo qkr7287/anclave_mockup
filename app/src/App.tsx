@@ -14,7 +14,6 @@ import { Requests, GpuChange } from './screens/allocation'
 import { ApprovalsPublish, ApprovalsGpu } from './screens/approvals'
 import { ModelCatalog, ModelDetail } from './screens/catalog'
 import { ModelRequests } from './screens/model-requests'
-import { Agents } from './screens/agents'
 import { Marketplace, ServiceDetail } from './screens/market'
 import { ApiApprovals, PublishRequest } from './screens/activation'
 import { Events, Notifications } from './screens/events'
@@ -37,7 +36,6 @@ const REGISTRY: Record<string, ComponentType> = {
   models: ModelCatalog,
   'model-detail': ModelDetail,
   'model-requests': ModelRequests,
-  agents: Agents,
   marketplace: Marketplace,
   'service-detail': ServiceDetail,
   'api-approvals': ApiApprovals,

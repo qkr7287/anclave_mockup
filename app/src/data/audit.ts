@@ -39,12 +39,17 @@ export const activationStats: ActivationStat[] = [
 
 // 4.14 신규 모델 반입 보안 점검 (safetensors·scan·checksum)
 // 4.14 모델 신청 — 사용자가 등록 신청, 관리자가 반입(파일·보안점검·체크섬)·등록 처리.
+// stage: requested→scanning→scanned→deployed / rejected. 카탈로그는 deployed 만 노출.
 export const modelRequests: ModelRequest[] = [
-  // 승인·반입 완료 — registeredModelId 로 카탈로그 등록됨
-  { id: 'mr-01', requesterUserId: 'u-kim', modelName: 'Qwen2.5-72B', kind: 'LLM', source: 'huggingface.co/Qwen/Qwen2.5-72B', reason: '코드 자동화 에이전트용 최신 LLM 필요', status: 'approved', createdAt: '2026-06-05 09:30', processedAt: '2026-06-05 10:50', processedBy: 'u-admin', fileName: 'qwen2.5-72b.safetensors', format: 'safetensors', scan: 'pass', checksum: 'sha256:9f2a…c41e', registeredModelId: 'm12' },
-  { id: 'mr-02', requesterUserId: 'u-park', modelName: 'DeepSeek-V3', kind: 'LLM', source: 'huggingface.co/deepseek-ai/DeepSeek-V3', reason: 'RAG 추론 품질 개선용', status: 'approved', createdAt: '2026-06-02 11:10', processedAt: '2026-06-02 14:20', processedBy: 'u-admin', fileName: 'deepseek-v3.safetensors', format: 'safetensors', scan: 'pass', checksum: 'sha256:1b77…0a2f', registeredModelId: 'm5' },
+  // 배포 완료 — registeredModelId 로 카탈로그 등록됨
+  { id: 'mr-01', requesterUserId: 'u-kim', modelName: 'Qwen2.5-72B', kind: 'LLM', source: 'huggingface.co/Qwen/Qwen2.5-72B', reason: '코드 자동화 에이전트용 최신 LLM 필요', status: 'approved', stage: 'deployed', createdAt: '2026-06-05 09:30', processedAt: '2026-06-05 10:50', processedBy: 'u-admin', fileName: 'qwen2.5-72b.safetensors', format: 'safetensors', scan: 'pass', checksum: 'sha256:9f2a…c41e', registeredModelId: 'm12' },
+  { id: 'mr-02', requesterUserId: 'u-park', modelName: 'DeepSeek-V3', kind: 'LLM', source: 'huggingface.co/deepseek-ai/DeepSeek-V3', reason: 'RAG 추론 품질 개선용', status: 'approved', stage: 'deployed', createdAt: '2026-06-02 11:10', processedAt: '2026-06-02 14:20', processedBy: 'u-admin', fileName: 'deepseek-v3.safetensors', format: 'safetensors', scan: 'pass', checksum: 'sha256:1b77…0a2f', registeredModelId: 'm5' },
+  // 스캔 완료 — 명세 작성/등록 대기(미배포)
+  { id: 'mr-05', requesterUserId: 'u-park', modelName: 'Phi-3.5-mini', kind: 'LLM', source: 'huggingface.co/microsoft/Phi-3.5-mini-instruct', reason: '소형 온디바이스 추론 실험용', status: 'pending', stage: 'scanned', createdAt: '2026-06-06 08:10', fileName: 'phi-3.5-mini.safetensors', format: 'safetensors', scan: 'pass', checksum: 'sha256:7c3d…b81a' },
+  // 스캔 중 — 서버에서 보안 점검 진행 중(미배포)
+  { id: 'mr-06', requesterUserId: 'u-kim', modelName: 'Mistral Small 3', kind: 'LLM', source: 'huggingface.co/mistralai/Mistral-Small-3', reason: '한국어 요약 파이프라인용', status: 'pending', stage: 'scanning', createdAt: '2026-06-06 10:20', fileName: 'mistral-small-3.safetensors', format: 'safetensors', scan: 'pending' },
   // 반려 — 보안 점검 실패
-  { id: 'mr-03', requesterUserId: 'u-lee', modelName: 'custom-lora (사내 파인튜닝)', reason: '사내 파인튜닝 LoRA 어댑터 적용 필요', status: 'rejected', createdAt: '2026-06-04 08:40', processedAt: '2026-06-04 09:10', processedBy: 'u-admin', fileName: 'custom-lora.bin', format: 'other', scan: 'fail', rejectReason: 'picklescan 검출 — pickle 직렬화 위험 코드 발견. safetensors 포맷으로 재신청 바랍니다.' },
-  // 대기 — 관리자 검토 전
-  { id: 'mr-04', requesterUserId: 'u-hwang', modelName: 'Gemma2-27B', kind: 'LLM', source: 'huggingface.co/google/gemma-2-27b', reason: '경량 모델 비교 평가용', status: 'pending', createdAt: '2026-06-06 09:40' },
+  { id: 'mr-03', requesterUserId: 'u-lee', modelName: 'custom-lora (사내 파인튜닝)', reason: '사내 파인튜닝 LoRA 어댑터 적용 필요', status: 'rejected', stage: 'rejected', createdAt: '2026-06-04 08:40', processedAt: '2026-06-04 09:10', processedBy: 'u-admin', fileName: 'custom-lora.bin', format: 'other', scan: 'fail', rejectReason: 'picklescan 검출 — pickle 직렬화 위험 코드 발견. safetensors 포맷으로 재신청 바랍니다.' },
+  // 신청됨 — 관리자 검토 전(미배포)
+  { id: 'mr-04', requesterUserId: 'u-hwang', modelName: 'Gemma2-27B', kind: 'LLM', source: 'huggingface.co/google/gemma-2-27b', reason: '경량 모델 비교 평가용', status: 'pending', stage: 'requested', createdAt: '2026-06-06 09:40' },
 ]
