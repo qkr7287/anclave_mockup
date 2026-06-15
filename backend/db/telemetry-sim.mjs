@@ -93,12 +93,17 @@ export function valueAt(s, prof, t, smooth) {
   const hod = d.getUTCHours() + d.getUTCMinutes() / 60
   const day = Math.sin(2 * Math.PI * (hod - 9) / 24)
   const week = 0.4 * Math.sin(2 * Math.PI * t / (7 * 24 * HOUR))
-  const jit = smooth ? prof.jitter * 0.4 : prof.jitter
-  // 공유 wave(kind|metric — id 제외): 같은 종류가 함께 출렁여 클러스터 평균(4.7)에도 굽이침 유지.
-  // 개별 wave(시리즈키): 엔티티별 결(밴드 폭·heatmap 차이).
+  const jit = smooth ? prof.jitter * 0.5 : prof.jitter
   const gk = `${s.kind}|${s.metric}`
-  const n = waveAt(gk, t) * 0.62 + waveAt(s.key, t) * 0.55
-  const v = prof.base + prof.dayAmp * (day + week) + jit * n * 1.7
+  // 매크로 wave(시간~일 단위): 1달 뷰(6시간 버킷)에서도 부드럽게 굽이친다.
+  // 공유키라 클러스터 평균에도 남고, 분 단위와 달리 6시간 버킷에서 살아남는다.
+  // 매크로 주기는 6시간 버킷보다 충분히 길게(30h≈5점/주기·5일≈20점/주기) → 1달 뷰가 매끈.
+  const macro = smoothNoise(gk + ':mh', t, 30 * HOUR) * 0.5 + smoothNoise(gk + ':md', t, 120 * HOUR) * 0.5
+  // 공유 wave(kind|metric): 같은 종류가 함께 출렁여 9개 평균에도 굽이침 유지(10분·2시간 뷰).
+  // 개별 wave(시리즈키): 엔티티별 결(밴드 폭·heatmap).
+  const n = waveAt(gk, t) * 1.15 + waveAt(s.key, t) * 0.5
+  // 일주기 거의 제거(0.15): 6시간 버킷 언더샘플 톱니의 근원 → 변동은 매크로 wave 가 담당.
+  const v = prof.base + prof.dayAmp * 0.15 * (day + week) + jit * macro * 1.7 + jit * n * 2.0
   return Math.round(clamp(v, prof.floor, prof.ceil) * 100) / 100
 }
 

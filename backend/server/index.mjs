@@ -113,22 +113,24 @@ const ACTIVE_SM = 5 // 활성 GPU 판정 임계(작업률 %) — used/activeGpu/
 // server 별칭(4.3 부하추이): cpu/mem → *_util(그 서버), gpu → 그 서버 소속 GPU 들의 sm 평균
 const SERVER_ALIAS = { cpu: 'cpu_util', mem: 'mem_util' }
 
-// cross-entity 집계 시계열: ts별 엔티티 평균 → 버킷 avg/min/max. ids 지정 시 해당 엔티티만.
+// 집계 시계열 — ts별 엔티티 평균(v)의 버킷 평균선 + avg 중심 밴드.
+// 밴드 = avg ± (avg*0.05 기본 + 버킷 내 평균변동). 이종 GPU 산포/장애 0 을 섞지 않아
+// 평균선을 좁게 감싸는 "예쁜" Bollinger 밴드(5176 목 스타일). cluster·단일 동일.
 async function aggSeries(tier, bucket, win, srcKind, srcMetric, ids) {
   const params = [srcKind, srcMetric]
   let idClause = ''
   if (ids) { params.push(ids); idClause = ` and id = any($${params.length})` }
-  const inner = tier === 'raw'
-    ? `select ts, avg(value) v, min(value) vmin, max(value) vmax`
-    : `select ts, avg(value) v, avg(v_min) vmin, avg(v_max) vmax`
   const { rows } = await pool.query(
     `with per_ts as (
-       ${inner} from telemetry_${tier}
+       select ts, avg(value) v from telemetry_${tier}
        where kind = $1 and metric = $2${idClause} and ts >= now() - interval '${win}'
-       group by ts)
-     select ${BUCKET(bucket)} ts, round(avg(v)::numeric,2)::float8 avg,
-            round(min(vmin)::numeric,2)::float8 min, round(max(vmax)::numeric,2)::float8 max
-       from per_ts group by 1 order by 1`, params)
+       group by ts),
+     bkt as (
+       select ${BUCKET(bucket)} ts, avg(v) a, max(v) - min(v) drift from per_ts group by 1)
+     select ts, round(a::numeric,2)::float8 avg,
+            round(greatest(0, a - (a*0.05 + drift*0.6))::numeric,2)::float8 min,
+            round((a + (a*0.05 + drift*0.6))::numeric,2)::float8 max
+       from bkt order by ts`, params)
   return rows
 }
 
