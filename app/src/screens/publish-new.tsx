@@ -14,6 +14,7 @@ import { useRole } from '../lib/role'
 import { useTheme } from '../lib/theme'
 import { Logo } from './catalog'
 import { createPublishRequest } from './publish-store'
+import { QaPolish } from './qa-polish'
 
 // G8 · 4.29a 서비스 게시 신규 신청(/marketplace/publish/new) — 4.6b 신규 신청과 동일 구조
 // (스텝퍼 + morph[좌 마법사 / 우 명세서] + 완료). 모달 대신 전용 페이지. 디자인 시안 없음 — 토큰·컴포넌트 재사용.
@@ -381,7 +382,8 @@ export function PublishNew() {
   })
 
   return (
-    <div className="anim-fade flex flex-col min-w-0 h-full" style={mutedFix}>
+    <div data-qa className="anim-fade flex flex-col min-w-0 h-full" style={mutedFix}>
+      <QaPolish />
       <style>{`[data-morph]{transition-duration:.8s !important}`}</style>
       <header className="flex flex-col shrink-0">
         <StepBack to="/marketplace/publish" label="서비스 게시 신청" />

@@ -14,6 +14,7 @@ import { useRole } from '../lib/role'
 import { useTheme } from '../lib/theme'
 import { Logo } from './catalog'
 import { createApiRequest } from './api-store'
+import { QaPolish } from './qa-polish'
 
 // G8 · 4.20 API 키 요청(/marketplace/api-request/:id) — 마켓 서비스 상세의 'API 키 요청'에서 진입.
 // 4.6b 신규 신청과 동일 구조(스텝퍼 + morph[좌 마법사 / 우 명세서] + 완료). 2스텝: 상세 내용 → 확인·요청.
@@ -349,7 +350,8 @@ export function ApiRequestNew() {
   }
 
   return (
-    <div className="anim-fade flex flex-col min-w-0 h-full" style={mutedFix}>
+    <div data-qa className="anim-fade flex flex-col min-w-0 h-full" style={mutedFix}>
+      <QaPolish />
       <style>{`[data-morph]{transition-duration:.8s !important}`}</style>
       <header className="flex flex-col shrink-0">
         <StepBack to="/marketplace" label="마켓플레이스" />

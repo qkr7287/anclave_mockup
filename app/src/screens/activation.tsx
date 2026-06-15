@@ -15,6 +15,7 @@ import { modelById, serviceById, services, userById } from '../data'
 import type { Status } from '../data/types'
 import { useRole } from '../lib/role'
 import { listApiRequests, type ApiRecord } from './api-store'
+import { QaPolish } from './qa-polish'
 
 // G8 · 4.19 API 신청 관리 (B · 소유자) — 내가 올린 서비스에 온 API 키 신청을 5188 자원 신청현황 톤 테이블로.
 // 상세 → 4.19a 심사 페이지(키 발급 → 명세서 검토 → 승인). 상태는 api-store 세션 사본 공유.
@@ -121,7 +122,9 @@ export function ApiApprovals() {
   ]
 
   return (
-    <PageShell
+    <div data-qa className="h-full min-h-0">
+      <QaPolish />
+      <PageShell
       fill
       screen="4.19"
       title="API 신청 관리"
@@ -167,6 +170,7 @@ export function ApiApprovals() {
       >
         <Table columns={columns} rows={shown} rowKey={(r) => r.id} onRowClick={(r) => goDetail(r.id)} empty="아직 받은 API 키 신청이 없어요." />
       </Card>
-    </PageShell>
+      </PageShell>
+    </div>
   )
 }

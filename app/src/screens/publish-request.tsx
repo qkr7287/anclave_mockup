@@ -7,6 +7,7 @@ import type { Column } from '../components/ui'
 import { services } from '../data'
 import type { Status } from '../data/types'
 import { listPublishRequests, type PubRecord } from './publish-store'
+import { QaPolish } from './qa-polish'
 
 // G8 · 4.29 서비스 게시 신청 (B=C) — 내가 배포한 AI 서비스를 마켓플레이스에 게시 신청.
 // 신규 신청은 전용 마법사 페이지(4.29a /marketplace/publish/new)로 진입. 목록·상태는 publish-store 공유.
@@ -105,7 +106,9 @@ export function PublishRequest() {
   ]
 
   return (
-    <PageShell
+    <div data-qa className="h-full min-h-0">
+      <QaPolish />
+      <PageShell
       fill
       screen="4.29"
       title="서비스 게시 신청"
@@ -162,7 +165,8 @@ export function PublishRequest() {
           <Table columns={columns} rows={shown} rowKey={(p) => p.id} onRowClick={(p) => goView(p.id)} />
         )}
       </Card>
-    </PageShell>
+      </PageShell>
+    </div>
   )
 }
 

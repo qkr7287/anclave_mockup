@@ -32,6 +32,7 @@ import {
 import type { GpuRequest, Status } from '../data/types'
 import { fetchGpuRequests } from './approval-store'
 import { listPublishRequests, type PubRecord } from './publish-store'
+import { QaPolish } from './qa-polish'
 
 // G4 · 승인 관리 — 게시·GPU "분리" 스펙.
 //  · ApprovalsGpu  (4.10 · /admin/approvals/gpu · 할당 관리 그룹) = "승인 관리"
@@ -653,7 +654,8 @@ export function ApprovalsPublish() {
   const openDetail = (r: PubRow) => navigate(`/admin/approvals/publish/${r.id}`)
 
   return (
-    <div className="anim-fade flex flex-col min-w-0 h-full" style={mutedFix}>
+    <div data-qa className="anim-fade flex flex-col min-w-0 h-full" style={mutedFix}>
+      <QaPolish />
       <header className="flex flex-col min-w-0 shrink-0">
         <div className="flex items-center" style={{ gap: 10 }}>
           <button

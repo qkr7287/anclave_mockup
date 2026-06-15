@@ -3,6 +3,7 @@ import type { ComponentType, ReactNode, SVGProps } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Button } from '../components/ui'
 import { useTheme } from '../lib/theme'
+import { QaPolish } from './qa-polish'
 import {
   MagnifyingGlassIcon,
   CpuChipIcon,
@@ -406,7 +407,7 @@ function StatusBadge({ status, tone }: { status: string; tone: Tone }) {
   const p = usePalette()
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full whitespace-nowrap"
-      style={{ padding: '3px 10px', fontSize: 13, fontWeight: 700, color: toneColor(p, tone), background: toneSoft(p, tone) }}>
+      style={{ padding: '3px 10px', fontSize: 14, fontWeight: 700, color: toneColor(p, tone), background: toneSoft(p, tone) }}>
       <span className="rounded-full" style={{ width: 6, height: 6, background: 'currentColor' }} />{status}
     </span>
   )
@@ -416,7 +417,7 @@ function MetaChip({ label, value }: { label?: string; value: string }) {
   const p = usePalette()
   return (
     <span className="inline-flex items-center gap-1 rounded-md whitespace-nowrap"
-      style={{ padding: '2px 8px', fontSize: 13, background: p.chip, border: `1px solid ${p.border}` }}>
+      style={{ padding: '2px 8px', fontSize: 14, background: p.chip, border: `1px solid ${p.border}` }}>
       {label && <span style={{ color: p.muted }}>{label}</span>}
       <span style={{ fontWeight: 600, color: p.chipText }}>{value}</span>
     </span>
@@ -482,12 +483,12 @@ function FilterPanel({ f, set, onReset, fill }: { f: Filters; set: (patch: Parti
           <div className="flex items-center justify-between gap-2">
             <h3 style={{ fontSize: 16, fontWeight: 700, color: p.heading }}>서비스 탐색 가이드</h3>
             {filtersActive(f) && (
-              <button type="button" onClick={onReset} className="flex items-center gap-1 shrink-0" style={{ fontSize: 12.5, color: p.accent }}>
+              <button type="button" onClick={onReset} className="flex items-center gap-1 shrink-0" style={{ fontSize: 14, color: p.accent }}>
                 <ArrowPathIcon width={12} height={12} /> 초기화
               </button>
             )}
           </div>
-          <p style={{ fontSize: 13, lineHeight: 1.55, color: p.muted }}>
+          <p style={{ fontSize: 14, lineHeight: 1.55, color: p.muted }}>
             동료가 할당받은 GPU에 배포한 AI 서비스를 탐색·비교하고, 호출에 필요한 API 키를 요청해 보세요.
           </p>
         </div>
@@ -525,7 +526,7 @@ function FilterPanel({ f, set, onReset, fill }: { f: Filters; set: (patch: Parti
               return (
                 <button key={t} type="button" onClick={() => set({ tag: on ? '' : t })}
                   className="rounded-full whitespace-nowrap transition-colors"
-                  style={{ padding: '4px 10px', fontSize: 12.5, fontWeight: 500,
+                  style={{ padding: '4px 10px', fontSize: 14, fontWeight: 500,
                     background: on ? p.accentSoft : p.chip, color: on ? p.accent : p.chipText,
                     border: `1px solid ${on ? p.accent : p.border}` }}>
                   #{t}
@@ -553,23 +554,23 @@ function ServiceCard({ s, onOpen }: { s: Service; onOpen: (s: Service) => void }
         <Logo id={s.id} hue={s.hue} icon={s.icon} size={48} radius={12} />
         <div className="flex flex-col min-w-0 flex-1" style={{ gap: 2 }}>
           <span className="truncate" style={{ fontSize: 16, fontWeight: 700, color: p.heading, letterSpacing: '-0.2px' }}>{s.name}</span>
-          <span className="truncate" style={{ fontSize: 12.5, color: p.muted }}>{s.provider} · {s.model}</span>
+          <span className="truncate" style={{ fontSize: 14, color: p.muted }}>{s.provider} · {s.model}</span>
         </div>
         <StatusBadge status={s.status} tone={tone} />
       </div>
-      <p style={{ fontSize: 13.5, lineHeight: 1.55, color: p.muted, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', minHeight: '2.6em' }}>{s.desc}</p>
+      <p style={{ fontSize: 14, lineHeight: 1.55, color: p.muted, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', minHeight: '2.6em' }}>{s.desc}</p>
       <div className="flex flex-wrap items-center" style={{ gap: 6 }}>
-        <span className="rounded-md whitespace-nowrap" style={{ padding: '3px 9px', fontSize: 12, fontWeight: 500, background: p.chip, color: p.chipText }}>{s.kind}</span>
-        <span className="rounded-md whitespace-nowrap" style={{ padding: '3px 9px', fontSize: 12, fontWeight: 500, background: p.chip, color: hasApiOf(s) ? p.chipText : p.muted }}>{hasApiOf(s) ? s.api : '미제공'}</span>
+        <span className="rounded-md whitespace-nowrap" style={{ padding: '3px 9px', fontSize: 14, fontWeight: 500, background: p.chip, color: p.chipText }}>{s.kind}</span>
+        <span className="rounded-md whitespace-nowrap" style={{ padding: '3px 9px', fontSize: 14, fontWeight: 500, background: p.chip, color: hasApiOf(s) ? p.chipText : p.muted }}>{hasApiOf(s) ? s.api : '미제공'}</span>
       </div>
       <div className="mt-auto flex items-end justify-between gap-2" style={{ paddingTop: 12, borderTop: `1px solid ${p.divider}` }}>
         <div className="flex flex-col">
           <span style={{ fontSize: 19, fontWeight: 800, letterSpacing: '-0.4px', color: p.heading }}>{s.usage}</span>
-          <span style={{ fontSize: 11.5, color: p.muted }}>API 호출</span>
+          <span style={{ fontSize: 14, color: p.muted }}>API 호출</span>
         </div>
         <div className="flex flex-col items-end" style={{ gap: 3 }}>
-          <span className="flex items-center" style={{ gap: 2, fontSize: 12.5, fontWeight: 700, color: p.warn }}><StarIcon width={13} height={13} /> {s.rating.toFixed(1)}</span>
-          <span style={{ fontSize: 12.5, fontWeight: 700, color: deltaColor(p, s.up) }}>{s.delta}</span>
+          <span className="flex items-center" style={{ gap: 2, fontSize: 14, fontWeight: 700, color: p.warn }}><StarIcon width={13} height={13} /> {s.rating.toFixed(1)}</span>
+          <span style={{ fontSize: 14, fontWeight: 700, color: deltaColor(p, s.up) }}>{s.delta}</span>
         </div>
       </div>
     </button>
@@ -586,12 +587,12 @@ function AIList({ services, total, sort, onSort, onOpen, onReset, fill }: {
       <header className="shrink-0 flex items-center justify-between gap-3" style={{ paddingBottom: 12 }}>
         <div className="flex items-baseline gap-2 min-w-0">
           <h3 style={{ fontSize: 18, fontWeight: 700, color: p.heading }}>서비스 목록</h3>
-          <span className="rounded-full self-center" style={{ padding: '1px 8px', fontSize: 12, fontWeight: 700, color: p.accent, background: p.accentSoft }}>{services.length}{services.length !== total ? `/${total}` : ''}</span>
-          <span className="truncate" style={{ fontSize: 13, color: p.muted }}>탐색 · 검색 · 태그</span>
+          <span className="rounded-full self-center" style={{ padding: '1px 8px', fontSize: 14, fontWeight: 700, color: p.accent, background: p.accentSoft }}>{services.length}{services.length !== total ? `/${total}` : ''}</span>
+          <span className="truncate" style={{ fontSize: 14, color: p.muted }}>탐색 · 검색 · 태그</span>
         </div>
         <span className="relative flex items-center shrink-0">
           <select value={sort} onChange={(e) => onSort(e.target.value as SortKey)}
-            className="appearance-none outline-none cursor-pointer" style={{ padding: '4px 22px 4px 8px', fontSize: 13, color: p.muted, background: 'transparent', border: `1px solid ${p.border}`, borderRadius: 8 }}>
+            className="appearance-none outline-none cursor-pointer" style={{ padding: '4px 22px 4px 8px', fontSize: 14, color: p.muted, background: 'transparent', border: `1px solid ${p.border}`, borderRadius: 8 }}>
             <option value="recent" style={{ color: '#111' }}>최신순</option>
             <option value="usage" style={{ color: '#111' }}>사용량순</option>
             <option value="name" style={{ color: '#111' }}>이름순</option>
@@ -606,8 +607,8 @@ function AIList({ services, total, sort, onSort, onOpen, onReset, fill }: {
             <MagnifyingGlassIcon width={22} height={22} />
           </span>
           <span style={{ fontSize: 14.5, fontWeight: 700, color: p.heading }}>조건에 맞는 서비스가 없어요</span>
-          <span style={{ fontSize: 13, color: p.muted }}>필터를 조정하거나 검색어를 바꿔 보세요.</span>
-          <button type="button" onClick={onReset} className="mt-1 flex items-center gap-1.5 rounded-lg" style={{ padding: '7px 14px', fontSize: 13, fontWeight: 600, color: p.accent, background: p.accentSoft }}>
+          <span style={{ fontSize: 14, color: p.muted }}>필터를 조정하거나 검색어를 바꿔 보세요.</span>
+          <button type="button" onClick={onReset} className="mt-1 flex items-center gap-1.5 rounded-lg" style={{ padding: '7px 14px', fontSize: 14, fontWeight: 600, color: p.accent, background: p.accentSoft }}>
             <ArrowPathIcon width={13} height={13} /> 필터 초기화
           </button>
         </div>
@@ -634,21 +635,21 @@ function RankCard({ item, onOpen }: { item: RankItem; onOpen: (s: Service) => vo
       onMouseEnter={(e) => { e.currentTarget.style.borderColor = p.accent; e.currentTarget.style.background = p.chip }}
       onMouseLeave={(e) => { e.currentTarget.style.borderColor = p.border; e.currentTarget.style.background = p.inset }}>
       <div className="flex flex-1 items-center gap-2.5" style={{ padding: '11px 12px 9px' }}>
-        <span className="flex items-center justify-center shrink-0" style={{ width: 22, height: 22, borderRadius: 999, background: medal, color: medalFg, fontSize: 12.5, fontWeight: 800 }}>{item.rank}</span>
+        <span className="flex items-center justify-center shrink-0" style={{ width: 22, height: 22, borderRadius: 999, background: medal, color: medalFg, fontSize: 14, fontWeight: 800 }}>{item.rank}</span>
         <Logo id={item.seed} hue={item.hue} icon={item.icon} size={30} />
         <div className="flex flex-col min-w-0 flex-1">
           <span className="truncate" style={{ fontSize: 14, fontWeight: 700, color: p.heading }}>{item.name}</span>
-          <span className="truncate" style={{ fontSize: 12, color: p.muted }}>{item.model}</span>
+          <span className="truncate" style={{ fontSize: 14, color: p.muted }}>{item.model}</span>
         </div>
         <div className="flex flex-col items-end shrink-0">
           <span style={{ fontSize: 14, fontWeight: 800, color: p.heading }}>{item.usage}</span>
-          <span style={{ fontSize: 12, fontWeight: 700, color: deltaColor(p, item.up) }}>{item.delta}</span>
+          <span style={{ fontSize: 14, fontWeight: 700, color: deltaColor(p, item.up) }}>{item.delta}</span>
         </div>
       </div>
       <div className="flex items-center justify-between gap-2" style={{ padding: '8px 12px', borderTop: `1px solid ${p.border}` }}>
         <div className="flex items-center gap-1.5 min-w-0">
           {item.chips.map((c) => (
-            <span key={c} className="rounded-md whitespace-nowrap" style={{ padding: '2px 7px', fontSize: 11.5, color: p.muted, background: p.card, border: `1px solid ${p.border}` }}>{c}</span>
+            <span key={c} className="rounded-md whitespace-nowrap" style={{ padding: '2px 7px', fontSize: 14, color: p.muted, background: p.card, border: `1px solid ${p.border}` }}>{c}</span>
           ))}
         </div>
         <StatusBadge status={item.status} tone={item.tone} />
@@ -671,26 +672,26 @@ function RankingPanel({ fill, onOpen }: { fill: boolean; onOpen: (s: Service) =>
       <div className="shrink-0 flex flex-col" style={{ gap: 14 }}>
         <div className="flex items-center justify-between gap-2">
           <h3 style={{ fontSize: 15, fontWeight: 700, color: p.heading }}>실시간 서비스 랭킹</h3>
-          <span className="inline-flex items-center gap-1.5 rounded-full" style={{ padding: '3px 9px', fontSize: 11.5, fontWeight: 700, color: p.ok, background: p.okSoft }}>
+          <span className="inline-flex items-center gap-1.5 rounded-full" style={{ padding: '3px 9px', fontSize: 14, fontWeight: 700, color: p.ok, background: p.okSoft }}>
             <span className="rounded-full" style={{ width: 6, height: 6, background: 'currentColor' }} />LIVE
           </span>
         </div>
         <span className="flex items-center gap-2 rounded-lg" style={{ padding: '8px 11px', background: p.chip, border: `1px solid ${p.border}` }}>
           <MagnifyingGlassIcon width={15} height={15} className="shrink-0" style={{ color: p.muted }} />
-          <input value={q} onChange={(e) => setQ(e.target.value)} className="bg-transparent outline-none w-full min-w-0" style={{ fontSize: 13.5, color: p.text }} placeholder="서비스 검색" aria-label="랭킹 검색" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} className="bg-transparent outline-none w-full min-w-0" style={{ fontSize: 14, color: p.text }} placeholder="서비스 검색" aria-label="랭킹 검색" />
         </span>
-        <span className="flex items-center justify-between gap-2 rounded-lg" style={{ padding: '8px 11px', fontSize: 13, background: p.chip, border: `1px solid ${p.border}` }}>
+        <span className="flex items-center justify-between gap-2 rounded-lg" style={{ padding: '8px 11px', fontSize: 14, background: p.chip, border: `1px solid ${p.border}` }}>
           <span style={{ fontWeight: 600, color: p.text }}>필터</span>
           <span className="flex items-center gap-1 truncate" style={{ color: p.muted }}>종류 · API · 모델 · 상태 <ChevronDownIcon width={14} height={14} className="shrink-0" /></span>
         </span>
         <div className="flex items-center justify-between gap-2">
-          <span style={{ fontSize: 13.5, fontWeight: 700, color: p.text }}>최대 사용량 서비스 순위</span>
-          <span className="flex items-center gap-1" style={{ fontSize: 11.5, color: p.muted }}><ArrowPathIcon width={12} height={12} /> 1분 전 업데이트</span>
+          <span style={{ fontSize: 14, fontWeight: 700, color: p.text }}>최대 사용량 서비스 순위</span>
+          <span className="flex items-center gap-1" style={{ fontSize: 14, color: p.muted }}><ArrowPathIcon width={12} height={12} /> 1분 전 업데이트</span>
         </div>
       </div>
       <div className={`flex flex-col ${fill ? 'flex-1 min-h-0 overflow-auto' : ''}`} style={{ gap: 10 }}>
         {list.length === 0
-          ? <p className="text-center" style={{ fontSize: 13, color: p.muted, padding: '18px 0' }}>검색 결과가 없어요.</p>
+          ? <p className="text-center" style={{ fontSize: 14, color: p.muted, padding: '18px 0' }}>검색 결과가 없어요.</p>
           : list.map((r) => <RankCard key={r.rank} item={r} onOpen={onOpen} />)}
       </div>
       <Button variant="outline" className="justify-center w-full shrink-0">전체 랭킹 보기 <ChevronRightIcon width={14} height={14} /></Button>
@@ -705,7 +706,7 @@ function StatCard({ icon: Ico, label, value }: { icon: Icon; label: string; valu
     <div className="flex items-center gap-3 rounded-xl" style={{ padding: '13px 14px', background: p.inset, border: `1px solid ${p.border}` }}>
       <span className="flex items-center justify-center shrink-0" style={{ width: 38, height: 38, borderRadius: 10, background: p.accentSoft, color: p.accent }}><Ico width={19} height={19} /></span>
       <div className="flex flex-col min-w-0">
-        <span className="truncate" style={{ fontSize: 12.5, color: p.muted, lineHeight: 1.3 }}>{label}</span>
+        <span className="truncate" style={{ fontSize: 14, color: p.muted, lineHeight: 1.3 }}>{label}</span>
         <span style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-0.3px', color: p.heading, lineHeight: 1.2 }}>{value}</span>
       </div>
     </div>
@@ -723,7 +724,7 @@ function BulletList({ items }: { items: ReactNode[] }) {
   return (
     <ul className="flex flex-col" style={{ gap: 8 }}>
       {items.map((it, i) => (
-        <li key={i} className="flex items-start gap-2.5" style={{ fontSize: 13.5, lineHeight: 1.5, color: p.muted }}>
+        <li key={i} className="flex items-start gap-2.5" style={{ fontSize: 14, lineHeight: 1.5, color: p.muted }}>
           <span className="rounded-full shrink-0" style={{ width: 5, height: 5, background: p.accent, marginTop: 7 }} />
           <span className="min-w-0">{it}</span>
         </li>
@@ -766,7 +767,7 @@ function ServiceDetailCard({ service: s, narrow, reserveClose }: { service: Serv
           </div>
           <div className="flex flex-col items-center justify-center shrink-0 rounded-xl" style={{ padding: '8px 18px', background: p.okSoft, border: `1px solid ${toneColor(p, 'ok')}33` }}>
             <span className="flex items-center gap-1" style={{ fontSize: 19, fontWeight: 800, color: p.ok, lineHeight: 1.1 }}><StarIcon width={16} height={16} /> {s.rating.toFixed(1)}</span>
-            <span style={{ fontSize: 12, color: p.muted }}>사용자 평점</span>
+            <span style={{ fontSize: 14, color: p.muted }}>사용자 평점</span>
           </div>
         </div>
         {divider}
@@ -832,7 +833,7 @@ function ServiceDetailCard({ service: s, narrow, reserveClose }: { service: Serv
 
       {/* 소유자 안내 + 액션(API 키 요청 = 버튼만, 발급은 추후) */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <span className="flex items-center gap-2" style={{ fontSize: 13.5, color: p.muted }}>
+        <span className="flex items-center gap-2" style={{ fontSize: 14, color: p.muted }}>
           <span className="flex items-center justify-center rounded-full shrink-0" style={{ width: 18, height: 18, background: p.accentSoft, color: p.accent }}>
             <CheckIcon width={11} height={11} strokeWidth={3} />
           </span>
@@ -911,7 +912,8 @@ export function Marketplace() {
   }
 
   return (
-    <div className="anim-fade flex flex-col min-w-0" style={{ gap: 14, height: fill ? '100%' : 'auto', overflow: fill ? 'hidden' : 'visible' }}>
+    <div data-qa className="anim-fade flex flex-col min-w-0" style={{ gap: 14, height: fill ? '100%' : 'auto', overflow: fill ? 'hidden' : 'visible' }}>
+      <QaPolish />
       {/* 상단 검색바(동작) */}
       <div className="shrink-0 flex items-center gap-3 rounded-xl" style={{ padding: '11px 14px', background: p.card, border: `1px solid ${p.border}` }}>
         <span className="flex items-center gap-2.5 flex-1 min-w-0">
@@ -948,8 +950,9 @@ export function ServiceDetail() {
   const { id } = useParams()
   const service = serviceById(id)
   return (
-    <div className="anim-fade flex flex-col min-w-0" style={{ gap: 14 }}>
-      <button type="button" onClick={() => navigate('/marketplace')} className="flex items-center gap-1.5 self-start" style={{ fontSize: 13.5, color: p.muted }}>
+    <div data-qa className="anim-fade flex flex-col min-w-0" style={{ gap: 14 }}>
+      <QaPolish />
+      <button type="button" onClick={() => navigate('/marketplace')} className="flex items-center gap-1.5 self-start" style={{ fontSize: 14, color: p.muted }}>
         <ChevronRightIcon width={15} height={15} style={{ transform: 'rotate(180deg)' }} /> 마켓플레이스로
       </button>
       <div className="w-full mx-auto rounded-2xl" style={{ maxWidth: 900, background: p.modalCard, border: `1px solid ${p.borderStrong}`, boxShadow: '0 2px 10px rgba(0,0,0,0.18)', padding: narrow ? 20 : 28 }}>
