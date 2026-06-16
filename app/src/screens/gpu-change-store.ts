@@ -1,10 +1,14 @@
-import { gpuChangeRequests, gpuRequests, serverById, userById } from '../data'
-import type { ChangeType, GpuRequest, Status } from '../data/types'
+import { apiGet, apiPatch, apiPost } from '../lib/api'
+import { userById } from '../data'
+import type { ChangeType, Status } from '../data/types'
 
-// 4.11 변경·확장·이전·회수 — 목업 store(세션 사본).
-// GpuChangeRequest 시드는 {type, reason, status, createdAt}뿐이라, 화면에 필요한
-// 확장 필드(대상 할당 before/after · 처리결과 · 히스토리)는 이 레이어에서 합성·보관한다.
-// 사용자의 "현재 할당"은 승인된 GPU 신청(allocated*)에서 도출. (백엔드 endpoint 생기면 와이어링)
+// 4.11 변경·확장·회수 — Hono backend(REST) 연동.
+//   GET   /api/my-allocations?user=        내 할당 자원(승인·할당된 gpu_requests = AllocSpec)
+//   GET   /api/gpu-change-requests[?user=] 변경요청 목록(관리자=전체)
+//   GET   /api/gpu-change-requests/:id     단건(before/after 중첩)
+//   POST  /api/gpu-change-requests         신청
+//   PATCH /api/gpu-change-requests/:id     승인/반려(트랜잭션 — 승인 시 대상 할당 갱신/회수)
+// backend 는 timestamptz 를 ISO 로, before/after 를 AllocSpec 으로 내려준다(history 는 없음 → 여기서 합성).
 
 export const CHANGE_TYPE_META: Record<ChangeType, { label: string; tone: 'info' | 'ok' | 'warn' | 'danger' | 'neutral'; desc: string }> = {
   change: { label: '변경', tone: 'info', desc: '할당 구성(자원 제한 등) 변경' },
@@ -18,10 +22,12 @@ export interface AllocSpec {
   serverId?: string
   serverHost?: string
   gpuId?: string
+  sliceId?: string
   gpuLabel?: string
   ramGb?: number
   storageGb?: number
   cpuCores?: number
+  extra?: { label: string; note: string } // 확장 시 추가 자원(카탈로그/선택 자원 레이블)
 }
 
 export interface HistoryEntry {
@@ -43,7 +49,7 @@ export interface ChangeRequest {
   processedAt?: string
   processedBy?: string
   adminMemo?: string
-  before: AllocSpec // 기존(현재) 할당 명세
+  before: AllocSpec // 기존(현재) 할당 명세 (target gpu_request 라이브)
   after?: AllocSpec // 변경 후 제안/확정 명세 (reclaim 은 없음)
   history: HistoryEntry[]
 }
@@ -55,123 +61,110 @@ export function nowStamp(): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
-function specFromRequest(r: GpuRequest): AllocSpec {
-  const server = r.allocatedServerId ? serverById(r.allocatedServerId) : undefined
-  const gpu = server?.gpus.find((g) => g.id === r.allocatedGpuId)
-  return {
-    requestId: r.id,
-    serverId: r.allocatedServerId,
-    serverHost: server?.host ?? r.allocatedServerId,
-    gpuId: r.allocatedGpuId,
-    gpuLabel: gpu?.name ?? r.allocatedGpuId,
-    ramGb: r.allocatedRamGb,
-    storageGb: r.allocatedStorageGb,
-    cpuCores: r.allocatedCpuCores,
-  }
+// ISO('…T…Z') → 로컬 'YYYY-MM-DD HH:mm'. 파싱 불가 시 원본 유지.
+function fmtStamp(v?: string | null): string | undefined {
+  if (!v) return undefined
+  const d = new Date(v)
+  if (isNaN(d.getTime())) return v
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
 export function allocLabel(s: AllocSpec): string {
   return [s.serverHost, s.gpuLabel].filter(Boolean).join(' · ') || '할당 정보 없음'
 }
 
-// 사용자의 현재 할당 목록 — 승인된 GPU 신청(allocated 서버 존재)
-export function allocationsOf(userId: string): AllocSpec[] {
-  return gpuRequests
-    .filter((r) => r.requesterUserId === userId && r.status === 'approved' && r.allocatedServerId)
-    .map(specFromRequest)
+// ── backend 경계 정규화 ──
+// 백엔드 AllocSpec 은 미할당 필드를 null 로 보냄 → undefined 로 정리(컴포넌트 emptyText 처리).
+function cleanAlloc(a?: AllocSpec | null): AllocSpec {
+  if (!a) return {}
+  return {
+    requestId: a.requestId ?? undefined, serverId: a.serverId ?? undefined, serverHost: a.serverHost ?? undefined,
+    gpuId: a.gpuId ?? undefined, sliceId: a.sliceId ?? undefined, gpuLabel: a.gpuLabel ?? undefined,
+    ramGb: a.ramGb ?? undefined, storageGb: a.storageGb ?? undefined, cpuCores: a.cpuCores ?? undefined,
+    extra: a.extra ?? undefined,
+  }
 }
 
-// 변경요청의 대상(기존) 할당 — 신청자의 첫 승인 할당으로 합성(시드엔 링크 필드 없음)
-function inferBefore(userId: string): AllocSpec {
-  const allocs = allocationsOf(userId)
-  return allocs[0] ?? { ramGb: 64, storageGb: 100, cpuCores: 8 }
+interface RawCR {
+  id: string; requesterUserId: string; type: ChangeType; reason?: string | null; status: Status
+  rejectReason?: string | null; createdAt: string; processedAt?: string | null; processedBy?: string | null
+  adminMemo?: string | null; targetRequestId?: string | null; before?: AllocSpec | null; after?: AllocSpec | null
 }
 
-// 시드 → 세션 ChangeRequest 사본(확장 필드 합성)
-function seedToChange(r: { id: string; requesterUserId: string; type: ChangeType; reason: string; status: Status; rejectReason?: string; createdAt: string }): ChangeRequest {
-  const before = inferBefore(r.requesterUserId)
-  const actorName = userById(r.requesterUserId)?.name ?? r.requesterUserId
-  const history: HistoryEntry[] = [
-    { at: r.createdAt, actor: actorName, label: '변경 요청 접수', detail: CHANGE_TYPE_META[r.type].label, tone: 'accent' },
+// 처리 히스토리 — 백엔드 미제공이므로 접수(+처리) 이벤트로 합성.
+function synthHistory(cr: RawCR): HistoryEntry[] {
+  const actor = userById(cr.requesterUserId)?.name ?? cr.requesterUserId
+  const h: HistoryEntry[] = [
+    { at: fmtStamp(cr.createdAt) ?? cr.createdAt, actor, label: '변경 요청 접수', detail: CHANGE_TYPE_META[cr.type]?.label, tone: 'accent' },
   ]
-  if (r.status !== 'pending') {
-    history.push({
-      at: r.createdAt,
-      actor: '시스템 관리',
-      label: r.status === 'approved' ? '승인 처리' : '반려 처리',
-      detail: r.status === 'rejected' ? r.rejectReason : undefined,
-      tone: r.status === 'approved' ? 'ok' : 'danger',
+  if (cr.status !== 'pending') {
+    const proc = cr.processedBy ? (userById(cr.processedBy)?.name ?? cr.processedBy) : '시스템 관리'
+    h.push({
+      at: fmtStamp(cr.processedAt) ?? '', actor: proc,
+      label: cr.status === 'approved' ? '승인 처리' : '반려 처리',
+      detail: cr.status === 'rejected' ? (cr.rejectReason ?? undefined) : (cr.adminMemo ?? undefined),
+      tone: cr.status === 'approved' ? 'ok' : 'danger',
     })
   }
+  return h
+}
+
+function normalizeCR(cr: RawCR): ChangeRequest {
   return {
-    id: r.id,
-    requesterUserId: r.requesterUserId,
-    type: r.type,
-    reason: r.reason,
-    status: r.status,
-    rejectReason: r.rejectReason,
-    createdAt: r.createdAt,
-    processedAt: r.status !== 'pending' ? r.createdAt : undefined,
-    processedBy: r.status !== 'pending' ? 'u-admin' : undefined,
-    before,
-    after: r.type === 'reclaim' ? undefined : { ...before },
-    history,
+    id: cr.id, requesterUserId: cr.requesterUserId, type: cr.type, reason: cr.reason ?? '',
+    status: cr.status, rejectReason: cr.rejectReason ?? undefined,
+    createdAt: fmtStamp(cr.createdAt) ?? cr.createdAt,
+    processedAt: fmtStamp(cr.processedAt), processedBy: cr.processedBy ?? undefined, adminMemo: cr.adminMemo ?? undefined,
+    before: cleanAlloc(cr.before),
+    after: cr.type === 'reclaim' ? undefined : (cr.after ? cleanAlloc(cr.after) : undefined),
+    history: synthHistory(cr),
   }
 }
 
-let session: ChangeRequest[] = gpuChangeRequests.map(seedToChange)
-
-export function getChangeRequests(): ChangeRequest[] {
-  return session
+// after AllocSpec → POST/PATCH body 의 after_* 필드
+function afterFields(after?: AllocSpec) {
+  if (!after) return {}
+  return {
+    afterServerId: after.serverId, afterGpuId: after.gpuId, afterSliceId: after.sliceId,
+    afterRamGb: after.ramGb, afterStorageGb: after.storageGb, afterCpuCores: after.cpuCores,
+    afterExtra: after.extra ?? undefined,
+  }
 }
 
-export function getChangeRequestsByUser(userId: string): ChangeRequest[] {
-  return session.filter((r) => r.requesterUserId === userId)
+// 내 할당 자원 — 승인·할당된 내 gpu_requests(AllocSpec). 변경 마법사 '대상 할당'.
+export function fetchMyAllocations(userId: string): Promise<AllocSpec[]> {
+  return apiGet<AllocSpec[]>(`/api/my-allocations?user=${encodeURIComponent(userId)}`).then((rows) => rows.map((a) => cleanAlloc(a)))
 }
 
-export function getChangeRequestById(id: string): ChangeRequest | undefined {
-  return session.find((r) => r.id === id)
+// 변경요청 목록 — userId 있으면 본인, 없으면 전체(관리자).
+export function fetchChangeRequests(userId?: string): Promise<ChangeRequest[]> {
+  const q = userId ? `?user=${encodeURIComponent(userId)}` : ''
+  return apiGet<RawCR[]>(`/api/gpu-change-requests${q}`).then((rows) => rows.map(normalizeCR))
 }
 
-// 사용자 신규 신청 — 본인 할당 대상 변경/확장/회수
-export function createChangeRequest(input: { requesterUserId: string; type: ChangeType; reason: string; before: AllocSpec; after?: AllocSpec }): ChangeRequest {
-  const at = nowStamp()
-  const seq = String(session.length + 1).padStart(2, '0')
-  const actorName = userById(input.requesterUserId)?.name ?? input.requesterUserId
-  const cr: ChangeRequest = {
-    id: `cr-${Date.now().toString(36)}`,
+export function fetchChangeRequestById(id: string): Promise<ChangeRequest | undefined> {
+  return apiGet<RawCR>(`/api/gpu-change-requests/${id}`).then(normalizeCR).catch(() => undefined)
+}
+
+// 사용자 신규 신청 — 본인 할당(before.requestId) 대상 변경/확장/회수
+export function createChangeRequest(input: { requesterUserId: string; type: ChangeType; reason: string; before: AllocSpec; after?: AllocSpec }): Promise<ChangeRequest> {
+  return apiPost<RawCR>('/api/gpu-change-requests', {
     requesterUserId: input.requesterUserId,
     type: input.type,
+    targetRequestId: input.before.requestId,
     reason: input.reason,
-    status: 'pending',
-    createdAt: at,
-    before: input.before,
-    after: input.type === 'reclaim' ? undefined : input.after,
-    history: [{ at, actor: actorName, label: '변경 요청 접수', detail: `${CHANGE_TYPE_META[input.type].label}${seq ? '' : ''}`, tone: 'accent' }],
-  }
-  session = [cr, ...session]
-  return cr
+    ...afterFields(input.type === 'reclaim' ? undefined : input.after),
+  }).then(normalizeCR)
 }
 
-// 관리자 심사 — 승인(after 확정) / 반려(사유)
-export function reviewChangeRequest(id: string, decision: { action: 'approve' | 'reject'; processedBy: string; processorName: string; adminMemo?: string; after?: AllocSpec; rejectReason?: string }): ChangeRequest | undefined {
-  const at = nowStamp()
-  session = session.map((r) => {
-    if (r.id !== id) return r
-    const entry: HistoryEntry =
-      decision.action === 'approve'
-        ? { at, actor: decision.processorName, label: '승인 처리', detail: decision.adminMemo, tone: 'ok' }
-        : { at, actor: decision.processorName, label: '반려 처리', detail: decision.rejectReason, tone: 'danger' }
-    return {
-      ...r,
-      status: decision.action === 'approve' ? 'approved' : 'rejected',
-      rejectReason: decision.action === 'reject' ? decision.rejectReason : undefined,
-      adminMemo: decision.adminMemo,
-      processedAt: at,
-      processedBy: decision.processedBy,
-      after: decision.action === 'approve' && r.type !== 'reclaim' ? (decision.after ?? r.after) : r.after,
-      history: [...r.history, entry],
-    }
-  })
-  return getChangeRequestById(id)
+// 관리자 심사 — 승인(after 확정 → 대상 할당 갱신) / 반려(사유)
+export function reviewChangeRequest(id: string, decision: { action: 'approve' | 'reject'; processedBy: string; adminMemo?: string; after?: AllocSpec; rejectReason?: string }): Promise<ChangeRequest> {
+  return apiPatch<RawCR>(`/api/gpu-change-requests/${id}`, {
+    action: decision.action,
+    processedBy: decision.processedBy,
+    adminMemo: decision.adminMemo,
+    rejectReason: decision.rejectReason,
+    ...(decision.action === 'approve' ? afterFields(decision.after) : {}),
+  }).then(normalizeCR)
 }
