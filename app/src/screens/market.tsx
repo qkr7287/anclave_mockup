@@ -870,7 +870,6 @@ export function Marketplace() {
 }
 
 // ───────────────────────── 사용량 인사이트(목업 — backend 연동 전, id 기반 deterministic) ─────────────────────────
-const CONSUMER_NAMES = ['황상곤', '김가람', '백태수', '이은혜', '정휘선', '한도윤', '윤서연', '박지호']
 function hashStr(str: string): number {
   let h = 2166136261
   for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) }
@@ -885,125 +884,181 @@ function seededRng(seed: number) {
     return ((x ^ (x >>> 14)) >>> 0) / 4294967296
   }
 }
-interface ConsumerUse { name: string; calls: number; pct: number }
-interface UsageInsight { liveReqPerMin: number; concurrent: number; todayCalls: number; keyCount: number; trend: number[]; consumers: ConsumerUse[] }
+const nf = (n: number) => n.toLocaleString('en-US')
+const compactNum = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}K` : String(n))
+
+// API Key 정의(목업) — 환경 뱃지 색 + 소유자.
+const KEY_DEFS = [
+  { name: 'api-prod-01', env: 'Production', color: '#3B82F6', owner: '황상곤' },
+  { name: 'api-stage-02', env: 'Stage', color: '#8B5CF6', owner: '김가람' },
+  { name: 'api-analytics-03', env: 'Analytics', color: '#14B8A6', owner: '백태수' },
+  { name: 'api-batch-04', env: 'Batch', color: '#F59E0B', owner: '이은혜' },
+  { name: 'api-exp-05', env: 'R&D', color: '#EC4899', owner: '정휘선' },
+]
+
+interface ApiKeyRow { name: string; env: string; color: string; owner: string; calls: number; avgMs: number; deltaPct: number; trend: number[] }
+interface UsageSeries { name: string; color: string; data: number[] }
+interface UsageInsight {
+  totalCalls: number; totalDataGB: number; avgLatencyMs: number; errorRate: number; todayCalls: number
+  keys: ApiKeyRow[]; periods: string[]; series: UsageSeries[]; totalsByPeriod: number[]
+}
 function usageInsightOf(s: Service): UsageInsight {
   const rng = seededRng(hashStr(s.id))
-  const keyCount = 3 + Math.floor(rng() * 4) // 3~6명
-  const raw = Array.from({ length: keyCount }, () => 0.25 + rng())
-  const rawSum = raw.reduce((a, b) => a + b, 0)
-  const consumers: ConsumerUse[] = raw
-    .map((r, i) => ({ name: CONSUMER_NAMES[i % CONSUMER_NAMES.length], calls: Math.max(1, Math.round((r / rawSum) * s.usageNum)), pct: 0 }))
+  const keyCount = 4 + Math.floor(rng() * 2) // 4~5개
+  const defs = KEY_DEFS.slice(0, keyCount)
+  const PER = 8
+  const base = hashStr(s.id) % 5
+  const weights = defs.map(() => 0.3 + rng())
+  const wSum = weights.reduce((a, b) => a + b, 0)
+  const keys: ApiKeyRow[] = defs
+    .map((d, i) => {
+      const calls = Math.max(1, Math.round((weights[i] / wSum) * s.usageNum))
+      const trend = Array.from({ length: 7 }, (_, t) => Math.max(1, Math.round((calls / 7) * (0.55 + 0.5 * Math.abs(Math.sin(t + i + base)) + rng() * 0.3))))
+      return { name: d.name, env: d.env, color: d.color, owner: d.owner, calls, avgMs: Math.round(120 + rng() * 430), deltaPct: Math.round((rng() * 42 - 15) * 10) / 10, trend }
+    })
     .sort((a, b) => b.calls - a.calls)
-  const cTotal = consumers.reduce((a, c) => a + c.calls, 0) || 1
-  consumers.forEach((c) => { c.pct = c.calls / cTotal })
-  const liveReqPerMin = Math.round(12 + rng() * 70 + s.usageNum / 6000)
-  const concurrent = Math.round(2 + rng() * 38)
-  const todayCalls = Math.round(s.usageNum / (18 + rng() * 16))
-  const base = hashStr(s.id) % 7
-  const trend = Array.from({ length: 24 }, (_, i) => Math.max(1, Math.round(liveReqPerMin * (0.5 + 0.45 * Math.abs(Math.sin(i * 0.55 + base)) + rng() * 0.28))))
-  return { liveReqPerMin, concurrent, todayCalls, keyCount, trend, consumers }
+  const periods = Array.from({ length: PER }, (_, t) => `9.${18 + t}`)
+  const series: UsageSeries[] = defs.map((d, i) => {
+    const k = keys.find((x) => x.name === d.name)!
+    const data = Array.from({ length: PER }, (_, t) => Math.max(1, Math.round((k.calls / PER) * (0.65 + 0.5 * Math.abs(Math.sin(t * 0.6 + i + base)) + rng() * 0.25))))
+    return { name: d.name, color: d.color, data }
+  })
+  const totalsByPeriod = periods.map((_, t) => series.reduce((a, sr) => a + sr.data[t], 0))
+  const totalCalls = s.usageNum
+  const avgLatencyMs = Math.round(keys.reduce((a, k) => a + k.avgMs * k.calls, 0) / Math.max(1, totalCalls))
+  const totalDataGB = Math.round((totalCalls / 2400) * 10) / 10
+  const errorRate = Math.round(rng() * 90) / 100 // 0~0.90%
+  const todayCalls = Math.round(totalCalls / (18 + rng() * 16))
+  return { totalCalls, totalDataGB, avgLatencyMs, errorRate, todayCalls, keys, periods, series, totalsByPeriod }
 }
 
-const nf = (n: number) => n.toLocaleString('en-US')
+const PANEL = (p: Palette) => ({ background: p.modalCard, border: `1px solid ${p.borderStrong}`, boxShadow: '0 2px 10px rgba(0,0,0,0.16)' }) as const
 
-// 사용량 요약 — 이 서비스의 누적 사용량과 보조 지표(실시간 아님, 집계 기준).
-function UsageSummary({ insight, service, narrow }: { insight: UsageInsight; service: Service; narrow: boolean }) {
+// 헤더 KPI 4개 — 총 호출 / 총 사용량 / 평균 레이턴시 / 에러율.
+function KpiHeader({ insight }: { insight: UsageInsight }) {
   const p = usePalette()
-  const sub = (label: string, value: string, hint: string) => (
-    <div className="flex flex-col rounded-xl" style={{ padding: '12px 14px', background: p.inset, border: `1px solid ${p.border}`, gap: 2 }}>
-      <span style={{ fontSize: 14, color: p.muted }}>{label}</span>
-      <span style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.4px', color: p.heading }}>{value}</span>
-      <span style={{ fontSize: 14, color: p.muted }}>{hint}</span>
+  const cell = (Icon: Icon, box: string, color: string, label: string, value: string) => (
+    <div className="flex items-center rounded-xl min-w-0" style={{ gap: 10, padding: '11px 13px', ...PANEL(p) }}>
+      <span className="flex items-center justify-center shrink-0 rounded-[10px]" style={{ width: 34, height: 34, background: box, color }}><Icon width={18} height={18} /></span>
+      <div className="flex flex-col min-w-0" style={{ gap: 1 }}>
+        <span className="truncate" style={{ fontSize: 14, color: p.muted }}>{label}</span>
+        <span className="truncate" style={{ fontSize: 19, fontWeight: 800, letterSpacing: '-0.5px', color: p.heading }}>{value}</span>
+      </div>
     </div>
   )
   return (
-    <section className="rounded-2xl relative overflow-hidden" style={{ background: p.modalCard, border: `1px solid ${p.borderStrong}`, boxShadow: '0 2px 10px rgba(0,0,0,0.16)' }}>
-      <div className="absolute inset-0 pointer-events-none" style={{ background: `radial-gradient(120% 140% at 100% 0%, ${p.accentSoft} 0%, transparent 55%)` }} />
-      <div className="relative flex flex-col" style={{ padding: narrow ? 18 : 22, gap: 16 }}>
-        <div className={`flex ${narrow ? 'flex-col' : 'items-end justify-between'}`} style={{ gap: 16 }}>
-          <div className="flex flex-col" style={{ gap: 8 }}>
-            <span className="inline-flex items-center self-start gap-1.5 rounded-full" style={{ padding: '3px 10px', fontSize: 14, fontWeight: 700, color: p.accent, background: p.accentSoft }}>
-              <ChartBarIcon width={13} height={13} /> 사용량 요약
-            </span>
-            <div className="flex items-baseline" style={{ gap: 8 }}>
-              <span style={{ fontSize: narrow ? 40 : 52, fontWeight: 800, letterSpacing: '-1.6px', lineHeight: 1, color: p.heading }}>{nf(service.usageNum)}</span>
-              <span style={{ fontSize: 17, fontWeight: 700, color: p.muted }}>회 · 최근 30일</span>
-            </div>
-            <span style={{ fontSize: 14, color: p.muted }}>이 서비스의 누적 호출량이에요.</span>
-          </div>
-          <div className="shrink-0" style={{ width: narrow ? '100%' : 320, height: 84 }}>
-            <SparkLine data={insight.trend} color={p.accent} fill peak fmt={(v) => nf(Math.round(v))} />
-          </div>
-        </div>
-        <div className="grid" style={{ gap: 12, gridTemplateColumns: narrow ? '1fr' : 'repeat(3, 1fr)' }}>
-          {sub('오늘 호출', nf(insight.todayCalls), '0시부터 누적')}
-          {sub('평균 응답', service.responseTime, '요청당 평균')}
-          {sub('성공률', service.success, '최근 호출 기준')}
-        </div>
+    <div className="grid shrink-0" style={{ gap: 11, gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}>
+      {cell(ChartBarIcon, p.accentSoft, p.accent, '총 호출 수', nf(insight.totalCalls))}
+      {cell(CircleStackIcon, p.okSoft, p.ok, '총 사용량', `${insight.totalDataGB}GB`)}
+      {cell(ClockIcon, p.warnSoft, p.warn, '평균 레이턴시', `${insight.avgLatencyMs}ms`)}
+      {cell(ShieldExclamationIcon, p.dangerSoft, p.danger, '에러율', `${insight.errorRate.toFixed(2)}%`)}
+    </div>
+  )
+}
+
+// 랭킹 요약 테이블 — API Key(환경 뱃지) · 소유자 · 호출/평균응답 · 추세 스파크 · 증감.
+function KeyRankTable({ insight }: { insight: UsageInsight }) {
+  const p = usePalette()
+  return (
+    <section className="rounded-2xl min-w-0 flex flex-col" style={{ ...PANEL(p), padding: 18 }}>
+      <div className="flex items-center justify-between gap-2 shrink-0" style={{ marginBottom: 12 }}>
+        <h3 style={{ fontSize: 16, fontWeight: 800, color: p.heading }}>랭킹 요약</h3>
+        <span className="flex items-center gap-0.5" style={{ fontSize: 14, color: p.muted }}>더보기 <ChevronRightIcon width={13} height={13} /></span>
       </div>
+      <div className="flex items-center shrink-0" style={{ gap: 10, padding: '0 2px 8px', fontSize: 14, color: p.muted, borderBottom: `1px solid ${p.border}` }}>
+        <span style={{ width: 18 }} />
+        <span className="flex-1 min-w-0">API Key · 소유자</span>
+        <span className="text-right" style={{ width: 84 }}>호출 · 응답</span>
+        <span className="text-right" style={{ width: 54 }}>추세</span>
+        <span className="text-right" style={{ width: 52 }}>증감</span>
+      </div>
+      <div className="flex flex-col flex-1 min-h-0" style={{ justifyContent: 'space-between', paddingTop: 4 }}>
+        {insight.keys.map((k, i) => {
+          const up = k.deltaPct >= 0
+          return (
+            <div key={k.name} className="flex items-center" style={{ gap: 10, padding: '8px 2px', borderBottom: i < insight.keys.length - 1 ? `1px solid ${p.divider}` : 'none' }}>
+              <span className="flex items-center justify-center shrink-0 rounded-full" style={{ width: 18, height: 18, fontSize: 14, fontWeight: 800, color: '#fff', background: k.color }}>{i + 1}</span>
+              <div className="flex flex-col flex-1 min-w-0" style={{ gap: 2 }}>
+                <span className="flex items-center gap-1.5 min-w-0">
+                  <span className="truncate" style={{ fontSize: 14, fontWeight: 700, color: p.heading }}>{k.name}</span>
+                  <span className="shrink-0 rounded" style={{ padding: '0 6px', fontSize: 14, fontWeight: 600, color: k.color, background: `${k.color}1f` }}>{k.env}</span>
+                </span>
+                <span className="truncate" style={{ fontSize: 14, color: p.muted }}>{k.owner}</span>
+              </div>
+              <div className="shrink-0 flex flex-col items-end" style={{ width: 84 }}>
+                <span className="tabular-nums" style={{ fontSize: 14, fontWeight: 700, color: p.heading }}>{nf(k.calls)}</span>
+                <span className="tabular-nums" style={{ fontSize: 14, color: p.muted }}>{k.avgMs}ms</span>
+              </div>
+              <div className="shrink-0" style={{ width: 54, height: 26 }}>
+                <SparkLine data={k.trend} color={up ? p.ok : p.danger} fill />
+              </div>
+              <span className="shrink-0 text-right tabular-nums" style={{ width: 52, fontSize: 14, fontWeight: 700, color: up ? p.ok : p.danger }}>{up ? '+' : ''}{k.deltaPct}%</span>
+            </div>
+          )
+        })}
+      </div>
+      <span className="shrink-0" style={{ marginTop: 8, fontSize: 14, color: p.muted }}>* 표시 데이터는 예시 데이터입니다.</span>
     </section>
   )
 }
 
-// 사용자별 점유 색(도넛 세그먼트 = 범례 dot 일치).
-const consumerColor = (i: number) => `hsl(${(212 + i * 40) % 360}, 64%, 57%)`
-const compactNum = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}K` : String(n))
-
-// 도넛(점유율) — 차트 라이브러리와 동일한 SVG 톤. 세그먼트 stroke-dasharray.
-function UsageDonut({ data, total, size = 150, thickness = 14 }: { data: { value: number; color: string }[]; total: number; size?: number; thickness?: number }) {
+// 사용량 추이 — 스택 막대 + 총합 라인 + 범례.
+function UsageTrendChart({ insight }: { insight: UsageInsight }) {
   const p = usePalette()
-  const r = (size - thickness) / 2
-  const circ = 2 * Math.PI * r
-  let acc = 0
+  const { periods, series, totalsByPeriod } = insight
+  const W = 460, H = 340, padL = 6, padR = 6, padT = 28, padB = 26
+  const cw = W - padL - padR, ch = H - padT - padB
+  const n = periods.length
+  const step = cw / n
+  const bw = Math.min(30, step * 0.54)
+  const max = Math.max(...totalsByPeriod) * 1.2 || 1
+  const xOf = (i: number) => padL + step * i + step / 2
+  const yOf = (v: number) => padT + ch - (v / max) * ch
+  const peak = Math.max(...totalsByPeriod)
+  const linePts = periods.map((_, i) => `${xOf(i)},${yOf(totalsByPeriod[i])}`).join(' ')
   return (
-    <div className="relative shrink-0" style={{ width: size, height: size }}>
-      <svg viewBox={`0 0 ${size} ${size}`} style={{ width: size, height: size }} role="img" aria-label="API 키 사용량 점유율">
-        <g transform={`rotate(-90 ${size / 2} ${size / 2})`}>
-          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--c-track)" strokeWidth={thickness} />
-          {data.map((d, i) => {
-            const frac = total > 0 ? d.value / total : 0
-            const seg = (
-              <circle key={i} cx={size / 2} cy={size / 2} r={r} fill="none" stroke={d.color} strokeWidth={thickness}
-                strokeDasharray={`${frac * circ} ${circ}`} strokeDashoffset={-acc * circ}
-                style={{ transition: 'stroke-dashoffset .5s ease, stroke-dasharray .5s ease' }} />
-            )
-            acc += frac
-            return seg
-          })}
-        </g>
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ gap: 1 }}>
-        <span style={{ fontSize: 14, color: p.muted }}>총 호출</span>
-        <span style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.5px', color: p.heading }}>{compactNum(total)}</span>
+    <section className="rounded-2xl min-w-0 flex flex-col" style={{ ...PANEL(p), padding: 18 }}>
+      <div className="flex items-center justify-between gap-2 shrink-0" style={{ marginBottom: 8 }}>
+        <h3 style={{ fontSize: 16, fontWeight: 800, color: p.heading }}>사용량 추이</h3>
+        <span className="rounded-lg" style={{ padding: '3px 10px', fontSize: 14, fontWeight: 600, color: p.muted, border: `1px solid ${p.border}` }}>일별</span>
       </div>
-    </div>
-  )
-}
-
-// API 키를 할당받은 사용자별 사용량 — 도넛(점유율) + 범례.
-function ConsumerUsage({ insight }: { insight: UsageInsight }) {
-  const p = usePalette()
-  const total = insight.consumers.reduce((a, c) => a + c.calls, 0)
-  const data = insight.consumers.map((c, i) => ({ value: c.calls, color: consumerColor(i) }))
-  return (
-    <section className="rounded-2xl h-full flex flex-col" style={{ background: p.modalCard, border: `1px solid ${p.borderStrong}`, boxShadow: '0 2px 10px rgba(0,0,0,0.16)', padding: 22 }}>
-      <div className="flex items-center justify-between gap-2 shrink-0" style={{ marginBottom: 14 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 800, color: p.heading }}>API 키 사용자별 사용량</h3>
-        <span className="rounded-full" style={{ padding: '2px 10px', fontSize: 14, fontWeight: 700, color: p.accent, background: p.accentSoft }}>{insight.keyCount}명</span>
-      </div>
-      <div className="flex flex-1 items-center min-h-0" style={{ gap: 20 }}>
-        <UsageDonut data={data} total={total} />
-        <ul className="flex-1 min-w-0 flex flex-col self-stretch" style={{ gap: 10, justifyContent: 'center' }}>
-          {insight.consumers.map((c, i) => (
-            <li key={c.name} className="flex items-center" style={{ gap: 10 }}>
-              <span className="shrink-0 rounded-full" style={{ width: 11, height: 11, background: consumerColor(i) }} />
-              <span className="flex-1 min-w-0 truncate" style={{ fontSize: 14, fontWeight: 600, color: p.text }}>{c.name}</span>
-              <span className="shrink-0 text-right tabular-nums" style={{ width: 70, fontSize: 14, fontWeight: 700, color: p.heading }}>{nf(c.calls)}</span>
-              <span className="shrink-0 text-right tabular-nums" style={{ width: 46, fontSize: 14, color: p.muted }}>{(c.pct * 100).toFixed(1)}%</span>
-            </li>
+      <div className="flex-1 min-h-0 min-w-0">
+        <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="100%" preserveAspectRatio="xMidYMid meet" role="img" aria-label="사용량 추이">
+          {[0.25, 0.5, 0.75, 1].map((g) => (
+            <line key={g} x1={padL} x2={W - padR} y1={padT + ch - g * ch} y2={padT + ch - g * ch} stroke="var(--c-border)" strokeWidth={1} strokeDasharray="3 4" opacity={0.6} />
           ))}
-        </ul>
+          {periods.map((_, i) => {
+            let acc = 0
+            return series.map((sr, si) => {
+              const h = (sr.data[i] / max) * ch
+              const y = padT + ch - acc - h
+              acc += h
+              return <rect key={si} x={xOf(i) - bw / 2} y={y} width={bw} height={Math.max(0, h)} fill={sr.color} opacity={0.92} />
+            })
+          })}
+          <polyline points={linePts} fill="none" stroke={p.accent} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+          {periods.map((_, i) => (
+            <circle key={i} cx={xOf(i)} cy={yOf(totalsByPeriod[i])} r={2.6} fill={p.modalCard} stroke={p.accent} strokeWidth={2} />
+          ))}
+          {periods.map((label, i) => (
+            <g key={i}>
+              {totalsByPeriod[i] === peak && (
+                <text x={xOf(i)} y={yOf(totalsByPeriod[i]) - 8} textAnchor="middle" style={{ fontSize: 13, fontWeight: 700, fill: p.heading }}>{compactNum(totalsByPeriod[i])}</text>
+              )}
+              <text x={xOf(i)} y={H - 7} textAnchor="middle" style={{ fontSize: 13, fill: p.muted }}>{label}</text>
+            </g>
+          ))}
+        </svg>
+      </div>
+      <div className="flex flex-wrap items-center shrink-0" style={{ gap: '5px 12px', marginTop: 8 }}>
+        {series.map((sr) => (
+          <span key={sr.name} className="flex items-center gap-1.5" style={{ fontSize: 14, color: p.muted }}>
+            <span className="rounded-[3px]" style={{ width: 9, height: 9, background: sr.color }} /> {sr.name}
+          </span>
+        ))}
+        <span className="flex items-center gap-1.5" style={{ fontSize: 14, color: p.muted }}>
+          <span style={{ width: 12, height: 2, background: p.accent }} /> 총 호출
+        </span>
       </div>
     </section>
   )
@@ -1034,16 +1089,17 @@ export function ServiceDetail() {
     <div data-qa className="anim-fade flex flex-col min-w-0 w-full mx-auto" style={{ gap: 12, height: fill ? '100%' : 'auto', overflow: fill ? 'hidden' : 'visible', maxWidth: fill ? undefined : 1080 }}>
       <QaPolish />
       {state === 'ready' && service && insight ? (
-        <div className="grid min-w-0" style={{ gap: 14, flex: fill ? '1 1 0%' : undefined, minHeight: 0, gridTemplateColumns: narrow ? '1fr' : 'minmax(0, 1.25fr) minmax(0, 1fr)' }}>
+        <div className="grid min-w-0" style={{ gap: 14, flex: fill ? '1 1 0%' : undefined, minHeight: 0, gridTemplateColumns: narrow ? '1fr' : 'minmax(0, 0.82fr) minmax(0, 1.55fr)' }}>
           {/* 좌 — 서비스 상세(콘텐츠 많을 때 컬럼 내부에서만 스크롤) */}
           <div className="rounded-2xl min-w-0 min-h-0" style={{ ...panel, overflowY: fill ? 'auto' : 'visible', padding: narrow ? 20 : 24 }}>
             <ServiceDetailCard service={service} narrow={narrow} />
           </div>
-          {/* 우 — 사용량 인사이트(실시간 + 사용자별) */}
-          <div className="flex flex-col min-w-0 min-h-0" style={{ gap: 14 }}>
-            <UsageSummary insight={insight} service={service} narrow={narrow} />
-            <div className="min-h-0" style={{ flex: fill ? '1 1 0%' : undefined, overflowY: fill ? 'auto' : 'visible' }}>
-              <ConsumerUsage insight={insight} />
+          {/* 우 — API Key 사용량 대시보드(KPI + 랭킹 요약 + 사용량 추이) */}
+          <div className="flex flex-col min-w-0 min-h-0" style={{ gap: 12 }}>
+            <KpiHeader insight={insight} />
+            <div className="grid min-w-0" style={{ gap: 12, flex: fill ? '1 1 0%' : undefined, minHeight: 0, gridTemplateColumns: narrow ? '1fr' : 'minmax(0, 0.92fr) minmax(0, 1.08fr)' }}>
+              <KeyRankTable insight={insight} />
+              <UsageTrendChart insight={insight} />
             </div>
           </div>
         </div>
