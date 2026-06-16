@@ -964,7 +964,7 @@ function RankingSummary({ insight }: { insight: UsageInsight }) {
         <h3 style={{ fontSize: 16, fontWeight: 800, color: p.heading }}>랭킹 요약</h3>
         <span className="rounded-full" style={{ padding: '2px 10px', fontSize: 14, fontWeight: 700, color: p.accent, background: p.accentSoft }}>API 키 {insight.keyCount}개</span>
       </div>
-      <div className="grid items-center" style={{ gridTemplateColumns: cols, gap: 14, padding: '0 4px 9px', fontSize: 13, fontWeight: 600, color: p.muted, borderBottom: `1px solid ${p.divider}` }}>
+      <div className="grid items-center" style={{ gridTemplateColumns: cols, gap: 14, padding: '0 4px 9px', fontSize: 14, fontWeight: 600, color: p.muted, borderBottom: `1px solid ${p.divider}` }}>
         <span className="text-center">#</span><span>API Key</span><span>소유자 · 팀</span>
         <span className="text-right">요청 수</span><span className="text-right">변화 · 7일</span>
       </div>
@@ -973,22 +973,22 @@ function RankingSummary({ insight }: { insight: UsageInsight }) {
           <div key={r.keyId} className="grid items-center rounded-xl transition-colors" style={{ gridTemplateColumns: cols, gap: 14, padding: '11px 4px', animation: 'rankRowIn .4s ease both', animationDelay: `${i * 55}ms` }}
             onMouseEnter={(e) => { e.currentTarget.style.background = p.inset }}
             onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}>
-            <span className="flex items-center justify-center justify-self-center" style={{ width: 24, height: 24, borderRadius: 999, fontSize: 13, fontWeight: 800, ...rankStyle(i) }}>{i + 1}</span>
+            <span className="flex items-center justify-center justify-self-center" style={{ width: 24, height: 24, borderRadius: 999, fontSize: 14, fontWeight: 800, ...rankStyle(i) }}>{i + 1}</span>
             <div className="flex flex-col min-w-0" style={{ gap: 4 }}>
               <span className="truncate" style={{ fontSize: 14, fontWeight: 700, color: p.heading, letterSpacing: '-0.2px' }}>{r.keyId}</span>
               <span className="flex items-center min-w-0" style={{ gap: 5 }}>
                 <span className="shrink-0 rounded-full" style={{ width: 6, height: 6, background: r.color }} />
-                <span className="truncate" style={{ fontSize: 13, color: p.muted }}>{r.tag}</span>
+                <span className="truncate" style={{ fontSize: 14, color: p.muted }}>{r.tag}</span>
               </span>
             </div>
             <div className="flex items-center min-w-0" style={{ gap: 8 }}>
-              <span className="flex items-center justify-center shrink-0 rounded-full" style={{ width: 24, height: 24, fontSize: 13, fontWeight: 800, color: '#fff', background: `linear-gradient(140deg, hsl(${r.teamHue},64%,56%), hsl(${(r.teamHue + 24) % 360},60%,46%))` }}>{r.team.slice(0, 1)}</span>
+              <span className="flex items-center justify-center shrink-0 rounded-full" style={{ width: 24, height: 24, fontSize: 14, fontWeight: 800, color: '#fff', background: `linear-gradient(140deg, hsl(${r.teamHue},64%,56%), hsl(${(r.teamHue + 24) % 360},60%,46%))` }}>{r.team.slice(0, 1)}</span>
               <span className="truncate" style={{ fontSize: 14, color: p.text }}>{r.team}</span>
             </div>
             <div className="flex flex-col items-end" style={{ gap: 5 }}>
               <div className="flex items-baseline" style={{ gap: 5 }}>
                 <span className="tabular-nums" style={{ fontSize: 14.5, fontWeight: 800, color: p.heading, letterSpacing: '-0.3px' }}>{nf(r.requests)}</span>
-                <span className="tabular-nums" style={{ fontSize: 13, color: p.muted }}>{(r.reqPct * 100).toFixed(1)}%</span>
+                <span className="tabular-nums" style={{ fontSize: 14, color: p.muted }}>{(r.reqPct * 100).toFixed(1)}%</span>
               </div>
               <div className="w-full rounded-full overflow-hidden" style={{ height: 5, background: p.inset }}>
                 <div className="h-full rounded-full" style={{ width: `${Math.max(5, r.reqPct * 100)}%`, background: r.color }} />
@@ -996,14 +996,14 @@ function RankingSummary({ insight }: { insight: UsageInsight }) {
             </div>
             <div className="flex items-center justify-end" style={{ gap: 8 }}>
               <div className="shrink-0" style={{ width: 38, height: 22 }}><SparkLine data={r.spark} color={r.up ? p.ok : p.danger} fill /></div>
-              <span className="flex items-center tabular-nums shrink-0 rounded-md" style={{ gap: 1, padding: '3px 7px', fontSize: 13, fontWeight: 800, color: r.up ? p.ok : p.danger, background: r.up ? p.okSoft : p.dangerSoft }}>
+              <span className="flex items-center tabular-nums shrink-0 rounded-md" style={{ gap: 1, padding: '3px 7px', fontSize: 14, fontWeight: 800, color: r.up ? p.ok : p.danger, background: r.up ? p.okSoft : p.dangerSoft }}>
                 {r.up ? '▲' : '▼'}{Math.abs(r.deltaPct).toFixed(1)}%
               </span>
             </div>
           </div>
         ))}
       </div>
-      <span style={{ marginTop: 10, fontSize: 13, color: p.muted }}>막대는 전체 요청 대비 점유율 · 변화는 이전 7일 대비예요.</span>
+      <span style={{ marginTop: 10, fontSize: 14, color: p.muted }}>막대는 전체 요청 대비 점유율 · 변화는 이전 7일 대비예요.</span>
     </section>
   )
 }
@@ -1026,7 +1026,7 @@ function UsageTrendChart({ insight }: { insight: UsageInsight }) {
       </div>
 
       <div className="flex flex-1 min-h-0" style={{ gap: 8 }}>
-        <div className="flex flex-col justify-between shrink-0 text-right h-full" style={{ fontSize: 12, color: p.muted, width: 36 }}>
+        <div className="flex flex-col justify-between shrink-0 text-right h-full" style={{ fontSize: 14, color: p.muted, width: 36 }}>
           <span>{compactNum(maxRequests)}</span><span>{compactNum(Math.round(maxRequests / 2))}</span><span>0</span>
         </div>
         <div className="relative flex-1 min-w-0 h-full">
@@ -1037,7 +1037,6 @@ function UsageTrendChart({ insight }: { insight: UsageInsight }) {
                 <div className="absolute bottom-0 w-full flex flex-col-reverse rounded-t overflow-hidden" style={{ height: `${(d.total / maxRequests) * 100}%` }}>
                   {d.perUser.map((v, ui) => <div key={ui} style={{ height: `${(v / d.total) * 100}%`, background: rows[ui]?.color ?? consumerColor(ui) }} />)}
                 </div>
-                <span className="absolute whitespace-nowrap" style={{ bottom: `${(d.total / maxRequests) * 100}%`, fontSize: 11, fontWeight: 700, color: p.muted, marginBottom: 3 }}>{compactNum(d.total)}</span>
               </div>
             ))}
           </div>
@@ -1045,27 +1044,30 @@ function UsageTrendChart({ insight }: { insight: UsageInsight }) {
             <path d={linePath} fill="none" stroke={p.accent} strokeWidth={2} vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" />
           </svg>
           {pts.map((pt, i) => <span key={i} className="absolute rounded-full" style={{ left: `${pt.x}%`, top: `${pt.y}%`, width: 7, height: 7, background: p.accent, border: `2px solid ${p.modalCard}`, transform: 'translate(-50%,-50%)' }} />)}
+          {days.map((d, i) => (
+            <span key={`lbl-${i}`} className="absolute whitespace-nowrap rounded" style={{ left: `${((i + 0.5) / days.length) * 100}%`, bottom: `${(d.total / maxRequests) * 100}%`, transform: 'translateX(-50%)', marginBottom: 5, fontSize: 14, fontWeight: 700, color: p.heading, padding: '0 5px', background: p.modalCard, boxShadow: `0 0 0 1px ${p.border}` }}>{compactNum(d.total)}</span>
+          ))}
         </div>
-        <div className="flex flex-col justify-between shrink-0 h-full" style={{ fontSize: 12, color: p.accent, width: 28 }}>
+        <div className="flex flex-col justify-between shrink-0 h-full" style={{ fontSize: 14, color: p.accent, width: 28 }}>
           <span>{maxConcurrent}</span><span>{Math.round(maxConcurrent / 2)}</span><span>0</span>
         </div>
       </div>
-      <div className="flex justify-around shrink-0" style={{ marginLeft: 44, marginRight: 36, marginTop: 6, fontSize: 12, color: p.muted }}>
+      <div className="flex justify-around shrink-0" style={{ marginLeft: 44, marginRight: 36, marginTop: 6, fontSize: 14, color: p.muted }}>
         {days.map((d, i) => <span key={i} className="text-center" style={{ width: `${colW}%` }}>{d.label}</span>)}
       </div>
 
       <div className="flex flex-wrap items-center shrink-0" style={{ gap: '6px 14px', marginTop: 14 }}>
         {rows.map((r) => (
-          <span key={r.keyId} className="flex items-center" style={{ gap: 5, fontSize: 13, color: p.muted }}>
+          <span key={r.keyId} className="flex items-center" style={{ gap: 5, fontSize: 14, color: p.muted }}>
             <span className="rounded-sm" style={{ width: 10, height: 10, background: r.color }} /> {r.keyId}
           </span>
         ))}
-        <span className="flex items-center" style={{ gap: 5, fontSize: 13, color: p.muted }}>
+        <span className="flex items-center" style={{ gap: 5, fontSize: 14, color: p.muted }}>
           <span style={{ width: 14, height: 2, background: p.accent }} /> 동시 사용량(우축)
         </span>
       </div>
 
-      <div className="rounded-xl shrink-0" style={{ marginTop: 12, padding: '10px 14px', background: p.inset, border: `1px solid ${p.border}`, fontSize: 13, color: p.muted, lineHeight: 1.5 }}>
+      <div className="rounded-xl shrink-0" style={{ marginTop: 12, padding: '10px 14px', background: p.inset, border: `1px solid ${p.border}`, fontSize: 14, color: p.muted, lineHeight: 1.5 }}>
         <b style={{ color: p.heading }}>{last.label}</b> 총 요청 <b style={{ color: p.heading }}>{compactNum(last.total)}</b>
         <span style={{ color: todayUp ? p.ok : p.danger, fontWeight: 700 }}> (전일 대비 {todayUp ? '+' : ''}{todayDeltaPct}%)</span> · 평균 동시 사용량 <b style={{ color: p.heading }}>{avgConcurrent}</b>
       </div>
