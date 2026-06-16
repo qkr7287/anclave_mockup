@@ -162,13 +162,15 @@ body {
   outline-offset: 2px;
 }
 
-/* 클릭 가능한 컨트롤 — 포인터 커서 */
-button,
-[role="button"],
+/* 클릭 가능한 컨트롤 — Tailwind v4 preflight 가 비운 pointer 커서 복원(앱 전역).
+   button 기본 커서가 default라 누를 수 있어 보이지 않던 문제 해결. */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
 [role="tab"],
 a[href],
 select,
 summary,
+label[for],
 label:has(input[type="checkbox"]),
 label:has(input[type="radio"]),
 input[type="checkbox"],
@@ -181,7 +183,7 @@ button:disabled,
   cursor: not-allowed;
 }
 
-/* 컨트롤·내비 텍스트는 드래그 선택 방지(실수 선택 방지). 본문 데이터는 선택 가능 유지 */
+/* 컨트롤·내비 텍스트 드래그 선택 방지(chrome). 입력·복사용(.selectable)은 예외로 허용 */
 button,
 [role="button"],
 [role="tab"],
@@ -190,6 +192,11 @@ select,
 .no-select {
   user-select: none;
   -webkit-user-select: none;
+}
+.no-select :where(input, textarea, [contenteditable="true"], .selectable) {
+  -webkit-user-select: text;
+  user-select: text;
+  cursor: text;
 }
 
 /* thin scrollbars to match dense dashboard tone */
@@ -324,6 +331,7 @@ select,
   *::after {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
+    animation-delay: 0s !important;
     transition-duration: 0.001ms !important;
   }
   /* 작고 기능적인 펼침/회전은 reduced-motion 에서도 유지(사이드바 아코디언) */
