@@ -57,6 +57,13 @@ function useCrumbs(): Crumb[] {
       { label: '모델 신청 상세' },
     ]
   }
+  // 모델 신청 관리 목록(/models/requests) — modelMatch 가 'requests' 를 id 로 오매칭하는 것 방지(앞에 둠).
+  if (pathname === '/models/requests') {
+    return [
+      { label: '모델 관리' },
+      { label: '모델 신청 관리' }, // 현재 페이지 = 비활성
+    ]
+  }
   // 모델 상세(/models/:id) — 마지막 단계를 모델명으로(동적 라벨, useCatalogModels 조회).
   const modelMatch = pathname.match(/^\/models\/([^/]+)$/)
   if (modelMatch) {
