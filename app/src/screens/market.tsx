@@ -351,11 +351,48 @@ function ServiceCard({ s, onOpen }: { s: Service; onOpen: (s: Service) => void }
   )
 }
 
-// 4.17 중앙 — 서비스 목록(카드 스택, 외곽 패널 없음). fill 시 헤더 고정 + 카드 내부 스크롤.
+// 페이지네이션 바 — 3×2 그리드 페이지 전환(스크롤 대신).
+function PaginationBar({ page, pageCount, onPage }: { page: number; pageCount: number; onPage: (n: number) => void }) {
+  const p = usePalette()
+  const cell = (active: boolean, disabled?: boolean) => ({
+    minWidth: 30, height: 30, fontSize: 14, fontWeight: 700,
+    borderRadius: 8, border: `1px solid ${active ? p.accent : p.border}`,
+    background: active ? p.accentSoft : 'transparent',
+    color: disabled ? p.muted : active ? p.accent : p.text,
+    opacity: disabled ? 0.45 : 1, cursor: disabled ? 'default' : 'pointer',
+    padding: '0 8px',
+  } as const)
+  return (
+    <div className="shrink-0 flex items-center justify-center" style={{ gap: 6, paddingTop: 2 }}>
+      <button type="button" disabled={page === 0} onClick={() => onPage(page - 1)}
+        className="flex items-center justify-center transition-colors" style={cell(false, page === 0)} aria-label="이전 페이지">
+        <ChevronRightIcon width={15} height={15} style={{ transform: 'rotate(180deg)' }} />
+      </button>
+      {Array.from({ length: pageCount }, (_, n) => (
+        <button key={n} type="button" onClick={() => onPage(n)}
+          className="flex items-center justify-center transition-colors" style={cell(n === page)} aria-current={n === page ? 'page' : undefined}>
+          {n + 1}
+        </button>
+      ))}
+      <button type="button" disabled={page === pageCount - 1} onClick={() => onPage(page + 1)}
+        className="flex items-center justify-center transition-colors" style={cell(false, page === pageCount - 1)} aria-label="다음 페이지">
+        <ChevronRightIcon width={15} height={15} />
+      </button>
+    </div>
+  )
+}
+
+// 4.17 중앙 — 서비스 목록(3×2 그리드 + 페이지네이션). fill 시 헤더·페이지바 고정.
 function AIList({ services, total, sort, onSort, onOpen, onReset, fill, loading, loadError }: {
   services: Service[]; total: number; sort: SortKey; onSort: (s: SortKey) => void; onOpen: (s: Service) => void; onReset: () => void; fill: boolean; loading: boolean; loadError: boolean
 }) {
   const p = usePalette()
+  const PER_PAGE = 6 // 3 × 2
+  const [page, setPage] = useState(0)
+  useEffect(() => { setPage(0) }, [services]) // 필터·정렬·로드 변경 시 첫 페이지로
+  const pageCount = Math.max(1, Math.ceil(services.length / PER_PAGE))
+  const safePage = Math.min(page, pageCount - 1)
+  const pageItems = services.slice(safePage * PER_PAGE, safePage * PER_PAGE + PER_PAGE)
   return (
     <section className={`min-w-0 flex flex-col ${fill ? 'h-full min-h-0' : ''}`}>
       <header className="shrink-0 flex items-center justify-between gap-3" style={{ paddingBottom: 12 }}>
@@ -395,10 +432,14 @@ function AIList({ services, total, sort, onSort, onOpen, onReset, fill, loading,
           </button>
         </div>
       ) : (
-        <div className={`grid ${fill ? 'flex-1 min-h-0 overflow-auto' : ''}`}
-          style={{ gap: 14, paddingRight: fill ? 4 : 0, alignContent: 'start',
-            gridTemplateColumns: fill ? 'repeat(3, minmax(0, 1fr))' : 'repeat(auto-fill, minmax(230px, 1fr))' }}>
-          {services.map((s) => <ServiceCard key={s.id} s={s} onOpen={onOpen} />)}
+        <div className={`flex flex-col min-w-0 ${fill ? 'flex-1 min-h-0' : ''}`} style={{ gap: 12 }}>
+          <div className={`grid min-w-0 ${fill ? 'flex-1 min-h-0' : ''}`}
+            style={{ gap: 14, alignContent: 'start',
+              gridTemplateColumns: fill ? 'repeat(3, minmax(0, 1fr))' : 'repeat(auto-fill, minmax(230px, 1fr))',
+              gridTemplateRows: fill ? 'repeat(2, minmax(0, 1fr))' : undefined }}>
+            {pageItems.map((s) => <ServiceCard key={s.id} s={s} onOpen={onOpen} />)}
+          </div>
+          {pageCount > 1 && <PaginationBar page={safePage} pageCount={pageCount} onPage={setPage} />}
         </div>
       )}
     </section>
