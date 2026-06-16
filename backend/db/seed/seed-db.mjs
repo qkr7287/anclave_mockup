@@ -106,13 +106,13 @@ async function main() {
   // --- 신청류 (gpu_requests 는 위에서 먼저 적재) ---
   for (const r of seed.apiRequests ?? [])
     await ins('api_requests',
-      ['id', 'requester_user_id', 'service_id', 'model', 'target_service_url', 'status', 'api_key', 'reject_reason', 'created_at'],
-      [r.id, r.requesterUserId, r.serviceId, r.model ?? null, r.targetServiceUrl ?? null, r.status, r.apiKey ?? null, r.rejectReason ?? null, r.createdAt])
+      ['id', 'requester_user_id', 'service_id', 'model', 'target_service_url', 'status', 'api_key', 'reject_reason', 'created_at', 'purpose', 'processed_by', 'processed_at'],
+      [r.id, r.requesterUserId, r.serviceId, r.model ?? null, r.targetServiceUrl ?? null, r.status, r.apiKey ?? null, r.rejectReason ?? null, r.createdAt, r.purpose ?? null, r.processedBy ?? null, r.processedAt ?? null])
 
   for (const r of seed.publishRequests ?? [])
     await ins('publish_requests',
-      ['id', 'requester_user_id', 'service_name', 'service_url', 'demo_url', 'meta', 'status', 'reject_reason', 'created_at'],
-      [r.id, r.requesterUserId, r.serviceName, r.serviceUrl ?? null, r.demoUrl ?? null, r.meta ?? null, r.status, r.rejectReason ?? null, r.createdAt])
+      ['id', 'requester_user_id', 'service_name', 'service_url', 'demo_url', 'meta', 'status', 'reject_reason', 'created_at', 'admin_memo', 'processed_by', 'processed_at'],
+      [r.id, r.requesterUserId, r.serviceName, r.serviceUrl ?? null, r.demoUrl ?? null, r.meta ?? null, r.status, r.rejectReason ?? null, r.createdAt, r.adminMemo ?? null, r.processedBy ?? null, r.processedAt ?? null])
 
   for (const r of seed.gpuChangeRequests ?? [])
     await ins('gpu_change_requests',

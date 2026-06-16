@@ -157,7 +157,10 @@ create table api_requests (
   status             status not null default 'pending',
   api_key            text,            -- 승인 시 발급
   reject_reason      text,
-  created_at         timestamptz not null default now()
+  created_at         timestamptz not null default now(),
+  purpose            text,            -- 사용 목적(소유자 검토용)
+  processed_by       text,            -- 승인/반려한 소유자 users.id
+  processed_at       timestamptz
 );
 create index on api_requests (service_id, status);
 
@@ -180,7 +183,10 @@ create table publish_requests (
   meta              text,
   status            status not null default 'pending',
   reject_reason     text,
-  created_at        timestamptz not null default now()
+  created_at        timestamptz not null default now(),
+  admin_memo        text,
+  processed_by      text,            -- 승인/반려한 관리자 users.id
+  processed_at      timestamptz
 );
 
 -- 모델 신청 관리(4.14 재정의) — 사용자 등록 신청 + 관리자 반입/보안점검/등록을 한 엔티티에.

@@ -415,6 +415,94 @@ app.post('/api/model-requests', async (c) => {
   return c.json(rows[0], 201)
 })
 
+// ── 마켓플레이스(g8): 게시 신청(publish_requests) · API 키 신청(api_requests) ──
+// gpu-requests 패턴 미러: GET 목록/단건 · POST 생성 · PATCH {action} 승인/반려. created_at/processed_at 서버 now().
+
+const PR_COLS = `id, requester_user_id "requesterUserId", service_name "serviceName", service_url "serviceUrl",
+  demo_url "demoUrl", meta, status, reject_reason "rejectReason", admin_memo "adminMemo",
+  processed_by "processedBy", processed_at "processedAt", created_at "createdAt"`
+
+app.get('/api/publish-requests', async (c) => {
+  const { rows } = await pool.query(`select ${PR_COLS} from publish_requests order by created_at desc`)
+  return c.json(rows)
+})
+app.get('/api/publish-requests/:id', async (c) => {
+  const { rows } = await pool.query(`select ${PR_COLS} from publish_requests where id = $1`, [c.req.param('id')])
+  if (!rows.length) return c.json({ error: 'not found' }, 404)
+  return c.json(rows[0])
+})
+app.post('/api/publish-requests', async (c) => {
+  const b = await c.req.json().catch(() => ({}))
+  if (!b.requesterUserId || !b.serviceName) return c.json({ error: 'requesterUserId, serviceName required' }, 400)
+  const id = `pr-${Date.now().toString(36)}`
+  const { rows } = await pool.query(
+    `insert into publish_requests(id, requester_user_id, service_name, service_url, demo_url, meta, status)
+     values($1,$2,$3,$4,$5,$6,'pending') returning ${PR_COLS}`,
+    [id, b.requesterUserId, b.serviceName, b.serviceUrl ?? null, b.demoUrl ?? null, b.meta ?? null])
+  return c.json(rows[0], 201)
+})
+app.patch('/api/publish-requests/:id', async (c) => {
+  const id = c.req.param('id')
+  const b = await c.req.json().catch(() => ({}))
+  if (b.action !== 'approve' && b.action !== 'reject') return c.json({ error: 'action must be approve or reject' }, 400)
+  if (b.action === 'reject' && !b.rejectReason) return c.json({ error: 'rejectReason required' }, 400)
+  const cur = await pool.query(`select status from publish_requests where id = $1`, [id])
+  if (!cur.rows.length) return c.json({ error: 'not found' }, 404)
+  const { rows } = b.action === 'approve'
+    ? await pool.query(
+        `update publish_requests set status='approved', processed_at=now(), processed_by=$2, admin_memo=$3
+          where id=$1 returning ${PR_COLS}`,
+        [id, b.processedBy ?? null, b.adminMemo ?? null])
+    : await pool.query(
+        `update publish_requests set status='rejected', processed_at=now(), processed_by=$2, reject_reason=$3, admin_memo=$4
+          where id=$1 returning ${PR_COLS}`,
+        [id, b.processedBy ?? null, b.rejectReason, b.adminMemo ?? null])
+  return c.json(rows[0])
+})
+
+const AR_COLS = `id, requester_user_id "requesterUserId", service_id "serviceId", model,
+  target_service_url "targetServiceUrl", purpose, status, api_key "apiKey",
+  reject_reason "rejectReason", processed_by "processedBy", processed_at "processedAt", created_at "createdAt"`
+
+app.get('/api/api-requests', async (c) => {
+  const { rows } = await pool.query(`select ${AR_COLS} from api_requests order by created_at desc`)
+  return c.json(rows)
+})
+app.get('/api/api-requests/:id', async (c) => {
+  const { rows } = await pool.query(`select ${AR_COLS} from api_requests where id = $1`, [c.req.param('id')])
+  if (!rows.length) return c.json({ error: 'not found' }, 404)
+  return c.json(rows[0])
+})
+app.post('/api/api-requests', async (c) => {
+  const b = await c.req.json().catch(() => ({}))
+  if (!b.requesterUserId || !b.serviceId) return c.json({ error: 'requesterUserId, serviceId required' }, 400)
+  const id = `ar-${Date.now().toString(36)}`
+  const { rows } = await pool.query(
+    `insert into api_requests(id, requester_user_id, service_id, model, target_service_url, purpose, status)
+     values($1,$2,$3,$4,$5,$6,'pending') returning ${AR_COLS}`,
+    [id, b.requesterUserId, b.serviceId, b.model ?? null, b.targetServiceUrl ?? null, b.purpose ?? null])
+  return c.json(rows[0], 201)
+})
+app.patch('/api/api-requests/:id', async (c) => {
+  const id = c.req.param('id')
+  const b = await c.req.json().catch(() => ({}))
+  if (b.action !== 'approve' && b.action !== 'reject') return c.json({ error: 'action must be approve or reject' }, 400)
+  if (b.action === 'reject' && !b.rejectReason) return c.json({ error: 'rejectReason required' }, 400)
+  if (b.action === 'approve' && !b.apiKey) return c.json({ error: 'apiKey required' }, 400)
+  const cur = await pool.query(`select status from api_requests where id = $1`, [id])
+  if (!cur.rows.length) return c.json({ error: 'not found' }, 404)
+  const { rows } = b.action === 'approve'
+    ? await pool.query(
+        `update api_requests set status='approved', processed_at=now(), processed_by=$2, api_key=$3
+          where id=$1 returning ${AR_COLS}`,
+        [id, b.processedBy ?? null, b.apiKey])
+    : await pool.query(
+        `update api_requests set status='rejected', processed_at=now(), processed_by=$2, reject_reason=$3
+          where id=$1 returning ${AR_COLS}`,
+        [id, b.processedBy ?? null, b.rejectReason])
+  return c.json(rows[0])
+})
+
 // 내 할당 — user 의 게시된 서비스 + 각 서비스가 올라간 gpu/server. 4.5 내 할당 자원.
 app.get('/api/allocations', async (c) => {
   const { user } = c.req.query()
