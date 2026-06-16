@@ -780,7 +780,7 @@ function DetailModal({ service, onClose }: { service: Service; onClose: () => vo
       onClick={onClose} role="presentation">
       <style>{`@keyframes mkFadeIn{from{opacity:0}to{opacity:1}}@keyframes mkPopIn{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:none}}.mk-close:hover{filter:brightness(1.35)}`}</style>
       <div className="w-full rounded-2xl relative flex flex-col"
-        style={{ maxWidth: 900, maxHeight: '92vh', overflow: 'hidden', background: p.modalCard, border: `1px solid ${p.borderStrong}`, boxShadow: `${p.shadow}, inset 0 1px 0 rgba(255,255,255,0.05)`, animation: 'mkPopIn .24s cubic-bezier(.2,.7,.2,1) both' }}
+        style={{ maxWidth: 900, maxHeight: '84vh', overflow: 'hidden', background: p.modalCard, border: `1px solid ${p.borderStrong}`, boxShadow: `${p.shadow}, inset 0 1px 0 rgba(255,255,255,0.05)`, animation: 'mkPopIn .24s cubic-bezier(.2,.7,.2,1) both' }}
         onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={`${service.name} 상세`}>
         <button type="button" onClick={onClose} aria-label="닫기" className="mk-close absolute flex items-center justify-center rounded-lg z-10 transition"
           style={{ top: 16, right: 16, width: 32, height: 32, color: p.text, background: p.inset, border: `1px solid ${p.borderStrong}` }}>
