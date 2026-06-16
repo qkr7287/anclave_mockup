@@ -914,7 +914,7 @@ function toUsageInsight(raw: MarketServiceUsage): UsageInsight {
 // 랭킹 요약 — API 키별 요청·점유·변화(Figma 'Group 1' 상단 테이블).
 function RankingSummary({ insight }: { insight: UsageInsight }) {
   const p = usePalette()
-  const cols = '28px minmax(0,1.3fr) minmax(0,0.95fr) 94px 132px'
+  const cols = '28px minmax(0,1.15fr) minmax(0,1.3fr) 90px 128px'
   const MEDAL = ['#F4C71A', '#C7CFDB', '#E08A4C']
   const rankStyle = (i: number) => (i <= 2
     ? { background: `linear-gradient(140deg, ${MEDAL[i]}, ${MEDAL[i]}bb)`, color: '#10131c', boxShadow: `0 2px 7px ${MEDAL[i]}55` }
@@ -944,8 +944,11 @@ function RankingSummary({ insight }: { insight: UsageInsight }) {
               </span>
             </div>
             <div className="flex items-center min-w-0" style={{ gap: 8 }}>
-              <span className="flex items-center justify-center shrink-0 rounded-full" style={{ width: 24, height: 24, fontSize: 14, fontWeight: 800, color: '#fff', background: `linear-gradient(140deg, hsl(${r.teamHue},64%,56%), hsl(${(r.teamHue + 24) % 360},60%,46%))` }}>{r.team.slice(0, 1)}</span>
-              <span className="truncate" style={{ fontSize: 14, color: p.text }}>{r.team}</span>
+              <span className="flex items-center justify-center shrink-0 rounded-full" style={{ width: 26, height: 26, fontSize: 14, fontWeight: 800, color: '#fff', background: `linear-gradient(140deg, hsl(${r.teamHue},64%,56%), hsl(${(r.teamHue + 24) % 360},60%,46%))` }}>{r.name.slice(0, 1)}</span>
+              <div className="flex flex-col min-w-0" style={{ gap: 1 }}>
+                <span className="truncate" style={{ fontSize: 14, fontWeight: 700, color: p.heading }}>{r.name}</span>
+                <span className="truncate" style={{ fontSize: 14, color: p.muted }}>{r.team}</span>
+              </div>
             </div>
             <div className="flex flex-col items-end" style={{ gap: 5 }}>
               <div className="flex items-baseline" style={{ gap: 5 }}>
