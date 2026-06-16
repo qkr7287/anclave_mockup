@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { ComponentType, ReactNode, SVGProps } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { Button } from '../components/ui'
+import { Button, Breadcrumb } from '../components/ui'
+import { SparkLine } from '../components/charts'
 import { useTheme } from '../lib/theme'
 import { QaPolish } from './qa-polish'
 import { type MarketService as Service, listMarketServices, getMarketService } from './market-store'
@@ -805,39 +806,6 @@ function ServiceDetailCard({ service: s, narrow, reserveClose }: { service: Serv
   )
 }
 
-// 상세 모달(팝업)
-function DetailModal({ service, onClose }: { service: Service; onClose: () => void }) {
-  const p = usePalette()
-  const narrow = useNarrow(720)
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
-    window.addEventListener('keydown', onKey)
-    document.body.style.overflow = 'hidden'
-    return () => {
-      window.removeEventListener('keydown', onKey)
-      document.body.style.overflow = ''
-    }
-  }, [onClose])
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ background: p.dim, backdropFilter: 'blur(3px)', padding: '4vh 16px', animation: 'mkFadeIn .18s ease both' }}
-      onClick={onClose} role="presentation">
-      <style>{`@keyframes mkFadeIn{from{opacity:0}to{opacity:1}}@keyframes mkPopIn{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:none}}.mk-close:hover{filter:brightness(1.35)}`}</style>
-      <div className="w-full rounded-2xl relative flex flex-col"
-        style={{ maxWidth: 900, maxHeight: '84vh', overflow: 'hidden', background: p.modalCard, border: `1px solid ${p.borderStrong}`, boxShadow: `${p.shadow}, inset 0 1px 0 rgba(255,255,255,0.05)`, animation: 'mkPopIn .24s cubic-bezier(.2,.7,.2,1) both' }}
-        onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={`${service.name} 상세`}>
-        <button type="button" onClick={onClose} aria-label="닫기" className="mk-close absolute flex items-center justify-center rounded-lg z-10 transition"
-          style={{ top: 16, right: 16, width: 32, height: 32, color: p.text, background: p.inset, border: `1px solid ${p.borderStrong}` }}>
-          <XMarkIcon width={17} height={17} />
-        </button>
-        <div className="flex-1 min-h-0 overflow-y-auto" style={{ padding: narrow ? 20 : 28 }}>
-          <ServiceDetailCard service={service} narrow={narrow} reserveClose />
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ───────────────────────── 4.17 마켓플레이스 ─────────────────────────
 export function Marketplace() {
   const p = usePalette()
@@ -845,8 +813,9 @@ export function Marketplace() {
   const fill = !narrow // 넓은 화면: 무스크롤 fill(3패널 같은 높이·하단 정렬·목록 내부 스크롤)
   const [filters, setFilters] = useState<Filters>(emptyFilters)
   const [sort, setSort] = useState<SortKey>('recent') // 기본 = Figma 노출 순서(시드순)
-  const [selected, setSelected] = useState<Service | null>(null)
-  const [params, setParams] = useSearchParams()
+  const [params] = useSearchParams()
+  const navigate = useNavigate()
+  const openService = (s: Service) => navigate(`/marketplace/${s.id}`)
   const [services, setServices] = useState<Service[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
@@ -865,20 +834,11 @@ export function Marketplace() {
   const allTags = useMemo(() => allTagsOf(services), [services])
   const results = useMemo(() => applyFilters(services, filters, sort), [services, filters, sort])
 
-  // ?service=<id> 진입 시 해당 서비스 상세 팝업 자동 오픈(예: API 키 요청 완료 → 서비스 상세로).
+  // ?service=<id> 진입(API 키 요청 완료 등) → 서비스 상세 페이지로 리다이렉트.
   useEffect(() => {
     const sid = params.get('service')
-    if (!sid) return
-    const found = services.find((s) => s.id === sid)
-    if (found) setSelected(found)
-  }, [params, services])
-  const closeDetail = () => {
-    setSelected(null)
-    if (params.get('service')) {
-      params.delete('service')
-      setParams(params, { replace: true })
-    }
-  }
+    if (sid) navigate(`/marketplace/${sid}`, { replace: true })
+  }, [params, navigate])
 
   return (
     <div data-qa className="anim-fade flex flex-col min-w-0" style={{ gap: 14, height: fill ? '100%' : 'auto', overflow: fill ? 'hidden' : 'visible' }}>
@@ -902,16 +862,120 @@ export function Marketplace() {
       <div className="grid min-w-0"
         style={{ gap: 16, gridTemplateColumns: narrow ? '1fr' : '316px minmax(0, 1fr) 340px', flex: fill ? '1 1 0%' : undefined, minHeight: 0 }}>
         <FilterPanel f={filters} set={set} onReset={reset} fill={fill} kinds={kinds} models={models} allTags={allTags} />
-        <AIList services={results} total={services.length} sort={sort} onSort={setSort} onOpen={setSelected} onReset={reset} fill={fill} loading={loading} loadError={loadError} />
-        <RankingPanel fill={fill} onOpen={setSelected} services={services} />
+        <AIList services={results} total={services.length} sort={sort} onSort={setSort} onOpen={openService} onReset={reset} fill={fill} loading={loading} loadError={loadError} />
+        <RankingPanel fill={fill} onOpen={openService} services={services} />
       </div>
-
-      {selected && <DetailModal service={selected} onClose={closeDetail} />}
     </div>
   )
 }
 
-// ───────────────────────── 4.18 서비스 상세(직접 라우트 — 컨테인드) ─────────────────────────
+// ───────────────────────── 사용량 인사이트(목업 — backend 연동 전, id 기반 deterministic) ─────────────────────────
+const CONSUMER_NAMES = ['황상곤', '김가람', '백태수', '이은혜', '정휘선', '한도윤', '윤서연', '박지호']
+function hashStr(str: string): number {
+  let h = 2166136261
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) }
+  return h >>> 0
+}
+function seededRng(seed: number) {
+  let t = seed >>> 0
+  return () => {
+    t = (t + 0x6d2b79f5) >>> 0
+    let x = Math.imul(t ^ (t >>> 15), 1 | t)
+    x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x
+    return ((x ^ (x >>> 14)) >>> 0) / 4294967296
+  }
+}
+interface ConsumerUse { name: string; calls: number; pct: number }
+interface UsageInsight { liveReqPerMin: number; concurrent: number; todayCalls: number; keyCount: number; trend: number[]; consumers: ConsumerUse[] }
+function usageInsightOf(s: Service): UsageInsight {
+  const rng = seededRng(hashStr(s.id))
+  const keyCount = 3 + Math.floor(rng() * 4) // 3~6명
+  const raw = Array.from({ length: keyCount }, () => 0.25 + rng())
+  const rawSum = raw.reduce((a, b) => a + b, 0)
+  const consumers: ConsumerUse[] = raw
+    .map((r, i) => ({ name: CONSUMER_NAMES[i % CONSUMER_NAMES.length], calls: Math.max(1, Math.round((r / rawSum) * s.usageNum)), pct: 0 }))
+    .sort((a, b) => b.calls - a.calls)
+  const cTotal = consumers.reduce((a, c) => a + c.calls, 0) || 1
+  consumers.forEach((c) => { c.pct = c.calls / cTotal })
+  const liveReqPerMin = Math.round(12 + rng() * 70 + s.usageNum / 6000)
+  const concurrent = Math.round(2 + rng() * 38)
+  const todayCalls = Math.round(s.usageNum / (18 + rng() * 16))
+  const base = hashStr(s.id) % 7
+  const trend = Array.from({ length: 24 }, (_, i) => Math.max(1, Math.round(liveReqPerMin * (0.5 + 0.45 * Math.abs(Math.sin(i * 0.55 + base)) + rng() * 0.28))))
+  return { liveReqPerMin, concurrent, todayCalls, keyCount, trend, consumers }
+}
+
+const nf = (n: number) => n.toLocaleString('en-US')
+
+// 현재 실시간 사용량 Hero — 이 서비스에 들어와 호출 중인 실시간 사용량(제일 강조).
+function LiveUsageHero({ insight, narrow }: { insight: UsageInsight; narrow: boolean }) {
+  const p = usePalette()
+  const sub = (label: string, value: string, hint: string) => (
+    <div className="flex flex-col rounded-xl" style={{ padding: '12px 14px', background: p.inset, border: `1px solid ${p.border}`, gap: 2 }}>
+      <span style={{ fontSize: 14, color: p.muted }}>{label}</span>
+      <span style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.4px', color: p.heading }}>{value}</span>
+      <span style={{ fontSize: 14, color: p.muted }}>{hint}</span>
+    </div>
+  )
+  return (
+    <section className="rounded-2xl relative overflow-hidden" style={{ background: p.modalCard, border: `1px solid ${p.borderStrong}`, boxShadow: '0 2px 10px rgba(0,0,0,0.16)' }}>
+      <style>{`@keyframes livePulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.8)}}`}</style>
+      <div className="absolute inset-0 pointer-events-none" style={{ background: `radial-gradient(120% 140% at 100% 0%, ${p.accentSoft} 0%, transparent 55%)` }} />
+      <div className="relative flex flex-col" style={{ padding: narrow ? 18 : 22, gap: 16 }}>
+        <div className={`flex ${narrow ? 'flex-col' : 'items-end justify-between'}`} style={{ gap: 16 }}>
+          <div className="flex flex-col" style={{ gap: 8 }}>
+            <span className="inline-flex items-center self-start gap-1.5 rounded-full" style={{ padding: '3px 10px', fontSize: 14, fontWeight: 700, color: p.ok, background: p.okSoft }}>
+              <span className="rounded-full" style={{ width: 7, height: 7, background: 'currentColor', animation: 'livePulse 1.4s ease-in-out infinite' }} /> LIVE · 현재 사용 중
+            </span>
+            <div className="flex items-baseline" style={{ gap: 8 }}>
+              <span style={{ fontSize: narrow ? 40 : 52, fontWeight: 800, letterSpacing: '-1.6px', lineHeight: 1, color: p.heading }}>{nf(insight.liveReqPerMin)}</span>
+              <span style={{ fontSize: 17, fontWeight: 700, color: p.muted }}>req / min</span>
+            </div>
+            <span style={{ fontSize: 14, color: p.muted }}>지금 이 서비스를 호출 중인 실시간 사용량이에요.</span>
+          </div>
+          <div className="shrink-0" style={{ width: narrow ? '100%' : 320, height: 84 }}>
+            <SparkLine data={insight.trend} color={p.accent} fill peak fmt={(v) => `${nf(Math.round(v))}/min`} />
+          </div>
+        </div>
+        <div className="grid" style={{ gap: 12, gridTemplateColumns: narrow ? '1fr' : 'repeat(3, 1fr)' }}>
+          {sub('동시 세션', nf(insight.concurrent), '현재 접속 중인 세션')}
+          {sub('오늘 호출', nf(insight.todayCalls), '0시부터 누적 호출')}
+          {sub('API 키 발급', `${insight.keyCount}명`, '키를 할당받은 사용자')}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// API 키를 할당받은 사용자별 사용량 — 가로 막대.
+function ConsumerUsage({ insight }: { insight: UsageInsight }) {
+  const p = usePalette()
+  const max = insight.consumers[0]?.calls ?? 1
+  const medal = (i: number) => (i === 0 ? '#F4C71A' : i === 1 ? '#C7CFDB' : i === 2 ? '#E08A4C' : p.chip)
+  return (
+    <section className="rounded-2xl" style={{ background: p.modalCard, border: `1px solid ${p.borderStrong}`, boxShadow: '0 2px 10px rgba(0,0,0,0.16)', padding: 22 }}>
+      <div className="flex items-center justify-between gap-2" style={{ marginBottom: 16 }}>
+        <h3 style={{ fontSize: 16, fontWeight: 800, color: p.heading }}>API 키 사용자별 사용량</h3>
+        <span className="rounded-full" style={{ padding: '2px 10px', fontSize: 14, fontWeight: 700, color: p.accent, background: p.accentSoft }}>{insight.keyCount}명</span>
+      </div>
+      <div className="flex flex-col" style={{ gap: 12 }}>
+        {insight.consumers.map((c, i) => (
+          <div key={c.name} className="flex items-center" style={{ gap: 12 }}>
+            <span className="flex items-center justify-center shrink-0" style={{ width: 22, height: 22, borderRadius: 999, background: medal(i), color: i <= 2 ? '#10131c' : p.muted, fontSize: 14, fontWeight: 800 }}>{i + 1}</span>
+            <span className="shrink-0 truncate" style={{ width: 72, fontSize: 14, fontWeight: 700, color: p.heading }}>{c.name}</span>
+            <div className="flex-1 min-w-0 rounded-full overflow-hidden" style={{ height: 10, background: p.inset }}>
+              <div className="h-full rounded-full" style={{ width: `${Math.max(4, (c.calls / max) * 100)}%`, background: `linear-gradient(90deg, ${p.accent}, hsl(${(i * 26) % 360},70%,55%))` }} />
+            </div>
+            <span className="shrink-0 text-right tabular-nums" style={{ width: 76, fontSize: 14, fontWeight: 700, color: p.text }}>{nf(c.calls)}</span>
+            <span className="shrink-0 text-right tabular-nums" style={{ width: 44, fontSize: 14, color: p.muted }}>{(c.pct * 100).toFixed(1)}%</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+// ───────────────────────── 4.18 서비스 상세(페이지) ─────────────────────────
 export function ServiceDetail() {
   const p = usePalette()
   const narrow = useNarrow(760)
@@ -928,19 +992,30 @@ export function ServiceDetail() {
       .catch(() => { if (alive) setState('notfound') })
     return () => { alive = false }
   }, [id])
+  const insight = useMemo(() => (service ? usageInsightOf(service) : null), [service])
+
+  const card = (children: ReactNode) => (
+    <div className="w-full rounded-2xl" style={{ background: p.modalCard, border: `1px solid ${p.borderStrong}`, boxShadow: '0 2px 10px rgba(0,0,0,0.16)', padding: narrow ? 20 : 28 }}>{children}</div>
+  )
+
   return (
-    <div data-qa className="anim-fade flex flex-col min-w-0" style={{ gap: 14 }}>
+    <div data-qa className="anim-fade flex flex-col min-w-0 mx-auto w-full" style={{ gap: 16, maxWidth: 1080 }}>
       <QaPolish />
-      <button type="button" onClick={() => navigate('/marketplace')} className="flex items-center gap-1.5 self-start" style={{ fontSize: 14, color: p.muted }}>
-        <ChevronRightIcon width={15} height={15} style={{ transform: 'rotate(180deg)' }} /> 마켓플레이스로
-      </button>
-      <div className="w-full mx-auto rounded-2xl" style={{ maxWidth: 900, background: p.modalCard, border: `1px solid ${p.borderStrong}`, boxShadow: '0 2px 10px rgba(0,0,0,0.18)', padding: narrow ? 20 : 28 }}>
-        {state === 'ready' && service
-          ? <ServiceDetailCard service={service} narrow={narrow} />
-          : <div className="flex items-center justify-center text-center" style={{ minHeight: 200, fontSize: 14, color: p.muted }}>
-              {state === 'loading' ? '서비스 정보를 불러오는 중…' : '서비스를 찾을 수 없어요.'}
-            </div>}
-      </div>
+      <Breadcrumb items={[{ label: '마켓플레이스', to: '/marketplace' }, { label: service?.name ?? '서비스 상세' }]} />
+      {state === 'ready' && service && insight ? (
+        <>
+          <LiveUsageHero insight={insight} narrow={narrow} />
+          {card(<ServiceDetailCard service={service} narrow={narrow} />)}
+          <ConsumerUsage insight={insight} />
+        </>
+      ) : (
+        card(
+          <div className="flex flex-col items-center justify-center text-center" style={{ minHeight: 200, gap: 12 }}>
+            <span style={{ fontSize: 14, color: p.muted }}>{state === 'loading' ? '서비스 정보를 불러오는 중…' : '서비스를 찾을 수 없어요.'}</span>
+            {state === 'notfound' && <Button variant="outline" onClick={() => navigate('/marketplace')}>마켓플레이스로</Button>}
+          </div>,
+        )
+      )}
     </div>
   )
 }
