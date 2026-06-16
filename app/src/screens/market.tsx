@@ -701,7 +701,7 @@ function FullRankingModal({ onClose, onOpen }: { onClose: () => void; onOpen: (s
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: p.dim, backdropFilter: 'blur(3px)', padding: '24px 16px', animation: 'mkFadeIn .18s ease both' }} onClick={onClose} role="presentation">
       <style>{`@keyframes mkFadeIn{from{opacity:0}to{opacity:1}}@keyframes mkPopIn{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:none}}`}</style>
-      <div className="w-full rounded-2xl relative flex flex-col" style={{ maxWidth: 600, maxHeight: 'min(580px, calc(100vh - 48px))', background: p.modalCard, border: `1px solid ${p.borderStrong}`, boxShadow: p.shadow, animation: 'mkPopIn .24s cubic-bezier(.2,.7,.2,1) both' }} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="전체 서비스 랭킹">
+      <div className="w-full rounded-2xl relative flex flex-col" style={{ maxWidth: 600, maxHeight: 'min(870px, calc(100vh - 48px))', background: p.modalCard, border: `1px solid ${p.borderStrong}`, boxShadow: p.shadow, animation: 'mkPopIn .24s cubic-bezier(.2,.7,.2,1) both' }} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="전체 서비스 랭킹">
         <div className="shrink-0 flex items-center justify-between gap-3" style={{ padding: '17px 22px', borderBottom: `1px solid ${p.divider}` }}>
           <div className="flex items-center gap-2 min-w-0">
             <h2 className="truncate" style={{ fontSize: 18, fontWeight: 800, color: p.heading, letterSpacing: '-0.3px' }}>전체 서비스 랭킹</h2>
