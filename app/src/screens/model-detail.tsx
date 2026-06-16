@@ -5,9 +5,9 @@ import { ArrowLeftIcon } from '@heroicons/react/24/outline'
 import { services, userById } from '../data'
 import type { Model, Service } from '../data/types'
 import { useRole } from '../lib/role'
-import { providerName } from './catalog'
+import { Logo, providerName } from './catalog'
 import { createRequest, deleteModel, deleteRequest, patchRequest, useCatalogModels, useModelRequests } from './model-requests-shared'
-import { M, ModelAvatar, SectionHead, SpecSection } from './model-wizard-ui'
+import { M, SectionHead, SpecSection } from './model-wizard-ui'
 
 // G5 · 4.13 모델 상세 — 카탈로그(4.12)에서 모델 클릭 시 진입. 라우팅(/models/:id)·App.tsx 는 기존 그대로.
 // 좌: 이 모델을 쓰는 서비스 현황 + 상세 사용률 추이, 우: 신청 관리(4.14) 명세서 톤의 모델 명세.
@@ -279,7 +279,7 @@ function SpecCard({ model, actions }: { model: Model; actions?: ReactNode }) {
   return (
     <div className="flex flex-col h-full" style={{ background: 'var(--c-card2)', border: `1px solid ${M.border}`, borderRadius: 14, padding: '18px 18px 16px' }}>
       <div className="flex items-center min-w-0" style={{ gap: 12, marginBottom: 4 }}>
-        <ModelAvatar name={model.name} size={42} />
+        <Logo id={model.id} name={model.name} size={42} />
         <div className="flex flex-col min-w-0">
           <span className="truncate font-bold" style={{ fontSize: 16, color: M.text }}>{model.name}</span>
           <span className="truncate" style={{ fontSize: 14, color: M.help }}>카탈로그 등록 명세서</span>
@@ -474,7 +474,7 @@ export function ModelDetail() {
           >
             <ArrowLeftIcon style={{ width: 18, height: 18 }} />
           </button>
-          <ModelAvatar name={model.name} size={52} />
+          <Logo id={model.id} name={model.name} size={52} />
           <div className="flex flex-col min-w-0 flex-1">
             <div className="flex items-center flex-wrap" style={{ gap: 10 }}>
               <h2 className="font-bold truncate" style={{ fontSize: 23, lineHeight: 1.2, color: M.text }}>{model.name}</h2>
