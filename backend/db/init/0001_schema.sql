@@ -297,6 +297,45 @@ create table infra_integrations (
 );
 
 -- ============================================================
+-- 마켓플레이스 표시 전용 서비스(4.17 카드/상세) — 기존 services(svc-*)와 완전 별개. 읽기 전용.
+-- ============================================================
+create table market_services (
+  id            text primary key,
+  name          text not null,
+  kind          text,
+  provider      text,
+  model         text,
+  api           text,
+  owner         text,
+  rating        numeric,
+  status        text,
+  hue           int,
+  icon          text,
+  response_time text,
+  tier          text,
+  monthly_req   text,
+  usage         text,
+  usage_num     int,
+  delta         text,
+  up            boolean,
+  req_full      text,
+  success       text,
+  delta_pct     text,
+  last_call     text,
+  tags          jsonb,
+  description   text,            -- 응답 키는 'desc'(SQL 예약어 회피)
+  overview      text,
+  api_desc      text,
+  features      jsonb,
+  ops_notes     jsonb,
+  service_url   text,
+  demo_url      text,
+  thumbnail     text,
+  screenshots   jsonb
+);
+create index on market_services (usage_num desc);
+
+-- ============================================================
 -- 텔레메트리 (시계열) — long format. 측정 대상 4종 = server|gpu|slice|service
 -- 정책(보존): latest(5초 upsert) / raw(5초·6시간) / 1m(1분 집계·2일) / hourly(1시간 집계·35일)
 -- 밴드 차트용으로 1m·hourly 는 v_min/v_max 사전집계. 적재·롤업·보존청소는 backend 워커.
