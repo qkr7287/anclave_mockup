@@ -56,7 +56,8 @@ create table services (
   tags             text[] not null default '{}',
   usage_count      int not null default 0,
   usage_rank       int,
-  listed           boolean not null default true   -- 매핑 ④확정: 마켓 게시 여부(게시 승인 시 true)
+  listed           boolean not null default true,  -- 매핑 ④확정: 마켓 게시 여부(게시 승인 시 true)
+  models           text[] not null default '{}'    -- N:M 모델 매핑(모델 상세 콤보차트). models[0]=model_id(호환)
 );
 
 -- ============================================================

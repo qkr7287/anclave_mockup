@@ -49,8 +49,8 @@ async function main() {
   // --- services (listed=true: 기존 7개는 이미 게시된 상태) ---
   for (const s of seed.services)
     await ins('services',
-      ['id', 'name', 'kind', 'has_api', 'model_id', 'service_url', 'test_url', 'description', 'manual_url', 'owner_user_id', 'deployer_user_id', 'tags', 'usage_count', 'usage_rank', 'listed'],
-      [s.id, s.name, s.kind ?? null, !!s.hasApi, s.model ?? null, s.serviceUrl ?? null, s.testUrl ?? null, s.description ?? null, s.manualUrl ?? null, s.ownerUserId, s.deployerUserId ?? null, s.tags ?? [], s.usageCount ?? 0, s.usageRank ?? null, true])
+      ['id', 'name', 'kind', 'has_api', 'model_id', 'service_url', 'test_url', 'description', 'manual_url', 'owner_user_id', 'deployer_user_id', 'tags', 'usage_count', 'usage_rank', 'listed', 'models'],
+      [s.id, s.name, s.kind ?? null, !!s.hasApi, s.model ?? null, s.serviceUrl ?? null, s.testUrl ?? null, s.description ?? null, s.manualUrl ?? null, s.ownerUserId, s.deployerUserId ?? null, s.tags ?? [], s.usageCount ?? 0, s.usageRank ?? null, true, s.models ?? (s.model ? [s.model] : [])])
 
   // --- gpu_requests (먼저: 아래 mig_slices.request_id FK 가 참조) — 심사 확장 + 확정 자원 제한 포함 ---
   for (const r of seed.gpuRequests)

@@ -311,7 +311,11 @@
         "에이전트"
       ],
       "usageCount": 142800,
-      "usageRank": 1
+      "usageRank": 1,
+      "models": [
+        "m12",
+        "m11"
+      ]
     },
     {
       "id": "svc-llama",
@@ -330,7 +334,11 @@
         "챗봇"
       ],
       "usageCount": 121300,
-      "usageRank": 2
+      "usageRank": 2,
+      "models": [
+        "m11",
+        "m13"
+      ]
     },
     {
       "id": "svc-code",
@@ -347,7 +355,11 @@
         "API"
       ],
       "usageCount": 87600,
-      "usageRank": 3
+      "usageRank": 3,
+      "models": [
+        "m13",
+        "m12"
+      ]
     },
     {
       "id": "svc-doc",
@@ -365,7 +377,12 @@
         "API"
       ],
       "usageCount": 64200,
-      "usageRank": 4
+      "usageRank": 4,
+      "models": [
+        "m10",
+        "m12",
+        "m9"
+      ]
     },
     {
       "id": "svc-stt",
@@ -382,7 +399,11 @@
         "API"
       ],
       "usageCount": 41900,
-      "usageRank": 5
+      "usageRank": 5,
+      "models": [
+        "m9",
+        "m10"
+      ]
     },
     {
       "id": "svc-sd",
@@ -398,7 +419,11 @@
         "Image"
       ],
       "usageCount": 33500,
-      "usageRank": 6
+      "usageRank": 6,
+      "models": [
+        "m8",
+        "m5"
+      ]
     },
     {
       "id": "svc-vqa",
@@ -414,7 +439,12 @@
         "Vision-Language"
       ],
       "usageCount": 22100,
-      "usageRank": 7
+      "usageRank": 7,
+      "models": [
+        "m5",
+        "m8",
+        "m11"
+      ]
     }
   ],
   "fleet": [

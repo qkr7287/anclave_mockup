@@ -590,6 +590,18 @@ app.get('/api/market-services/:id/usage', async (c) => {
   return c.json(usageOf(id, Number(rows[0].usage_num)))
 })
 
+// 전체 서비스 — 모델 상세 '이 모델을 쓰는 서비스' 콤보차트(N:M models) 등. camelCase.
+// model(단일)은 호환용 deprecated, models[0]=model.
+app.get('/api/services', async (c) => {
+  const { rows } = await pool.query(
+    `select id, name, kind, has_api "hasApi", model_id "model", models,
+            service_url "serviceUrl", test_url "testUrl", description, manual_url "manualUrl",
+            owner_user_id "ownerUserId", deployer_user_id "deployerUserId", tags,
+            usage_count "usageCount", usage_rank "usageRank", listed
+       from services order by usage_rank`)
+  return c.json(rows)
+})
+
 // 내 할당 — user 의 게시된 서비스 + 각 서비스가 올라간 gpu/server. 4.5 내 할당 자원.
 app.get('/api/allocations', async (c) => {
   const { user } = c.req.query()
