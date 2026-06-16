@@ -40,10 +40,11 @@ function useCrumbs(): Crumb[] {
     crumbs[crumbs.length - 1] = { label: crumbs[crumbs.length - 1].label } // 현재 = 비활성
     return crumbs
   }
-  if (pathname === '/admin/models/requests/new' || pathname === '/models/request/new') {
+  // 신규 등록 신청(B·C) / 신규 반입(A) — reqDetailMatch 정규식이 'new'·'import' 도 잡으므로 반드시 먼저.
+  if (pathname === '/models/requests/new' || pathname === '/models/requests/import') {
     return [
       { label: '모델 관리' },
-      { label: '모델 신청 관리', to: '/admin/models/requests' },
+      { label: '모델 신청 관리', to: '/models/requests' },
       { label: '신규 모델 신청' },
     ]
   }
@@ -52,7 +53,7 @@ function useCrumbs(): Crumb[] {
   if (reqDetailMatch) {
     return [
       { label: '모델 관리' },
-      { label: '모델 신청 관리', to: '/admin/models/requests' },
+      { label: '모델 신청 관리', to: '/models/requests' },
       { label: '모델 신청 상세' },
     ]
   }
