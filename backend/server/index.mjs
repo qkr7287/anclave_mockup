@@ -528,6 +528,68 @@ app.get('/api/market-services/:id', async (c) => {
   return c.json(rows[0])
 })
 
+// 서비스 사용량(랭킹 요약 + 사용량 추이) — id 기반 deterministic 목업(프론트 g8 로직 이전, seed 불필요).
+const CONSUMER_NAMES = ['황상곤', '김가람', '백태수', '이은혜', '정휘선', '한도윤', '윤서연', '박지호']
+const RANK_TEAMS = [
+  { team: 'Platform 팀', hue: 212 }, { team: 'Data Alpha 팀', hue: 152 }, { team: 'Analytics 팀', hue: 280 },
+  { team: 'ML Ops 팀', hue: 30 }, { team: 'R&D 팀', hue: 330 }, { team: '코어 플랫폼', hue: 196 },
+]
+const RANK_TAGS = ['Production', 'Team', 'Analytics', 'Batch', 'Internal', 'Core']
+
+function hashStr(str) {
+  let h = 2166136261
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) }
+  return h >>> 0
+}
+function seededRng(seed) {
+  let t = seed >>> 0
+  return () => {
+    t = (t + 0x6d2b79f5) >>> 0
+    let x = Math.imul(t ^ (t >>> 15), 1 | t)
+    x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x
+    return ((x ^ (x >>> 14)) >>> 0) / 4294967296
+  }
+}
+function usageOf(id, usageNum) {
+  const rng = seededRng(hashStr(id))
+  const keyCount = 4 + Math.floor(rng() * 3) // 4~6
+  const raw = Array.from({ length: keyCount }, () => 0.3 + rng())
+  const rawSum = raw.reduce((a, b) => a + b, 0)
+  const tokenPerReq = 360 + rng() * 220
+  let rows = raw.map((r, i) => {
+    const requests = Math.max(1, Math.round((r / rawSum) * usageNum))
+    const tm = RANK_TEAMS[i % RANK_TEAMS.length]
+    return {
+      keyId: `sk-${id.slice(0, 4)}-${String(i + 1).padStart(2, '0')}`,
+      owner: CONSUMER_NAMES[i % CONSUMER_NAMES.length],
+      tag: RANK_TAGS[i % RANK_TAGS.length], team: tm.team, teamHue: tm.hue,
+      requests, tokens: Math.round(requests * tokenPerReq), deltaPct: 0, spark: [],
+    }
+  }).sort((a, b) => b.requests - a.requests)
+  rows.forEach((r) => {
+    r.deltaPct = Math.round((rng() * 32 - 9) * 10) / 10
+    const sb = hashStr(r.keyId) % 9
+    r.spark = Array.from({ length: 7 }, (_, k) => 0.4 + 0.4 * Math.abs(Math.sin(k * 0.7 + sb)) + rng() * 0.22)
+  })
+  const base = hashStr(id) % 7
+  const days = []
+  for (let d = 0; d < 7; d++) {
+    const dayFactor = 0.72 + 0.46 * (d / 6) + 0.12 * Math.sin(d + base)
+    const perKey = rows.map((r) => Math.max(0, Math.round((r.requests / 7) * dayFactor * (0.72 + rng() * 0.56))))
+    const total = perKey.reduce((a, v) => a + v, 0)
+    const concurrent = Math.max(1, Math.round(total / (1700 + rng() * 700)))
+    days.push({ label: `5.${16 + d}`, perKey, total, concurrent })
+  }
+  return { keyCount, rows, days }
+}
+
+app.get('/api/market-services/:id/usage', async (c) => {
+  const id = c.req.param('id')
+  const { rows } = await pool.query('select usage_num from market_services where id = $1', [id])
+  if (!rows.length) return c.json({ error: 'not found' }, 404)
+  return c.json(usageOf(id, Number(rows[0].usage_num)))
+})
+
 // 내 할당 — user 의 게시된 서비스 + 각 서비스가 올라간 gpu/server. 4.5 내 할당 자원.
 app.get('/api/allocations', async (c) => {
   const { user } = c.req.query()
