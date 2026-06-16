@@ -886,8 +886,11 @@ const nf = (n: number) => n.toLocaleString('en-US')
 const compactNum = (n: number) => (n >= 1e9 ? `${(n / 1e9).toFixed(2)}B` : n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}K` : String(n))
 // 사용자별 점유 색 — 스택 막대·범례·랭킹 dot 공통.
 const consumerColor = (i: number) => `hsl(${(214 + i * 40) % 360}, 64%, 57%)`
+// 키 발급일(목업) — keyId 기반 deterministic. 실제 승인일은 backend 필드 추가 시 교체.
+const hashKey = (s: string) => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) } return h >>> 0 }
+const issuedDate = (keyId: string) => { const h = hashKey(keyId); const m = 1 + (h % 5); const d = 1 + ((h >>> 8) % 28); return `2024.${String(m).padStart(2, '0')}.${String(d).padStart(2, '0')}` }
 
-interface RankRow { name: string; keyId: string; tag: string; team: string; teamHue: number; requests: number; reqPct: number; tokens: number; tokenPct: number; deltaPct: number; up: boolean; spark: number[]; color: string }
+interface RankRow { name: string; keyId: string; tag: string; team: string; teamHue: number; requests: number; reqPct: number; tokens: number; tokenPct: number; deltaPct: number; up: boolean; spark: number[]; color: string; issuedAt: string }
 interface DayStack { label: string; perUser: number[]; total: number; concurrent: number }
 interface UsageInsight { keyCount: number; rows: RankRow[]; days: DayStack[]; totalRequests: number; totalTokens: number; maxRequests: number; maxConcurrent: number; avgConcurrent: number; todayDeltaPct: number; todayUp: boolean }
 
@@ -896,7 +899,7 @@ function toUsageInsight(raw: MarketServiceUsage): UsageInsight {
   const rows: RankRow[] = raw.rows.map((r, i) => ({
     name: r.owner, keyId: r.keyId, tag: r.tag, team: r.team, teamHue: r.teamHue,
     requests: r.requests, reqPct: 0, tokens: r.tokens, tokenPct: 0,
-    deltaPct: r.deltaPct, up: r.deltaPct >= 0, spark: r.spark, color: consumerColor(i),
+    deltaPct: r.deltaPct, up: r.deltaPct >= 0, spark: r.spark, color: consumerColor(i), issuedAt: issuedDate(r.keyId),
   }))
   const totalRequests = rows.reduce((a, r) => a + r.requests, 0) || 1
   const totalTokens = rows.reduce((a, r) => a + r.tokens, 0) || 1
@@ -914,7 +917,7 @@ function toUsageInsight(raw: MarketServiceUsage): UsageInsight {
 // 랭킹 요약 — API 키별 요청·점유·변화(Figma 'Group 1' 상단 테이블).
 function RankingSummary({ insight }: { insight: UsageInsight }) {
   const p = usePalette()
-  const cols = '28px minmax(0,1.15fr) minmax(0,1.3fr) 90px 128px'
+  const cols = '26px minmax(0,1.55fr) 92px 86px 122px'
   const MEDAL = ['#F4C71A', '#C7CFDB', '#E08A4C']
   const rankStyle = (i: number) => (i <= 2
     ? { background: `linear-gradient(140deg, ${MEDAL[i]}, ${MEDAL[i]}bb)`, color: '#10131c', boxShadow: `0 2px 7px ${MEDAL[i]}55` }
@@ -927,7 +930,7 @@ function RankingSummary({ insight }: { insight: UsageInsight }) {
         <span className="rounded-full" style={{ padding: '2px 10px', fontSize: 14, fontWeight: 700, color: p.accent, background: p.accentSoft }}>API 키 {insight.keyCount}개</span>
       </div>
       <div className="grid items-center" style={{ gridTemplateColumns: cols, gap: 14, padding: '0 4px 9px', fontSize: 14, fontWeight: 600, color: p.muted, borderBottom: `1px solid ${p.divider}` }}>
-        <span className="text-center">#</span><span>API Key</span><span>소유자 · 팀</span>
+        <span className="text-center">#</span><span>소유자 · 팀</span><span>키 발급일</span>
         <span className="text-right">요청 수</span><span className="text-right">변화 · 7일</span>
       </div>
       <div className="flex flex-col">
@@ -936,20 +939,14 @@ function RankingSummary({ insight }: { insight: UsageInsight }) {
             onMouseEnter={(e) => { e.currentTarget.style.background = p.inset }}
             onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}>
             <span className="flex items-center justify-center justify-self-center" style={{ width: 24, height: 24, borderRadius: 999, fontSize: 14, fontWeight: 800, ...rankStyle(i) }}>{i + 1}</span>
-            <div className="flex flex-col min-w-0" style={{ gap: 4 }}>
-              <span className="truncate" style={{ fontSize: 14, fontWeight: 700, color: p.heading, letterSpacing: '-0.2px' }}>{r.keyId}</span>
-              <span className="flex items-center min-w-0" style={{ gap: 5 }}>
-                <span className="shrink-0 rounded-full" style={{ width: 6, height: 6, background: r.color }} />
-                <span className="truncate" style={{ fontSize: 14, color: p.muted }}>{r.tag}</span>
-              </span>
-            </div>
             <div className="flex items-center min-w-0" style={{ gap: 8 }}>
-              <span className="flex items-center justify-center shrink-0 rounded-full" style={{ width: 26, height: 26, fontSize: 14, fontWeight: 800, color: '#fff', background: `linear-gradient(140deg, hsl(${r.teamHue},64%,56%), hsl(${(r.teamHue + 24) % 360},60%,46%))` }}>{r.name.slice(0, 1)}</span>
+              <span className="flex items-center justify-center shrink-0 rounded-full" style={{ width: 28, height: 28, fontSize: 14, fontWeight: 800, color: '#fff', background: `linear-gradient(140deg, hsl(${r.teamHue},64%,56%), hsl(${(r.teamHue + 24) % 360},60%,46%))` }}>{r.name.slice(0, 1)}</span>
               <div className="flex flex-col min-w-0" style={{ gap: 1 }}>
                 <span className="truncate" style={{ fontSize: 14, fontWeight: 700, color: p.heading }}>{r.name}</span>
                 <span className="truncate" style={{ fontSize: 14, color: p.muted }}>{r.team}</span>
               </div>
             </div>
+            <span className="tabular-nums truncate" style={{ fontSize: 14, color: p.muted }}>{r.issuedAt}</span>
             <div className="flex flex-col items-end" style={{ gap: 5 }}>
               <div className="flex items-baseline" style={{ gap: 5 }}>
                 <span className="tabular-nums" style={{ fontSize: 14.5, fontWeight: 800, color: p.heading, letterSpacing: '-0.3px' }}>{nf(r.requests)}</span>
