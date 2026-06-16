@@ -627,6 +627,157 @@ app.get('/api/allocations', async (c) => {
   return c.json(rows)
 })
 
+// ── GPU 할당(승인된 gpu_requests) + 변경·확장·회수 ──
+// 할당 = status=approved · allocated_* 채워진 · active 인 gpu_requests 행(단일 진실원천, 별도 테이블 없음).
+// 변경요청은 target_request_id 로 그 행을 참조, 승인 시 그 행의 allocated_* 를 트랜잭션 갱신(회수=active false).
+
+// AllocSpec projection(서버 host·GPU name join) — my-allocations / before·after 공용.
+const ALLOC_SELECT = (a) => `${a}.id "requestId", ${a}.allocated_server_id "serverId", srv.host "serverHost",
+  ${a}.allocated_gpu_id "gpuId", ${a}.allocated_slice_id "sliceId", g.name "gpuLabel",
+  ${a}.allocated_ram_gb "ramGb", ${a}.allocated_storage_gb "storageGb", ${a}.allocated_cpu_cores "cpuCores"`
+const CR_RAW = `id, requester_user_id, type, reason, status, reject_reason, created_at, processed_at, processed_by,
+  admin_memo, target_request_id, after_server_id, after_gpu_id, after_slice_id, after_ram_gb, after_storage_gb,
+  after_cpu_cores, after_extra`
+
+async function allocSpec(requestId) {
+  if (!requestId) return null
+  const { rows } = await pool.query(
+    `select ${ALLOC_SELECT('gr')} from gpu_requests gr
+       left join gpu_servers srv on srv.id = gr.allocated_server_id
+       left join gpus g on g.id = gr.allocated_gpu_id
+      where gr.id = $1`, [requestId])
+  return rows[0] ?? null
+}
+async function afterSpec(cr) {
+  if (cr.type === 'reclaim') return null
+  const srv = cr.after_server_id ? (await pool.query('select host from gpu_servers where id=$1', [cr.after_server_id])).rows[0] : null
+  const g = cr.after_gpu_id ? (await pool.query('select name from gpus where id=$1', [cr.after_gpu_id])).rows[0] : null
+  return {
+    requestId: cr.target_request_id,
+    serverId: cr.after_server_id, serverHost: srv?.host ?? null,
+    gpuId: cr.after_gpu_id, sliceId: cr.after_slice_id, gpuLabel: g?.name ?? null,
+    ramGb: cr.after_ram_gb, storageGb: cr.after_storage_gb, cpuCores: cr.after_cpu_cores,
+    extra: cr.after_extra,
+  }
+}
+async function assembleCR(cr) {
+  return {
+    id: cr.id, requesterUserId: cr.requester_user_id, type: cr.type, reason: cr.reason,
+    status: cr.status, rejectReason: cr.reject_reason, createdAt: cr.created_at,
+    processedAt: cr.processed_at, processedBy: cr.processed_by, adminMemo: cr.admin_memo,
+    targetRequestId: cr.target_request_id,
+    before: await allocSpec(cr.target_request_id),
+    after: await afterSpec(cr),
+  }
+}
+async function fetchCR(id) {
+  const { rows } = await pool.query(`select ${CR_RAW} from gpu_change_requests where id = $1`, [id])
+  return rows.length ? await assembleCR(rows[0]) : null
+}
+
+// 내 할당 자원 — 승인·할당된 내 gpu_requests(AllocSpec). 변경 마법사 '대상 할당'과 동일 형태.
+app.get('/api/my-allocations', async (c) => {
+  const { user } = c.req.query()
+  if (!user) return c.json({ error: 'user required' }, 400)
+  const { rows } = await pool.query(
+    `select ${ALLOC_SELECT('gr')} from gpu_requests gr
+       left join gpu_servers srv on srv.id = gr.allocated_server_id
+       left join gpus g on g.id = gr.allocated_gpu_id
+      where gr.requester_user_id = $1 and gr.status = 'approved'
+        and gr.allocated_server_id is not null and gr.active = true
+      order by gr.id`, [user])
+  return c.json(rows)
+})
+
+// 변경·확장·회수 요청 목록 — user 있으면 본인, 없으면 전체(관리자). pending 우선·최신순. before/after 중첩.
+app.get('/api/gpu-change-requests', async (c) => {
+  const { user } = c.req.query()
+  const { rows } = await pool.query(
+    `select ${CR_RAW} from gpu_change_requests
+      where ($1::text is null or requester_user_id = $1)
+      order by (status = 'pending') desc, created_at desc`, [user || null])
+  const out = []
+  for (const r of rows) out.push(await assembleCR(r))
+  return c.json(out)
+})
+app.get('/api/gpu-change-requests/:id', async (c) => {
+  const row = await fetchCR(c.req.param('id'))
+  if (!row) return c.json({ error: 'not found' }, 404)
+  return c.json(row)
+})
+app.post('/api/gpu-change-requests', async (c) => {
+  const b = await c.req.json().catch(() => ({}))
+  if (!b.requesterUserId || !b.type || !b.targetRequestId)
+    return c.json({ error: 'requesterUserId, type, targetRequestId required' }, 400)
+  const id = 'cr-' + Date.now().toString(36)
+  await pool.query(
+    `insert into gpu_change_requests(id, requester_user_id, type, target_request_id, reason, status,
+        after_server_id, after_gpu_id, after_slice_id, after_ram_gb, after_storage_gb, after_cpu_cores, after_extra)
+     values($1,$2,$3,$4,$5,'pending',$6,$7,$8,$9,$10,$11,$12)`,
+    [id, b.requesterUserId, b.type, b.targetRequestId, b.reason ?? null,
+      b.afterServerId ?? null, b.afterGpuId ?? null, b.afterSliceId ?? null,
+      b.afterRamGb ?? null, b.afterStorageGb ?? null, b.afterCpuCores ?? null,
+      b.afterExtra ? JSON.stringify(b.afterExtra) : null])
+  return c.json(await fetchCR(id), 201)
+})
+
+// ★ 승인/반려 — 트랜잭션. 승인 시 대상 할당(gpu_requests) allocated_* 갱신(회수=active false + 자원 해제).
+app.patch('/api/gpu-change-requests/:id', async (c) => {
+  const id = c.req.param('id')
+  const b = await c.req.json().catch(() => ({}))
+  if (b.action !== 'approve' && b.action !== 'reject') return c.json({ error: 'action must be approve or reject' }, 400)
+  if (b.action === 'reject' && !b.rejectReason) return c.json({ error: 'rejectReason required' }, 400)
+  if (!(await pool.query('select id from gpu_change_requests where id=$1', [id])).rows.length)
+    return c.json({ error: 'not found' }, 404)
+
+  const client = await pool.connect()
+  try {
+    await client.query('begin')
+    if (b.action === 'approve') {
+      // 0) 확정 after_*(관리자 조정값 우선) + 처리정보
+      await client.query(
+        `update gpu_change_requests set status='approved', processed_at=now(), processed_by=$2, admin_memo=$3,
+            after_server_id=coalesce($4,after_server_id), after_gpu_id=coalesce($5,after_gpu_id),
+            after_slice_id=coalesce($6,after_slice_id), after_ram_gb=coalesce($7,after_ram_gb),
+            after_storage_gb=coalesce($8,after_storage_gb), after_cpu_cores=coalesce($9,after_cpu_cores),
+            after_extra=coalesce($10,after_extra)
+          where id=$1`,
+        [id, b.processedBy ?? null, b.adminMemo ?? null, b.afterServerId ?? null, b.afterGpuId ?? null,
+          b.afterSliceId ?? null, b.afterRamGb ?? null, b.afterStorageGb ?? null, b.afterCpuCores ?? null,
+          b.afterExtra ? JSON.stringify(b.afterExtra) : null])
+      const cr = (await client.query('select * from gpu_change_requests where id=$1', [id])).rows[0]
+      // 1) 대상 할당 갱신
+      if (['change', 'expand', 'migrate'].includes(cr.type)) {
+        await client.query(
+          `update gpu_requests set
+              allocated_ram_gb=coalesce($2,allocated_ram_gb), allocated_storage_gb=coalesce($3,allocated_storage_gb),
+              allocated_cpu_cores=coalesce($4,allocated_cpu_cores), allocated_server_id=coalesce($5,allocated_server_id),
+              allocated_gpu_id=coalesce($6,allocated_gpu_id), allocated_slice_id=coalesce($7,allocated_slice_id)
+            where id=$1`,
+          [cr.target_request_id, cr.after_ram_gb, cr.after_storage_gb, cr.after_cpu_cores,
+            cr.after_server_id, cr.after_gpu_id, cr.after_slice_id])
+        // (server/gpu 변경 시 신규 GPU 물리 재배치는 현 단계 범위 밖 — allocated_gpu_id 만 반영)
+      } else if (cr.type === 'reclaim') {
+        const tgt = (await client.query('select allocated_gpu_id, allocated_slice_id from gpu_requests where id=$1', [cr.target_request_id])).rows[0]
+        await client.query('update gpu_requests set active=false where id=$1', [cr.target_request_id])
+        if (tgt?.allocated_gpu_id) await client.query('update gpus set assigned_service_id=null where id=$1', [tgt.allocated_gpu_id])
+        if (tgt?.allocated_slice_id) await client.query("update mig_slices set status='reclaimed' where id=$1", [tgt.allocated_slice_id])
+      }
+    } else {
+      await client.query(
+        `update gpu_change_requests set status='rejected', processed_at=now(), processed_by=$2, reject_reason=$3, admin_memo=$4 where id=$1`,
+        [id, b.processedBy ?? null, b.rejectReason, b.adminMemo ?? null])
+    }
+    await client.query('commit')
+  } catch (e) {
+    await client.query('rollback')
+    client.release()
+    return c.json({ error: e.message }, 500)
+  }
+  client.release()
+  return c.json(await fetchCR(id))
+})
+
 // 내 서비스 토큰 사용량 — user 소유 서비스들의 tokens 시계열(9버킷) + 합계. 4.5 토큰차트.
 app.get('/api/service-tokens', async (c) => {
   const { user } = c.req.query()

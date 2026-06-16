@@ -710,7 +710,10 @@
       "adminMemo": "우선 슬라이스 1개 할당. 사용량 추이 보고 확장 검토 예정.",
       "allocatedRamGb": 24,
       "allocatedStorageGb": 28,
-      "allocatedCpuCores": 6
+      "allocatedCpuCores": 6,
+      "allocatedServerId": "srv-01",
+      "allocatedGpuId": "srv-01-gpu0",
+      "allocatedSliceId": "srv-01-gpu0-s1"
     },
     {
       "id": "gr-02",
@@ -734,7 +737,9 @@
       "processedBy": "u-admin",
       "allocatedRamGb": 28,
       "allocatedStorageGb": 32,
-      "allocatedCpuCores": 8
+      "allocatedCpuCores": 8,
+      "allocatedServerId": "srv-06",
+      "allocatedGpuId": "srv-06-gpu0"
     },
     {
       "id": "gr-03",
@@ -760,7 +765,9 @@
       "adminMemo": "검색 임베딩용 단일 카드 충분. 모니터링 애드온 권장.",
       "allocatedRamGb": 16,
       "allocatedStorageGb": 15,
-      "allocatedCpuCores": 4
+      "allocatedCpuCores": 4,
+      "allocatedServerId": "srv-03",
+      "allocatedGpuId": "srv-03-gpu0"
     },
     {
       "id": "gr-04",
@@ -784,7 +791,9 @@
       "processedBy": "u-admin",
       "allocatedRamGb": 24,
       "allocatedStorageGb": 30,
-      "allocatedCpuCores": 8
+      "allocatedCpuCores": 8,
+      "allocatedServerId": "srv-02",
+      "allocatedGpuId": "srv-02-gpu0"
     },
     {
       "id": "gr-05",
@@ -808,7 +817,9 @@
       "processedBy": "u-admin",
       "allocatedRamGb": 16,
       "allocatedStorageGb": 20,
-      "allocatedCpuCores": 6
+      "allocatedCpuCores": 6,
+      "allocatedServerId": "srv-04",
+      "allocatedGpuId": "srv-04-gpu0"
     },
     {
       "id": "gr-06",
@@ -834,7 +845,9 @@
       "processedBy": "u-admin",
       "allocatedRamGb": 24,
       "allocatedStorageGb": 28,
-      "allocatedCpuCores": 6
+      "allocatedCpuCores": 6,
+      "allocatedServerId": "srv-08",
+      "allocatedGpuId": "srv-08-gpu1"
     },
     {
       "id": "gr-07",
@@ -859,7 +872,10 @@
       "adminMemo": "동일 서버 내 잔여 슬롯 배정.",
       "allocatedRamGb": 24,
       "allocatedStorageGb": 30,
-      "allocatedCpuCores": 6
+      "allocatedCpuCores": 6,
+      "allocatedServerId": "srv-08",
+      "allocatedGpuId": "srv-08-gpu0",
+      "allocatedSliceId": "srv-08-gpu0-s1"
     }
   ],
   "modelRequests": [
