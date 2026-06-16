@@ -44,3 +44,9 @@ const normalize = (s: MarketService): MarketService => ({ ...s, rating: Number(s
 // 목록(usage_num desc 정렬은 서버에서) · 단건(404 시 reject).
 export const listMarketServices = () => apiGet<MarketService[]>('/api/market-services').then((d) => d.map(normalize))
 export const getMarketService = (id: string) => apiGet<MarketService>(`/api/market-services/${id}`).then(normalize)
+
+// 서비스 사용량(랭킹 요약 + 사용량 추이) — raw 집계. 색·비율·축 스케일은 화면에서 계산.
+export interface UsageRow { keyId: string; owner: string; tag: string; team: string; teamHue: number; requests: number; tokens: number; deltaPct: number; spark: number[] }
+export interface UsageDay { label: string; perKey: number[]; total: number; concurrent: number }
+export interface MarketServiceUsage { keyCount: number; rows: UsageRow[]; days: UsageDay[] }
+export const getMarketServiceUsage = (id: string) => apiGet<MarketServiceUsage>(`/api/market-services/${id}/usage`)

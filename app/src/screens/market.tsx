@@ -3,9 +3,10 @@ import { createPortal } from 'react-dom'
 import type { ComponentType, ReactNode, SVGProps } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Button } from '../components/ui'
+import { SparkLine } from '../components/charts'
 import { useTheme } from '../lib/theme'
 import { QaPolish } from './qa-polish'
-import { type MarketService as Service, listMarketServices, getMarketService } from './market-store'
+import { type MarketService as Service, type MarketServiceUsage, listMarketServices, getMarketService, getMarketServiceUsage } from './market-store'
 import {
   MagnifyingGlassIcon,
   CpuChipIcon,
@@ -35,6 +36,7 @@ import {
   MoonIcon,
   ClipboardDocumentCheckIcon,
   BeakerIcon,
+  ArrowLeftIcon,
 } from '@heroicons/react/24/outline'
 
 // G8 · 4.17 마켓플레이스 · 4.18 서비스(AI) 상세 — Figma 매칭(fileKey iqVQ2GEDCRj9cK3EBOwBJV,
@@ -117,7 +119,7 @@ const allTagsOf = (list: Service[]) => [...new Set(list.flatMap((s) => s.tags))]
 const rankItemsOf = (list: Service[]): RankItem[] =>
   [...list].sort((a, b) => b.usageNum - a.usageNum).map((s, i) => ({
     rank: i + 1, name: s.name, model: s.model, usage: s.usage, delta: s.delta, up: s.up,
-    chips: [hasApiOf(s) ? s.api : '콘솔', s.model, s.tier], status: s.status,
+    chips: [hasApiOf(s) ? s.api : '콘솔', s.tier], status: s.status,
     tone: toneOf(s.status), icon: s.icon, hue: s.hue, seed: s.id, serviceId: s.id,
   }))
 
@@ -125,7 +127,7 @@ const STATUSES = ['정상', '주의', '불안정', '점검 중']
 
 interface RankItem {
   rank: number; name: string; model: string; usage: string; delta: string; up: boolean
-  chips: [string, string, string]; status: string; tone: Tone; icon: string; hue: number; seed: string; serviceId: string
+  chips: string[]; status: string; tone: Tone; icon: string; hue: number; seed: string; serviceId: string
 }
 // serviceId = 클릭 시 열 대표 서비스(상세 모달 재사용)
 // ───────────────────────── 필터 상태 ─────────────────────────
@@ -681,6 +683,17 @@ function ServiceDetailCard({ service: s, narrow, reserveClose }: { service: Serv
       <div className="flex flex-col" style={{ gap: 18 }}>
         <div className="flex items-start justify-between gap-4 flex-wrap" style={{ paddingRight: reserveClose ? 44 : 0 }}>
           <div className="flex items-start gap-3.5 min-w-0">
+            <button
+              type="button"
+              aria-label="뒤로 가기"
+              onClick={() => navigate('/marketplace')}
+              className="flex items-center justify-center shrink-0 rounded-[9px] transition-colors cursor-pointer"
+              style={{ width: 34, height: 34, marginTop: 9, border: `1px solid ${p.border}`, background: p.card, color: p.muted }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = p.text; e.currentTarget.style.background = p.inset }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = p.muted; e.currentTarget.style.background = p.card }}
+            >
+              <ArrowLeftIcon style={{ width: 18, height: 18 }} />
+            </button>
             <Logo id={s.id} hue={s.hue} icon={iconOf(s.icon)} size={52} />
             <div className="flex flex-col min-w-0" style={{ gap: 10 }}>
               <h2 style={{ fontSize: 21, fontWeight: 800, letterSpacing: '-0.4px', color: p.heading, lineHeight: 1.1 }}>{s.name}</h2>
@@ -805,39 +818,6 @@ function ServiceDetailCard({ service: s, narrow, reserveClose }: { service: Serv
   )
 }
 
-// 상세 모달(팝업)
-function DetailModal({ service, onClose }: { service: Service; onClose: () => void }) {
-  const p = usePalette()
-  const narrow = useNarrow(720)
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
-    window.addEventListener('keydown', onKey)
-    document.body.style.overflow = 'hidden'
-    return () => {
-      window.removeEventListener('keydown', onKey)
-      document.body.style.overflow = ''
-    }
-  }, [onClose])
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ background: p.dim, backdropFilter: 'blur(3px)', padding: '4vh 16px', animation: 'mkFadeIn .18s ease both' }}
-      onClick={onClose} role="presentation">
-      <style>{`@keyframes mkFadeIn{from{opacity:0}to{opacity:1}}@keyframes mkPopIn{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:none}}.mk-close:hover{filter:brightness(1.35)}`}</style>
-      <div className="w-full rounded-2xl relative flex flex-col"
-        style={{ maxWidth: 900, maxHeight: '84vh', overflow: 'hidden', background: p.modalCard, border: `1px solid ${p.borderStrong}`, boxShadow: `${p.shadow}, inset 0 1px 0 rgba(255,255,255,0.05)`, animation: 'mkPopIn .24s cubic-bezier(.2,.7,.2,1) both' }}
-        onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={`${service.name} 상세`}>
-        <button type="button" onClick={onClose} aria-label="닫기" className="mk-close absolute flex items-center justify-center rounded-lg z-10 transition"
-          style={{ top: 16, right: 16, width: 32, height: 32, color: p.text, background: p.inset, border: `1px solid ${p.borderStrong}` }}>
-          <XMarkIcon width={17} height={17} />
-        </button>
-        <div className="flex-1 min-h-0 overflow-y-auto" style={{ padding: narrow ? 20 : 28 }}>
-          <ServiceDetailCard service={service} narrow={narrow} reserveClose />
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ───────────────────────── 4.17 마켓플레이스 ─────────────────────────
 export function Marketplace() {
   const p = usePalette()
@@ -845,8 +825,9 @@ export function Marketplace() {
   const fill = !narrow // 넓은 화면: 무스크롤 fill(3패널 같은 높이·하단 정렬·목록 내부 스크롤)
   const [filters, setFilters] = useState<Filters>(emptyFilters)
   const [sort, setSort] = useState<SortKey>('recent') // 기본 = Figma 노출 순서(시드순)
-  const [selected, setSelected] = useState<Service | null>(null)
-  const [params, setParams] = useSearchParams()
+  const [params] = useSearchParams()
+  const navigate = useNavigate()
+  const openService = (s: Service) => navigate(`/marketplace/${s.id}`)
   const [services, setServices] = useState<Service[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
@@ -865,20 +846,11 @@ export function Marketplace() {
   const allTags = useMemo(() => allTagsOf(services), [services])
   const results = useMemo(() => applyFilters(services, filters, sort), [services, filters, sort])
 
-  // ?service=<id> 진입 시 해당 서비스 상세 팝업 자동 오픈(예: API 키 요청 완료 → 서비스 상세로).
+  // ?service=<id> 진입(API 키 요청 완료 등) → 서비스 상세 페이지로 리다이렉트.
   useEffect(() => {
     const sid = params.get('service')
-    if (!sid) return
-    const found = services.find((s) => s.id === sid)
-    if (found) setSelected(found)
-  }, [params, services])
-  const closeDetail = () => {
-    setSelected(null)
-    if (params.get('service')) {
-      params.delete('service')
-      setParams(params, { replace: true })
-    }
-  }
+    if (sid) navigate(`/marketplace/${sid}`, { replace: true })
+  }, [params, navigate])
 
   return (
     <div data-qa className="anim-fade flex flex-col min-w-0" style={{ gap: 14, height: fill ? '100%' : 'auto', overflow: fill ? 'hidden' : 'visible' }}>
@@ -902,16 +874,172 @@ export function Marketplace() {
       <div className="grid min-w-0"
         style={{ gap: 16, gridTemplateColumns: narrow ? '1fr' : '316px minmax(0, 1fr) 340px', flex: fill ? '1 1 0%' : undefined, minHeight: 0 }}>
         <FilterPanel f={filters} set={set} onReset={reset} fill={fill} kinds={kinds} models={models} allTags={allTags} />
-        <AIList services={results} total={services.length} sort={sort} onSort={setSort} onOpen={setSelected} onReset={reset} fill={fill} loading={loading} loadError={loadError} />
-        <RankingPanel fill={fill} onOpen={setSelected} services={services} />
+        <AIList services={results} total={services.length} sort={sort} onSort={setSort} onOpen={openService} onReset={reset} fill={fill} loading={loading} loadError={loadError} />
+        <RankingPanel fill={fill} onOpen={openService} services={services} />
       </div>
-
-      {selected && <DetailModal service={selected} onClose={closeDetail} />}
     </div>
   )
 }
 
-// ───────────────────────── 4.18 서비스 상세(직접 라우트 — 컨테인드) ─────────────────────────
+// ───────────────────────── 사용량 인사이트(GET /api/market-services/:id/usage raw → 화면 표현값) ─────────────────────────
+const nf = (n: number) => n.toLocaleString('en-US')
+const compactNum = (n: number) => (n >= 1e9 ? `${(n / 1e9).toFixed(2)}B` : n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}K` : String(n))
+// 사용자별 점유 색 — 스택 막대·범례·랭킹 dot 공통.
+const consumerColor = (i: number) => `hsl(${(214 + i * 40) % 360}, 64%, 57%)`
+// 키 발급일(목업) — keyId 기반 deterministic. 실제 승인일은 backend 필드 추가 시 교체.
+const hashKey = (s: string) => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) } return h >>> 0 }
+const issuedDate = (keyId: string) => { const h = hashKey(keyId); const m = 1 + (h % 5); const d = 1 + ((h >>> 8) % 28); return `2024.${String(m).padStart(2, '0')}.${String(d).padStart(2, '0')}` }
+
+interface RankRow { name: string; keyId: string; tag: string; team: string; teamHue: number; requests: number; reqPct: number; tokens: number; tokenPct: number; deltaPct: number; up: boolean; spark: number[]; color: string; issuedAt: string }
+interface DayStack { label: string; perUser: number[]; total: number; concurrent: number }
+interface UsageInsight { keyCount: number; rows: RankRow[]; days: DayStack[]; totalRequests: number; totalTokens: number; maxRequests: number; maxConcurrent: number; avgConcurrent: number; todayDeltaPct: number; todayUp: boolean }
+
+// backend raw 집계 → 비율·색·축 스케일 등 화면 표현값 계산(색·정렬·스케일은 프론트 책임).
+function toUsageInsight(raw: MarketServiceUsage): UsageInsight {
+  const rows: RankRow[] = raw.rows.map((r, i) => ({
+    name: r.owner, keyId: r.keyId, tag: r.tag, team: r.team, teamHue: r.teamHue,
+    requests: r.requests, reqPct: 0, tokens: r.tokens, tokenPct: 0,
+    deltaPct: r.deltaPct, up: r.deltaPct >= 0, spark: r.spark, color: consumerColor(i), issuedAt: issuedDate(r.keyId),
+  }))
+  const totalRequests = rows.reduce((a, r) => a + r.requests, 0) || 1
+  const totalTokens = rows.reduce((a, r) => a + r.tokens, 0) || 1
+  rows.forEach((r) => { r.reqPct = r.requests / totalRequests; r.tokenPct = r.tokens / totalTokens })
+  const days: DayStack[] = raw.days.map((d) => ({ label: d.label, perUser: d.perKey, total: d.total, concurrent: d.concurrent }))
+  const maxRequests = Math.max(...days.map((d) => d.total), 1)
+  const maxConcurrent = Math.max(...days.map((d) => d.concurrent), 1)
+  const avgConcurrent = days.length ? Math.round(days.reduce((a, d) => a + d.concurrent, 0) / days.length) : 0
+  const last = days[days.length - 1]
+  const prev = days[days.length - 2]
+  const todayDeltaPct = prev && prev.total ? Math.round(((last.total - prev.total) / prev.total) * 1000) / 10 : 0
+  return { keyCount: raw.keyCount, rows, days, totalRequests, totalTokens, maxRequests, maxConcurrent, avgConcurrent, todayDeltaPct, todayUp: todayDeltaPct >= 0 }
+}
+
+// 랭킹 요약 — API 키별 요청·점유·변화(Figma 'Group 1' 상단 테이블).
+function RankingSummary({ insight }: { insight: UsageInsight }) {
+  const p = usePalette()
+  const cols = '24px minmax(0,1.1fr) minmax(0,0.8fr) 116px minmax(140px,1fr)'
+  const MEDAL = ['#F4C71A', '#C7CFDB', '#E08A4C']
+  const rankStyle = (i: number) => (i <= 2
+    ? { background: `linear-gradient(140deg, ${MEDAL[i]}, ${MEDAL[i]}bb)`, color: '#10131c', boxShadow: `0 2px 7px ${MEDAL[i]}55` }
+    : { background: p.inset, color: p.muted, border: `1px solid ${p.border}` })
+  return (
+    <section className="rounded-2xl flex flex-col shrink-0" style={{ background: p.modalCard, border: `1px solid ${p.borderStrong}`, boxShadow: '0 2px 10px rgba(0,0,0,0.16)', padding: 20 }}>
+      <style>{`@keyframes rankRowIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}`}</style>
+      <div className="flex items-center justify-between gap-2" style={{ marginBottom: 14 }}>
+        <h3 style={{ fontSize: 16, fontWeight: 800, color: p.heading }}>랭킹 요약</h3>
+        <span className="rounded-full" style={{ padding: '2px 10px', fontSize: 14, fontWeight: 700, color: p.accent, background: p.accentSoft }}>API 키 {insight.keyCount}개</span>
+      </div>
+      <div className="grid items-center" style={{ gridTemplateColumns: cols, gap: 16, padding: '0 4px 9px', fontSize: 14, fontWeight: 600, color: p.muted, borderBottom: `1px solid ${p.divider}` }}>
+        <span className="text-center">#</span><span>소유자 · 팀</span><span className="text-center">키 발급일</span>
+        <span className="text-right">요청 수</span><span className="text-right">변화 · 7일</span>
+      </div>
+      <div className="flex flex-col">
+        {insight.rows.map((r, i) => (
+          <div key={r.keyId} className="grid items-center rounded-xl transition-colors" style={{ gridTemplateColumns: cols, gap: 16, padding: '11px 4px', animation: 'rankRowIn .4s ease both', animationDelay: `${i * 55}ms` }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = p.inset }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}>
+            <span className="flex items-center justify-center justify-self-center" style={{ width: 24, height: 24, borderRadius: 999, fontSize: 14, fontWeight: 800, ...rankStyle(i) }}>{i + 1}</span>
+            <div className="flex items-center min-w-0" style={{ gap: 8 }}>
+              <span className="flex items-center justify-center shrink-0 rounded-full" style={{ width: 28, height: 28, fontSize: 14, fontWeight: 800, color: '#fff', background: `linear-gradient(140deg, hsl(${r.teamHue},64%,56%), hsl(${(r.teamHue + 24) % 360},60%,46%))` }}>{r.name.slice(0, 1)}</span>
+              <div className="flex flex-col min-w-0" style={{ gap: 1 }}>
+                <span className="truncate" style={{ fontSize: 14, fontWeight: 700, color: p.heading }}>{r.name}</span>
+                <span className="truncate" style={{ fontSize: 14, color: p.muted }}>{r.team}</span>
+              </div>
+            </div>
+            <span className="tabular-nums truncate text-center" style={{ fontSize: 14, color: p.muted }}>{r.issuedAt}</span>
+            <div className="flex flex-col items-end" style={{ gap: 7 }}>
+              <div className="flex items-baseline whitespace-nowrap" style={{ gap: 5 }}>
+                <span className="tabular-nums" style={{ fontSize: 14.5, fontWeight: 800, color: p.heading, letterSpacing: '-0.3px' }}>{nf(r.requests)}</span>
+                <span className="tabular-nums" style={{ fontSize: 14, color: p.muted }}>{(r.reqPct * 100).toFixed(1)}%</span>
+              </div>
+              <div className="w-full rounded-full overflow-hidden" style={{ height: 5, background: p.inset }}>
+                <div className="h-full rounded-full" style={{ width: `${Math.max(5, r.reqPct * 100)}%`, background: r.color }} />
+              </div>
+            </div>
+            <div className="flex items-center justify-end" style={{ gap: 8 }}>
+              <div className="shrink-0" style={{ width: 56, height: 22 }}><SparkLine data={r.spark} color={r.up ? p.ok : p.danger} fill /></div>
+              <span className="flex items-center tabular-nums shrink-0 rounded-md" style={{ gap: 1, padding: '3px 7px', fontSize: 14, fontWeight: 800, color: r.up ? p.ok : p.danger, background: r.up ? p.okSoft : p.dangerSoft }}>
+                {r.up ? '▲' : '▼'}{Math.abs(r.deltaPct).toFixed(1)}%
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+      <span style={{ marginTop: 10, fontSize: 14, color: p.muted }}>막대는 전체 요청 대비 점유율 · 변화는 이전 7일 대비예요.</span>
+    </section>
+  )
+}
+
+// 사용량 추이 — 일별 스택 막대(API 키별) + 동시 사용량 라인(Figma 'Group 1' 하단 콤보).
+function UsageTrendChart({ insight }: { insight: UsageInsight }) {
+  const p = usePalette()
+  const { days, rows, maxRequests, maxConcurrent, avgConcurrent, todayDeltaPct, todayUp } = insight
+  const last = days[days.length - 1]
+  const colW = 64 / days.length // 막대 컬럼 폭(%)
+  const yMax = maxRequests * 1.16 // 막대 위 라벨 헤드룸(차트 천장·헤더 침범 방지)
+  const cMax = Math.max(1, Math.ceil(maxConcurrent * 1.12)) // 라인 상단 헤드룸
+  const pts = days.map((d, i) => ({ x: ((i + 0.5) / days.length) * 100, y: (1 - d.concurrent / cMax) * 100 }))
+  const linePath = pts.map((pt, i) => `${i === 0 ? 'M' : 'L'} ${pt.x} ${pt.y}`).join(' ')
+  return (
+    <section className="rounded-2xl flex flex-col flex-1 min-h-0" style={{ background: p.modalCard, border: `1px solid ${p.borderStrong}`, boxShadow: '0 2px 10px rgba(0,0,0,0.16)', padding: 20 }}>
+      <div className="flex items-center justify-between gap-2 shrink-0" style={{ marginBottom: 14 }}>
+        <h3 className="flex items-center gap-1.5" style={{ fontSize: 16, fontWeight: 800, color: p.heading }}>
+          <ChartBarIcon width={16} height={16} style={{ color: p.accent }} /> 사용량 추이
+        </h3>
+        <span className="rounded-lg" style={{ padding: '3px 10px', fontSize: 14, fontWeight: 600, color: p.muted, background: p.inset, border: `1px solid ${p.border}` }}>일별 · 최근 7일</span>
+      </div>
+
+      <div className="flex flex-1 min-h-0" style={{ gap: 8 }}>
+        <div className="flex flex-col justify-between shrink-0 text-right h-full" style={{ fontSize: 14, color: p.muted, width: 36 }}>
+          <span>{compactNum(Math.round(yMax))}</span><span>{compactNum(Math.round(yMax / 2))}</span><span>0</span>
+        </div>
+        <div className="relative flex-1 min-w-0 h-full">
+          {[0, 0.5, 1].map((g) => <div key={g} className="absolute left-0 right-0" style={{ top: `${g * 100}%`, borderTop: `1px dashed ${p.border}` }} />)}
+          <div className="absolute inset-0 flex items-end justify-around">
+            {days.map((d, di) => (
+              <div key={di} className="relative flex justify-center" style={{ width: `${colW}%`, height: '100%' }}>
+                <div className="absolute bottom-0 w-full flex flex-col-reverse rounded-t overflow-hidden" style={{ height: `${(d.total / yMax) * 100}%` }}>
+                  {d.perUser.map((v, ui) => <div key={ui} style={{ height: `${(v / d.total) * 100}%`, background: rows[ui]?.color ?? consumerColor(ui) }} />)}
+                </div>
+              </div>
+            ))}
+          </div>
+          <svg className="absolute inset-0 pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ width: '100%', height: '100%' }}>
+            <path d={linePath} fill="none" stroke={p.accent} strokeWidth={2} vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" />
+          </svg>
+          {pts.map((pt, i) => <span key={i} className="absolute rounded-full" style={{ left: `${pt.x}%`, top: `${pt.y}%`, width: 7, height: 7, background: p.accent, border: `2px solid ${p.modalCard}`, transform: 'translate(-50%,-50%)' }} />)}
+          {days.map((d, i) => (
+            <span key={`lbl-${i}`} className="absolute whitespace-nowrap rounded" style={{ left: `${((i + 0.5) / days.length) * 100}%`, bottom: `${(d.total / yMax) * 100}%`, transform: 'translateX(-50%)', marginBottom: 5, fontSize: 14, fontWeight: 700, color: p.heading, padding: '0 5px', background: p.modalCard, boxShadow: `0 0 0 1px ${p.border}` }}>{compactNum(d.total)}</span>
+          ))}
+        </div>
+        <div className="flex flex-col justify-between shrink-0 h-full" style={{ fontSize: 14, color: p.accent, width: 28 }}>
+          <span>{cMax}</span><span>{Math.round(cMax / 2)}</span><span>0</span>
+        </div>
+      </div>
+      <div className="flex justify-around shrink-0" style={{ marginLeft: 44, marginRight: 36, marginTop: 6, fontSize: 14, color: p.muted }}>
+        {days.map((d, i) => <span key={i} className="text-center" style={{ width: `${colW}%` }}>{d.label}</span>)}
+      </div>
+
+      <div className="flex flex-wrap items-center shrink-0" style={{ gap: '6px 14px', marginTop: 14 }}>
+        {rows.map((r) => (
+          <span key={r.keyId} className="flex items-center" style={{ gap: 5, fontSize: 14, color: p.muted }}>
+            <span className="rounded-sm" style={{ width: 10, height: 10, background: r.color }} /> {r.keyId}
+          </span>
+        ))}
+        <span className="flex items-center" style={{ gap: 5, fontSize: 14, color: p.muted }}>
+          <span style={{ width: 14, height: 2, background: p.accent }} /> 동시 사용량(우축)
+        </span>
+      </div>
+
+      <div className="rounded-xl shrink-0" style={{ marginTop: 12, padding: '10px 14px', background: p.inset, border: `1px solid ${p.border}`, fontSize: 14, color: p.muted, lineHeight: 1.5 }}>
+        <b style={{ color: p.heading }}>{last.label}</b> 총 요청 <b style={{ color: p.heading }}>{compactNum(last.total)}</b>
+        <span style={{ color: todayUp ? p.ok : p.danger, fontWeight: 700 }}> (전일 대비 {todayUp ? '+' : ''}{todayDeltaPct}%)</span> · 평균 동시 사용량 <b style={{ color: p.heading }}>{avgConcurrent}</b>
+      </div>
+    </section>
+  )
+}
+
+// ───────────────────────── 4.18 서비스 상세(페이지) ─────────────────────────
 export function ServiceDetail() {
   const p = usePalette()
   const narrow = useNarrow(760)
@@ -928,19 +1056,40 @@ export function ServiceDetail() {
       .catch(() => { if (alive) setState('notfound') })
     return () => { alive = false }
   }, [id])
+  const [insight, setInsight] = useState<UsageInsight | null>(null)
+  useEffect(() => {
+    if (!id) return
+    let alive = true
+    setInsight(null)
+    getMarketServiceUsage(id)
+      .then((raw) => { if (alive) setInsight(toUsageInsight(raw)) })
+      .catch(() => { if (alive) setInsight(null) })
+    return () => { alive = false }
+  }, [id])
+  const fill = !narrow // 넓은 화면: 무스크롤 2열 대시보드(페이지 고정, 콘텐츠는 컬럼 내부 스크롤)
+  const panel = { background: p.modalCard, border: `1px solid ${p.borderStrong}`, boxShadow: '0 2px 10px rgba(0,0,0,0.16)' } as const
+
   return (
-    <div data-qa className="anim-fade flex flex-col min-w-0" style={{ gap: 14 }}>
+    <div data-qa className="anim-fade flex flex-col min-w-0 w-full mx-auto" style={{ gap: 12, height: fill ? '100%' : 'auto', overflow: fill ? 'hidden' : 'visible', maxWidth: fill ? undefined : 1080 }}>
       <QaPolish />
-      <button type="button" onClick={() => navigate('/marketplace')} className="flex items-center gap-1.5 self-start" style={{ fontSize: 14, color: p.muted }}>
-        <ChevronRightIcon width={15} height={15} style={{ transform: 'rotate(180deg)' }} /> 마켓플레이스로
-      </button>
-      <div className="w-full mx-auto rounded-2xl" style={{ maxWidth: 900, background: p.modalCard, border: `1px solid ${p.borderStrong}`, boxShadow: '0 2px 10px rgba(0,0,0,0.18)', padding: narrow ? 20 : 28 }}>
-        {state === 'ready' && service
-          ? <ServiceDetailCard service={service} narrow={narrow} />
-          : <div className="flex items-center justify-center text-center" style={{ minHeight: 200, fontSize: 14, color: p.muted }}>
-              {state === 'loading' ? '서비스 정보를 불러오는 중…' : '서비스를 찾을 수 없어요.'}
-            </div>}
-      </div>
+      {state === 'ready' && service && insight ? (
+        <div className="grid min-w-0" style={{ gap: 14, flex: fill ? '1 1 0%' : undefined, minHeight: 0, gridTemplateColumns: narrow ? '1fr' : 'minmax(0, 1.25fr) minmax(0, 1fr)' }}>
+          {/* 좌 — 서비스 상세(콘텐츠 많을 때 컬럼 내부에서만 스크롤) */}
+          <div className="rounded-2xl min-w-0 min-h-0" style={{ ...panel, overflowY: fill ? 'auto' : 'visible', padding: narrow ? 20 : 24 }}>
+            <ServiceDetailCard service={service} narrow={narrow} />
+          </div>
+          {/* 우 — 랭킹 요약(위) + 사용량 추이(아래) */}
+          <div className="flex flex-col min-w-0 min-h-0" style={{ gap: 14, overflowY: fill ? 'auto' : 'visible' }}>
+            <RankingSummary insight={insight} />
+            <UsageTrendChart insight={insight} />
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-2xl flex flex-col items-center justify-center text-center" style={{ ...panel, minHeight: 200, gap: 12, padding: 28 }}>
+          <span style={{ fontSize: 14, color: p.muted }}>{state === 'loading' ? '서비스 정보를 불러오는 중…' : '서비스를 찾을 수 없어요.'}</span>
+          {state === 'notfound' && <Button variant="outline" onClick={() => navigate('/marketplace')}>마켓플레이스로</Button>}
+        </div>
+      )}
     </div>
   )
 }
