@@ -162,6 +162,34 @@ body {
   outline-offset: 2px;
 }
 
+/* === UX 폴리시: UI 텍스트 선택 방지, 내용·입력은 선택 허용 === */
+body {
+  -webkit-user-select: none;
+  user-select: none;
+}
+/* 복사가 필요한 영역은 선택 허용(입력·코드·명세 값 등) */
+input,
+textarea,
+select,
+pre,
+code,
+[data-selectable] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+/* 클릭 가능한 요소는 포인터 커서 */
+button,
+[role="button"],
+a[href],
+label,
+summary {
+  cursor: pointer;
+}
+button:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
 /* thin scrollbars to match dense dashboard tone */
 * {
   scrollbar-width: thin;

@@ -16,6 +16,7 @@ import { ModelCatalog, ModelDetail } from './screens/catalog'
 import { ModelRequests } from './screens/model-requests'
 import { ModelImport } from './screens/model-import'
 import { ModelRequestNew } from './screens/model-request-new'
+import { ModelRequestDetail } from './screens/model-request-detail'
 import { Marketplace, ServiceDetail } from './screens/market'
 import { ApiApprovals, PublishRequest } from './screens/activation'
 import { Events, Notifications } from './screens/events'
@@ -40,6 +41,7 @@ const REGISTRY: Record<string, ComponentType> = {
   'model-requests': ModelRequests,
   'model-import': ModelImport,
   'model-request-new': ModelRequestNew,
+  'model-request-detail': ModelRequestDetail,
   marketplace: Marketplace,
   'service-detail': ServiceDetail,
   'api-approvals': ApiApprovals,

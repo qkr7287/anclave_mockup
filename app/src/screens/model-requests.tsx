@@ -185,8 +185,9 @@ export function ModelRequests() {
 
   // 신규: 관리자=반입(model-import), 사용자=신청(model-request-new).
   const onNew = () => navigate(isAdmin ? '/admin/models/requests/new' : '/models/request/new')
-  // 모든 역할 — 상세 보기는 별도 상세 페이지로. (관리자는 그 페이지에서 반입 마법사로 진입)
-  const onRow = (r: ModelRequest) => navigate(`/models/requests/${r.id}`)
+  // 사용자(B/C)와 배포완료 건은 상세 페이지로, 관리자의 미배포(처리 대상) 건은 바로 반입 마법사로.
+  const onRow = (r: ModelRequest) =>
+    navigate(isAdmin && r.stage !== 'deployed' ? `/admin/models/requests/new?id=${r.id}` : `/models/requests/${r.id}`)
 
   return (
     <div className="anim-fade flex flex-col min-w-0 h-full">
