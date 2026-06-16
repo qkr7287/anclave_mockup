@@ -47,6 +47,15 @@ function useCrumbs(): Crumb[] {
       { label: '신규 모델 신청' },
     ]
   }
+  // 모델 신청 상세(/models/requests/:id) — modelMatch 보다 먼저(fallback 이 /models 카탈로그로 오매칭되는 것 방지).
+  const reqDetailMatch = pathname.match(/^\/models\/requests\/([^/]+)$/)
+  if (reqDetailMatch) {
+    return [
+      { label: '모델 관리' },
+      { label: '모델 신청 관리', to: '/admin/models/requests' },
+      { label: '모델 신청 상세' },
+    ]
+  }
   // 모델 상세(/models/:id) — 마지막 단계를 모델명으로(동적 라벨, useCatalogModels 조회).
   const modelMatch = pathname.match(/^\/models\/([^/]+)$/)
   if (modelMatch) {
