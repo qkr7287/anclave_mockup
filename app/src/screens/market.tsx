@@ -964,7 +964,7 @@ function usageInsightOf(s: Service): UsageInsight {
 // 랭킹 요약 — API 키별 요청·점유·변화(Figma 'Group 1' 상단 테이블).
 function RankingSummary({ insight }: { insight: UsageInsight }) {
   const p = usePalette()
-  const cols = '28px minmax(0,1.35fr) minmax(0,1fr) 100px 112px'
+  const cols = '28px minmax(0,1.3fr) minmax(0,0.95fr) 94px 132px'
   const MEDAL = ['#F4C71A', '#C7CFDB', '#E08A4C']
   const rankStyle = (i: number) => (i <= 2
     ? { background: `linear-gradient(140deg, ${MEDAL[i]}, ${MEDAL[i]}bb)`, color: '#10131c', boxShadow: `0 2px 7px ${MEDAL[i]}55` }
@@ -1007,7 +1007,7 @@ function RankingSummary({ insight }: { insight: UsageInsight }) {
               </div>
             </div>
             <div className="flex items-center justify-end" style={{ gap: 8 }}>
-              <div className="shrink-0" style={{ width: 38, height: 22 }}><SparkLine data={r.spark} color={r.up ? p.ok : p.danger} fill /></div>
+              <div className="shrink-0" style={{ width: 56, height: 22 }}><SparkLine data={r.spark} color={r.up ? p.ok : p.danger} fill /></div>
               <span className="flex items-center tabular-nums shrink-0 rounded-md" style={{ gap: 1, padding: '3px 7px', fontSize: 14, fontWeight: 800, color: r.up ? p.ok : p.danger, background: r.up ? p.okSoft : p.dangerSoft }}>
                 {r.up ? '▲' : '▼'}{Math.abs(r.deltaPct).toFixed(1)}%
               </span>
