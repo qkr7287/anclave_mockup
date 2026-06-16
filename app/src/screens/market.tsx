@@ -117,7 +117,7 @@ const allTagsOf = (list: Service[]) => [...new Set(list.flatMap((s) => s.tags))]
 const rankItemsOf = (list: Service[]): RankItem[] =>
   [...list].sort((a, b) => b.usageNum - a.usageNum).map((s, i) => ({
     rank: i + 1, name: s.name, model: s.model, usage: s.usage, delta: s.delta, up: s.up,
-    chips: [hasApiOf(s) ? s.api : '콘솔', s.model, s.tier], status: s.status,
+    chips: [hasApiOf(s) ? s.api : '콘솔', s.tier], status: s.status,
     tone: toneOf(s.status), icon: s.icon, hue: s.hue, seed: s.id, serviceId: s.id,
   }))
 
@@ -125,7 +125,7 @@ const STATUSES = ['정상', '주의', '불안정', '점검 중']
 
 interface RankItem {
   rank: number; name: string; model: string; usage: string; delta: string; up: boolean
-  chips: [string, string, string]; status: string; tone: Tone; icon: string; hue: number; seed: string; serviceId: string
+  chips: string[]; status: string; tone: Tone; icon: string; hue: number; seed: string; serviceId: string
 }
 // serviceId = 클릭 시 열 대표 서비스(상세 모달 재사용)
 // ───────────────────────── 필터 상태 ─────────────────────────
