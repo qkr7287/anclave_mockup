@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FoundationPage } from '../components/FoundationPage'
 import { models } from '../data'
 import type { Model } from '../data/types'
 import { useCatalogModels } from './model-requests-shared'
@@ -90,7 +89,7 @@ const BRAND: Record<string, Brand> = {
   m8: { name: 'Stability AI', mark: <StabilityMark /> },
   m10: { name: 'BAAI', mark: <BaaiMark /> },
 }
-const providerName = (id: string) => BRAND[id]?.name ?? '—'
+export const providerName = (id: string) => BRAND[id]?.name ?? '—'
 
 function Logo({ id, size = 38 }: { id: string; size?: number }) {
   const b = BRAND[id]
@@ -857,7 +856,7 @@ export function ModelCatalog() {
       </svg>
 
       <header className="flex flex-col min-w-0" style={{ gap: 4 }}>
-        <h2 className="font-bold truncate" style={{ fontSize: 22, letterSpacing: '-0.4px' }}>
+        <h2 className="font-bold truncate" style={{ fontSize: 23, lineHeight: 1.2 }}>
           모델 카탈로그
         </h2>
         <p style={{ fontSize: 14, color: K.sub }}>등록된 모델의 상세 정보와 모델 통계를 확인할 수 있습니다.</p>
@@ -905,15 +904,5 @@ export function ModelCatalog() {
   )
 }
 
-export function ModelDetail() {
-  return (
-    <FoundationPage
-      screen="4.13"
-      title="모델 상세"
-      desc="모델 메타·사용량, GPU 신청 시 선택 (공통)."
-      group={3}
-      roles={['A', 'B', 'C']}
-      planned={['메타데이터 카드(권장 GPU·라이선스)', '사용 추이 라인차트', 'GPU 신청 시 선택 진입']}
-    />
-  )
-}
+// 4.13 모델 상세 — 별도 파일에서 구현(라우팅·App.tsx import 호환 위해 여기서 re-export).
+export { ModelDetail } from './model-detail'

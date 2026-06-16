@@ -9,22 +9,18 @@ import {
   ArrowPathIcon,
   FunnelIcon,
   EyeIcon,
-  ArrowTopRightOnSquareIcon,
   DocumentTextIcon,
   ClockIcon,
   CheckCircleIcon,
   XCircleIcon,
 } from '@heroicons/react/24/outline'
-import { Button, Drawer, EmptyState, KpiStat, useToast } from '../components/ui'
-import { userById } from '../data'
+import { Button, EmptyState, KpiStat, useToast } from '../components/ui'
 import type { ModelRequest, ModelStage } from '../data/types'
 import { useRole } from '../lib/role'
 import { STAGE_META, useModelRequests } from './model-requests-shared'
 
 // G5 · 4.14 모델 신청 관리 — A·B·C 공유 테이블. 페이지·테이블 외형은 g2 자원 신청현황(4.6)과 통일.
 // 사용자(B/C)는 등록 신청만, 관리자(A)가 검토→반입(스캔)→명세→배포.
-
-const userName = (id: string): string => userById(id)?.name ?? id
 
 type IconType = ComponentType<SVGProps<SVGSVGElement>>
 
@@ -108,62 +104,12 @@ function PageBtn({ children, active, onClick, disabled }: { children: ReactNode;
   )
 }
 
-function SpecLine({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="flex items-start gap-3" style={{ padding: '10px 0', borderBottom: '1px dashed var(--c-border-s)' }}>
-      <span className="shrink-0" style={{ width: 78, color: 'var(--c-muted)' }}>{label}</span>
-      <div className="flex-1 min-w-0" style={{ color: 'var(--c-text)', wordBreak: 'break-word' }}>{children}</div>
-    </div>
-  )
-}
-
-// 읽기전용 상세(B/C 행 클릭) — 라우트 비의존 Drawer.
-function DetailDrawer({ req, open, onClose }: { req: ModelRequest | null; open: boolean; onClose: () => void }) {
-  const navigate = useNavigate()
-  if (!req) return null
-  return (
-    <Drawer open={open} onClose={onClose} title="모델 신청 상세" width={420}>
-      <div className="flex items-center justify-between gap-3" style={{ marginBottom: 12 }}>
-        <span className="font-bold truncate" style={{ fontSize: 15, color: 'var(--c-text)' }}>{req.modelName}</span>
-        <StageBadge stage={req.stage} />
-      </div>
-      <SpecLine label="신청자">{userName(req.requesterUserId)}</SpecLine>
-      <SpecLine label="종류">{req.kind ?? '—'}</SpecLine>
-      <SpecLine label="출처">{req.source ? <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}>{req.source}</span> : '—'}</SpecLine>
-      <SpecLine label="사유">{req.reason}</SpecLine>
-      <SpecLine label="신청일">{req.createdAt}</SpecLine>
-      {req.fileName && <SpecLine label="반입 파일"><span style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}>{req.fileName}</span></SpecLine>}
-      {req.scan && (
-        <SpecLine label="보안 점검">
-          <span style={{ color: req.scan === 'pass' ? 'var(--c-ok)' : req.scan === 'fail' ? 'var(--c-danger)' : 'var(--c-warn)' }}>
-            {req.scan === 'pass' ? '통과' : req.scan === 'fail' ? '실패' : '진행 중'}
-          </span>
-        </SpecLine>
-      )}
-      {req.checksum && <SpecLine label="체크섬"><span style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}>{req.checksum}</span></SpecLine>}
-      {req.processedAt && <SpecLine label="처리일">{req.processedAt}</SpecLine>}
-      {req.rejectReason && (
-        <div className="rounded-[10px]" style={{ marginTop: 12, padding: '11px 13px', background: 'var(--danger-soft)', color: 'var(--c-danger)', fontSize: 14, lineHeight: 1.5 }}>
-          {req.rejectReason}
-        </div>
-      )}
-      {req.stage === 'deployed' && req.registeredModelId && (
-        <Button variant="outline" onClick={() => navigate(`/models/${req.registeredModelId}`)} className="w-full justify-center" style={{ marginTop: 16 }}>
-          <ArrowTopRightOnSquareIcon style={{ width: 15, height: 15 }} />
-          카탈로그에서 보기
-        </Button>
-      )}
-    </Drawer>
-  )
-}
-
-// ── 필터 ──
-interface Filter { q: string; stage: string; requester: string; start: string; end: string }
-const EMPTY_FILTER: Filter = { q: '', stage: '전체', requester: '전체', start: '', end: '' }
+// ── 필터(신청자 제거 — B/C 는 본인 신청만 보이므로 불필요) ──
+interface Filter { q: string; stage: string; start: string; end: string }
+const EMPTY_FILTER: Filter = { q: '', stage: '전체', start: '', end: '' }
 function matchReq(r: ModelRequest, f: Filter): boolean {
-  if (f.q.trim() && !`${r.modelName} ${r.reason} ${userName(r.requesterUserId)}`.toLowerCase().includes(f.q.trim().toLowerCase())) return false
+  if (f.q.trim() && !`${r.modelName} ${r.reason}`.toLowerCase().includes(f.q.trim().toLowerCase())) return false
   if (f.stage !== '전체' && r.stage !== f.stage) return false
-  if (f.requester !== '전체' && r.requesterUserId !== f.requester) return false
   const d = r.createdAt.slice(0, 10)
   if (f.start && d < f.start) return false
   if (f.end && d > f.end) return false
@@ -171,9 +117,8 @@ function matchReq(r: ModelRequest, f: Filter): boolean {
 }
 
 const COLS: { key: string; label: string; width?: number }[] = [
-  { key: 'name', label: '모델명', width: 200 },
-  { key: 'requester', label: '신청자', width: 120 },
-  { key: 'kind', label: '종류', width: 110 },
+  { key: 'name', label: '모델명', width: 220 },
+  { key: 'kind', label: '종류', width: 120 },
   { key: 'reason', label: '요청 사유' },
   { key: 'date', label: '신청일', width: 150 },
   { key: 'stage', label: '단계', width: 116 },
@@ -183,18 +128,18 @@ const COLS: { key: string; label: string; width?: number }[] = [
 export function ModelRequests() {
   const navigate = useNavigate()
   const toast = useToast()
-  const { isAdmin } = useRole()
-  const requests = useModelRequests()
+  const { isAdmin, user } = useRole()
+  const allRequests = useModelRequests()
+  // 사용자(B/C)는 본인 신청만, 관리자(A)는 전체.
+  const requests = useMemo(() => (isAdmin ? allRequests : allRequests.filter((r) => r.requesterUserId === user.id)), [allRequests, isAdmin, user.id])
 
   const [q, setQ] = useState('')
   const [stageF, setStageF] = useState('전체')
-  const [requesterF, setRequesterF] = useState('전체')
   const [dateStart, setDateStart] = useState('')
   const [dateEnd, setDateEnd] = useState('')
   const [applied, setApplied] = useState<Filter>(EMPTY_FILTER)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
-  const [detail, setDetail] = useState<ModelRequest | null>(null)
 
   const counts = useMemo(() => {
     const c: Record<string, number> = {}
@@ -209,10 +154,6 @@ export function ModelRequests() {
     { label: '반려', desc: '보안점검 실패 등', num: 'var(--c-danger)', box: 'var(--danger-soft)', Icon: XCircleIcon, value: counts.rejected ?? 0 },
   ]
 
-  const requesterOpts = useMemo(() => {
-    const ids = Array.from(new Set(requests.map((r) => r.requesterUserId)))
-    return [{ value: '전체', label: '전체' }, ...ids.map((id) => ({ value: id, label: userName(id) }))]
-  }, [requests])
   const stageOpts = [
     { value: '전체', label: '전체' },
     { value: 'requested', label: '신청됨' },
@@ -222,8 +163,8 @@ export function ModelRequests() {
     { value: 'rejected', label: '반려' },
   ]
 
-  const hasFilter = applied.q.trim() !== '' || applied.stage !== '전체' || applied.requester !== '전체' || applied.start !== '' || applied.end !== ''
-  const dirty = q !== applied.q || stageF !== applied.stage || requesterF !== applied.requester || dateStart !== applied.start || dateEnd !== applied.end
+  const hasFilter = applied.q.trim() !== '' || applied.stage !== '전체' || applied.start !== '' || applied.end !== ''
+  const dirty = q !== applied.q || stageF !== applied.stage || dateStart !== applied.start || dateEnd !== applied.end
   const view = useMemo(() => requests.filter((r) => matchReq(r, applied)), [requests, applied])
   const pageCount = Math.max(1, Math.ceil(view.length / pageSize))
   const curPage = Math.min(page, pageCount)
@@ -231,23 +172,21 @@ export function ModelRequests() {
   useEffect(() => { setPage(1) }, [applied, pageSize])
 
   const applyFilters = () => {
-    const next: Filter = { q, stage: stageF, requester: requesterF, start: dateStart, end: dateEnd }
+    const next: Filter = { q, stage: stageF, start: dateStart, end: dateEnd }
     setApplied(next)
     setPage(1)
     const cnt = requests.filter((r) => matchReq(r, next)).length
     toast.push(`필터 적용 — ${cnt}건 검색되었어요`, cnt ? 'info' : 'warn')
   }
   const resetFilters = () => {
-    setQ(''); setStageF('전체'); setRequesterF('전체'); setDateStart(''); setDateEnd('')
+    setQ(''); setStageF('전체'); setDateStart(''); setDateEnd('')
     setApplied(EMPTY_FILTER); setPage(1)
   }
 
   // 신규: 관리자=반입(model-import), 사용자=신청(model-request-new).
   const onNew = () => navigate(isAdmin ? '/admin/models/requests/new' : '/models/request/new')
-  const onRow = (r: ModelRequest) => {
-    if (isAdmin) navigate(`/admin/models/requests/new?id=${r.id}`)
-    else setDetail(r)
-  }
+  // 모든 역할 — 상세 보기는 별도 상세 페이지로. (관리자는 그 페이지에서 반입 마법사로 진입)
+  const onRow = (r: ModelRequest) => navigate(`/models/requests/${r.id}`)
 
   return (
     <div className="anim-fade flex flex-col min-w-0 h-full">
@@ -290,14 +229,13 @@ export function ModelRequests() {
                 onKeyDown={(e) => { if (e.key === 'Enter') applyFilters() }}
                 className="bg-transparent min-w-0 flex-1 text-text"
                 style={{ fontSize: 14, outline: 'none', border: 'none', boxShadow: 'none' }}
-                placeholder="모델명, 사유, 신청자 검색"
+                placeholder="모델명, 사유 검색"
               />
               <button type="button" onClick={applyFilters} aria-label="검색" className="shrink-0 flex items-center justify-center rounded-md transition-colors hover:bg-soft active:scale-90" style={{ width: 24, height: 24, color: 'var(--c-muted)', margin: '0 -5px 0 0' }}>
                 <MagnifyingGlassIcon style={{ width: 17, height: 17 }} />
               </button>
             </FieldBox>
             <FilterSelect label="단계" value={stageF} onChange={setStageF} options={stageOpts} width={168} />
-            <FilterSelect label="신청자" value={requesterF} onChange={setRequesterF} options={requesterOpts} width={184} />
             <FieldBox className="gap-1.5" style={{ width: 320 }}>
               <CalendarDaysIcon style={{ width: 18, height: 18, color: 'var(--c-muted)', flexShrink: 0 }} />
               <input type="date" value={dateStart} max={dateEnd || undefined} onChange={(e) => setDateStart(e.target.value)} className="bg-transparent outline-none text-text min-w-0 flex-1" style={{ fontSize: 14, colorScheme: 'inherit' }} />
@@ -372,7 +310,6 @@ export function ModelRequests() {
                       onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                     >
                       <td className="align-middle truncate text-text font-medium" style={{ fontSize: 14, padding: '15px 0', paddingLeft: 24 }}>{r.modelName}</td>
-                      <td className="align-middle truncate text-muted" style={{ fontSize: 14, padding: '15px 0' }}>{userName(r.requesterUserId)}</td>
                       <td className="align-middle truncate text-muted" style={{ fontSize: 14, padding: '15px 0' }}>{r.kind ?? '—'}</td>
                       <td className="align-middle truncate text-muted" style={{ fontSize: 14, padding: '15px 16px 15px 0', lineHeight: 1.4 }}>{r.reason}</td>
                       <td className="align-middle truncate text-muted" style={{ fontSize: 14, padding: '15px 0' }}>{r.createdAt.slice(0, 10)}</td>
@@ -415,8 +352,6 @@ export function ModelRequests() {
           </div>
         )}
       </section>
-
-      <DetailDrawer req={detail} open={detail != null} onClose={() => setDetail(null)} />
     </div>
   )
 }

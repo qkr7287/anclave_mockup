@@ -12,12 +12,16 @@ async function apiGet<T>(path: string): Promise<T> {
   if (!r.ok) throw new Error(`GET ${path} ${r.status}`)
   return (await r.json()) as T
 }
-async function apiSend<T>(method: 'POST' | 'PATCH', path: string, body: unknown): Promise<T> {
+async function apiSend<T>(method: 'POST' | 'PATCH' | 'DELETE', path: string, body?: unknown): Promise<T> {
   const r = await fetch(`${API_BASE}${path}`, {
-    method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
   })
   if (!r.ok) throw new Error(`${method} ${path} ${r.status}`)
-  return (await r.json()) as T
+  // DELETE 는 본문 없는 204 를 흔히 반환 → 파싱 시도하되 빈 본문이면 무시.
+  const text = await r.text()
+  return (text ? JSON.parse(text) : undefined) as T
 }
 
 // ── localStorage 폴백(백엔드 미기동 시 현 동작 유지) ──
@@ -185,6 +189,25 @@ export async function createModel(model: NewModel): Promise<Model> {
     modelSnapshot = computeLocalModels()
     emit()
     return m
+  }
+}
+
+// 모델 회수(배포 중단)·등록 취소 시 카탈로그에서 제거. 명시적 사용자 액션이라 결과(상태코드)를 호출부에 전달한다.
+// 409=사용 중 서비스 있음(거부), 404=이미 없음, 200=삭제. 네트워크 실패는 throw(호출부 catch).
+export async function deleteModel(id: string): Promise<{ ok: boolean; status: number }> {
+  const r = await fetch(`${API_BASE}/api/models/${id}`, { method: 'DELETE' })
+  if (r.ok) await refetch()
+  return { ok: r.ok, status: r.status }
+}
+// 등록 취소(영구 삭제) 시 신청 레코드까지 제거.
+export async function deleteRequest(id: string): Promise<void> {
+  try {
+    await apiSend<void>('DELETE', `/api/model-requests/${id}`)
+    await refetch()
+  } catch {
+    localStorage.setItem(REQ_KEY, JSON.stringify(getLocalRequests().filter((r) => r.id !== id)))
+    reqSnapshot = computeLocalRequests()
+    emit()
   }
 }
 

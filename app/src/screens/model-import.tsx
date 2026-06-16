@@ -958,11 +958,18 @@ export function ModelImport() {
   return (
     <div className="anim-fade flex flex-col min-w-0 h-full" style={{ minHeight: '100%' }}>
       <header className="flex flex-col shrink-0">
-        <button type="button" onClick={() => navigate(LIST_PATH)} className="inline-flex items-center gap-1.5 self-start transition-colors" style={{ fontSize: 14, color: 'var(--c-muted)' }}>
-          <ArrowLeftIcon style={{ width: 15, height: 15 }} />
-          모델 신청 관리
-        </button>
-        <h1 className="font-bold" style={{ fontSize: 22, lineHeight: 1.2, marginTop: 12, color: 'var(--c-text)' }}>신규 모델 반입</h1>
+        <div className="flex items-center" style={{ gap: 10 }}>
+          <button
+            type="button"
+            aria-label="뒤로 가기"
+            onClick={() => navigate(LIST_PATH)}
+            className="flex items-center justify-center rounded-[9px] border border-line bg-card2 text-muted hover:text-text hover:bg-soft cursor-pointer transition-colors shrink-0"
+            style={{ width: 34, height: 34 }}
+          >
+            <ArrowLeftIcon style={{ width: 18, height: 18 }} />
+          </button>
+          <h1 className="font-bold" style={{ fontSize: 23, lineHeight: 1.2, color: 'var(--c-text)' }}>신규 모델 반입</h1>
+        </div>
         <p style={{ fontSize: 14, color: 'var(--c-muted)', marginTop: 6 }}>{terminal ? (req?.stage === 'deployed' ? '배포 완료된 모델입니다.' : '반려된 신청입니다.') : subtitle}</p>
       </header>
 
