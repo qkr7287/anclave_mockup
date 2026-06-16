@@ -369,7 +369,7 @@ function PendingReview({ req }: { req: ApiRecord }) {
               </div>
             </div>
             <div className="flex items-center justify-between shrink-0" style={{ borderTop: '1px solid var(--c-border)', padding: '14px 24px' }}>
-              <div />
+              <ActionBtn variant="dangerOutline" onClick={() => { setRejecting(true); setStep(1) }}><XCircleIcon width={16} height={16} />반려</ActionBtn>
               <div className="flex items-center gap-3">
                 {!keyOk && <span className="text-muted" style={{ fontSize: 14 }}>API 키를 입력하면 진행할 수 있어요.</span>}
                 <Button onClick={() => setStep(1)} disabled={!keyOk}>검토하기</Button>

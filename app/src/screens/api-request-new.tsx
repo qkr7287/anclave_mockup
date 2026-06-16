@@ -303,7 +303,8 @@ export function ApiRequestNew() {
 
   if (!svc) {
     return (
-      <div className="anim-fade flex flex-col h-full" style={mutedFix}>
+      <div data-qa className="anim-fade flex flex-col h-full" style={mutedFix}>
+        <QaPolish />
         <header className="flex flex-col shrink-0">
           <StepBack to="/marketplace" label="마켓플레이스" />
         </header>
@@ -316,7 +317,8 @@ export function ApiRequestNew() {
 
   if (doneId) {
     return (
-      <div className="anim-fade flex flex-col h-full" style={mutedFix}>
+      <div data-qa className="anim-fade flex flex-col h-full" style={mutedFix}>
+        <QaPolish />
         <div className="flex-1 min-h-0 flex items-center justify-center">
           <div className="bg-card2 border border-line rounded-[16px] flex flex-col items-center text-center" style={{ boxShadow: 'var(--shadow-card)', padding: '40px 44px', maxWidth: 480, width: '100%' }}>
             <span className="relative flex items-center justify-center rounded-full" style={{ width: 66, height: 66, background: 'var(--ok-soft)', color: 'var(--c-ok)' }}>
