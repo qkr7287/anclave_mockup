@@ -1014,7 +1014,9 @@ function UsageTrendChart({ insight }: { insight: UsageInsight }) {
   const { days, rows, maxRequests, maxConcurrent, avgConcurrent, todayDeltaPct, todayUp } = insight
   const last = days[days.length - 1]
   const colW = 64 / days.length // 막대 컬럼 폭(%)
-  const pts = days.map((d, i) => ({ x: ((i + 0.5) / days.length) * 100, y: (1 - d.concurrent / maxConcurrent) * 92 + 2 }))
+  const yMax = maxRequests * 1.16 // 막대 위 라벨 헤드룸(차트 천장·헤더 침범 방지)
+  const cMax = Math.max(1, Math.ceil(maxConcurrent * 1.12)) // 라인 상단 헤드룸
+  const pts = days.map((d, i) => ({ x: ((i + 0.5) / days.length) * 100, y: (1 - d.concurrent / cMax) * 100 }))
   const linePath = pts.map((pt, i) => `${i === 0 ? 'M' : 'L'} ${pt.x} ${pt.y}`).join(' ')
   return (
     <section className="rounded-2xl flex flex-col flex-1 min-h-0" style={{ background: p.modalCard, border: `1px solid ${p.borderStrong}`, boxShadow: '0 2px 10px rgba(0,0,0,0.16)', padding: 20 }}>
@@ -1027,14 +1029,14 @@ function UsageTrendChart({ insight }: { insight: UsageInsight }) {
 
       <div className="flex flex-1 min-h-0" style={{ gap: 8 }}>
         <div className="flex flex-col justify-between shrink-0 text-right h-full" style={{ fontSize: 14, color: p.muted, width: 36 }}>
-          <span>{compactNum(maxRequests)}</span><span>{compactNum(Math.round(maxRequests / 2))}</span><span>0</span>
+          <span>{compactNum(Math.round(yMax))}</span><span>{compactNum(Math.round(yMax / 2))}</span><span>0</span>
         </div>
         <div className="relative flex-1 min-w-0 h-full">
           {[0, 0.5, 1].map((g) => <div key={g} className="absolute left-0 right-0" style={{ top: `${g * 100}%`, borderTop: `1px dashed ${p.border}` }} />)}
           <div className="absolute inset-0 flex items-end justify-around">
             {days.map((d, di) => (
               <div key={di} className="relative flex justify-center" style={{ width: `${colW}%`, height: '100%' }}>
-                <div className="absolute bottom-0 w-full flex flex-col-reverse rounded-t overflow-hidden" style={{ height: `${(d.total / maxRequests) * 100}%` }}>
+                <div className="absolute bottom-0 w-full flex flex-col-reverse rounded-t overflow-hidden" style={{ height: `${(d.total / yMax) * 100}%` }}>
                   {d.perUser.map((v, ui) => <div key={ui} style={{ height: `${(v / d.total) * 100}%`, background: rows[ui]?.color ?? consumerColor(ui) }} />)}
                 </div>
               </div>
@@ -1045,11 +1047,11 @@ function UsageTrendChart({ insight }: { insight: UsageInsight }) {
           </svg>
           {pts.map((pt, i) => <span key={i} className="absolute rounded-full" style={{ left: `${pt.x}%`, top: `${pt.y}%`, width: 7, height: 7, background: p.accent, border: `2px solid ${p.modalCard}`, transform: 'translate(-50%,-50%)' }} />)}
           {days.map((d, i) => (
-            <span key={`lbl-${i}`} className="absolute whitespace-nowrap rounded" style={{ left: `${((i + 0.5) / days.length) * 100}%`, bottom: `${(d.total / maxRequests) * 100}%`, transform: 'translateX(-50%)', marginBottom: 5, fontSize: 14, fontWeight: 700, color: p.heading, padding: '0 5px', background: p.modalCard, boxShadow: `0 0 0 1px ${p.border}` }}>{compactNum(d.total)}</span>
+            <span key={`lbl-${i}`} className="absolute whitespace-nowrap rounded" style={{ left: `${((i + 0.5) / days.length) * 100}%`, bottom: `${(d.total / yMax) * 100}%`, transform: 'translateX(-50%)', marginBottom: 5, fontSize: 14, fontWeight: 700, color: p.heading, padding: '0 5px', background: p.modalCard, boxShadow: `0 0 0 1px ${p.border}` }}>{compactNum(d.total)}</span>
           ))}
         </div>
         <div className="flex flex-col justify-between shrink-0 h-full" style={{ fontSize: 14, color: p.accent, width: 28 }}>
-          <span>{maxConcurrent}</span><span>{Math.round(maxConcurrent / 2)}</span><span>0</span>
+          <span>{cMax}</span><span>{Math.round(cMax / 2)}</span><span>0</span>
         </div>
       </div>
       <div className="flex justify-around shrink-0" style={{ marginLeft: 44, marginRight: 36, marginTop: 6, fontSize: 14, color: p.muted }}>
