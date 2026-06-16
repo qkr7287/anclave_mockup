@@ -13,9 +13,10 @@ import {
   Picker,
 } from '../components/ui'
 import type { PickerOption } from '../components/ui'
-import { BandChart, SparkLine, ServerHexMap, bandColor } from '../components/charts'
+import { BandChart, SparkLine, ServerHexMap, bandColor, heatColor } from '../components/charts'
 import type { ServerRegion, Bay, BandSeries, BandAxis } from '../components/charts'
 import { ServerIcon, CpuChipIcon, ChartBarSquareIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
+import { ArrowLeftIcon } from '@heroicons/react/24/solid'
 import { servers, serverById, allGpus, userById, modelById, gpuRequests } from '../data'
 import type { Gpu, MigSlice, EventLog, Service, GpuServer } from '../data/types'
 import {
@@ -45,6 +46,23 @@ const HEALTH_META: Record<string, { color: string; label: string }> = {
   warn: { color: 'var(--c-warn)', label: '경고' },
   danger: { color: 'var(--c-danger)', label: '장애' },
   inactive: { color: 'var(--c-inactive)', label: '유휴' },
+}
+
+// 헤더 좌측 뒤로가기(아이콘 버튼) — 자원 신청현황(G2 dashboard)과 동일 스펙: 34px·rounded-[9px]
+// ·bg-card2·hover bg-soft·아이콘 18·navigate(-1)(브라우저 뒤로).
+function BackBtn() {
+  const navigate = useNavigate()
+  return (
+    <button
+      type="button"
+      aria-label="뒤로 가기"
+      onClick={() => navigate(-1)}
+      className="flex items-center justify-center rounded-[9px] border border-line bg-card2 text-muted hover:text-text hover:bg-soft cursor-pointer transition-colors shrink-0"
+      style={{ width: 34, height: 34 }}
+    >
+      <ArrowLeftIcon style={{ width: 18, height: 18 }} />
+    </button>
+  )
 }
 
 // 서버 스위처 옵션(정적 — seed.json 단일 소스). 4.3·4.4 공용.
@@ -964,8 +982,9 @@ export function ServerDetail() {
       <div className="no-select h-full">
       <PageShell fill bare screen="4.3">
         <div className="flex flex-col h-full min-h-0" style={{ gap: 12 }}>
-          {/* 헤더 — 서버 스위처(검색 드롭다운) · 상태 · GPU 수 */}
+          {/* 헤더 — 뒤로가기 · 서버 스위처(검색 드롭다운) · 상태 · GPU 수 */}
           <div className="flex items-center gap-3 shrink-0 min-w-0">
+            <BackBtn />
             <Picker
               size="lg"
               value={server.id}
@@ -1154,11 +1173,15 @@ export function GpuDetail() {
       <div className="no-select h-full">
       <PageShell
         fill
+        bare
         screen="4.4"
-        title="GPU 상세 현황"
-        desc={`${gpu.model} · ${gpu.serial} · ${gpu.migCapable ? 'MIG 분할' : 'GPU 단일 할당'}`}
-        actions={
-          <div className="flex items-center gap-2 min-w-0">
+        pre={
+          <header className="flex items-center justify-between gap-3 min-w-0 shrink-0">
+            <div className="flex items-center gap-3 min-w-0">
+              <BackBtn />
+              <h2 className="font-bold truncate" style={{ fontSize: 18 }}>GPU 상세 현황</h2>
+            </div>
+            <div className="flex items-center gap-2 min-w-0">
             {/* 서버 전환 — 바꾸면 해당 서버의 첫 GPU로 */}
             <Picker
               size="sm"
@@ -1187,7 +1210,8 @@ export function GpuDetail() {
               menuWidth={244}
             />
             {gpu.xid ? <Badge tone="danger" dot={false}>{gpu.xid}</Badge> : <HealthBadge health={gpu.health} />}
-          </div>
+            </div>
+          </header>
         }
         kpis={
           <>
@@ -1270,9 +1294,9 @@ function VramSegments({ util }: { util: number }) {
   const filled = Math.round((util / 100) * 32)
   return (
     <div className="grid" style={{ gridTemplateColumns: 'repeat(32, 1fr)', gap: 2 }}>
-      {/* 블루(214) → 틸(188) 램프 — 전체 액센트와 통일(그린 이탈 제거) */}
+      {/* 온도 스펙트럼 램프 — 세그먼트 위치를 따라 블루(저)→시안→녹→황→주황→레드(고). MIG 육각과 동일 heatColor */}
       {Array.from({ length: 32 }, (_, i) => (
-        <div key={i} style={{ height: 16, borderRadius: 2, background: i < filled ? `hsl(${214 - (i / 32) * 26}, 72%, 56%)` : 'var(--c-soft)' }} title={`세그먼트 ${i + 1}/32`} />
+        <div key={i} style={{ height: 16, borderRadius: 2, background: i < filled ? heatColor((i / 31) * 100) : 'var(--c-soft)' }} title={`세그먼트 ${i + 1}/32`} />
       ))}
     </div>
   )
