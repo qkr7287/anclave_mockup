@@ -43,7 +43,6 @@ export function Sidebar({ access, collapsed, onToggle }: SidebarProps) {
   const groups = buildSidebar(access)
   const { pathname } = useLocation()
   const activeKey = sidebarHighlightKey(pathname)
-  const activeGroupId = groups.find((g) => g.items.some((it) => it.key === activeKey))?.group.id
 
   // 전체 서버 현황 하위: 단일 서버 현황 / GPU 상세 현황 (현재 드릴다운 위치 또는 첫 서버·GPU로 링크)
   const segs = pathname.split('/')
@@ -62,11 +61,8 @@ export function Sidebar({ access, collapsed, onToggle }: SidebarProps) {
         ]
       : []
 
-  // 초기 진입 시 활성 그룹만 펼침. 이후엔 사용자가 토글한 상태만 유지 —
-  // 페이지 이동(activeGroupId 변경)으로 다른 그룹이 자동으로 접히지 않게.
-  const [openMap, setOpenMap] = useState<Record<number, boolean>>(
-    () => (activeGroupId != null ? { [activeGroupId]: true } : {}),
-  )
+  // 사이드바 펼침은 전부 수동 — 자동 펼침/접힘 없음. 사용자가 토글한 그룹만 열림.
+  const [openMap, setOpenMap] = useState<Record<number, boolean>>({})
   const isOpen = (gid: number) => openMap[gid] ?? false
   const toggle = (gid: number) => setOpenMap((m) => ({ ...m, [gid]: !isOpen(gid) }))
 
