@@ -121,8 +121,14 @@ async function main() {
 
   for (const r of seed.gpuChangeRequests ?? [])
     await ins('gpu_change_requests',
-      ['id', 'requester_user_id', 'type', 'reason', 'status', 'reject_reason', 'created_at'],
-      [r.id, r.requesterUserId, r.type, r.reason ?? null, r.status, r.rejectReason ?? null, r.createdAt])
+      ['id', 'requester_user_id', 'type', 'reason', 'status', 'reject_reason', 'created_at',
+        'target_request_id', 'after_server_id', 'after_gpu_id', 'after_slice_id',
+        'after_ram_gb', 'after_storage_gb', 'after_cpu_cores', 'after_extra',
+        'processed_at', 'processed_by', 'admin_memo'],
+      [r.id, r.requesterUserId, r.type, r.reason ?? null, r.status, r.rejectReason ?? null, r.createdAt,
+        r.targetRequestId ?? null, r.afterServerId ?? null, r.afterGpuId ?? null, r.afterSliceId ?? null,
+        r.afterRamGb ?? null, r.afterStorageGb ?? null, r.afterCpuCores ?? null,
+        r.afterExtra ? JSON.stringify(r.afterExtra) : null, r.processedAt ?? null, r.processedBy ?? null, r.adminMemo ?? null])
 
   // --- model_requests (4.14 모델 신청 관리 — 프론트 ModelRequest 싱크, 구 model_imports 대체) ---
   for (const r of seed.modelRequests ?? [])

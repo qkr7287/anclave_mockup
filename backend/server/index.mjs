@@ -778,6 +778,14 @@ app.patch('/api/gpu-change-requests/:id', async (c) => {
   return c.json(await fetchCR(id))
 })
 
+// 변경요청 삭제(정리용) — 참조받는 FK 없어 단순 삭제. 없으면 404.
+app.delete('/api/gpu-change-requests/:id', async (c) => {
+  const id = c.req.param('id')
+  const { rowCount } = await pool.query('delete from gpu_change_requests where id = $1', [id])
+  if (!rowCount) return c.json({ error: 'not found' }, 404)
+  return c.json({ deleted: id })
+})
+
 // 내 서비스 토큰 사용량 — user 소유 서비스들의 tokens 시계열(9버킷) + 합계. 4.5 토큰차트.
 app.get('/api/service-tokens', async (c) => {
   const { user } = c.req.query()

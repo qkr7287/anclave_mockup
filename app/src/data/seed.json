@@ -1108,27 +1108,72 @@
   "gpuChangeRequests": [
     {
       "id": "cr-01",
-      "requesterUserId": "u-pts",
+      "requesterUserId": "u-hwang",
       "type": "expand",
-      "reason": "code-assist 호출량 증가로 RTX 2070(srv-08) → RTX PRO 4500 MIG 슬라이스 확장 필요",
-      "status": "approved",
-      "createdAt": "2026-06-01 09:30"
+      "targetRequestId": "gr-03",
+      "reason": "RAG 문서량 증가로 메모리·저장 공간 확장이 필요합니다.",
+      "status": "pending",
+      "createdAt": "2026-06-10 09:30",
+      "afterRamGb": 32,
+      "afterStorageGb": 30
     },
     {
       "id": "cr-02",
-      "requesterUserId": "u-kgr",
-      "type": "migrate",
-      "reason": "srv-06 응답 지연으로 vision-qa를 srv-01 가용 MIG 인스턴스로 이전 요청",
+      "requesterUserId": "u-pts",
+      "type": "change",
+      "targetRequestId": "gr-01",
+      "reason": "에이전트 동시 처리량 증가로 CPU 코어 증설을 요청합니다.",
       "status": "pending",
-      "createdAt": "2026-06-04 16:12"
+      "createdAt": "2026-06-11 14:10",
+      "afterCpuCores": 12
     },
     {
       "id": "cr-03",
-      "requesterUserId": "u-hwang",
+      "requesterUserId": "u-kgr",
       "type": "reclaim",
-      "reason": "srv-05(RTX 2060) 유휴 탐지 → 관리자 직접 회수(가용화)",
+      "targetRequestId": "gr-02",
+      "reason": "비전 QA 파일럿 종료로 할당 자원을 회수합니다.",
+      "status": "pending",
+      "createdAt": "2026-06-12 10:00"
+    },
+    {
+      "id": "cr-04",
+      "requesterUserId": "u-jhs",
+      "type": "expand",
+      "targetRequestId": "gr-05",
+      "reason": "음성 데이터 누적으로 저장 공간 확장이 필요합니다.",
       "status": "approved",
-      "createdAt": "2026-06-05 11:48"
+      "createdAt": "2026-06-07 16:00",
+      "processedAt": "2026-06-08 11:20",
+      "processedBy": "u-admin",
+      "adminMemo": "잔여 용량 충분 — 승인합니다.",
+      "afterStorageGb": 40
+    },
+    {
+      "id": "cr-05",
+      "requesterUserId": "u-hwang",
+      "type": "change",
+      "targetRequestId": "gr-04",
+      "reason": "이미지 배치 크기 상향으로 시스템 메모리 증설을 요청합니다.",
+      "status": "approved",
+      "createdAt": "2026-06-05 13:00",
+      "processedAt": "2026-06-06 09:40",
+      "processedBy": "u-admin",
+      "adminMemo": "승인 처리했습니다.",
+      "afterRamGb": 48
+    },
+    {
+      "id": "cr-06",
+      "requesterUserId": "u-kgr",
+      "type": "expand",
+      "targetRequestId": "gr-07",
+      "reason": "챗봇 트래픽 증가로 CPU 코어 확장을 요청합니다.",
+      "status": "approved",
+      "createdAt": "2026-06-08 09:00",
+      "processedAt": "2026-06-09 10:15",
+      "processedBy": "u-admin",
+      "adminMemo": "승인합니다.",
+      "afterCpuCores": 12
     }
   ],
   "apiKeyUsages": [
