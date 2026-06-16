@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
-import type { CSSProperties, MouseEvent as ReactMouseEvent, ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeftIcon } from '@heroicons/react/24/outline'
-import { services, userById } from '../data'
+import { services } from '../data'
 import type { Model, Service } from '../data/types'
 import { useRole } from '../lib/role'
 import { Logo, providerName } from './catalog'
@@ -15,156 +15,87 @@ import { M, SectionHead, SpecSection } from './model-wizard-ui'
 // 색=앱 공통 토큰(var(--c-*)) 자동 라이트/다크. 본문 14px floor(차트 축만 12 허용).
 
 const TOKENS_PER_REQ = 5400
-const N_DAYS = 30
 const END_DATE = new Date('2026-06-15T00:00:00') // deterministic 기준일(Math.random·argless Date 미사용)
 
 const fmtReq = (n: number) =>
   n >= 1_000_000 ? `${(n / 1_000_000).toFixed(2)}M` : n >= 1000 ? `${(n / 1000).toFixed(1)}K` : `${n}`
 const fmtTok = (n: number) =>
   n >= 1_000_000_000 ? `${(n / 1_000_000_000).toFixed(2)}B` : n >= 1_000_000 ? `${Math.round(n / 1_000_000)}M` : `${Math.round(n / 1000)}K`
-const fmtFull = (n: number) => n.toLocaleString('en-US')
 
 function slugify(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'model'
 }
-function hashStr(s: string): number {
-  let h = 0
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0
-  return h
+
+// 모델 소개(description)는 '요약 2문장 + 빈 줄 + 불릿' 구조 → 위치별로 분량 차등 노출.
+// 헤더/명세서엔 요약만, '모델 소개' 박스엔 전체.
+const descSummary = (d?: string): string => (d ?? '').split('\n\n')[0].trim()
+const descLead = (d?: string): string => {
+  const s = descSummary(d)
+  const i = s.indexOf('. ')
+  return i > 0 ? s.slice(0, i + 1) : s
 }
 
-interface DayPoint {
+interface CountPoint {
   label: string
-  req: number
-  tok: number
+  count: number
 }
-// 월 사용량(usageCount)을 일별 시계열로 분해 — 주말 감소 + deterministic 파동. 그래프 "좀 더 상세하게".
-function dailySeries(model: Model): DayPoint[] {
-  const avg = Math.max(1, model.usageCount / N_DAYS)
-  const seed = hashStr(model.id)
-  const out: DayPoint[] = []
-  for (let i = 0; i < N_DAYS; i++) {
+// 이 모델을 '가져다 쓴 서비스 수' 추이 — 최근 6개월 누적 채택(deterministic). total=현재 사용 서비스 수.
+function serviceCountSeries(total: number): CountPoint[] {
+  const out: CountPoint[] = []
+  for (let i = 0; i < 6; i++) {
     const d = new Date(END_DATE)
-    d.setDate(d.getDate() - (N_DAYS - 1 - i))
-    const dow = d.getDay()
-    const weekend = dow === 0 || dow === 6 ? 0.62 : 1
-    const wave = 1 + 0.26 * Math.sin((i + seed) * 0.7) + 0.13 * Math.cos(i * 1.3 + seed)
-    const req = Math.max(Math.round(avg * 0.3), Math.round(avg * weekend * wave))
-    out.push({ label: `${d.getMonth() + 1}/${d.getDate()}`, req, tok: req * TOKENS_PER_REQ })
+    d.setMonth(d.getMonth() - (5 - i))
+    out.push({ label: `${d.getMonth() + 1}월`, count: i === 5 ? total : Math.round((total * (i + 1)) / 6) })
   }
   return out
 }
 
-// ── KPI 아이콘(14px floor 무관 · 장식) ──
-const IconReq = () => (
-  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M2 11l3.5-3.5 2.5 2L13 5" /><path d="M10 5h3v3" /></svg>
-)
-const IconToken = () => (
-  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden><path d="M8 1.5l5.5 3.2v6.6L8 14.5 2.5 11.3V4.7L8 1.5z" opacity="0.92" /></svg>
-)
-const IconShare = () => (
-  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden><circle cx="8" cy="8" r="5.5" /><path d="M8 8V2.5A5.5 5.5 0 0 1 13 8z" fill="currentColor" stroke="none" /></svg>
-)
-const IconAvg = () => (
-  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden><rect x="2.2" y="3" width="11.6" height="11" rx="2" /><path d="M2.2 6.5h11.6M5.5 2v3M10.5 2v3" /></svg>
-)
-
-// ── KPI 카드 — 카탈로그 사용 현황 박스와 톤 통일(아이콘 박스 + 라벨 + 값) ──
-function KpiCard({ icon, label, value, unit, accent }: { icon: ReactNode; label: string; value: string; unit?: string; accent?: boolean }) {
-  return (
-    <div
-      className="flex flex-col min-w-0"
-      style={{ background: 'var(--c-card2)', border: `1px solid ${M.border}`, borderRadius: 12, padding: '14px 15px' }}
-    >
-      <div className="flex items-center min-w-0" style={{ gap: 9 }}>
-        <span
-          className="flex items-center justify-center shrink-0"
-          style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--accent-soft)', color: 'var(--c-accent)' }}
-          aria-hidden
-        >
-          {icon}
-        </span>
-        <span className="truncate" style={{ fontSize: 14, color: M.meta }}>{label}</span>
-      </div>
-      <div className="flex items-baseline" style={{ gap: 4, marginTop: 11 }}>
-        <span className="tabular-nums font-bold" style={{ fontSize: 24, color: accent ? 'var(--c-accent)' : M.text, letterSpacing: '-0.3px' }}>{value}</span>
-        {unit && <span style={{ fontSize: 14, color: M.help }}>{unit}</span>}
-      </div>
-    </div>
-  )
-}
-
-// ── 상세 사용률 추이(area+line, hover 툴팁) ──
-function UsageTrendChart({ series }: { series: DayPoint[] }) {
-  const [hover, setHover] = useState<number | null>(null)
+// ── 가져다 쓴 서비스 수 추이(월별 누적 채택, area+line+값) ──
+function ServiceTrendChart({ data }: { data: CountPoint[] }) {
   const W = 720
-  const H = 150
-  const max = Math.max(...series.map((d) => d.req)) * 1.12
-  const px = (i: number) => (i * W) / (series.length - 1)
+  const H = 130
+  const max = Math.max(2, ...data.map((d) => d.count)) * 1.25
+  const px = (i: number) => (i * W) / (data.length - 1)
   const py = (v: number) => H * (1 - v / max)
-  const line = series.map((d, i) => `${px(i)},${py(d.req)}`).join(' ')
+  const line = data.map((d, i) => `${px(i)},${py(d.count)}`).join(' ')
   const area = `0,${H} ${line} ${W},${H}`
-  const yTicks = [max, max / 2, 0]
-  const xIdx = [0, 6, 12, 18, 24, series.length - 1]
-
-  const onMove = (e: ReactMouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect()
-    const ratio = (e.clientX - rect.left) / rect.width
-    setHover(Math.max(0, Math.min(series.length - 1, Math.round(ratio * (series.length - 1)))))
-  }
-  const hp = hover != null ? series[hover] : null
-
+  const top = Math.ceil(max)
+  const yTicks = [top, Math.round(top / 2), 0]
   return (
     <div>
-      <div className="flex min-h-0" style={{ gap: 10 }}>
-        <div className="flex flex-col justify-between shrink-0" style={{ width: 46, height: H, paddingBottom: 0 }}>
+      <div className="flex" style={{ gap: 10 }}>
+        <div className="flex flex-col justify-between shrink-0 text-right" style={{ width: 24, height: H }}>
           {yTicks.map((t, i) => (
-            <span key={i} className="tabular-nums text-right" style={{ fontSize: 14, color: M.idle }}>{fmtReq(Math.round(t))}</span>
+            <span key={i} className="tabular-nums" style={{ fontSize: 14, color: M.idle }}>{t}</span>
           ))}
         </div>
-        <div className="relative flex-1 min-w-0" style={{ height: H }} onMouseMove={onMove} onMouseLeave={() => setHover(null)}>
+        <div className="relative flex-1 min-w-0" style={{ height: H }}>
           <div className="absolute inset-0 flex flex-col justify-between">
             {[0, 1, 2].map((i) => (<span key={i} style={{ height: 1, background: 'var(--c-border)', opacity: 0.6 }} />))}
           </div>
           <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="absolute inset-0" style={{ width: '100%', height: '100%', display: 'block' }} aria-hidden>
             <defs>
-              <linearGradient id="mdArea" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="var(--c-accent)" stopOpacity={0.30} />
+              <linearGradient id="svcArea" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="var(--c-accent)" stopOpacity={0.28} />
                 <stop offset="100%" stopColor="var(--c-accent)" stopOpacity={0.02} />
               </linearGradient>
             </defs>
-            <polygon points={area} fill="url(#mdArea)" />
+            <polygon points={area} fill="url(#svcArea)" />
             <polyline points={line} fill="none" stroke="var(--c-accent)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-            {hover != null && (
-              <line x1={px(hover)} y1={0} x2={px(hover)} y2={H} stroke="var(--c-accent)" strokeWidth={1} strokeDasharray="3 3" vectorEffect="non-scaling-stroke" opacity={0.7} />
-            )}
           </svg>
-          {hover != null && (
-            <span
-              className="absolute rounded-full"
-              style={{ left: `${(hover / (series.length - 1)) * 100}%`, top: py(series[hover].req) / H * 100 + '%', width: 9, height: 9, background: 'var(--c-accent)', border: '2px solid var(--c-card2)', transform: 'translate(-50%,-50%)', pointerEvents: 'none' }}
-            />
-          )}
-          {hp && (
-            <div
-              className="absolute pointer-events-none"
-              style={{
-                left: `${(hover! / (series.length - 1)) * 100}%`,
-                top: -6,
-                transform: `translate(${hover! > series.length * 0.7 ? '-100%' : hover! < series.length * 0.3 ? '0' : '-50%'}, -100%)`,
-                background: 'var(--c-text)', color: 'var(--c-bg)', borderRadius: 8, padding: '6px 9px', whiteSpace: 'nowrap', zIndex: 3,
-              }}
-            >
-              <span style={{ fontSize: 14, opacity: 0.85 }}>{hp.label}</span>
-              <span className="block tabular-nums font-bold" style={{ fontSize: 14 }}>{fmtFull(hp.req)} 요청 · {fmtTok(hp.tok)} 토큰</span>
-            </div>
-          )}
+          {/* 각 월 데이터 점 + 값 */}
+          {data.map((d, i) => (
+            <span key={i} className="absolute" style={{ left: `${(i / (data.length - 1)) * 100}%`, top: `${(py(d.count) / H) * 100}%`, transform: 'translate(-50%, -50%)' }}>
+              <span className="block rounded-full" style={{ width: 8, height: 8, background: 'var(--c-accent)', border: '2px solid var(--c-card2)' }} />
+              <span className="absolute tabular-nums font-bold" style={{ left: '50%', bottom: 12, transform: 'translateX(-50%)', fontSize: 14, color: 'var(--c-accent)' }}>{d.count}</span>
+            </span>
+          ))}
         </div>
       </div>
-      <div className="flex" style={{ marginTop: 8, paddingLeft: 56 }}>
-        <div className="flex-1 relative" style={{ height: 16 }}>
-          {xIdx.map((i) => (
-            <span key={i} className="absolute tabular-nums" style={{ left: `${(i / (series.length - 1)) * 100}%`, transform: 'translateX(-50%)', fontSize: 14, color: M.idle }}>{series[i].label}</span>
+      <div className="flex" style={{ marginTop: 8, paddingLeft: 34 }}>
+        <div className="flex-1 flex justify-between">
+          {data.map((d, i) => (
+            <span key={i} className="tabular-nums" style={{ fontSize: 14, color: M.idle }}>{d.label}</span>
           ))}
         </div>
       </div>
@@ -188,32 +119,69 @@ function Panel({ title, sub, right, children }: { title: string; sub?: string; r
   )
 }
 
-// ── 사용 서비스 현황 ──
-function ServiceUsage({ rows }: { rows: Service[] }) {
+// ── 이 모델을 사용하는 서비스 — 콤보 차트(요청 막대 + 토큰 라인) ──
+function ServiceCombo({ rows }: { rows: Service[] }) {
   if (rows.length === 0) {
-    return <div className="text-center" style={{ fontSize: 14, color: M.help, padding: '20px 0' }}>이 모델을 사용하는 서비스가 아직 없습니다.</div>
+    return <div className="text-center" style={{ fontSize: 14, color: M.help, padding: '24px 0' }}>이 모델을 사용하는 서비스가 아직 없습니다.</div>
   }
-  const max = Math.max(...rows.map((s) => s.usageCount))
+  const W = 720
+  const H = 212
+  const PAD_TOP = 28                                   // 막대 위 값 라벨 여유
+  const plotH = H - PAD_TOP
+  const reqMax = Math.max(...rows.map((s) => s.usageCount)) * 1.12
+  const n = rows.length
+  const slot = W / n
+  const bw = Math.min(72, slot * 0.52)
+  const cx = (i: number) => slot * i + slot / 2
+  const barH = (v: number) => (v / reqMax) * plotH
+  const barTop = (v: number) => PAD_TOP + plotH - barH(v)
+  // 토큰 라인 — 막대 top 과 겹치지 않게 독립 정규화해 plot 상단 밴드(4~32%)에 배치 → 콤보 분리감
+  const toks = rows.map((s) => s.usageCount * TOKENS_PER_REQ)
+  const tMax = Math.max(...toks)
+  const tMin = Math.min(...toks)
+  const tRange = tMax - tMin || tMax || 1
+  const lineY = (t: number) => PAD_TOP + plotH * 0.04 + (1 - (t - tMin) / tRange) * (plotH * 0.28)
+  const pts = toks.map((t, i) => `${cx(i)},${lineY(t)}`).join(' ')
   return (
-    <div className="flex flex-col" style={{ gap: 12 }}>
-      {rows.map((s) => {
-        const owner = userById(s.ownerUserId)
-        return (
-          <div key={s.id} className="flex items-center min-w-0" style={{ gap: 12 }}>
-            <span className="flex items-center justify-center shrink-0 rounded-[9px]" style={{ width: 34, height: 34, background: 'var(--accent-soft)', color: 'var(--c-accent)' }} aria-hidden>
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6"><rect x="2" y="2.5" width="12" height="11" rx="2" /><path d="M2 6h12M5 2.5v3" /></svg>
-            </span>
-            <div className="flex flex-col min-w-0" style={{ width: 150 }}>
-              <span className="truncate font-semibold" style={{ fontSize: 14, color: M.text }}>{s.name}</span>
-              <span className="truncate" style={{ fontSize: 14, color: M.help }}>{owner?.name ?? s.ownerUserId} · {s.kind}</span>
-            </div>
-            <span className="flex-1 min-w-0 rounded-full overflow-hidden" style={{ height: 7, background: M.inputBg, border: `1px solid ${M.border}` }}>
-              <span className="block h-full rounded-full" style={{ width: `${(s.usageCount / max) * 100}%`, background: 'var(--c-accent)' }} />
-            </span>
-            <span className="shrink-0 tabular-nums font-bold text-right" style={{ width: 64, fontSize: 14, color: M.text }}>{fmtReq(s.usageCount)}</span>
+    <div>
+      {/* 범례 */}
+      <div className="flex items-center justify-end" style={{ gap: 16, marginBottom: 12, fontSize: 14, color: M.help }}>
+        <span className="flex items-center" style={{ gap: 5 }}><span style={{ width: 11, height: 11, borderRadius: 3, background: 'var(--c-accent)' }} />요청 수</span>
+        <span className="flex items-center" style={{ gap: 5 }}><span style={{ width: 16, height: 2, background: '#6c32f3' }} />토큰</span>
+      </div>
+      <div className="relative" style={{ height: H }}>
+        <div className="absolute inset-x-0 flex flex-col justify-between" style={{ top: PAD_TOP, bottom: 0 }}>
+          {[0, 1, 2, 3].map((i) => (<span key={i} style={{ height: 1, background: 'var(--c-border)', opacity: 0.45 }} />))}
+        </div>
+        <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="absolute inset-0" style={{ width: '100%', height: '100%', display: 'block' }} aria-hidden>
+          <defs>
+            <linearGradient id="svcBar" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="var(--c-accent)" stopOpacity="0.58" />
+              <stop offset="100%" stopColor="var(--c-accent)" stopOpacity="1" />
+            </linearGradient>
+          </defs>
+          {rows.map((s, i) => (
+            <rect key={s.id} x={cx(i) - bw / 2} y={barTop(s.usageCount)} width={bw} height={barH(s.usageCount)} rx={6} fill="url(#svcBar)" />
+          ))}
+          <polyline points={pts} fill="none" stroke="#6c32f3" strokeWidth={2.4} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+          {toks.map((t, i) => (
+            <circle key={rows[i].id} cx={cx(i)} cy={lineY(t)} r={4} fill="#6c32f3" stroke="var(--c-card2)" strokeWidth={1.6} vectorEffect="non-scaling-stroke" />
+          ))}
+        </svg>
+        {/* 막대 위 요청 값 */}
+        {rows.map((s, i) => (
+          <span key={s.id} className="absolute tabular-nums font-bold" style={{ left: `${(cx(i) / W) * 100}%`, top: `${(barTop(s.usageCount) / H) * 100}%`, transform: 'translate(-50%, -145%)', fontSize: 14, color: 'var(--c-text)' }}>{fmtReq(s.usageCount)}</span>
+        ))}
+      </div>
+      {/* X축 — 서비스명 + 토큰 */}
+      <div className="flex" style={{ marginTop: 10 }}>
+        {rows.map((s) => (
+          <div key={s.id} className="flex flex-col items-center min-w-0" style={{ width: `${100 / n}%`, padding: '0 4px' }}>
+            <span className="truncate font-semibold text-center" style={{ fontSize: 14, color: M.text, maxWidth: '100%' }}>{s.name}</span>
+            <span className="truncate text-center" style={{ fontSize: 14, color: M.help, maxWidth: '100%' }}>{fmtTok(s.usageCount * TOKENS_PER_REQ)} 토큰</span>
           </div>
-        )
-      })}
+        ))}
+      </div>
     </div>
   )
 }
@@ -297,7 +265,7 @@ function SpecCard({ model, actions }: { model: Model; actions?: ReactNode }) {
             ))}
           </span>
         </SpecRow>
-        <SpecRow label="설명">{model.description}</SpecRow>
+        <SpecRow label="설명">{descSummary(model.description)}</SpecRow>
         <SpecRow label="라이선스">{model.license}</SpecRow>
       </SpecSection>
 
@@ -378,9 +346,12 @@ export function ModelDetail() {
   const [err, setErr] = useState<string | null>(null)
 
   const model = useMemo(() => allModels.find((m) => m.id === id), [allModels, id])
-  const usingServices = useMemo(() => services.filter((s) => s.model === id).sort((a, b) => b.usageCount - a.usageCount), [id])
-  const series = useMemo(() => (model ? dailySeries(model) : []), [model])
-  const totalUsage = useMemo(() => allModels.reduce((a, m) => a + m.usageCount, 0), [allModels])
+  // N:M 호환 — backend 가 Service.models[] 추가 전엔 단일 model 폴백, 추가 후엔 여러 모델 공용 조회.
+  const usingServices = useMemo(
+    () => services.filter((s) => ((s as { models?: string[] }).models ?? [s.model]).includes(id)).sort((a, b) => b.usageCount - a.usageCount),
+    [id],
+  )
+  const serviceTrend = useMemo(() => serviceCountSeries(usingServices.length), [usingServices.length])
   const request = useMemo(() => requests.find((r) => r.registeredModelId === id), [requests, id])
 
   if (!model) {
@@ -392,9 +363,6 @@ export function ModelDetail() {
       </div>
     )
   }
-
-  const share = totalUsage ? (model.usageCount / totalUsage) * 100 : 0
-  const avgDaily = Math.round(model.usageCount / N_DAYS)
 
   const closeModal = () => { setAction(null); setErr(null) }
 
@@ -427,7 +395,7 @@ export function ModelDetail() {
             checksum: 'sha256:' + created.id.replace(/\D/g, '').padEnd(4, '0') + '…a1f3',
           })
         }
-        navigate('/admin/models/requests')
+        navigate('/models/requests')
       } else {
         // 등록 취소(영구) → 연결 신청까지 삭제하고 카탈로그로.
         if (request) await deleteRequest(request.id)
@@ -483,7 +451,7 @@ export function ModelDetail() {
                 <span className="rounded-full" style={{ width: 7, height: 7, background: 'currentColor' }} />배포 중
               </span>
             </div>
-            <p className="truncate" style={{ fontSize: 14, color: M.help, marginTop: 4 }}>{providerName(model.id)} · {model.params} · {model.description}</p>
+            <p className="truncate" style={{ fontSize: 14, color: M.help, marginTop: 4 }}>{providerName(model.id)} · {model.params} · {descLead(model.description)}</p>
           </div>
         </div>
       </header>
@@ -491,19 +459,12 @@ export function ModelDetail() {
       <div className="grid items-stretch flex-1 min-h-0" style={{ gridTemplateColumns: 'minmax(0,1.62fr) minmax(0,1fr)', gap: 20 }}>
         {/* 좌: KPI · 사용률 추이 · 사용 서비스 · 모델 소개 */}
         <div className="flex flex-col min-w-0 min-h-0" style={{ gap: 18 }}>
-          <div className="grid" style={{ gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 11 }}>
-            <KpiCard icon={<IconReq />} label="이번 달 요청" value={fmtReq(model.usageCount)} accent />
-            <KpiCard icon={<IconToken />} label="이번 달 토큰" value={fmtTok(model.usageCount * TOKENS_PER_REQ)} />
-            <KpiCard icon={<IconShare />} label="전체 점유율" value={share.toFixed(1)} unit="%" />
-            <KpiCard icon={<IconAvg />} label="일 평균 요청" value={fmtReq(avgDaily)} />
-          </div>
-
-          <Panel title="사용률 추이" sub="최근 30일 일별 요청 수 (마우스를 올려 상세 확인)">
-            <UsageTrendChart series={series} />
+          <Panel title="가져다 쓴 서비스 수" sub="이 모델을 채택한 서비스 수 — 최근 6개월 추이">
+            <ServiceTrendChart data={serviceTrend} />
           </Panel>
 
-          <Panel title="이 모델을 사용하는 서비스" sub={`${usingServices.length}개 서비스가 연동 중`}>
-            <ServiceUsage rows={usingServices} />
+          <Panel title="이 모델을 사용하는 서비스" sub={`${usingServices.length}개 서비스가 연동 중 · 요청·토큰 비교`}>
+            <ServiceCombo rows={usingServices} />
           </Panel>
 
           <ModelIntro model={model} />

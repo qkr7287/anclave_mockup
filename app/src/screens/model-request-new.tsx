@@ -29,7 +29,7 @@ import { createRequest } from './model-requests-shared'
 // 사용자는 신청만, 반입·스캔·명세·배포는 전부 관리자(A) 몫.
 // 라우트/App.tsx 등록은 deny → 메인에서 연결(보고).
 
-const LIST_PATH = '/admin/models/requests'
+const LIST_PATH = '/models/requests'
 const STEPS = ['기본 정보', '신청 내용', '검토 · 제출']
 const KIND_OPTS: ModelKind[] = ['LLM', 'Code', 'Vision-Language', 'Image', 'STT', 'Embedding']
 const KIND_DESC: Record<ModelKind, string> = {
