@@ -14,6 +14,7 @@ import { useRole } from '../lib/role'
 import { useTheme } from '../lib/theme'
 import { Logo } from './catalog'
 import { createPublishRequest } from './publish-store'
+import { QaPolish } from './qa-polish'
 
 // G8 · 4.29a 서비스 게시 신규 신청(/marketplace/publish/new) — 4.6b 신규 신청과 동일 구조
 // (스텝퍼 + morph[좌 마법사 / 우 명세서] + 완료). 모달 대신 전용 페이지. 디자인 시안 없음 — 토큰·컴포넌트 재사용.
@@ -319,18 +320,23 @@ export function PublishNew() {
   const wizardStep = reviewing ? 1 : step
   const go = (d: number) => setStep((s) => Math.max(0, Math.min(WIZARD_STEPS.length - 1, s + d)))
 
-  const submit = () => {
+  const submit = async () => {
     if (submitting || !svc) return
     setSubmitting(true)
-    const created = createPublishRequest({
-      requesterUserId: user.id,
-      serviceName: svc.name,
-      serviceUrl: svc.serviceUrl,
-      demoUrl: svc.testUrl ?? svc.serviceUrl,
-      meta: `${kindOf(svc)} · ${modelOf(svc)}`,
-    })
-    setDoneId(created.id)
-    toast.push('게시 신청을 접수했어요. 관리자 검토 후 마켓에 노출됩니다.', 'ok')
+    try {
+      const created = await createPublishRequest({
+        requesterUserId: user.id,
+        serviceName: svc.name,
+        serviceUrl: svc.serviceUrl,
+        demoUrl: svc.testUrl ?? svc.serviceUrl,
+        meta: `${kindOf(svc)} · ${modelOf(svc)}`,
+      })
+      setDoneId(created.id)
+      toast.push('게시 신청을 접수했어요. 관리자 검토 후 마켓에 노출됩니다.', 'ok')
+    } catch {
+      setSubmitting(false)
+      toast.push('게시 신청에 실패했어요. 잠시 후 다시 시도해 주세요.', 'warn')
+    }
   }
   const next = () => {
     if (!canNext) return
@@ -341,7 +347,8 @@ export function PublishNew() {
   // ── 완료 화면 ──
   if (doneId) {
     return (
-      <div className="anim-fade flex flex-col h-full" style={mutedFix}>
+      <div data-qa className="anim-fade flex flex-col h-full" style={mutedFix}>
+        <QaPolish />
         <div className="flex-1 min-h-0 flex items-center justify-center">
           <div className="bg-card2 border border-line rounded-[16px] flex flex-col items-center text-center" style={{ boxShadow: 'var(--shadow-card)', padding: '40px 44px', maxWidth: 480, width: '100%' }}>
             <span className="relative flex items-center justify-center rounded-full" style={{ width: 66, height: 66, background: 'var(--ok-soft)', color: 'var(--c-ok)' }}>
@@ -381,7 +388,8 @@ export function PublishNew() {
   })
 
   return (
-    <div className="anim-fade flex flex-col min-w-0 h-full" style={mutedFix}>
+    <div data-qa className="anim-fade flex flex-col min-w-0 h-full" style={mutedFix}>
+      <QaPolish />
       <style>{`[data-morph]{transition-duration:.8s !important}`}</style>
       <header className="flex flex-col shrink-0">
         <StepBack to="/marketplace/publish" label="서비스 게시 신청" />

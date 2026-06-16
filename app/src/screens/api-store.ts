@@ -1,56 +1,45 @@
-import { apiRequests } from '../data'
+import { apiGet, apiPatch, apiPost } from '../lib/api'
 import type { ApiRequest } from '../data/types'
-import { nowStamp } from './approval-store'
 
-// API 키 신청 세션 스토어 — backend 미연동(g8). 요청 마법사(4.20)와 소유자 신청관리(4.19)·심사 상세가
-// 상태(대기·승인·반려, 발급키)를 공유하도록 인메모리 사본. 새로고침 시 시드로 초기화(목업).
-// purpose·processedAt·processedBy는 ApiRequest에 없어 여기서 확장.
+// 4.20/4.19/4.19a API 키 신청 — Hono backend(REST) 연동(gpu-requests 패턴 미러).
+//   GET   /api/api-requests       목록
+//   GET   /api/api-requests/:id   단건(없으면 404)
+//   POST  /api/api-requests       신규 요청(status=pending, id·created_at 서버 생성)
+//   PATCH /api/api-requests/:id   { action:'approve'(apiKey 필수)|'reject', ... }  processed_at 서버 now()
+// 데모(김가람→svc-doc) 3건은 backend seed 정본. timestamptz(ISO) → 표시 포맷으로 정규화.
 export interface ApiRecord extends ApiRequest {
   purpose?: string
-  processedAt?: string
   processedBy?: string
+  processedAt?: string
 }
 
-let store: ApiRecord[] = apiRequests.map((r) => ({ ...r }))
-let seq = 1
-
-export function listApiRequests(): ApiRecord[] {
-  return store.map((r) => ({ ...r }))
+function fmtStamp(v?: string | null): string | undefined {
+  if (!v) return undefined
+  const d = new Date(v)
+  if (isNaN(d.getTime())) return v
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
+function normalize(r: ApiRecord): ApiRecord {
+  return { ...r, createdAt: fmtStamp(r.createdAt) ?? r.createdAt, processedAt: fmtStamp(r.processedAt) }
 }
 
-export function getApiRequest(id: string): ApiRecord | undefined {
-  const r = store.find((p) => p.id === id)
-  return r ? { ...r } : undefined
+export function listApiRequests(): Promise<ApiRecord[]> {
+  return apiGet<ApiRecord[]>('/api/api-requests').then((rows) => rows.map(normalize))
 }
 
-// 사용자 신규 API 키 요청 — 대기 상태로 선두 추가. 대상 서비스 소유자의 신청관리(4.19) 대상이 된다.
-export function createApiRequest(input: { requesterUserId: string; serviceId: string; model: string; targetServiceUrl: string; purpose?: string }): ApiRecord {
-  const rec: ApiRecord = {
-    id: `ar-new-${seq++}`,
-    requesterUserId: input.requesterUserId,
-    serviceId: input.serviceId,
-    model: input.model,
-    targetServiceUrl: input.targetServiceUrl,
-    purpose: input.purpose,
-    status: 'pending',
-    createdAt: nowStamp(),
-  }
-  store = [rec, ...store]
-  return rec
+export function getApiRequest(id: string): Promise<ApiRecord> {
+  return apiGet<ApiRecord>(`/api/api-requests/${id}`).then(normalize)
 }
 
-function mutate(id: string, patch: Partial<ApiRecord>): ApiRecord | undefined {
-  const idx = store.findIndex((p) => p.id === id)
-  if (idx < 0) return undefined
-  store[idx] = { ...store[idx], ...patch }
-  return { ...store[idx] }
+export function createApiRequest(input: { requesterUserId: string; serviceId: string; model: string; targetServiceUrl: string; purpose?: string }): Promise<ApiRecord> {
+  return apiPost<ApiRecord>('/api/api-requests', input).then(normalize)
 }
 
-// 승인 = 소유자가 자체 발급한 API 키를 기입해 승인. 이미 처리된 건은 재처리하지 않는다.
-export function approveApiRequest(id: string, processedBy: string, apiKey: string): ApiRecord | undefined {
-  return mutate(id, { status: 'approved', apiKey, processedBy, processedAt: nowStamp(), rejectReason: undefined })
+export function approveApiRequest(id: string, processedBy: string, apiKey: string): Promise<ApiRecord> {
+  return apiPatch<ApiRecord>(`/api/api-requests/${id}`, { action: 'approve', processedBy, apiKey }).then(normalize)
 }
 
-export function rejectApiRequest(id: string, processedBy: string, rejectReason: string): ApiRecord | undefined {
-  return mutate(id, { status: 'rejected', rejectReason, processedBy, processedAt: nowStamp() })
+export function rejectApiRequest(id: string, processedBy: string, rejectReason: string): Promise<ApiRecord> {
+  return apiPatch<ApiRecord>(`/api/api-requests/${id}`, { action: 'reject', processedBy, rejectReason }).then(normalize)
 }

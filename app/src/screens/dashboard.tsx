@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import type { ComponentType, ReactNode, SVGProps } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -23,12 +23,12 @@ import {
   XMarkIcon,
   EyeIcon,
   ArrowTopRightOnSquareIcon,
-  ArrowLeftIcon,
+  CheckIcon,
 } from '@heroicons/react/24/outline'
 import { EmptyState, Button, KpiStat, useToast } from '../components/ui'
 import { useRole } from '../lib/role'
 import { useTheme } from '../lib/theme'
-import { useAllocations, useTelemetrySeries, useEvents, useServiceTokens, type AllocationRow, type SeriesPoint } from '../data/hooks/usePolling'
+import { useAllocations, useTelemetrySeries, useEvents, useServiceTokens, type AllocationRow, type SeriesPoint, type ServiceTokens } from '../data/hooks/usePolling'
 import { modelById } from '../data'
 import { useRequests, allocationLink, type RequestItem } from './requests-shared'
 
@@ -174,14 +174,16 @@ function InfoItem({ Icon, label, value, valueColor }: { Icon: IconType; label: s
 }
 
 // ── 할당 요약(hero) 카드 — DB allocations 연동 ──
-function HeroCard({ allocs }: { allocs: AllocationRow[] }) {
+function HeroCard({ allocs, totalServices }: { allocs: AllocationRow[]; totalServices?: number }) {
   const gpuAlloc = allocs.find((a) => a.gpuId) ?? allocs[0]
   const count = allocs.length
+  const opCount = totalServices ?? count // "운영 서비스" 필드는 전체 보유 수(필터 시에도 진짜 운영 수)
   const first = allocs[0]
   const svcName = count > 1 ? `${first?.serviceName} 외 ${count - 1}개 서비스` : (first?.serviceName ?? '할당 서비스')
   const server = gpuAlloc?.serverHost ?? '—'
   const gpuLabel = gpuAlloc?.gpuModel ? `${gpuAlloc.gpuModel}${gpuAlloc.allocMode === 'mig' ? ' · MIG' : ''}` : 'MIG 슬라이스'
-  const model = first?.modelId ?? '—'
+  // 모델은 ID(m8) 대신 모델명(SDXL)으로 — 정적 메타 modelById 매핑, 실패 시 ID 폴백
+  const model = first?.modelId ? (modelById(first.modelId)?.name ?? first.modelId) : '—'
   return (
     <section className="bg-card2 border border-line rounded-[14px] shrink-0" style={{ boxShadow: 'var(--shadow-card)', padding: 24, minHeight: 140 }}>
       <div className="flex items-stretch gap-6 min-w-0 h-full">
@@ -192,13 +194,13 @@ function HeroCard({ allocs }: { allocs: AllocationRow[] }) {
               <ServerStackIcon style={{ width: 24, height: 24, color: 'var(--c-onaccent)' }} />
             </span>
             <div className="min-w-0">
-              <div className="text-muted" style={{ fontSize: 14, lineHeight: 1.2 }}>서비스 환경</div>
+              <div className="text-muted" style={{ fontSize: 14, lineHeight: 1.2 }}>{count > 1 ? '서비스 환경' : '서비스명'}</div>
               <div className="font-bold text-text truncate" style={{ fontSize: 17, lineHeight: 1.3, marginTop: 2 }}>{svcName}</div>
             </div>
           </div>
           <div className="flex items-end justify-between" style={{ marginTop: 18, paddingRight: 32 }}>
             <HeroField label="서비스 ID" value={first?.serviceId ?? '—'} />
-            <HeroField label="운영 서비스" value={`${count}개`} />
+            <HeroField label="운영 서비스" value={`${opCount}개`} />
             <HeroField label="서버 / GPU" value={`${server} / ${gpuLabel}`} />
             <div className="flex flex-col" style={{ gap: 6 }}>
               <span className="text-muted" style={{ fontSize: 14, lineHeight: 1.2 }}>할당 상태</span>
@@ -238,6 +240,17 @@ function Divider() {
 
 // ── 모델별 토큰 그룹 바차트 ──
 const fmtK = (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(1)}M` : `${v}K`)
+
+// 막대가 천장까지 닿지 않도록 헤드룸(약 1.6×)을 준 "보기 좋은" y축 최대값.
+//  예) 데이터 max 10 → 축 max 20(가장 큰 막대 ~50% 높이). 1/1.5/2/2.5/3/4/5/6/8/10 자리로 라운드업.
+function niceChartMax(rawMax: number): number {
+  if (!Number.isFinite(rawMax) || rawMax <= 0) return 1
+  const target = rawMax * 1.6
+  const pow = Math.pow(10, Math.floor(Math.log10(target)))
+  const n = target / pow
+  const niceN = n <= 1 ? 1 : n <= 1.5 ? 1.5 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 3 ? 3 : n <= 4 ? 4 : n <= 5 ? 5 : n <= 6 ? 6 : n <= 8 ? 8 : 10
+  return niceN * pow
+}
 
 function GroupedBars({ data, max, yLabels, series }: { data: number[][]; max: number; yLabels: string[]; series: { name: string; color: string }[] }) {
   const [hv, setHv] = useState<{ gi: number; mi: number } | null>(null)
@@ -296,25 +309,41 @@ function StatRow({ label, value, unit }: { label: string; value: string; unit?: 
 
 
 const BAR_COLORS = ['#2d7ff9', '#22b8cf', '#8b5cf6', '#f97316']
-function BarCard() {
-  const { user } = useRole()
-  const { data } = useServiceTokens(user.id)
-  const services = data?.services ?? []
-  const series = services.map((s, i) => ({ name: s.name, color: BAR_COLORS[i % BAR_COLORS.length] }))
-  const bars = data?.bars ?? []
-  const max = data?.max ?? 1
+function BarCard({ data, serviceIds }: { data?: ServiceTokens; serviceIds: string[] }) {
+  const allServices = data?.services ?? []
+  const allBars = data?.bars ?? []
+  const totalCount = allServices.length
+  // 선택 자원에 속한 서비스 컬럼들(여러 서비스면 다중 시리즈). 매칭 없으면 폴백으로 전부.
+  const matched = serviceIds.map((id) => allServices.findIndex((s) => s.id === id)).filter((i) => i >= 0)
+  const cols = matched.length ? matched : allServices.map((_, i) => i)
+  const single = cols.length === 1
+
+  const services = cols.map((i) => allServices[i])
+  const bars = allBars.map((g) => cols.map((i) => g[i] ?? 0))
+  const series = services.map((s, k) => ({ name: s.name, color: BAR_COLORS[cols[k] % BAR_COLORS.length] }))
+  // y축 max = 현재 보이는 막대의 최댓값에 헤드룸을 준 nice 값 → 막대가 천장까지 안 뻗고 ~50~60% 높이
+  const visMax = bars.length ? Math.max(...bars.flat()) : 0
+  const max = niceChartMax(visMax)
   const yLabels = [`${max}`, `${Math.round((max * 2) / 3)}`, `${Math.round(max / 3)}`, '0']
+
+  // 선택 자원 점유율 비례로 총량·요청수 환산
+  const sums = allServices.map((_, i) => allBars.reduce((a, g) => a + (g[i] ?? 0), 0))
+  const grand = sums.reduce((a, b) => a + b, 0) || 1
+  const share = matched.length ? cols.reduce((a, i) => a + sums[i], 0) / grand : 1
+  const total = Math.round((data?.total ?? 0) * share)
+  const calls = Math.round((data?.calls ?? 0) * share)
+  const focusName = single ? services[0]?.name ?? '-' : `${services[0]?.name ?? '-'} 외 ${services.length - 1}개`
   return (
     <section className="bg-card2 border border-line rounded-[14px] flex flex-col min-w-0" style={{ boxShadow: 'var(--shadow-card)', padding: 18 }}>
       <header className="flex items-center gap-3 shrink-0">
         <h3 className="font-bold text-text" style={{ fontSize: 15 }}>서비스 토큰 사용량</h3>
-        <span className="inline-flex items-center rounded-[6px] font-semibold" style={{ background: 'var(--accent-soft)', color: 'var(--c-accent)', padding: '3px 8px', fontSize: 14 }}>총 {services.length}개 서비스</span>
+        <span className="inline-flex items-center rounded-[6px] font-semibold" style={{ background: 'var(--accent-soft)', color: 'var(--c-accent)', padding: '3px 8px', fontSize: 14 }}>{focusName}</span>
         <span className="ml-auto text-muted" style={{ fontSize: 14 }}>최근 24시간</span>
       </header>
       <div className="flex gap-5 flex-1 min-h-0" style={{ marginTop: 14 }}>
         {/* 차트 영역 */}
         <div className="flex flex-col min-w-0" style={{ flex: '1 1 0' }}>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 shrink-0" style={{ marginBottom: 10 }}>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 shrink-0" style={{ marginBottom: 18 }}>
             {series.map((m) => (
               <span key={m.name} className="inline-flex items-center gap-1.5" style={{ fontSize: 14 }}>
                 <span style={{ width: 9, height: 9, borderRadius: 3, background: m.color }} />
@@ -332,21 +361,21 @@ function BarCard() {
           <div className="min-w-0">
             <div className="text-muted" style={{ fontSize: 14, lineHeight: 1.2 }}>총 토큰 사용량 · 최근 24h</div>
             <div className="flex items-baseline gap-1.5 whitespace-nowrap" style={{ marginTop: 4 }}>
-              <span className="font-bold text-text" style={{ fontSize: 21, lineHeight: 1.1, letterSpacing: '-0.3px' }}>{(data?.total ?? 0).toLocaleString()}</span>
+              <span className="font-bold text-text" style={{ fontSize: 21, lineHeight: 1.1, letterSpacing: '-0.3px' }}>{total.toLocaleString()}</span>
               <span className="text-muted" style={{ fontSize: 14 }}>Tokens/h</span>
             </div>
           </div>
-          {/* 주력 서비스 */}
+          {/* 선택 자원 */}
           <div className="min-w-0" style={{ marginTop: 16 }}>
-            <div className="text-muted" style={{ fontSize: 14, lineHeight: 1.2 }}>주력 서비스</div>
-            <div className="font-bold text-text truncate" style={{ fontSize: 15, lineHeight: 1.2, marginTop: 4 }}>{services[0]?.name ?? '-'}</div>
-            <div className="text-muted" style={{ fontSize: 14, marginTop: 2 }}>{services.length}개 운영 중</div>
+            <div className="text-muted" style={{ fontSize: 14, lineHeight: 1.2 }}>선택 자원</div>
+            <div className="font-bold text-text truncate" style={{ fontSize: 15, lineHeight: 1.2, marginTop: 4 }}>{focusName}</div>
+            <div className="text-muted" style={{ fontSize: 14, marginTop: 2 }}>{single ? '단일 서비스 보기' : `${services.length}개 서비스`}</div>
           </div>
           <div style={{ height: 1, background: 'var(--c-border)', margin: '16px 0' }} />
           {/* 요청·서비스 지표 */}
           <div className="flex flex-col" style={{ gap: 11 }}>
-            <StatRow label="총 요청 횟수" value={String(data?.calls ?? 0)} unit="회/h" />
-            <StatRow label="운영 서비스" value={String(services.length)} unit="개" />
+            <StatRow label="총 요청 횟수" value={String(calls)} unit="회/h" />
+            <StatRow label="운영 서비스" value={String(totalCount)} unit="개" />
           </div>
         </div>
       </div>
@@ -360,14 +389,18 @@ const EV_BADGE: Record<EvLevel, { bg: string; fg: string }> = {
   정보: { bg: 'var(--accent-soft)', fg: 'var(--c-accent)' },
   경고: { bg: 'var(--warn-soft)', fg: 'var(--c-warn)' },
 }
-function EventLogCard() {
+function EventLogCard({ gpuId, serverId }: { gpuId?: string; serverId?: string }) {
   const toast = useToast()
-  const { data } = useEvents({ limit: 8 })
+  const { data } = useEvents({ gpuId, serverId, limit: 8 })
   const events: { time: string; level: EvLevel; msg: string }[] = (data ?? []).map((e) => ({
     time: fmtReqDate(e.createdAt),
     level: e.severity === 'warn' || e.severity === 'critical' ? '경고' : '정보',
     msg: e.message,
   }))
+  // 데이터가 없어도 그리드(행 hairline)는 유지 → 고정 슬롯 8개, 빈 슬롯은 placeholder
+  const ROW_SLOTS = 8
+  const rows = Array.from({ length: ROW_SLOTS }, (_, i) => events[i] ?? null)
+  const isEmpty = events.length === 0
   return (
     <section className="bg-card2 border border-line rounded-[14px] flex flex-col min-w-0" style={{ boxShadow: 'var(--shadow-card)', padding: '18px 20px' }}>
       <header className="flex items-center justify-between gap-3 shrink-0">
@@ -379,16 +412,28 @@ function EventLogCard() {
         <span style={{ width: 64 }}>상태</span>
         <span className="flex-1">이벤트</span>
       </div>
-      <div className="flex-1 min-h-0 flex flex-col">
-        {events.map((e, i) => (
-          <div key={i} className="flex items-center flex-1" style={{ minHeight: 32, borderBottom: i < events.length - 1 ? '1px solid var(--c-border-s)' : 'none' }}>
-            <span className="shrink-0 text-muted" style={{ width: 150, fontSize: 14 }}>{e.time}</span>
-            <span className="shrink-0" style={{ width: 64 }}>
-              <span className="inline-flex items-center rounded-[5px] font-semibold" style={{ background: EV_BADGE[e.level].bg, color: EV_BADGE[e.level].fg, padding: '2px 8px', fontSize: 14 }}>{e.level}</span>
-            </span>
-            <span className="flex-1 min-w-0 truncate text-text" style={{ fontSize: 14, opacity: 0.86, paddingRight: 8 }}>{e.msg}</span>
+      <div className="relative flex-1 min-h-0 flex flex-col">
+        {rows.map((e, i) => (
+          <div key={i} className="flex items-center flex-1" style={{ minHeight: 32, borderBottom: i < ROW_SLOTS - 1 ? '1px solid var(--c-border-s)' : 'none' }}>
+            {e ? (
+              <>
+                <span className="shrink-0 text-muted" style={{ width: 150, fontSize: 14 }}>{e.time}</span>
+                <span className="shrink-0" style={{ width: 64 }}>
+                  <span className="inline-flex items-center rounded-[5px] font-semibold" style={{ background: EV_BADGE[e.level].bg, color: EV_BADGE[e.level].fg, padding: '2px 8px', fontSize: 14 }}>{e.level}</span>
+                </span>
+                <span className="flex-1 min-w-0 truncate text-text" style={{ fontSize: 14, opacity: 0.86, paddingRight: 8 }}>{e.msg}</span>
+              </>
+            ) : (
+              <span className="shrink-0 text-muted" style={{ width: 150, fontSize: 14, opacity: 0.3 }}>—</span>
+            )}
           </div>
         ))}
+        {/* 전부 비었을 때만 그리드 위에 안내 오버레이(그리드는 그대로 노출) */}
+        {isEmpty && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <span className="text-muted" style={{ fontSize: 14 }}>표시할 이벤트가 없습니다</span>
+          </div>
+        )}
       </div>
     </section>
   )
@@ -478,12 +523,131 @@ function FloatingControl() {
   )
 }
 
+// ════════════════════════════════════════════════════════════════════
+// 4.5 자원 선택 스위처 — 헤더 검색형 드롭다운(G2 자체). resource-map 셀렉터와 시각 통일.
+//  · 옵션 = 내가 할당받은 자원(= 할당 시 서비스명) · 항목: 상태 dot·서비스명·GPU·주력·현재 체크
+//  · 선택 시 KPI·토큰차트·HeroCard·이벤트로그가 그 자원 기준 (집계 "전체"는 없음 — 자원 단위 조회)
+//  · 자원 1개 이하면 호출부에서 숨김 · 텍스트 전부 ≥14px
+// ════════════════════════════════════════════════════════════════════
+interface SvcOption { id: string; name: string; gpu: string } // id = 자원 key
+
+function SwitchDot({ on }: { on: boolean }) {
+  return on ? (
+    <span className="shrink-0" style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--c-ok)', boxShadow: '0 0 0 3px var(--ok-soft)' }} />
+  ) : (
+    <span className="shrink-0" style={{ width: 8, height: 8, borderRadius: '50%', border: '1.5px solid var(--c-muted)' }} />
+  )
+}
+
+function SwitchRow({ selected, dot, name, badge, right, onClick }: { selected: boolean; dot: boolean; name: string; badge: string | null; right: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      role="option"
+      aria-selected={selected}
+      onClick={onClick}
+      className="flex items-center w-full text-left transition-colors hover:bg-[var(--accent-soft)]"
+      style={{ gap: 10, minHeight: 40, padding: '7px 10px', borderRadius: 9, background: selected ? 'var(--accent-soft)' : 'transparent' }}
+    >
+      <SwitchDot on={dot} />
+      <span className="font-medium truncate" style={{ fontSize: 14, flex: 1, color: selected ? 'var(--c-accent)' : 'var(--c-text)' }}>{name}</span>
+      {badge && (
+        <span className="inline-flex items-center rounded-[5px] font-semibold shrink-0" style={{ fontSize: 14, padding: '1px 7px', background: 'var(--accent-soft)', color: 'var(--c-accent)' }}>{badge}</span>
+      )}
+      <span className="text-muted shrink-0 truncate text-right" style={{ fontSize: 14, maxWidth: 140 }}>{right}</span>
+      <span className="shrink-0 flex items-center justify-center" style={{ width: 16 }}>
+        {selected && <CheckIcon style={{ width: 16, height: 16, color: 'var(--c-accent)' }} />}
+      </span>
+    </button>
+  )
+}
+
+function ServiceSwitcher({ options, value, onChange }: { options: SvcOption[]; value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const onDoc = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('mousedown', onDoc)
+    document.addEventListener('keydown', onKey)
+    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey) }
+  }, [open])
+
+  const current = options.find((o) => o.id === value)
+  const pick = (v: string) => { onChange(v); setOpen(false) }
+
+  return (
+    <div ref={ref} className="relative" style={{ width: 200 }}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        className="bg-card2 flex items-center w-full transition-colors hover:border-[var(--c-accent)]"
+        style={{ height: 38, padding: '0 12px', gap: 8, borderRadius: 10, border: `1px solid ${open ? 'var(--c-accent)' : 'var(--c-line)'}`, boxShadow: 'var(--shadow-card)' }}
+      >
+        <SwitchDot on />
+        <span className="font-semibold text-text truncate" style={{ fontSize: 14, flex: 1, textAlign: 'left' }}>{current?.name ?? '자원 선택'}</span>
+        <ChevronDownIcon className="shrink-0 transition-transform duration-200" style={{ width: 16, height: 16, color: 'var(--c-muted)', transform: open ? 'rotate(180deg)' : 'none' }} />
+      </button>
+
+      {open && (
+        <div
+          role="listbox"
+          className="bg-card2 anim-fade absolute"
+          style={{ top: 'calc(100% + 8px)', right: 0, width: 340, maxWidth: 'min(92vw, 400px)', padding: 6, borderRadius: 12, border: '1px solid var(--c-line)', boxShadow: 'var(--shadow-pop)', zIndex: 40 }}
+        >
+          <div className="text-muted font-medium" style={{ fontSize: 14, padding: '4px 10px 6px' }}>할당 자원</div>
+          {options.map((o) => (
+            <SwitchRow key={o.id} selected={value === o.id} dot name={o.name} badge={null} right={o.gpu} onClick={() => pick(o.id)} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function MyResources() {
   const { user, access } = useRole()
   const navigate = useNavigate()
   const mutedFix = useMutedFix()
   const { data: allocs } = useAllocations(access === 'C' ? null : user.id)
-  const gpuAlloc = allocs?.find((a) => a.gpuId)
+  const { data: tokens } = useServiceTokens(access === 'C' ? null : user.id)
+  const [selected, setSelected] = useState<string>('')
+
+  // 자원(= 할당된 GPU) 단위로 그룹. 한 자원에 여러 서비스가 있으면 "외 N개"로 표기.
+  //  · 자원 key = gpuId(있으면) · GPU 없는 서비스는 각자 1자원(svc:id)
+  //  · 진입 기본 = 사용량(usageCount) 합 최다 자원
+  const resources = useMemo(() => {
+    const rows = allocs ?? []
+    const byKey = new Map<string, AllocationRow[]>()
+    const order: string[] = []
+    for (const a of rows) {
+      const key = a.gpuId ?? `svc:${a.serviceId}`
+      if (!byKey.has(key)) { byKey.set(key, []); order.push(key) }
+      byKey.get(key)!.push(a)
+    }
+    return order.map((key) => {
+      const group = byKey.get(key)!
+      const first = group[0]
+      const name = group.length > 1 ? `${first.serviceName} 외 ${group.length - 1}개` : first.serviceName
+      const gpu = first.gpuModel ? `${first.gpuModel}${first.allocMode === 'mig' ? ' · MIG' : ''}` : 'GPU 미할당'
+      const usage = group.reduce((s, x) => s + (x.usageCount ?? 0), 0)
+      return { key, name, gpu, group, usage, serviceIds: group.map((g) => g.serviceId) }
+    })
+  }, [allocs])
+
+  const svcOptions = useMemo<SvcOption[]>(() => resources.map((r) => ({ id: r.key, name: r.name, gpu: r.gpu })), [resources])
+
+  // 기본 = 사용량 최다 자원. 선택값이 없거나 사라지면 폴백.
+  const primaryKey = resources.length ? resources.reduce((b, r) => (r.usage > b.usage ? r : b)).key : ''
+  const effSelected = resources.some((r) => r.key === selected) ? selected : primaryKey
+  const current = resources.find((r) => r.key === effSelected)
+  const viewAllocs = current?.group ?? []
+  // KPI 기준 GPU: 선택 자원의 GPU(없으면 보류→0)
+  const gpuAlloc = viewAllocs.find((a) => a.gpuId)
+  const totalServices = new Set((allocs ?? []).map((a) => a.serviceId)).size
   // 내 대표 GPU/서버의 텔레메트리 (백필이 과거라 range=24h). 할당 GPU 없으면 보류(null).
   const gpuTel = useTelemetrySeries('gpu', 'sm,vram,temp,power', '24h', 'avg', 10000, gpuAlloc?.gpuId ?? null).data
   const srvTel = useTelemetrySeries('server', 'cpu_util,mem_util', '24h', 'avg', 10000, gpuAlloc?.serverId ?? null).data
@@ -519,6 +683,13 @@ export function MyResources() {
           <p className="text-muted" style={{ fontSize: 14, marginTop: 8 }}>사용자에게 할당된 GPU 자원과 서비스 사용 현황을 모니터링합니다.</p>
         </div>
         <div className="flex items-center gap-4 shrink-0">
+          {svcOptions.length > 1 && (
+            <>
+              <span className="shrink-0 text-muted font-medium" style={{ fontSize: 14 }}>자원 선택</span>
+              <ServiceSwitcher options={svcOptions} value={effSelected} onChange={setSelected} />
+              <span className="shrink-0" style={{ width: 1, height: 22, background: 'var(--c-border)' }} />
+            </>
+          )}
           <span className="flex items-center gap-1.5 text-muted" style={{ fontSize: 14 }}>
             <ClockIcon style={{ width: 15, height: 15 }} />
             마지막 업데이트: 2025-05-14 15:30:45
@@ -530,9 +701,9 @@ export function MyResources() {
         </div>
       </header>
 
-      {/* 2) 할당 요약 — 고정 높이(Figma 140) */}
+      {/* 2) 할당 요약 — 고정 높이(Figma 140). 선택한 자원(서비스)의 환경 요약 */}
       <div className="shrink-0" style={{ marginTop: 20 }}>
-        <HeroCard allocs={allocs ?? []} />
+        <HeroCard allocs={viewAllocs} totalServices={totalServices} />
       </div>
 
       {/* 3) 할당 GPU 상태 — 간격은 Figma대로 촘촘히, 카드는 152:330 비율로 함께 grow */}
@@ -546,8 +717,8 @@ export function MyResources() {
       {/* 4·5·6) 토큰 사용량 + 이벤트 로그 (+ 플로팅 작업 런칭은 한 레이어 위 오버레이) */}
       <div className="relative" style={{ marginTop: 36, flex: '330 1 330px', minHeight: 300 }}>
         <div className="grid items-stretch h-full" style={{ gridTemplateColumns: '614fr 783fr', gap: 16 }}>
-          <BarCard />
-          <EventLogCard />
+          <BarCard data={tokens ?? undefined} serviceIds={current?.serviceIds ?? []} />
+          <EventLogCard gpuId={gpuAlloc?.gpuId ?? undefined} serverId={gpuAlloc?.serverId ?? undefined} />
         </div>
         <FloatingControl />
       </div>
@@ -838,20 +1009,9 @@ export function RequestStatus() {
 
   return (
     <div className="anim-fade flex flex-col min-w-0 h-full" style={mutedFix}>
-      {/* 1) 헤더 — 뒤로가기 + 제목 + 부제 (신규 신청 버튼은 표 카드 헤더로 이동) */}
+      {/* 1) 헤더 — 제목 + 부제 (신규 신청 버튼은 표 카드 헤더로 이동) */}
       <header className="flex flex-col min-w-0 shrink-0">
-        <div className="flex items-center" style={{ gap: 10 }}>
-          <button
-            type="button"
-            aria-label="뒤로 가기"
-            onClick={() => navigate(-1)}
-            className="flex items-center justify-center rounded-[9px] border border-line bg-card2 text-muted hover:text-text hover:bg-soft cursor-pointer transition-colors shrink-0"
-            style={{ width: 34, height: 34 }}
-          >
-            <ArrowLeftIcon style={{ width: 18, height: 18 }} />
-          </button>
-          <h1 className="font-bold text-text" style={{ fontSize: 23, lineHeight: 1.2 }}>자원 신청현황</h1>
-        </div>
+        <h1 className="font-bold text-text" style={{ fontSize: 23, lineHeight: 1.2 }}>자원 신청현황</h1>
         <p className="text-muted" style={{ fontSize: 14, marginTop: 8 }}>
           자원 신청의 승인 상태, 반려 사유 및 최근 처리 내역을 확인할 수 있습니다.
         </p>

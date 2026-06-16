@@ -32,6 +32,7 @@ import {
 import type { GpuRequest, Status } from '../data/types'
 import { fetchGpuRequests } from './approval-store'
 import { listPublishRequests, type PubRecord } from './publish-store'
+import { QaPolish } from './qa-polish'
 
 // G4 · 승인 관리 — 게시·GPU "분리" 스펙.
 //  · ApprovalsGpu  (4.10 · /admin/approvals/gpu · 할당 관리 그룹) = "승인 관리"
@@ -588,8 +589,18 @@ export function ApprovalsPublish() {
   const toast = useToast()
   const mutedFix = useMutedFix()
   const navigate = useNavigate()
-  // 목록은 세션 스토어에서 로드 — 심사 페이지(publish-detail)에서 처리하면 목록 복귀 시 재마운트로 반영.
-  const [rows] = useState<PubRow[]>(() => listPublishRequests().map(pubRow))
+  // 목록은 backend(REST)에서 로드 — 심사 페이지(publish-detail)에서 처리하면 목록 복귀 시 재마운트로 재조회.
+  const [rows, setRows] = useState<PubRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
+  useEffect(() => {
+    let alive = true
+    listPublishRequests()
+      .then((d) => { if (alive) { setRows(d.map(pubRow)); setLoadError(false) } })
+      .catch(() => { if (alive) setLoadError(true) })
+      .finally(() => { if (alive) setLoading(false) })
+    return () => { alive = false }
+  }, [])
   const [q, setQ] = useState('')
   const [statusF, setStatusF] = useState('전체')
   const [dateStart, setDateStart] = useState('')
@@ -653,7 +664,8 @@ export function ApprovalsPublish() {
   const openDetail = (r: PubRow) => navigate(`/admin/approvals/publish/${r.id}`)
 
   return (
-    <div className="anim-fade flex flex-col min-w-0 h-full" style={mutedFix}>
+    <div data-qa className="anim-fade flex flex-col min-w-0 h-full" style={mutedFix}>
+      <QaPolish />
       <header className="flex flex-col min-w-0 shrink-0">
         <div className="flex items-center" style={{ gap: 10 }}>
           <button
@@ -683,7 +695,7 @@ export function ApprovalsPublish() {
         cols={PUB_COLS}
         rows={pageRows}
         onRowClick={openDetail}
-        empty={hasFilter ? '검색 결과가 없어요. 검색어나 필터를 조정해보세요.' : '대기 중인 게시 신청이 없어요.'}
+        empty={loading ? '게시 신청을 불러오는 중…' : loadError ? '목록을 불러오지 못했어요. 잠시 후 다시 시도해주세요.' : hasFilter ? '검색 결과가 없어요. 검색어나 필터를 조정해보세요.' : '대기 중인 게시 신청이 없어요.'}
         cells={(r) => (
           <>
             <td className="align-middle" style={{ padding: '14px 0', paddingLeft: 24 }}>

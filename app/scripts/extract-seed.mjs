@@ -1,0 +1,10 @@
+import { readFile, writeFile } from 'node:fs/promises'
+const src = await readFile('src/screens/market-seed.ts', 'utf8')
+const m = src.match(/MARKET_SERVICES[^=]*=\s*(\[[\s\S]*\])\s*$/m)
+if (!m) throw new Error('배열 추출 실패')
+const arr = new Function('return ' + m[1])()
+await writeFile('scripts/market-services.seed.json', JSON.stringify({ marketServices: arr }, null, 2), 'utf8')
+console.log('총', arr.length, '건')
+console.log('순서(id/usageNum):')
+for (const s of arr) console.log(' ', s.id, s.usageNum)
+console.log('usageNum DESC:', [...arr].sort((a,b)=>b.usageNum-a.usageNum).map(s=>s.id).join(' → '))
