@@ -320,18 +320,23 @@ export function PublishNew() {
   const wizardStep = reviewing ? 1 : step
   const go = (d: number) => setStep((s) => Math.max(0, Math.min(WIZARD_STEPS.length - 1, s + d)))
 
-  const submit = () => {
+  const submit = async () => {
     if (submitting || !svc) return
     setSubmitting(true)
-    const created = createPublishRequest({
-      requesterUserId: user.id,
-      serviceName: svc.name,
-      serviceUrl: svc.serviceUrl,
-      demoUrl: svc.testUrl ?? svc.serviceUrl,
-      meta: `${kindOf(svc)} · ${modelOf(svc)}`,
-    })
-    setDoneId(created.id)
-    toast.push('게시 신청을 접수했어요. 관리자 검토 후 마켓에 노출됩니다.', 'ok')
+    try {
+      const created = await createPublishRequest({
+        requesterUserId: user.id,
+        serviceName: svc.name,
+        serviceUrl: svc.serviceUrl,
+        demoUrl: svc.testUrl ?? svc.serviceUrl,
+        meta: `${kindOf(svc)} · ${modelOf(svc)}`,
+      })
+      setDoneId(created.id)
+      toast.push('게시 신청을 접수했어요. 관리자 검토 후 마켓에 노출됩니다.', 'ok')
+    } catch {
+      setSubmitting(false)
+      toast.push('게시 신청에 실패했어요. 잠시 후 다시 시도해 주세요.', 'warn')
+    }
   }
   const next = () => {
     if (!canNext) return

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
@@ -293,19 +293,29 @@ function PendingReview({ req }: { req: ApiRecord }) {
   const reasonOk = rejectReason.trim().length >= REJECT_REASON_MIN
   const reviewing = step === 1
 
-  const confirmApprove = () => {
+  const confirmApprove = async () => {
     if (!keyOk || submitting) return
     setSubmitting(true)
-    approveApiRequest(req.id, owner.id, apiKey.trim())
-    toast.push(`${m.requester}님께 API 키를 발급했어요.`, 'ok')
-    setDone({ mode: 'approved', detail: apiKey.trim(), processedAt: nowLocal() })
+    try {
+      const updated = await approveApiRequest(req.id, owner.id, apiKey.trim())
+      toast.push(`${m.requester}님께 API 키를 발급했어요.`, 'ok')
+      setDone({ mode: 'approved', detail: apiKey.trim(), processedAt: updated.processedAt ?? nowLocal() })
+    } catch {
+      toast.push('발급 처리에 실패했어요. 잠시 후 다시 시도해주세요.', 'danger')
+      setSubmitting(false)
+    }
   }
-  const confirmReject = () => {
+  const confirmReject = async () => {
     if (!reasonOk || submitting) return
     setSubmitting(true)
-    rejectApiRequest(req.id, owner.id, rejectReason.trim())
-    toast.push(`${m.requester}님의 신청을 반려했어요.`, 'warn')
-    setDone({ mode: 'rejected', detail: rejectReason.trim(), processedAt: nowLocal() })
+    try {
+      const updated = await rejectApiRequest(req.id, owner.id, rejectReason.trim())
+      toast.push(`${m.requester}님의 신청을 반려했어요.`, 'warn')
+      setDone({ mode: 'rejected', detail: rejectReason.trim(), processedAt: updated.processedAt ?? nowLocal() })
+    } catch {
+      toast.push('반려 처리에 실패했어요. 잠시 후 다시 시도해주세요.', 'danger')
+      setSubmitting(false)
+    }
   }
 
   if (done) return <Completion done={done} reqId={req.id} requesterName={m.requester} serviceName={m.serviceName} onList={() => navigate('/api-approvals')} mutedFix={mutedFix} />
@@ -390,9 +400,27 @@ export function ApiApprovalDetail() {
   const navigate = useNavigate()
   const mutedFix = useMutedFix()
   // api-store는 동기 인메모리 — 매 렌더 조회(저렴). 처리 후 목록 복귀 시 재마운트로 반영.
-  const req = getApiRequest(id)
+  const [req, setReq] = useState<ApiRecord | null>(null)
+  const [state, setState] = useState<'loading' | 'ready' | 'notfound'>('loading')
+  useEffect(() => {
+    let alive = true
+    setState('loading')
+    getApiRequest(id)
+      .then((r) => { if (alive) { setReq(r); setState('ready') } })
+      .catch(() => { if (alive) setState('notfound') })
+    return () => { alive = false }
+  }, [id])
 
-  if (!req) {
+  if (state === 'loading') {
+    return (
+      <div data-apidetail className="anim-fade flex items-center justify-center" style={{ minHeight: 360 }}>
+        <PolishCss />
+        <span className="text-muted" style={{ fontSize: 14 }}>신청 정보를 불러오는 중…</span>
+      </div>
+    )
+  }
+
+  if (state === 'notfound' || !req) {
     return (
       <div data-apidetail className="anim-fade flex items-center justify-center" style={{ minHeight: 360 }}>
         <PolishCss />

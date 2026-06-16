@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CheckCircleIcon, ClockIcon, EyeIcon, MegaphoneIcon, PlusIcon, XCircleIcon } from '@heroicons/react/24/outline'
 import { PageShell } from '../components/PageShell'
@@ -24,9 +24,19 @@ const STATUS_FILTERS: { key: 'all' | Status; label: string }[] = [
 
 export function PublishRequest() {
   const navigate = useNavigate()
-  // 목록은 세션 스토어에서 로드 — 마법사에서 제출하면 목록 복귀 시 재마운트로 반영.
-  const [items] = useState<PubRecord[]>(() => listPublishRequests())
+  // 목록은 backend(REST)에서 로드 — 마법사에서 제출하면 목록 복귀 시 재마운트로 재조회.
+  const [items, setItems] = useState<PubRecord[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [filter, setFilter] = useState<'all' | Status>('all')
+  useEffect(() => {
+    let alive = true
+    listPublishRequests()
+      .then((d) => { if (alive) { setItems(d); setLoadError(false) } })
+      .catch(() => { if (alive) setLoadError(true) })
+      .finally(() => { if (alive) setLoading(false) })
+    return () => { alive = false }
+  }, [])
 
   const counts = {
     all: items.length,
@@ -157,7 +167,11 @@ export function PublishRequest() {
           </div>
         }
       >
-        {shown.length === 0 ? (
+        {loading ? (
+          <div className="flex items-center justify-center" style={{ minHeight: 200 }}><span className="text-muted" style={{ fontSize: 14 }}>게시 신청을 불러오는 중…</span></div>
+        ) : loadError ? (
+          <div className="flex items-center justify-center" style={{ minHeight: 200 }}><span className="text-muted" style={{ fontSize: 14 }}>목록을 불러오지 못했어요. 잠시 후 다시 시도해주세요.</span></div>
+        ) : shown.length === 0 ? (
           <EmptyState
             title="신청 내역이 없어요"
             description="배포한 서비스를 골라 첫 게시 신청을 보내보세요."

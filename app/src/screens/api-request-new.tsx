@@ -282,18 +282,23 @@ export function ApiRequestNew() {
   const wizardStep = reviewing ? 0 : step
   const go = (d: number) => setStep((s) => Math.max(0, Math.min(WIZARD_STEPS.length - 1, s + d)))
 
-  const submit = () => {
+  const submit = async () => {
     if (submitting || !svc) return
     setSubmitting(true)
-    const created = createApiRequest({
-      requesterUserId: user.id,
-      serviceId: svc.id,
-      model: svc.model,
-      targetServiceUrl: f.targetUrl.trim(),
-      purpose: f.purpose.trim(),
-    })
-    setDoneId(created.id)
-    toast.push('API 키 요청을 보냈어요. 서비스 소유자 승인 후 발급됩니다.', 'ok')
+    try {
+      const created = await createApiRequest({
+        requesterUserId: user.id,
+        serviceId: svc.id,
+        model: svc.model,
+        targetServiceUrl: f.targetUrl.trim(),
+        purpose: f.purpose.trim(),
+      })
+      setDoneId(created.id)
+      toast.push('API 키 요청을 보냈어요. 서비스 소유자 승인 후 발급됩니다.', 'ok')
+    } catch {
+      setSubmitting(false)
+      toast.push('API 키 요청에 실패했어요. 잠시 후 다시 시도해 주세요.', 'warn')
+    }
   }
   const next = () => {
     if (!canNext) return
