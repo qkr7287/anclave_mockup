@@ -526,7 +526,7 @@ function IdleResource() {
 
 function MonitoringContent() {
   return (
-    <div className="flex flex-col h-full min-w-0" style={{ gap: 12, overflow: 'hidden' }}>
+    <div className="flex flex-col h-full min-w-0 no-select" style={{ gap: 12, overflow: 'hidden' }}>
       <MonitoringHeader />
 
       {/* ② KPI 5장 */}
