@@ -20,7 +20,8 @@ create table users (
   role          role_t not null,
   email         text not null,
   has_hosting   boolean not null default false,
-  initial_route text not null
+  initial_route text not null,
+  department    text            -- 조직(4.10/마켓 랭킹 부서 표시) — 프론트 User.department 싱크
 );
 
 create table models (
@@ -308,6 +309,7 @@ create table market_services (
   model         text,
   api           text,
   owner         text,
+  owner_user_id text,            -- 배포자 users.id (사용량 랭킹에서 신청자 후보 제외용)
   rating        numeric,
   status        text,
   hue           int,

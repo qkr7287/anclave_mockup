@@ -528,13 +528,13 @@ app.get('/api/market-services/:id', async (c) => {
   return c.json(rows[0])
 })
 
-// 서비스 사용량(랭킹 요약 + 사용량 추이) — id 기반 deterministic 목업(프론트 g8 로직 이전, seed 불필요).
-const CONSUMER_NAMES = ['황상곤', '김가람', '백태수', '이은혜', '정휘선', '한도윤', '윤서연', '박지호']
-const RANK_TEAMS = [
-  { team: 'Platform 팀', hue: 212 }, { team: 'Data Alpha 팀', hue: 152 }, { team: 'Analytics 팀', hue: 280 },
-  { team: 'ML Ops 팀', hue: 30 }, { team: 'R&D 팀', hue: 330 }, { team: '코어 플랫폼', hue: 196 },
-]
+// 서비스 사용량(랭킹 요약 + 사용량 추이) — 랭킹 사용자 = 그 서비스에 키 승인받은 실제 조직(배포자 제외).
+// 후보 user 중 serviceId 기반 deterministic 선택(승인자 간주). 수치(requests/tokens/days)는 목업.
 const RANK_TAGS = ['Production', 'Team', 'Analytics', 'Batch', 'Internal', 'Core']
+const DEPT_HUE = {
+  '대표이사': 330, '사업기획본부': 280, '기술개발본부': 212,
+  '서비스 기술개발팀': 152, '시스템 통합개발팀': 30, '시스템 관리': 196,
+}
 
 function hashStr(str) {
   let h = 2166136261
@@ -550,19 +550,22 @@ function seededRng(seed) {
     return ((x ^ (x >>> 14)) >>> 0) / 4294967296
   }
 }
-function usageOf(id, usageNum) {
+function usageOf(id, usageNum, candidates) {
   const rng = seededRng(hashStr(id))
-  const keyCount = 4 + Math.floor(rng() * 3) // 4~6
-  const raw = Array.from({ length: keyCount }, () => 0.3 + rng())
+  const want = 4 + Math.floor(rng() * 3) // 4~6
+  // Fisher-Yates(rng) 셔플 → want 명 선택(승인자). 후보 부족 시 전부.
+  const pool = candidates.slice()
+  for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]] }
+  const picked = pool.slice(0, Math.min(want, pool.length))
+  const raw = picked.map(() => 0.3 + rng())
   const rawSum = raw.reduce((a, b) => a + b, 0)
   const tokenPerReq = 360 + rng() * 220
-  let rows = raw.map((r, i) => {
-    const requests = Math.max(1, Math.round((r / rawSum) * usageNum))
-    const tm = RANK_TEAMS[i % RANK_TEAMS.length]
+  let rows = picked.map((u, i) => {
+    const requests = Math.max(1, Math.round((raw[i] / rawSum) * usageNum))
     return {
       keyId: `sk-${id.slice(0, 4)}-${String(i + 1).padStart(2, '0')}`,
-      owner: CONSUMER_NAMES[i % CONSUMER_NAMES.length],
-      tag: RANK_TAGS[i % RANK_TAGS.length], team: tm.team, teamHue: tm.hue,
+      owner: u.name, tag: RANK_TAGS[i % RANK_TAGS.length],
+      team: u.department, teamHue: DEPT_HUE[u.department] ?? 200,
       requests, tokens: Math.round(requests * tokenPerReq), deltaPct: 0, spark: [],
     }
   }).sort((a, b) => b.requests - a.requests)
@@ -580,14 +583,19 @@ function usageOf(id, usageNum) {
     const concurrent = Math.max(1, Math.round(total / (1700 + rng() * 700)))
     days.push({ label: `5.${16 + d}`, perKey, total, concurrent })
   }
-  return { keyCount, rows, days }
+  return { keyCount: rows.length, rows, days }
 }
 
 app.get('/api/market-services/:id/usage', async (c) => {
   const id = c.req.param('id')
-  const { rows } = await pool.query('select usage_num from market_services where id = $1', [id])
-  if (!rows.length) return c.json({ error: 'not found' }, 404)
-  return c.json(usageOf(id, Number(rows[0].usage_num)))
+  const ms = (await pool.query('select usage_num, owner_user_id from market_services where id = $1', [id])).rows
+  if (!ms.length) return c.json({ error: 'not found' }, 404)
+  // 후보 = 실제 사용자(관리자·배포자 제외) — 그 서비스 키 승인자로 간주(deterministic).
+  const candidates = (await pool.query(
+    `select id, name, department from users
+      where role = 'user' and id <> 'u-admin' and ($1::text is null or id <> $1) order by id`,
+    [ms[0].owner_user_id])).rows
+  return c.json(usageOf(id, Number(ms[0].usage_num), candidates))
 })
 
 // 전체 서비스 — 모델 상세 '이 모델을 쓰는 서비스' 콤보차트(N:M models) 등. camelCase.
