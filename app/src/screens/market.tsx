@@ -952,42 +952,58 @@ function usageInsightOf(s: Service): UsageInsight {
 // 랭킹 요약 — API 키별 요청·점유·변화(Figma 'Group 1' 상단 테이블).
 function RankingSummary({ insight }: { insight: UsageInsight }) {
   const p = usePalette()
-  const cols = '24px minmax(0,1.5fr) minmax(0,1.1fr) 86px 96px'
-  const medal = (i: number) => (i === 0 ? '#F4C71A' : i === 1 ? '#C7CFDB' : i === 2 ? '#E08A4C' : p.chip)
+  const cols = '28px minmax(0,1.35fr) minmax(0,1fr) 100px 112px'
+  const MEDAL = ['#F4C71A', '#C7CFDB', '#E08A4C']
+  const rankStyle = (i: number) => (i <= 2
+    ? { background: `linear-gradient(140deg, ${MEDAL[i]}, ${MEDAL[i]}bb)`, color: '#10131c', boxShadow: `0 2px 7px ${MEDAL[i]}55` }
+    : { background: p.inset, color: p.muted, border: `1px solid ${p.border}` })
   return (
     <section className="rounded-2xl flex flex-col shrink-0" style={{ background: p.modalCard, border: `1px solid ${p.borderStrong}`, boxShadow: '0 2px 10px rgba(0,0,0,0.16)', padding: 20 }}>
-      <div className="flex items-center justify-between gap-2" style={{ marginBottom: 12 }}>
+      <style>{`@keyframes rankRowIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}`}</style>
+      <div className="flex items-center justify-between gap-2" style={{ marginBottom: 14 }}>
         <h3 style={{ fontSize: 16, fontWeight: 800, color: p.heading }}>랭킹 요약</h3>
         <span className="rounded-full" style={{ padding: '2px 10px', fontSize: 14, fontWeight: 700, color: p.accent, background: p.accentSoft }}>API 키 {insight.keyCount}개</span>
       </div>
-      <div className="grid items-center" style={{ gridTemplateColumns: cols, gap: 10, padding: '0 2px 8px', fontSize: 14, color: p.muted, borderBottom: `1px solid ${p.divider}` }}>
-        <span>#</span><span>API Key</span><span>소유자 · 팀</span>
-        <span className="text-right">요청 수</span><span className="text-right">변화 (7일)</span>
+      <div className="grid items-center" style={{ gridTemplateColumns: cols, gap: 14, padding: '0 4px 9px', fontSize: 13, fontWeight: 600, color: p.muted, borderBottom: `1px solid ${p.divider}` }}>
+        <span className="text-center">#</span><span>API Key</span><span>소유자 · 팀</span>
+        <span className="text-right">요청 수</span><span className="text-right">변화 · 7일</span>
       </div>
       <div className="flex flex-col">
         {insight.rows.map((r, i) => (
-          <div key={r.keyId} className="grid items-center" style={{ gridTemplateColumns: cols, gap: 10, padding: '10px 2px', borderBottom: i < insight.rows.length - 1 ? `1px solid ${p.divider}` : 'none' }}>
-            <span className="flex items-center justify-center" style={{ width: 22, height: 22, borderRadius: 999, background: medal(i), color: i <= 2 ? '#10131c' : p.muted, fontSize: 14, fontWeight: 800 }}>{i + 1}</span>
-            <div className="flex flex-col min-w-0" style={{ gap: 3 }}>
-              <span className="truncate" style={{ fontSize: 14, fontWeight: 700, color: p.heading }}>{r.keyId}</span>
-              <span className="self-start rounded whitespace-nowrap" style={{ padding: '1px 6px', fontSize: 14, color: r.color, background: p.inset }}>{r.tag}</span>
+          <div key={r.keyId} className="grid items-center rounded-xl transition-colors" style={{ gridTemplateColumns: cols, gap: 14, padding: '11px 4px', animation: 'rankRowIn .4s ease both', animationDelay: `${i * 55}ms` }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = p.inset }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}>
+            <span className="flex items-center justify-center justify-self-center" style={{ width: 24, height: 24, borderRadius: 999, fontSize: 13, fontWeight: 800, ...rankStyle(i) }}>{i + 1}</span>
+            <div className="flex flex-col min-w-0" style={{ gap: 4 }}>
+              <span className="truncate" style={{ fontSize: 14, fontWeight: 700, color: p.heading, letterSpacing: '-0.2px' }}>{r.keyId}</span>
+              <span className="flex items-center min-w-0" style={{ gap: 5 }}>
+                <span className="shrink-0 rounded-full" style={{ width: 6, height: 6, background: r.color }} />
+                <span className="truncate" style={{ fontSize: 13, color: p.muted }}>{r.tag}</span>
+              </span>
             </div>
-            <div className="flex items-center min-w-0" style={{ gap: 7 }}>
-              <span className="flex items-center justify-center shrink-0 rounded-full" style={{ width: 22, height: 22, fontSize: 14, fontWeight: 700, color: '#fff', background: `hsl(${r.teamHue},58%,52%)` }}>{r.team.slice(0, 1)}</span>
+            <div className="flex items-center min-w-0" style={{ gap: 8 }}>
+              <span className="flex items-center justify-center shrink-0 rounded-full" style={{ width: 24, height: 24, fontSize: 13, fontWeight: 800, color: '#fff', background: `linear-gradient(140deg, hsl(${r.teamHue},64%,56%), hsl(${(r.teamHue + 24) % 360},60%,46%))` }}>{r.team.slice(0, 1)}</span>
               <span className="truncate" style={{ fontSize: 14, color: p.text }}>{r.team}</span>
             </div>
-            <div className="flex flex-col items-end">
-              <span className="tabular-nums" style={{ fontSize: 14, fontWeight: 700, color: p.heading }}>{nf(r.requests)}</span>
-              <span className="tabular-nums" style={{ fontSize: 14, color: p.muted }}>({(r.reqPct * 100).toFixed(1)}%)</span>
+            <div className="flex flex-col items-end" style={{ gap: 5 }}>
+              <div className="flex items-baseline" style={{ gap: 5 }}>
+                <span className="tabular-nums" style={{ fontSize: 14.5, fontWeight: 800, color: p.heading, letterSpacing: '-0.3px' }}>{nf(r.requests)}</span>
+                <span className="tabular-nums" style={{ fontSize: 13, color: p.muted }}>{(r.reqPct * 100).toFixed(1)}%</span>
+              </div>
+              <div className="w-full rounded-full overflow-hidden" style={{ height: 5, background: p.inset }}>
+                <div className="h-full rounded-full" style={{ width: `${Math.max(5, r.reqPct * 100)}%`, background: r.color }} />
+              </div>
             </div>
-            <div className="flex items-center justify-end" style={{ gap: 6 }}>
-              <div className="shrink-0" style={{ width: 40, height: 20 }}><SparkLine data={r.spark} color={r.up ? p.ok : p.danger} fill /></div>
-              <span className="tabular-nums shrink-0" style={{ fontSize: 14, fontWeight: 700, color: r.up ? p.ok : p.danger }}>{r.up ? '▲' : '▼'}{Math.abs(r.deltaPct).toFixed(1)}%</span>
+            <div className="flex items-center justify-end" style={{ gap: 8 }}>
+              <div className="shrink-0" style={{ width: 38, height: 22 }}><SparkLine data={r.spark} color={r.up ? p.ok : p.danger} fill /></div>
+              <span className="flex items-center tabular-nums shrink-0 rounded-md" style={{ gap: 1, padding: '3px 7px', fontSize: 13, fontWeight: 800, color: r.up ? p.ok : p.danger, background: r.up ? p.okSoft : p.dangerSoft }}>
+                {r.up ? '▲' : '▼'}{Math.abs(r.deltaPct).toFixed(1)}%
+              </span>
             </div>
           </div>
         ))}
       </div>
-      <span style={{ marginTop: 8, fontSize: 14, color: p.muted }}>* 괄호 안은 전체 대비 비율</span>
+      <span style={{ marginTop: 10, fontSize: 13, color: p.muted }}>막대는 전체 요청 대비 점유율 · 변화는 이전 7일 대비예요.</span>
     </section>
   )
 }
