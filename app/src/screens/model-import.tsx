@@ -48,7 +48,7 @@ import {
 // 1 모델 업로드(드래그앤드롭) → 2 보안 스캔(진행 게이지 → 결과) → 3 명세 → 4 자원 → 5 사용법 → 6 검토·배포.
 // 스텝퍼는 업로드 단계부터 항상 노출. g2 request-new 의 좌우+morph 비주얼 체계 통일.
 
-const LIST_PATH = '/admin/models/requests'
+const LIST_PATH = '/models/requests'
 const API_HOST = 'https://api.anclave.local' // 추론 게이트웨이 호스트(엔드포인트 전체 URL 예시용)
 const SCAN_DURATION = 10000 // 보안 스캔 총 소요(ms) — 백그라운드 진행률 계산 기준
 const STEPS = ['모델 업로드', '보안 스캔', '명세 등록', '자원 요건', '사용법', '검토 · 배포']
