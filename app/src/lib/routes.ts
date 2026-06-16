@@ -10,7 +10,7 @@ export const IA_GROUPS: IaGroup[] = [
   { id: 2, label: '할당 관리' },
   { id: 3, label: '모델 관리' },
   { id: 4, label: '마켓플레이스' },
-  { id: 5, label: '내 에러 이벤트' },
+  { id: 5, label: '내 에러 이벤트 알림' },
   { id: 6, label: '게시판' },
   { id: 7, label: '감사 · 보안' },
   { id: 8, label: '시스템 설정' },
