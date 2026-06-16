@@ -182,7 +182,7 @@ function Completion({ mode, type, onGo }: { mode: 'submitted' | 'approved' | 're
 }
 
 // ════════════ 공용 마법사 본문 ════════════
-function Wizard({ mode, id, initialType, before: initBefore, initAfter, history, reviewReq }: {
+function Wizard({ mode, id, initialType, before: initBefore, initAfter, reviewReq }: {
   mode: 'review' | 'new'
   id?: string
   initialType: ChangeType
@@ -231,7 +231,6 @@ function Wizard({ mode, id, initialType, before: initBefore, initAfter, history,
 
   const reclaim = type === 'reclaim'
   const migrate = type === 'migrate'
-  const targetServer = servers.find((s) => s.id === targetServerId)
 
   // 자원 선택 목록 — 가용 자원 + 현재 할당 자원을 평면 나열(서버별 그룹). 같은 서버는 박스로 강조.
   const tree = useMemo(() => buildResourceTree(), [])
