@@ -36,6 +36,7 @@ import {
   MoonIcon,
   ClipboardDocumentCheckIcon,
   BeakerIcon,
+  ArrowLeftIcon,
 } from '@heroicons/react/24/outline'
 
 // G8 · 4.17 마켓플레이스 · 4.18 서비스(AI) 상세 — Figma 매칭(fileKey iqVQ2GEDCRj9cK3EBOwBJV,
@@ -682,6 +683,17 @@ function ServiceDetailCard({ service: s, narrow, reserveClose }: { service: Serv
       <div className="flex flex-col" style={{ gap: 18 }}>
         <div className="flex items-start justify-between gap-4 flex-wrap" style={{ paddingRight: reserveClose ? 44 : 0 }}>
           <div className="flex items-start gap-3.5 min-w-0">
+            <button
+              type="button"
+              aria-label="뒤로 가기"
+              onClick={() => navigate('/marketplace')}
+              className="flex items-center justify-center shrink-0 rounded-[9px] transition-colors cursor-pointer"
+              style={{ width: 34, height: 34, marginTop: 9, border: `1px solid ${p.border}`, background: p.card, color: p.muted }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = p.text; e.currentTarget.style.background = p.inset }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = p.muted; e.currentTarget.style.background = p.card }}
+            >
+              <ArrowLeftIcon style={{ width: 18, height: 18 }} />
+            </button>
             <Logo id={s.id} hue={s.hue} icon={iconOf(s.icon)} size={52} />
             <div className="flex flex-col min-w-0" style={{ gap: 10 }}>
               <h2 style={{ fontSize: 21, fontWeight: 800, letterSpacing: '-0.4px', color: p.heading, lineHeight: 1.1 }}>{s.name}</h2>
