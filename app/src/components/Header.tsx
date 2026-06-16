@@ -12,6 +12,7 @@ import { useTheme } from '../lib/theme'
 import { accessOf, useRole } from '../lib/role'
 import { userById, users } from '../data/users'
 import { modelById } from '../data/models'
+import { getPostById } from '../screens/board-store'
 import { notifications } from '../data/events'
 import { IA_GROUPS, matchRoute, parentRouteKey, routeByKey } from '../lib/routes'
 
@@ -55,6 +56,11 @@ function useCrumbs(): Crumb[] {
   if (route.key === 'model-detail') {
     const mid = pathname.split('/')[2]
     lastLabel = modelById(mid)?.name ?? route.title
+  }
+  // board-detail(/board/:id)도 마지막 단계를 글 제목으로 — 동적 라벨.
+  if (route.key === 'board-detail') {
+    const pid = pathname.split('/')[2]
+    lastLabel = getPostById(pid)?.title ?? route.title
   }
   crumbs.push({ label: lastLabel }) // 마지막 = 현재(비활성)
   return crumbs
