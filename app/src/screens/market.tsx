@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { ComponentType, ReactNode, SVGProps } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Button } from '../components/ui'
@@ -623,9 +624,46 @@ function ClipboardIcon({ p }: { p: { muted: string } }) {
   )
 }
 
+// 갤러리 이미지 라이트박스(클릭 시 확대). Esc·배경 클릭 닫기, ←/→ 이동.
+function ImageLightbox({ images, index, onIndex, onClose }: { images: string[]; index: number; onIndex: (i: number) => void; onClose: () => void }) {
+  const multi = images.length > 1
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+      else if (e.key === 'ArrowLeft' && multi) onIndex((index - 1 + images.length) % images.length)
+      else if (e.key === 'ArrowRight' && multi) onIndex((index + 1) % images.length)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [index, images.length, multi, onClose, onIndex])
+  const navBtn = { width: 42, height: 42, borderRadius: 999, background: 'rgba(255,255,255,0.14)', color: '#fff', backdropFilter: 'blur(4px)', cursor: 'pointer' } as const
+  return createPortal(
+    <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex: 60, background: 'rgba(8,10,16,0.88)', backdropFilter: 'blur(4px)', padding: '5vh 6vw', animation: 'lbFadeIn .15s ease both' }} onClick={onClose} role="dialog" aria-modal="true" aria-label="이미지 확대 보기">
+      <style>{`@keyframes lbFadeIn{from{opacity:0}to{opacity:1}}.lb-btn:hover{background:rgba(255,255,255,0.26)}`}</style>
+      <img src={images[index]} alt="" className="rounded-xl" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', boxShadow: '0 16px 60px rgba(0,0,0,0.55)' }} onClick={(e) => e.stopPropagation()} />
+      <button type="button" onClick={onClose} aria-label="닫기" className="lb-btn absolute flex items-center justify-center transition" style={{ ...navBtn, top: 20, right: 24 }}>
+        <XMarkIcon width={20} height={20} />
+      </button>
+      {multi && (
+        <>
+          <button type="button" onClick={(e) => { e.stopPropagation(); onIndex((index - 1 + images.length) % images.length) }} aria-label="이전 이미지" className="lb-btn absolute flex items-center justify-center transition" style={{ ...navBtn, left: 20, top: '50%', transform: 'translateY(-50%)' }}>
+            <ChevronRightIcon width={22} height={22} style={{ transform: 'rotate(180deg)' }} />
+          </button>
+          <button type="button" onClick={(e) => { e.stopPropagation(); onIndex((index + 1) % images.length) }} aria-label="다음 이미지" className="lb-btn absolute flex items-center justify-center transition" style={{ ...navBtn, right: 20, top: '50%', transform: 'translateY(-50%)' }}>
+            <ChevronRightIcon width={22} height={22} />
+          </button>
+          <span className="absolute" style={{ bottom: 24, left: '50%', transform: 'translateX(-50%)', fontSize: 14, fontWeight: 700, color: '#fff', background: 'rgba(0,0,0,0.45)', padding: '4px 12px', borderRadius: 999 }}>{index + 1} / {images.length}</span>
+        </>
+      )}
+    </div>,
+    document.body,
+  )
+}
+
 function ServiceDetailCard({ service: s, narrow, reserveClose }: { service: Service; narrow: boolean; reserveClose?: boolean }) {
   const p = usePalette()
   const navigate = useNavigate()
+  const [lightbox, setLightbox] = useState<number | null>(null)
   const tone = toneOf(s.status)
   const apiAvailable = hasApiOf(s)
   const usageStats: [string, string][] = [
@@ -666,9 +704,11 @@ function ServiceDetailCard({ service: s, narrow, reserveClose }: { service: Serv
       {/* 스크린샷 갤러리 */}
       {s.screenshots && s.screenshots.length > 0 && (
         <div className="flex overflow-x-auto" style={{ gap: 12, paddingBottom: 4 }}>
-          {s.screenshots.map((src) => (
-            <img key={src} src={src} alt="" loading="lazy" className="shrink-0 object-cover"
-              style={{ height: 200, borderRadius: 12, border: `1px solid ${p.border}`, background: p.inset, objectPosition: 'top' }} />
+          {s.screenshots.map((src, i) => (
+            <img key={src} src={src} alt="" loading="lazy" onClick={() => setLightbox(i)} className="shrink-0 object-cover transition-[border-color,transform] hover:-translate-y-0.5"
+              style={{ height: 200, borderRadius: 12, border: `1px solid ${p.border}`, background: p.inset, objectPosition: 'top', cursor: 'zoom-in' }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = p.accent }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = p.border }} />
           ))}
         </div>
       )}
@@ -757,6 +797,10 @@ function ServiceDetailCard({ service: s, narrow, reserveClose }: { service: Serv
             : <Button>워크스페이스 열기</Button>}
         </div>
       </div>
+
+      {lightbox !== null && s.screenshots?.[lightbox] !== undefined && (
+        <ImageLightbox images={s.screenshots} index={lightbox} onIndex={setLightbox} onClose={() => setLightbox(null)} />
+      )}
     </div>
   )
 }
