@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { ComponentType, ReactNode, SVGProps } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { Button, Breadcrumb } from '../components/ui'
+import { Button } from '../components/ui'
 import { SparkLine } from '../components/charts'
 import { useTheme } from '../lib/theme'
 import { QaPolish } from './qa-polish'
@@ -907,8 +907,8 @@ function usageInsightOf(s: Service): UsageInsight {
 
 const nf = (n: number) => n.toLocaleString('en-US')
 
-// 현재 실시간 사용량 Hero — 이 서비스에 들어와 호출 중인 실시간 사용량(제일 강조).
-function LiveUsageHero({ insight, narrow }: { insight: UsageInsight; narrow: boolean }) {
+// 사용량 요약 — 이 서비스의 누적 사용량과 보조 지표(실시간 아님, 집계 기준).
+function UsageSummary({ insight, service, narrow }: { insight: UsageInsight; service: Service; narrow: boolean }) {
   const p = usePalette()
   const sub = (label: string, value: string, hint: string) => (
     <div className="flex flex-col rounded-xl" style={{ padding: '12px 14px', background: p.inset, border: `1px solid ${p.border}`, gap: 2 }}>
@@ -919,57 +919,91 @@ function LiveUsageHero({ insight, narrow }: { insight: UsageInsight; narrow: boo
   )
   return (
     <section className="rounded-2xl relative overflow-hidden" style={{ background: p.modalCard, border: `1px solid ${p.borderStrong}`, boxShadow: '0 2px 10px rgba(0,0,0,0.16)' }}>
-      <style>{`@keyframes livePulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.8)}}`}</style>
       <div className="absolute inset-0 pointer-events-none" style={{ background: `radial-gradient(120% 140% at 100% 0%, ${p.accentSoft} 0%, transparent 55%)` }} />
       <div className="relative flex flex-col" style={{ padding: narrow ? 18 : 22, gap: 16 }}>
         <div className={`flex ${narrow ? 'flex-col' : 'items-end justify-between'}`} style={{ gap: 16 }}>
           <div className="flex flex-col" style={{ gap: 8 }}>
-            <span className="inline-flex items-center self-start gap-1.5 rounded-full" style={{ padding: '3px 10px', fontSize: 14, fontWeight: 700, color: p.ok, background: p.okSoft }}>
-              <span className="rounded-full" style={{ width: 7, height: 7, background: 'currentColor', animation: 'livePulse 1.4s ease-in-out infinite' }} /> LIVE · 현재 사용 중
+            <span className="inline-flex items-center self-start gap-1.5 rounded-full" style={{ padding: '3px 10px', fontSize: 14, fontWeight: 700, color: p.accent, background: p.accentSoft }}>
+              <ChartBarIcon width={13} height={13} /> 사용량 요약
             </span>
             <div className="flex items-baseline" style={{ gap: 8 }}>
-              <span style={{ fontSize: narrow ? 40 : 52, fontWeight: 800, letterSpacing: '-1.6px', lineHeight: 1, color: p.heading }}>{nf(insight.liveReqPerMin)}</span>
-              <span style={{ fontSize: 17, fontWeight: 700, color: p.muted }}>req / min</span>
+              <span style={{ fontSize: narrow ? 40 : 52, fontWeight: 800, letterSpacing: '-1.6px', lineHeight: 1, color: p.heading }}>{nf(service.usageNum)}</span>
+              <span style={{ fontSize: 17, fontWeight: 700, color: p.muted }}>회 · 최근 30일</span>
             </div>
-            <span style={{ fontSize: 14, color: p.muted }}>지금 이 서비스를 호출 중인 실시간 사용량이에요.</span>
+            <span style={{ fontSize: 14, color: p.muted }}>이 서비스의 누적 호출량이에요.</span>
           </div>
           <div className="shrink-0" style={{ width: narrow ? '100%' : 320, height: 84 }}>
-            <SparkLine data={insight.trend} color={p.accent} fill peak fmt={(v) => `${nf(Math.round(v))}/min`} />
+            <SparkLine data={insight.trend} color={p.accent} fill peak fmt={(v) => nf(Math.round(v))} />
           </div>
         </div>
         <div className="grid" style={{ gap: 12, gridTemplateColumns: narrow ? '1fr' : 'repeat(3, 1fr)' }}>
-          {sub('동시 세션', nf(insight.concurrent), '현재 접속 중인 세션')}
-          {sub('오늘 호출', nf(insight.todayCalls), '0시부터 누적 호출')}
-          {sub('API 키 발급', `${insight.keyCount}명`, '키를 할당받은 사용자')}
+          {sub('오늘 호출', nf(insight.todayCalls), '0시부터 누적')}
+          {sub('평균 응답', service.responseTime, '요청당 평균')}
+          {sub('성공률', service.success, '최근 호출 기준')}
         </div>
       </div>
     </section>
   )
 }
 
-// API 키를 할당받은 사용자별 사용량 — 가로 막대.
+// 사용자별 점유 색(도넛 세그먼트 = 범례 dot 일치).
+const consumerColor = (i: number) => `hsl(${(212 + i * 40) % 360}, 64%, 57%)`
+const compactNum = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}K` : String(n))
+
+// 도넛(점유율) — 차트 라이브러리와 동일한 SVG 톤. 세그먼트 stroke-dasharray.
+function UsageDonut({ data, total, size = 150, thickness = 14 }: { data: { value: number; color: string }[]; total: number; size?: number; thickness?: number }) {
+  const p = usePalette()
+  const r = (size - thickness) / 2
+  const circ = 2 * Math.PI * r
+  let acc = 0
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <svg viewBox={`0 0 ${size} ${size}`} style={{ width: size, height: size }} role="img" aria-label="API 키 사용량 점유율">
+        <g transform={`rotate(-90 ${size / 2} ${size / 2})`}>
+          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--c-track)" strokeWidth={thickness} />
+          {data.map((d, i) => {
+            const frac = total > 0 ? d.value / total : 0
+            const seg = (
+              <circle key={i} cx={size / 2} cy={size / 2} r={r} fill="none" stroke={d.color} strokeWidth={thickness}
+                strokeDasharray={`${frac * circ} ${circ}`} strokeDashoffset={-acc * circ}
+                style={{ transition: 'stroke-dashoffset .5s ease, stroke-dasharray .5s ease' }} />
+            )
+            acc += frac
+            return seg
+          })}
+        </g>
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ gap: 1 }}>
+        <span style={{ fontSize: 14, color: p.muted }}>총 호출</span>
+        <span style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.5px', color: p.heading }}>{compactNum(total)}</span>
+      </div>
+    </div>
+  )
+}
+
+// API 키를 할당받은 사용자별 사용량 — 도넛(점유율) + 범례.
 function ConsumerUsage({ insight }: { insight: UsageInsight }) {
   const p = usePalette()
-  const max = insight.consumers[0]?.calls ?? 1
-  const medal = (i: number) => (i === 0 ? '#F4C71A' : i === 1 ? '#C7CFDB' : i === 2 ? '#E08A4C' : p.chip)
+  const total = insight.consumers.reduce((a, c) => a + c.calls, 0)
+  const data = insight.consumers.map((c, i) => ({ value: c.calls, color: consumerColor(i) }))
   return (
     <section className="rounded-2xl h-full flex flex-col" style={{ background: p.modalCard, border: `1px solid ${p.borderStrong}`, boxShadow: '0 2px 10px rgba(0,0,0,0.16)', padding: 22 }}>
-      <div className="flex items-center justify-between gap-2 shrink-0" style={{ marginBottom: 16 }}>
+      <div className="flex items-center justify-between gap-2 shrink-0" style={{ marginBottom: 14 }}>
         <h3 style={{ fontSize: 16, fontWeight: 800, color: p.heading }}>API 키 사용자별 사용량</h3>
         <span className="rounded-full" style={{ padding: '2px 10px', fontSize: 14, fontWeight: 700, color: p.accent, background: p.accentSoft }}>{insight.keyCount}명</span>
       </div>
-      <div className="flex flex-col flex-1" style={{ gap: 12, justifyContent: insight.consumers.length <= 6 ? 'space-between' : 'flex-start' }}>
-        {insight.consumers.map((c, i) => (
-          <div key={c.name} className="flex items-center" style={{ gap: 12 }}>
-            <span className="flex items-center justify-center shrink-0" style={{ width: 22, height: 22, borderRadius: 999, background: medal(i), color: i <= 2 ? '#10131c' : p.muted, fontSize: 14, fontWeight: 800 }}>{i + 1}</span>
-            <span className="shrink-0 truncate" style={{ width: 72, fontSize: 14, fontWeight: 700, color: p.heading }}>{c.name}</span>
-            <div className="flex-1 min-w-0 rounded-full overflow-hidden" style={{ height: 10, background: p.inset }}>
-              <div className="h-full rounded-full" style={{ width: `${Math.max(4, (c.calls / max) * 100)}%`, background: `linear-gradient(90deg, ${p.accent}, hsl(${(i * 26) % 360},70%,55%))` }} />
-            </div>
-            <span className="shrink-0 text-right tabular-nums" style={{ width: 76, fontSize: 14, fontWeight: 700, color: p.text }}>{nf(c.calls)}</span>
-            <span className="shrink-0 text-right tabular-nums" style={{ width: 44, fontSize: 14, color: p.muted }}>{(c.pct * 100).toFixed(1)}%</span>
-          </div>
-        ))}
+      <div className="flex flex-1 items-center min-h-0" style={{ gap: 20 }}>
+        <UsageDonut data={data} total={total} />
+        <ul className="flex-1 min-w-0 flex flex-col self-stretch" style={{ gap: 10, justifyContent: 'center' }}>
+          {insight.consumers.map((c, i) => (
+            <li key={c.name} className="flex items-center" style={{ gap: 10 }}>
+              <span className="shrink-0 rounded-full" style={{ width: 11, height: 11, background: consumerColor(i) }} />
+              <span className="flex-1 min-w-0 truncate" style={{ fontSize: 14, fontWeight: 600, color: p.text }}>{c.name}</span>
+              <span className="shrink-0 text-right tabular-nums" style={{ width: 70, fontSize: 14, fontWeight: 700, color: p.heading }}>{nf(c.calls)}</span>
+              <span className="shrink-0 text-right tabular-nums" style={{ width: 46, fontSize: 14, color: p.muted }}>{(c.pct * 100).toFixed(1)}%</span>
+            </li>
+          ))}
+        </ul>
       </div>
     </section>
   )
@@ -999,9 +1033,6 @@ export function ServiceDetail() {
   return (
     <div data-qa className="anim-fade flex flex-col min-w-0 w-full mx-auto" style={{ gap: 12, height: fill ? '100%' : 'auto', overflow: fill ? 'hidden' : 'visible', maxWidth: fill ? undefined : 1080 }}>
       <QaPolish />
-      <div className="shrink-0">
-        <Breadcrumb items={[{ label: '마켓플레이스', to: '/marketplace' }, { label: service?.name ?? '서비스 상세' }]} />
-      </div>
       {state === 'ready' && service && insight ? (
         <div className="grid min-w-0" style={{ gap: 14, flex: fill ? '1 1 0%' : undefined, minHeight: 0, gridTemplateColumns: narrow ? '1fr' : 'minmax(0, 1.25fr) minmax(0, 1fr)' }}>
           {/* 좌 — 서비스 상세(콘텐츠 많을 때 컬럼 내부에서만 스크롤) */}
@@ -1010,7 +1041,7 @@ export function ServiceDetail() {
           </div>
           {/* 우 — 사용량 인사이트(실시간 + 사용자별) */}
           <div className="flex flex-col min-w-0 min-h-0" style={{ gap: 14 }}>
-            <LiveUsageHero insight={insight} narrow={narrow} />
+            <UsageSummary insight={insight} service={service} narrow={narrow} />
             <div className="min-h-0" style={{ flex: fill ? '1 1 0%' : undefined, overflowY: fill ? 'auto' : 'visible' }}>
               <ConsumerUsage insight={insight} />
             </div>
