@@ -320,7 +320,7 @@ function ServiceCard({ s, onOpen }: { s: Service; onOpen: (s: Service) => void }
       onMouseEnter={(e) => { e.currentTarget.style.borderColor = p.accent; e.currentTarget.style.background = p.inset }}
       onMouseLeave={(e) => { e.currentTarget.style.borderColor = p.border; e.currentTarget.style.background = p.filter }}>
       {s.thumbnail && (
-        <div className="w-full overflow-hidden shrink-0" style={{ height: 124, borderRadius: 12, background: p.inset }}>
+        <div className="w-full overflow-hidden flex-1" style={{ minHeight: 132, borderRadius: 12, background: p.inset }}>
           <img src={s.thumbnail} alt="" loading="lazy" className="w-full h-full object-cover" style={{ objectPosition: 'top', display: 'block' }} />
         </div>
       )}
@@ -775,18 +775,18 @@ function DetailModal({ service, onClose }: { service: Service; onClose: () => vo
     }
   }, [onClose])
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center"
-      style={{ background: p.dim, backdropFilter: 'blur(3px)', padding: '4vh 16px', overflowY: 'auto', animation: 'mkFadeIn .18s ease both' }}
+    <div className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ background: p.dim, backdropFilter: 'blur(3px)', padding: '4vh 16px', animation: 'mkFadeIn .18s ease both' }}
       onClick={onClose} role="presentation">
       <style>{`@keyframes mkFadeIn{from{opacity:0}to{opacity:1}}@keyframes mkPopIn{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:none}}.mk-close:hover{filter:brightness(1.35)}`}</style>
-      <div className="w-full rounded-2xl relative"
-        style={{ maxWidth: 900, background: p.modalCard, border: `1px solid ${p.borderStrong}`, boxShadow: `${p.shadow}, inset 0 1px 0 rgba(255,255,255,0.05)`, animation: 'mkPopIn .24s cubic-bezier(.2,.7,.2,1) both' }}
+      <div className="w-full rounded-2xl relative flex flex-col"
+        style={{ maxWidth: 900, maxHeight: '92vh', overflow: 'hidden', background: p.modalCard, border: `1px solid ${p.borderStrong}`, boxShadow: `${p.shadow}, inset 0 1px 0 rgba(255,255,255,0.05)`, animation: 'mkPopIn .24s cubic-bezier(.2,.7,.2,1) both' }}
         onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={`${service.name} 상세`}>
         <button type="button" onClick={onClose} aria-label="닫기" className="mk-close absolute flex items-center justify-center rounded-lg z-10 transition"
           style={{ top: 16, right: 16, width: 32, height: 32, color: p.text, background: p.inset, border: `1px solid ${p.borderStrong}` }}>
           <XMarkIcon width={17} height={17} />
         </button>
-        <div style={{ padding: narrow ? 20 : 28 }}>
+        <div className="flex-1 min-h-0 overflow-y-auto" style={{ padding: narrow ? 20 : 28 }}>
           <ServiceDetailCard service={service} narrow={narrow} reserveClose />
         </div>
       </div>
