@@ -953,12 +953,12 @@ function ConsumerUsage({ insight }: { insight: UsageInsight }) {
   const max = insight.consumers[0]?.calls ?? 1
   const medal = (i: number) => (i === 0 ? '#F4C71A' : i === 1 ? '#C7CFDB' : i === 2 ? '#E08A4C' : p.chip)
   return (
-    <section className="rounded-2xl" style={{ background: p.modalCard, border: `1px solid ${p.borderStrong}`, boxShadow: '0 2px 10px rgba(0,0,0,0.16)', padding: 22 }}>
-      <div className="flex items-center justify-between gap-2" style={{ marginBottom: 16 }}>
+    <section className="rounded-2xl h-full flex flex-col" style={{ background: p.modalCard, border: `1px solid ${p.borderStrong}`, boxShadow: '0 2px 10px rgba(0,0,0,0.16)', padding: 22 }}>
+      <div className="flex items-center justify-between gap-2 shrink-0" style={{ marginBottom: 16 }}>
         <h3 style={{ fontSize: 16, fontWeight: 800, color: p.heading }}>API 키 사용자별 사용량</h3>
         <span className="rounded-full" style={{ padding: '2px 10px', fontSize: 14, fontWeight: 700, color: p.accent, background: p.accentSoft }}>{insight.keyCount}명</span>
       </div>
-      <div className="flex flex-col" style={{ gap: 12 }}>
+      <div className="flex flex-col flex-1" style={{ gap: 12, justifyContent: insight.consumers.length <= 6 ? 'space-between' : 'flex-start' }}>
         {insight.consumers.map((c, i) => (
           <div key={c.name} className="flex items-center" style={{ gap: 12 }}>
             <span className="flex items-center justify-center shrink-0" style={{ width: 22, height: 22, borderRadius: 999, background: medal(i), color: i <= 2 ? '#10131c' : p.muted, fontSize: 14, fontWeight: 800 }}>{i + 1}</span>
@@ -993,28 +993,34 @@ export function ServiceDetail() {
     return () => { alive = false }
   }, [id])
   const insight = useMemo(() => (service ? usageInsightOf(service) : null), [service])
-
-  const card = (children: ReactNode) => (
-    <div className="w-full rounded-2xl" style={{ background: p.modalCard, border: `1px solid ${p.borderStrong}`, boxShadow: '0 2px 10px rgba(0,0,0,0.16)', padding: narrow ? 20 : 28 }}>{children}</div>
-  )
+  const fill = !narrow // 넓은 화면: 무스크롤 2열 대시보드(페이지 고정, 콘텐츠는 컬럼 내부 스크롤)
+  const panel = { background: p.modalCard, border: `1px solid ${p.borderStrong}`, boxShadow: '0 2px 10px rgba(0,0,0,0.16)' } as const
 
   return (
-    <div data-qa className="anim-fade flex flex-col min-w-0 mx-auto w-full" style={{ gap: 16, maxWidth: 1080 }}>
+    <div data-qa className="anim-fade flex flex-col min-w-0 w-full mx-auto" style={{ gap: 12, height: fill ? '100%' : 'auto', overflow: fill ? 'hidden' : 'visible', maxWidth: fill ? undefined : 1080 }}>
       <QaPolish />
-      <Breadcrumb items={[{ label: '마켓플레이스', to: '/marketplace' }, { label: service?.name ?? '서비스 상세' }]} />
+      <div className="shrink-0">
+        <Breadcrumb items={[{ label: '마켓플레이스', to: '/marketplace' }, { label: service?.name ?? '서비스 상세' }]} />
+      </div>
       {state === 'ready' && service && insight ? (
-        <>
-          <LiveUsageHero insight={insight} narrow={narrow} />
-          {card(<ServiceDetailCard service={service} narrow={narrow} />)}
-          <ConsumerUsage insight={insight} />
-        </>
+        <div className="grid min-w-0" style={{ gap: 14, flex: fill ? '1 1 0%' : undefined, minHeight: 0, gridTemplateColumns: narrow ? '1fr' : 'minmax(0, 1.25fr) minmax(0, 1fr)' }}>
+          {/* 좌 — 서비스 상세(콘텐츠 많을 때 컬럼 내부에서만 스크롤) */}
+          <div className="rounded-2xl min-w-0 min-h-0" style={{ ...panel, overflowY: fill ? 'auto' : 'visible', padding: narrow ? 20 : 24 }}>
+            <ServiceDetailCard service={service} narrow={narrow} />
+          </div>
+          {/* 우 — 사용량 인사이트(실시간 + 사용자별) */}
+          <div className="flex flex-col min-w-0 min-h-0" style={{ gap: 14 }}>
+            <LiveUsageHero insight={insight} narrow={narrow} />
+            <div className="min-h-0" style={{ flex: fill ? '1 1 0%' : undefined, overflowY: fill ? 'auto' : 'visible' }}>
+              <ConsumerUsage insight={insight} />
+            </div>
+          </div>
+        </div>
       ) : (
-        card(
-          <div className="flex flex-col items-center justify-center text-center" style={{ minHeight: 200, gap: 12 }}>
-            <span style={{ fontSize: 14, color: p.muted }}>{state === 'loading' ? '서비스 정보를 불러오는 중…' : '서비스를 찾을 수 없어요.'}</span>
-            {state === 'notfound' && <Button variant="outline" onClick={() => navigate('/marketplace')}>마켓플레이스로</Button>}
-          </div>,
-        )
+        <div className="rounded-2xl flex flex-col items-center justify-center text-center" style={{ ...panel, minHeight: 200, gap: 12, padding: 28 }}>
+          <span style={{ fontSize: 14, color: p.muted }}>{state === 'loading' ? '서비스 정보를 불러오는 중…' : '서비스를 찾을 수 없어요.'}</span>
+          {state === 'notfound' && <Button variant="outline" onClick={() => navigate('/marketplace')}>마켓플레이스로</Button>}
+        </div>
       )}
     </div>
   )
