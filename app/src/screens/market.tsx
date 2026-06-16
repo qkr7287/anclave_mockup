@@ -997,7 +997,6 @@ function UsageTrendChart({ insight }: { insight: UsageInsight }) {
   const p = usePalette()
   const { days, rows, maxRequests, maxConcurrent, avgConcurrent, todayDeltaPct, todayUp } = insight
   const last = days[days.length - 1]
-  const CHART_H = 150
   const colW = 64 / days.length // 막대 컬럼 폭(%)
   const pts = days.map((d, i) => ({ x: ((i + 0.5) / days.length) * 100, y: (1 - d.concurrent / maxConcurrent) * 92 + 2 }))
   const linePath = pts.map((pt, i) => `${i === 0 ? 'M' : 'L'} ${pt.x} ${pt.y}`).join(' ')
@@ -1010,11 +1009,11 @@ function UsageTrendChart({ insight }: { insight: UsageInsight }) {
         <span className="rounded-lg" style={{ padding: '3px 10px', fontSize: 14, fontWeight: 600, color: p.muted, background: p.inset, border: `1px solid ${p.border}` }}>일별 · 최근 7일</span>
       </div>
 
-      <div className="flex shrink-0" style={{ gap: 8 }}>
-        <div className="flex flex-col justify-between shrink-0 text-right" style={{ height: CHART_H, fontSize: 12, color: p.muted, width: 36 }}>
+      <div className="flex flex-1 min-h-0" style={{ gap: 8 }}>
+        <div className="flex flex-col justify-between shrink-0 text-right h-full" style={{ fontSize: 12, color: p.muted, width: 36 }}>
           <span>{compactNum(maxRequests)}</span><span>{compactNum(Math.round(maxRequests / 2))}</span><span>0</span>
         </div>
-        <div className="relative flex-1 min-w-0" style={{ height: CHART_H }}>
+        <div className="relative flex-1 min-w-0 h-full">
           {[0, 0.5, 1].map((g) => <div key={g} className="absolute left-0 right-0" style={{ top: `${g * 100}%`, borderTop: `1px dashed ${p.border}` }} />)}
           <div className="absolute inset-0 flex items-end justify-around">
             {days.map((d, di) => (
@@ -1031,7 +1030,7 @@ function UsageTrendChart({ insight }: { insight: UsageInsight }) {
           </svg>
           {pts.map((pt, i) => <span key={i} className="absolute rounded-full" style={{ left: `${pt.x}%`, top: `${pt.y}%`, width: 7, height: 7, background: p.accent, border: `2px solid ${p.modalCard}`, transform: 'translate(-50%,-50%)' }} />)}
         </div>
-        <div className="flex flex-col justify-between shrink-0" style={{ height: CHART_H, fontSize: 12, color: p.accent, width: 28 }}>
+        <div className="flex flex-col justify-between shrink-0 h-full" style={{ fontSize: 12, color: p.accent, width: 28 }}>
           <span>{maxConcurrent}</span><span>{Math.round(maxConcurrent / 2)}</span><span>0</span>
         </div>
       </div>
@@ -1050,7 +1049,7 @@ function UsageTrendChart({ insight }: { insight: UsageInsight }) {
         </span>
       </div>
 
-      <div className="rounded-xl shrink-0 mt-auto" style={{ marginTop: 12, padding: '10px 14px', background: p.inset, border: `1px solid ${p.border}`, fontSize: 13, color: p.muted, lineHeight: 1.5 }}>
+      <div className="rounded-xl shrink-0" style={{ marginTop: 12, padding: '10px 14px', background: p.inset, border: `1px solid ${p.border}`, fontSize: 13, color: p.muted, lineHeight: 1.5 }}>
         <b style={{ color: p.heading }}>{last.label}</b> 총 요청 <b style={{ color: p.heading }}>{compactNum(last.total)}</b>
         <span style={{ color: todayUp ? p.ok : p.danger, fontWeight: 700 }}> (전일 대비 {todayUp ? '+' : ''}{todayDeltaPct}%)</span> · 평균 동시 사용량 <b style={{ color: p.heading }}>{avgConcurrent}</b>
       </div>
