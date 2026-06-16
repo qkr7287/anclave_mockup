@@ -188,7 +188,6 @@ function Wizard({ mode, id, initialType, before: initBefore, initAfter, reviewRe
   initialType: ChangeType
   before: AllocSpec
   initAfter?: AllocSpec // review 모드: 신청자가 요청한 변경 후 명세(슬라이더 초기값)
-  history?: HistoryEntry[]
   reviewReq?: ChangeRequest // review 모드: 상위에서 조회한 변경요청(신청자·사유·일시)
 }) {
   const navigate = useNavigate()
@@ -962,7 +961,7 @@ export function GpuChangeReview() {
   }
   // 심사(승인·반려)는 최종 관리자만. 비관리자(본인 요청)·처리완료 건은 읽기전용 조회.
   if (req.status !== 'pending' || !isAdmin) return <ProcessedView req={req} />
-  return <Wizard mode="review" id={id} reviewReq={req} initialType={req.type} before={req.before} initAfter={req.after} history={req.history} />
+  return <Wizard mode="review" id={id} reviewReq={req} initialType={req.type} before={req.before} initAfter={req.after} />
 }
 
 // ── 사용자 신규 신청 진입 — 대상 할당은 Wizard 가 backend 에서 로드 ──
