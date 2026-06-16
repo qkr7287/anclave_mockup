@@ -6,7 +6,7 @@ import { Button } from '../components/ui'
 import { SparkLine } from '../components/charts'
 import { useTheme } from '../lib/theme'
 import { QaPolish } from './qa-polish'
-import { type MarketService as Service, listMarketServices, getMarketService } from './market-store'
+import { type MarketService as Service, type MarketServiceUsage, listMarketServices, getMarketService, getMarketServiceUsage } from './market-store'
 import {
   MagnifyingGlassIcon,
   CpuChipIcon,
@@ -881,84 +881,34 @@ export function Marketplace() {
   )
 }
 
-// ───────────────────────── 사용량 인사이트(목업 — backend 연동 전, id 기반 deterministic) ─────────────────────────
-const CONSUMER_NAMES = ['황상곤', '김가람', '백태수', '이은혜', '정휘선', '한도윤', '윤서연', '박지호']
-function hashStr(str: string): number {
-  let h = 2166136261
-  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) }
-  return h >>> 0
-}
-function seededRng(seed: number) {
-  let t = seed >>> 0
-  return () => {
-    t = (t + 0x6d2b79f5) >>> 0
-    let x = Math.imul(t ^ (t >>> 15), 1 | t)
-    x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x
-    return ((x ^ (x >>> 14)) >>> 0) / 4294967296
-  }
-}
+// ───────────────────────── 사용량 인사이트(GET /api/market-services/:id/usage raw → 화면 표현값) ─────────────────────────
 const nf = (n: number) => n.toLocaleString('en-US')
 const compactNum = (n: number) => (n >= 1e9 ? `${(n / 1e9).toFixed(2)}B` : n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}K` : String(n))
 // 사용자별 점유 색 — 스택 막대·범례·랭킹 dot 공통.
 const consumerColor = (i: number) => `hsl(${(214 + i * 40) % 360}, 64%, 57%)`
 
-const RANK_TEAMS = [
-  { team: 'Platform 팀', hue: 212 }, { team: 'Data Alpha 팀', hue: 152 }, { team: 'Analytics 팀', hue: 280 },
-  { team: 'ML Ops 팀', hue: 30 }, { team: 'R&D 팀', hue: 330 }, { team: '코어 플랫폼', hue: 196 },
-]
-const RANK_TAGS = ['Production', 'Team', 'Analytics', 'Batch', 'Internal', 'Core']
-
 interface RankRow { name: string; keyId: string; tag: string; team: string; teamHue: number; requests: number; reqPct: number; tokens: number; tokenPct: number; deltaPct: number; up: boolean; spark: number[]; color: string }
 interface DayStack { label: string; perUser: number[]; total: number; concurrent: number }
 interface UsageInsight { keyCount: number; rows: RankRow[]; days: DayStack[]; totalRequests: number; totalTokens: number; maxRequests: number; maxConcurrent: number; avgConcurrent: number; todayDeltaPct: number; todayUp: boolean }
 
-function usageInsightOf(s: Service): UsageInsight {
-  const rng = seededRng(hashStr(s.id))
-  const keyCount = 4 + Math.floor(rng() * 3) // 4~6명
-  const raw = Array.from({ length: keyCount }, () => 0.3 + rng())
-  const rawSum = raw.reduce((a, b) => a + b, 0)
-  const tokenPerReq = 360 + rng() * 220
-  const rows: RankRow[] = raw
-    .map((r, i) => {
-      const requests = Math.max(1, Math.round((r / rawSum) * s.usageNum))
-      const tm = RANK_TEAMS[i % RANK_TEAMS.length]
-      return {
-        name: CONSUMER_NAMES[i % CONSUMER_NAMES.length],
-        keyId: `sk-${s.id.slice(0, 4)}-${String(i + 1).padStart(2, '0')}`,
-        tag: RANK_TAGS[i % RANK_TAGS.length], team: tm.team, teamHue: tm.hue,
-        requests, reqPct: 0, tokens: Math.round(requests * tokenPerReq), tokenPct: 0,
-        deltaPct: 0, up: true, spark: [] as number[], color: '#000',
-      }
-    })
-    .sort((a, b) => b.requests - a.requests)
+// backend raw 집계 → 비율·색·축 스케일 등 화면 표현값 계산(색·정렬·스케일은 프론트 책임).
+function toUsageInsight(raw: MarketServiceUsage): UsageInsight {
+  const rows: RankRow[] = raw.rows.map((r, i) => ({
+    name: r.owner, keyId: r.keyId, tag: r.tag, team: r.team, teamHue: r.teamHue,
+    requests: r.requests, reqPct: 0, tokens: r.tokens, tokenPct: 0,
+    deltaPct: r.deltaPct, up: r.deltaPct >= 0, spark: r.spark, color: consumerColor(i),
+  }))
   const totalRequests = rows.reduce((a, r) => a + r.requests, 0) || 1
   const totalTokens = rows.reduce((a, r) => a + r.tokens, 0) || 1
-  rows.forEach((r, i) => {
-    r.color = consumerColor(i)
-    r.reqPct = r.requests / totalRequests
-    r.tokenPct = r.tokens / totalTokens
-    const d = Math.round((rng() * 32 - 9) * 10) / 10
-    r.deltaPct = d
-    r.up = d >= 0
-    const sb = hashStr(r.keyId) % 9
-    r.spark = Array.from({ length: 7 }, (_, k) => 0.4 + 0.4 * Math.abs(Math.sin(k * 0.7 + sb)) + rng() * 0.22)
-  })
-  const base = hashStr(s.id) % 7
-  const days: DayStack[] = []
-  for (let d = 0; d < 7; d++) {
-    const dayFactor = 0.72 + 0.46 * (d / 6) + 0.12 * Math.sin(d + base)
-    const perUser = rows.map((r) => Math.max(0, Math.round((r.requests / 7) * dayFactor * (0.72 + rng() * 0.56))))
-    const total = perUser.reduce((a, v) => a + v, 0)
-    const concurrent = Math.max(1, Math.round(total / (1700 + rng() * 700)))
-    days.push({ label: `5.${16 + d}`, perUser, total, concurrent })
-  }
+  rows.forEach((r) => { r.reqPct = r.requests / totalRequests; r.tokenPct = r.tokens / totalTokens })
+  const days: DayStack[] = raw.days.map((d) => ({ label: d.label, perUser: d.perKey, total: d.total, concurrent: d.concurrent }))
   const maxRequests = Math.max(...days.map((d) => d.total), 1)
   const maxConcurrent = Math.max(...days.map((d) => d.concurrent), 1)
-  const avgConcurrent = Math.round(days.reduce((a, d) => a + d.concurrent, 0) / days.length)
+  const avgConcurrent = days.length ? Math.round(days.reduce((a, d) => a + d.concurrent, 0) / days.length) : 0
   const last = days[days.length - 1]
   const prev = days[days.length - 2]
   const todayDeltaPct = prev && prev.total ? Math.round(((last.total - prev.total) / prev.total) * 1000) / 10 : 0
-  return { keyCount, rows, days, totalRequests, totalTokens, maxRequests, maxConcurrent, avgConcurrent, todayDeltaPct, todayUp: todayDeltaPct >= 0 }
+  return { keyCount: raw.keyCount, rows, days, totalRequests, totalTokens, maxRequests, maxConcurrent, avgConcurrent, todayDeltaPct, todayUp: todayDeltaPct >= 0 }
 }
 
 // 랭킹 요약 — API 키별 요청·점유·변화(Figma 'Group 1' 상단 테이블).
@@ -1106,7 +1056,16 @@ export function ServiceDetail() {
       .catch(() => { if (alive) setState('notfound') })
     return () => { alive = false }
   }, [id])
-  const insight = useMemo(() => (service ? usageInsightOf(service) : null), [service])
+  const [insight, setInsight] = useState<UsageInsight | null>(null)
+  useEffect(() => {
+    if (!id) return
+    let alive = true
+    setInsight(null)
+    getMarketServiceUsage(id)
+      .then((raw) => { if (alive) setInsight(toUsageInsight(raw)) })
+      .catch(() => { if (alive) setInsight(null) })
+    return () => { alive = false }
+  }, [id])
   const fill = !narrow // 넓은 화면: 무스크롤 2열 대시보드(페이지 고정, 콘텐츠는 컬럼 내부 스크롤)
   const panel = { background: p.modalCard, border: `1px solid ${p.borderStrong}`, boxShadow: '0 2px 10px rgba(0,0,0,0.16)' } as const
 
