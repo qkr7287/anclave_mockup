@@ -11,6 +11,7 @@ import {
 import { useTheme } from '../lib/theme'
 import { accessOf, useRole } from '../lib/role'
 import { userById, users } from '../data/users'
+import { modelById } from '../data/models'
 import { notifications } from '../data/events'
 import { IA_GROUPS, matchRoute, parentRouteKey, routeByKey } from '../lib/routes'
 
@@ -49,7 +50,13 @@ function useCrumbs(): Crumb[] {
   if (parent && parent.key !== route.key) {
     crumbs.push({ label: parent.title, to: parent.path })
   }
-  crumbs.push({ label: route.title }) // 마지막 = 현재(비활성)
+  // model-detail(/models/:id)은 마지막 단계를 모델명으로 — 동적 라벨.
+  let lastLabel = route.title
+  if (route.key === 'model-detail') {
+    const mid = pathname.split('/')[2]
+    lastLabel = modelById(mid)?.name ?? route.title
+  }
+  crumbs.push({ label: lastLabel }) // 마지막 = 현재(비활성)
   return crumbs
 }
 
