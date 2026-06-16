@@ -11,7 +11,15 @@ export interface ApiRecord extends ApiRequest {
   processedBy?: string
 }
 
-let store: ApiRecord[] = apiRequests.map((r) => ({ ...r }))
+// 데모 — 김가람(u-kgr)이 황상곤(u-hwang) 소유 서비스 doc-search(svc-doc)에 보낸 API 키 요청.
+// 황상곤 로그인 시 'API 신청 관리'에 노출(소유자 한정), 김가람은 안 보임. 직접 심사·발급 데모용.
+const DEMO_REQUESTS: ApiRecord[] = [
+  { id: 'ar-demo-1', requesterUserId: 'u-kgr', serviceId: 'svc-doc', model: 'm10', targetServiceUrl: 'http://app.anclave.local/kgr-wiki-search', purpose: '사내 위키 문서 검색(RAG) 연동에 사용 예정입니다.', status: 'pending', createdAt: '2026-06-14 11:20' },
+  { id: 'ar-demo-2', requesterUserId: 'u-kgr', serviceId: 'svc-doc', model: 'm10', targetServiceUrl: 'http://app.anclave.local/kgr-helpdesk', purpose: '헬프데스크 상담 문서 자동 검색에 사용합니다.', status: 'pending', createdAt: '2026-06-15 09:05' },
+  { id: 'ar-demo-3', requesterUserId: 'u-kgr', serviceId: 'svc-doc', model: 'm10', targetServiceUrl: 'http://app.anclave.local/kgr-report-gen', purpose: '주간 보고서 초안 작성용 근거 문서 검색.', status: 'pending', createdAt: '2026-06-16 08:40' },
+]
+
+let store: ApiRecord[] = [...DEMO_REQUESTS, ...apiRequests.map((r) => ({ ...r }))]
 let seq = 1
 
 export function listApiRequests(): ApiRecord[] {

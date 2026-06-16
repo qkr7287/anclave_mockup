@@ -733,6 +733,31 @@ function BulletList({ items }: { items: ReactNode[] }) {
   )
 }
 
+// 접속 정보 URL 행 — 라벨 + accent URL. 닫힌망 목업이라 링크 이동 대신 표시·복사용.
+function UrlRow({ label, url }: { label: string; url: string }) {
+  const p = usePalette()
+  const copy = () => { navigator.clipboard?.writeText(url) }
+  return (
+    <div className="flex items-center gap-3 rounded-lg" style={{ padding: '10px 12px', background: p.inset, border: `1px solid ${p.border}` }}>
+      <span className="shrink-0" style={{ fontSize: 14, color: p.muted, width: 84 }}>{label}</span>
+      <span className="truncate flex-1 min-w-0" style={{ fontSize: 14, color: p.accent }}>{url}</span>
+      <button type="button" onClick={copy} aria-label={`${label} 복사`} className="shrink-0 transition-transform active:scale-90" style={{ color: p.muted }}>
+        <ClipboardIcon p={p} />
+      </button>
+    </div>
+  )
+}
+
+// 인라인 복사 아이콘(heroicons clipboard outline 경량 path)
+function ClipboardIcon({ p }: { p: { muted: string } }) {
+  return (
+    <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke={p.muted} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <rect x={9} y={9} width={11} height={11} rx={2} />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  )
+}
+
 function ServiceDetailCard({ service: s, narrow, reserveClose }: { service: Service; narrow: boolean; reserveClose?: boolean }) {
   const p = usePalette()
   const navigate = useNavigate()
@@ -826,6 +851,17 @@ function ServiceDetailCard({ service: s, narrow, reserveClose }: { service: Serv
         <div className="flex flex-col" style={{ gap: 11 }}>
           <SectionTitle>운영 메모</SectionTitle>
           <BulletList items={ops} />
+        </div>
+      </div>
+
+      {divider}
+
+      {/* 접속 정보 — 서비스 URL · 데모 URL (명세서 동일 항목) */}
+      <div className="flex flex-col" style={{ gap: 11 }}>
+        <SectionTitle>접속 정보</SectionTitle>
+        <div className="flex flex-col" style={{ gap: 8 }}>
+          <UrlRow label="서비스 URL" url={`http://svc.anclave.local/${s.id}`} />
+          {apiAvailable && <UrlRow label="데모 URL" url={`http://svc.anclave.local/${s.id}/playground`} />}
         </div>
       </div>
 
