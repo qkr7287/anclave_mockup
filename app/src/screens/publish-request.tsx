@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ClockIcon, EyeIcon, GlobeAltIcon, MegaphoneIcon, PlusIcon, XCircleIcon } from '@heroicons/react/24/outline'
+import { CheckCircleIcon, ClockIcon, EyeIcon, MegaphoneIcon, PlusIcon, XCircleIcon } from '@heroicons/react/24/outline'
 import { PageShell } from '../components/PageShell'
 import { Card, KpiStat, Table, Button, StatusBadge, EmptyState } from '../components/ui'
 import type { Column } from '../components/ui'
@@ -123,7 +123,7 @@ export function PublishRequest() {
           <div style={{ color: 'var(--c-warn)' }}>
             <KpiStat label="검토 대기" value={counts.pending} unit="건" delta={counts.pending > 0 ? '검토 중' : undefined} deltaTone="warn" sub="게시 승인 대기 중" icon={<StatIcon Icon={ClockIcon} box="var(--warn-soft)" color="var(--c-warn)" />} />
           </div>
-          <KpiStat label="승인 · 노출" value={counts.approved} unit="건" sub="마켓 노출 중인 서비스" icon={<StatIcon Icon={GlobeAltIcon} box="var(--ok-soft)" color="var(--c-ok)" />} />
+          <KpiStat label="승인 · 노출" value={counts.approved} unit="건" sub="마켓 노출 중인 서비스" icon={<StatIcon Icon={CheckCircleIcon} box="var(--ok-soft)" color="var(--c-ok)" />} />
           <KpiStat label="반려" value={counts.rejected} unit="건" sub="반려된 게시 신청" icon={<StatIcon Icon={XCircleIcon} box="var(--danger-soft)" color="var(--c-danger)" />} />
           <KpiStat label="전체 신청" value={counts.all} unit="건" sub="전체 게시 신청 건" icon={<StatIcon Icon={MegaphoneIcon} box="var(--accent-soft)" color="var(--c-accent)" />} />
         </>
