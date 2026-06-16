@@ -324,6 +324,7 @@ select,
   *::after {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
+    animation-delay: 0s !important;
     transition-duration: 0.001ms !important;
   }
   /* 작고 기능적인 펼침/회전은 reduced-motion 에서도 유지(사이드바 아코디언) */
