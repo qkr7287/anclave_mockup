@@ -16,8 +16,12 @@ import { Requests, GpuChange } from './screens/allocation'
 import { ApprovalsPublish, ApprovalsGpu } from './screens/approvals'
 import { PublishDetail, PublishView } from './screens/publish-detail'
 import { ApprovalDetail } from './screens/approval-detail'
-import { ModelCatalog, ModelDetail } from './screens/catalog'
+import { ModelCatalog } from './screens/catalog'
+import { ModelDetail } from './screens/model-detail'
 import { ModelRequests } from './screens/model-requests'
+import { ModelImport } from './screens/model-import'
+import { ModelRequestNew } from './screens/model-request-new'
+import { ModelRequestDetail } from './screens/model-request-detail'
 import { Marketplace, ServiceDetail } from './screens/market'
 import { ApiApprovals } from './screens/activation'
 import { ApiRequestNew } from './screens/api-request-new'
@@ -49,6 +53,9 @@ const REGISTRY: Record<string, ComponentType> = {
   models: ModelCatalog,
   'model-detail': ModelDetail,
   'model-requests': ModelRequests,
+  'model-import': ModelImport,
+  'model-request-new': ModelRequestNew,
+  'model-request-detail': ModelRequestDetail,
   marketplace: Marketplace,
   'service-detail': ServiceDetail,
   'api-approvals': ApiApprovals,
