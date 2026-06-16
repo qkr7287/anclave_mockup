@@ -401,6 +401,14 @@ app.patch('/api/model-requests/:id', async (c) => {
   return c.json(rows[0])
 })
 
+// 모델 신청 삭제 — 4.13 등록 취소(deleteRequest). model_requests 는 참조받는 FK 없어 단순 삭제.
+app.delete('/api/model-requests/:id', async (c) => {
+  const id = c.req.param('id')
+  const { rowCount } = await pool.query(`delete from model_requests where id = $1`, [id])
+  if (!rowCount) return c.json({ error: 'not found' }, 404)
+  return c.json({ deleted: id })
+})
+
 // 신규 모델 등록 신청 — stage=requested·status=pending. 바디 검증(필수: requesterUserId·modelName·reason).
 app.post('/api/model-requests', async (c) => {
   const b = await c.req.json().catch(() => ({}))
