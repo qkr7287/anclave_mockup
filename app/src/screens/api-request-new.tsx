@@ -14,6 +14,7 @@ import { useRole } from '../lib/role'
 import { useTheme } from '../lib/theme'
 import { Logo } from './catalog'
 import { createApiRequest } from './api-store'
+import { QaPolish } from './qa-polish'
 
 // G8 · 4.20 API 키 요청(/marketplace/api-request/:id) — 마켓 서비스 상세의 'API 키 요청'에서 진입.
 // 4.6b 신규 신청과 동일 구조(스텝퍼 + morph[좌 마법사 / 우 명세서] + 완료). 2스텝: 상세 내용 → 확인·요청.
@@ -230,6 +231,16 @@ function SpecSheet({ f, svc, owner, modelName, userName, today, currentStep, rev
             <SpecRow label="예상 규모" value={f.scale} reviewing={reviewing} pendingW="35%" />
             <SpecRow label="사용 목적" value={f.purpose} reviewing={reviewing} pendingW="92%" last />
           </SpecSection>
+          {/* 안내 — 남는 높이를 끝까지 채움 */}
+          <div className="flex flex-col flex-1 min-h-0" style={{ padding: '6px 12px', minHeight: 92 }}>
+            <div className="flex items-center gap-2.5" style={{ marginBottom: 6 }}>
+              <span className="font-bold shrink-0" style={{ fontSize: 15, color: M.text }}>안내</span>
+              <span className="flex-1" style={{ height: 1, background: 'var(--c-border)' }} />
+            </div>
+            <div className="flex-1 min-h-0 rounded-[8px]" style={{ border: `1px dashed ${M.border}`, background: 'color-mix(in srgb, var(--c-muted) 5%, transparent)', padding: '12px 14px', overflow: 'auto' }}>
+              <p style={{ fontSize: 14, color: M.help, lineHeight: 1.65 }}>제출하면 <b style={{ color: M.text }}>{svc.name}</b> 소유자(<b style={{ color: M.text }}>{owner}</b>)에게 요청이 전달됩니다. 소유자가 API 키를 발급·승인하면 발급 키가 알림으로 전송돼요. 반려 시 사유가 함께 안내됩니다.</p>
+            </div>
+          </div>
         </div>
 
         {reviewing && (
@@ -271,18 +282,23 @@ export function ApiRequestNew() {
   const wizardStep = reviewing ? 0 : step
   const go = (d: number) => setStep((s) => Math.max(0, Math.min(WIZARD_STEPS.length - 1, s + d)))
 
-  const submit = () => {
+  const submit = async () => {
     if (submitting || !svc) return
     setSubmitting(true)
-    const created = createApiRequest({
-      requesterUserId: user.id,
-      serviceId: svc.id,
-      model: svc.model,
-      targetServiceUrl: f.targetUrl.trim(),
-      purpose: f.purpose.trim(),
-    })
-    setDoneId(created.id)
-    toast.push('API 키 요청을 보냈어요. 서비스 소유자 승인 후 발급됩니다.', 'ok')
+    try {
+      const created = await createApiRequest({
+        requesterUserId: user.id,
+        serviceId: svc.id,
+        model: svc.model,
+        targetServiceUrl: f.targetUrl.trim(),
+        purpose: f.purpose.trim(),
+      })
+      setDoneId(created.id)
+      toast.push('API 키 요청을 보냈어요. 서비스 소유자 승인 후 발급됩니다.', 'ok')
+    } catch {
+      setSubmitting(false)
+      toast.push('API 키 요청에 실패했어요. 잠시 후 다시 시도해 주세요.', 'warn')
+    }
   }
   const next = () => {
     if (!canNext) return
@@ -292,7 +308,8 @@ export function ApiRequestNew() {
 
   if (!svc) {
     return (
-      <div className="anim-fade flex flex-col h-full" style={mutedFix}>
+      <div data-qa className="anim-fade flex flex-col h-full" style={mutedFix}>
+        <QaPolish />
         <header className="flex flex-col shrink-0">
           <StepBack to="/marketplace" label="마켓플레이스" />
         </header>
@@ -305,7 +322,8 @@ export function ApiRequestNew() {
 
   if (doneId) {
     return (
-      <div className="anim-fade flex flex-col h-full" style={mutedFix}>
+      <div data-qa className="anim-fade flex flex-col h-full" style={mutedFix}>
+        <QaPolish />
         <div className="flex-1 min-h-0 flex items-center justify-center">
           <div className="bg-card2 border border-line rounded-[16px] flex flex-col items-center text-center" style={{ boxShadow: 'var(--shadow-card)', padding: '40px 44px', maxWidth: 480, width: '100%' }}>
             <span className="relative flex items-center justify-center rounded-full" style={{ width: 66, height: 66, background: 'var(--ok-soft)', color: 'var(--c-ok)' }}>
@@ -330,7 +348,7 @@ export function ApiRequestNew() {
             </div>
             <div className="flex w-full" style={{ gap: 10, marginTop: 22 }}>
               <Button variant="outline" className="flex-1 justify-center" onClick={() => navigate('/marketplace')}>마켓플레이스로</Button>
-              <Button className="flex-1 justify-center" onClick={() => navigate(`/marketplace/${svc.id}`)}>서비스 상세로</Button>
+              <Button className="flex-1 justify-center" onClick={() => navigate(`/marketplace?service=${encodeURIComponent(id)}`)}>서비스 상세로</Button>
             </div>
           </div>
         </div>
@@ -339,7 +357,8 @@ export function ApiRequestNew() {
   }
 
   return (
-    <div className="anim-fade flex flex-col min-w-0 h-full" style={mutedFix}>
+    <div data-qa className="anim-fade flex flex-col min-w-0 h-full" style={mutedFix}>
+      <QaPolish />
       <style>{`[data-morph]{transition-duration:.8s !important}`}</style>
       <header className="flex flex-col shrink-0">
         <StepBack to="/marketplace" label="마켓플레이스" />

@@ -1,56 +1,45 @@
-import { publishRequests } from '../data'
+import { apiGet, apiPatch, apiPost } from '../lib/api'
 import type { PublishRequest } from '../data/types'
-import { nowStamp } from './approval-store'
 
-// 게시 승인 세션 스토어 — 게시 트랙은 backend 미연동(g8). 목록(ApprovalsPublish)과
-// 심사 페이지(PublishDetail)가 처리 상태(승인·반려)를 공유하도록 인메모리 사본을 둔다.
-// 새로고침 시 시드로 초기화(목업). 처리 메타(processedAt·By·memo)는 PublishRequest에 없어 여기서 확장.
+// 4.29/4.9/4.9a 게시 신청 — Hono backend(REST) 연동(gpu-requests 패턴 미러).
+//   GET   /api/publish-requests       목록
+//   GET   /api/publish-requests/:id   단건(없으면 404)
+//   POST  /api/publish-requests       신규 신청(status=pending, id·created_at 서버 생성)
+//   PATCH /api/publish-requests/:id   { action:'approve'|'reject', ... }  processed_at 서버 now()
+// backend 는 timestamptz 를 ISO 로 반환 → 경계에서 시드 표시 포맷('YYYY-MM-DD HH:mm')으로 정규화.
 export interface PubRecord extends PublishRequest {
-  processedAt?: string
-  processedBy?: string
   adminMemo?: string
+  processedBy?: string
+  processedAt?: string
 }
 
-let store: PubRecord[] = publishRequests.map((p) => ({ ...p }))
-let seq = 1
-
-export function listPublishRequests(): PubRecord[] {
-  return store.map((r) => ({ ...r }))
+function fmtStamp(v?: string | null): string | undefined {
+  if (!v) return undefined
+  const d = new Date(v)
+  if (isNaN(d.getTime())) return v
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
+function normalize(r: PubRecord): PubRecord {
+  return { ...r, createdAt: fmtStamp(r.createdAt) ?? r.createdAt, processedAt: fmtStamp(r.processedAt) }
 }
 
-// 사용자 신규 게시 신청(4.29 마법사) — 대기 상태로 목록 선두에 추가. 관리자 심사(4.9a) 대상이 된다.
-export function createPublishRequest(input: { requesterUserId: string; serviceName: string; serviceUrl: string; demoUrl: string; meta: string }): PubRecord {
-  const rec: PubRecord = {
-    id: `pr-new-${seq++}`,
-    requesterUserId: input.requesterUserId,
-    serviceName: input.serviceName,
-    serviceUrl: input.serviceUrl,
-    demoUrl: input.demoUrl,
-    meta: input.meta,
-    status: 'pending',
-    createdAt: nowStamp(),
-  }
-  store = [rec, ...store]
-  return rec
+export function listPublishRequests(): Promise<PubRecord[]> {
+  return apiGet<PubRecord[]>('/api/publish-requests').then((rows) => rows.map(normalize))
 }
 
-export function getPublishRequest(id: string): PubRecord | undefined {
-  const r = store.find((p) => p.id === id)
-  return r ? { ...r } : undefined
+export function getPublishRequest(id: string): Promise<PubRecord> {
+  return apiGet<PubRecord>(`/api/publish-requests/${id}`).then(normalize)
 }
 
-function mutate(id: string, patch: Partial<PubRecord>): PubRecord | undefined {
-  const idx = store.findIndex((p) => p.id === id)
-  if (idx < 0) return undefined
-  store[idx] = { ...store[idx], ...patch }
-  return { ...store[idx] }
+export function createPublishRequest(input: { requesterUserId: string; serviceName: string; serviceUrl: string; demoUrl: string; meta: string }): Promise<PubRecord> {
+  return apiPost<PubRecord>('/api/publish-requests', input).then(normalize)
 }
 
-// 승인 = 마켓 노출. 이미 처리된 건은 재처리하지 않는다(가드는 호출부에서도 수행).
-export function approvePublishRequest(id: string, processedBy: string, adminMemo?: string): PubRecord | undefined {
-  return mutate(id, { status: 'approved', processedBy, adminMemo, processedAt: nowStamp(), rejectReason: undefined })
+export function approvePublishRequest(id: string, processedBy: string, adminMemo?: string): Promise<PubRecord> {
+  return apiPatch<PubRecord>(`/api/publish-requests/${id}`, { action: 'approve', processedBy, adminMemo }).then(normalize)
 }
 
-export function rejectPublishRequest(id: string, processedBy: string, rejectReason: string, adminMemo?: string): PubRecord | undefined {
-  return mutate(id, { status: 'rejected', processedBy, rejectReason, adminMemo, processedAt: nowStamp() })
+export function rejectPublishRequest(id: string, processedBy: string, rejectReason: string, adminMemo?: string): Promise<PubRecord> {
+  return apiPatch<PubRecord>(`/api/publish-requests/${id}`, { action: 'reject', processedBy, rejectReason, adminMemo }).then(normalize)
 }

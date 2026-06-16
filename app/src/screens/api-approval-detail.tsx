@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
@@ -293,19 +293,29 @@ function PendingReview({ req }: { req: ApiRecord }) {
   const reasonOk = rejectReason.trim().length >= REJECT_REASON_MIN
   const reviewing = step === 1
 
-  const confirmApprove = () => {
+  const confirmApprove = async () => {
     if (!keyOk || submitting) return
     setSubmitting(true)
-    approveApiRequest(req.id, owner.id, apiKey.trim())
-    toast.push(`${m.requester}님께 API 키를 발급했어요.`, 'ok')
-    setDone({ mode: 'approved', detail: apiKey.trim(), processedAt: nowLocal() })
+    try {
+      const updated = await approveApiRequest(req.id, owner.id, apiKey.trim())
+      toast.push(`${m.requester}님께 API 키를 발급했어요.`, 'ok')
+      setDone({ mode: 'approved', detail: apiKey.trim(), processedAt: updated.processedAt ?? nowLocal() })
+    } catch {
+      toast.push('발급 처리에 실패했어요. 잠시 후 다시 시도해주세요.', 'danger')
+      setSubmitting(false)
+    }
   }
-  const confirmReject = () => {
+  const confirmReject = async () => {
     if (!reasonOk || submitting) return
     setSubmitting(true)
-    rejectApiRequest(req.id, owner.id, rejectReason.trim())
-    toast.push(`${m.requester}님의 신청을 반려했어요.`, 'warn')
-    setDone({ mode: 'rejected', detail: rejectReason.trim(), processedAt: nowLocal() })
+    try {
+      const updated = await rejectApiRequest(req.id, owner.id, rejectReason.trim())
+      toast.push(`${m.requester}님의 신청을 반려했어요.`, 'warn')
+      setDone({ mode: 'rejected', detail: rejectReason.trim(), processedAt: updated.processedAt ?? nowLocal() })
+    } catch {
+      toast.push('반려 처리에 실패했어요. 잠시 후 다시 시도해주세요.', 'danger')
+      setSubmitting(false)
+    }
   }
 
   if (done) return <Completion done={done} reqId={req.id} requesterName={m.requester} serviceName={m.serviceName} onList={() => navigate('/api-approvals')} mutedFix={mutedFix} />
@@ -369,7 +379,7 @@ function PendingReview({ req }: { req: ApiRecord }) {
               </div>
             </div>
             <div className="flex items-center justify-between shrink-0" style={{ borderTop: '1px solid var(--c-border)', padding: '14px 24px' }}>
-              <div />
+              <ActionBtn variant="dangerOutline" onClick={() => { setRejecting(true); setStep(1) }}><XCircleIcon width={16} height={16} />반려</ActionBtn>
               <div className="flex items-center gap-3">
                 {!keyOk && <span className="text-muted" style={{ fontSize: 14 }}>API 키를 입력하면 진행할 수 있어요.</span>}
                 <Button onClick={() => setStep(1)} disabled={!keyOk}>검토하기</Button>
@@ -378,7 +388,7 @@ function PendingReview({ req }: { req: ApiRecord }) {
           </section>
         </div>
         <div data-morph="spec" style={{ width: reviewing ? '100%' : '44%', flex: '0 0 auto', minWidth: 0, paddingLeft: reviewing ? 0 : 16, transition: `width .8s ${MORPH_EASE}, padding .8s ${MORPH_EASE}` }}>
-          <ApiSpec req={req} reviewing issuedKey={apiKey.trim() || undefined} footer={footer} />
+          <ApiSpec req={req} reviewing={reviewing} issuedKey={apiKey.trim() || undefined} footer={reviewing ? footer : undefined} />
         </div>
       </div>
     </div>
@@ -390,9 +400,27 @@ export function ApiApprovalDetail() {
   const navigate = useNavigate()
   const mutedFix = useMutedFix()
   // api-store는 동기 인메모리 — 매 렌더 조회(저렴). 처리 후 목록 복귀 시 재마운트로 반영.
-  const req = getApiRequest(id)
+  const [req, setReq] = useState<ApiRecord | null>(null)
+  const [state, setState] = useState<'loading' | 'ready' | 'notfound'>('loading')
+  useEffect(() => {
+    let alive = true
+    setState('loading')
+    getApiRequest(id)
+      .then((r) => { if (alive) { setReq(r); setState('ready') } })
+      .catch(() => { if (alive) setState('notfound') })
+    return () => { alive = false }
+  }, [id])
 
-  if (!req) {
+  if (state === 'loading') {
+    return (
+      <div data-apidetail className="anim-fade flex items-center justify-center" style={{ minHeight: 360 }}>
+        <PolishCss />
+        <span className="text-muted" style={{ fontSize: 14 }}>신청 정보를 불러오는 중…</span>
+      </div>
+    )
+  }
+
+  if (state === 'notfound' || !req) {
     return (
       <div data-apidetail className="anim-fade flex items-center justify-center" style={{ minHeight: 360 }}>
         <PolishCss />

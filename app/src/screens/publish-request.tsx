@@ -1,12 +1,13 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { EyeIcon, MegaphoneIcon, PlusIcon } from '@heroicons/react/24/outline'
+import { CheckCircleIcon, ClockIcon, EyeIcon, MegaphoneIcon, PlusIcon, XCircleIcon } from '@heroicons/react/24/outline'
 import { PageShell } from '../components/PageShell'
-import { Card, Table, Button, StatusBadge, EmptyState } from '../components/ui'
+import { Card, KpiStat, Table, Button, StatusBadge, EmptyState } from '../components/ui'
 import type { Column } from '../components/ui'
 import { services } from '../data'
 import type { Status } from '../data/types'
 import { listPublishRequests, type PubRecord } from './publish-store'
+import { QaPolish } from './qa-polish'
 
 // G8 · 4.29 서비스 게시 신청 (B=C) — 내가 배포한 AI 서비스를 마켓플레이스에 게시 신청.
 // 신규 신청은 전용 마법사 페이지(4.29a /marketplace/publish/new)로 진입. 목록·상태는 publish-store 공유.
@@ -23,9 +24,19 @@ const STATUS_FILTERS: { key: 'all' | Status; label: string }[] = [
 
 export function PublishRequest() {
   const navigate = useNavigate()
-  // 목록은 세션 스토어에서 로드 — 마법사에서 제출하면 목록 복귀 시 재마운트로 반영.
-  const [items] = useState<PubRecord[]>(() => listPublishRequests())
+  // 목록은 backend(REST)에서 로드 — 마법사에서 제출하면 목록 복귀 시 재마운트로 재조회.
+  const [items, setItems] = useState<PubRecord[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [filter, setFilter] = useState<'all' | Status>('all')
+  useEffect(() => {
+    let alive = true
+    listPublishRequests()
+      .then((d) => { if (alive) { setItems(d); setLoadError(false) } })
+      .catch(() => { if (alive) setLoadError(true) })
+      .finally(() => { if (alive) setLoading(false) })
+    return () => { alive = false }
+  }, [])
 
   const counts = {
     all: items.length,
@@ -105,7 +116,9 @@ export function PublishRequest() {
   ]
 
   return (
-    <PageShell
+    <div data-qa className="h-full min-h-0">
+      <QaPolish />
+      <PageShell
       fill
       screen="4.29"
       title="서비스 게시 신청"
@@ -117,10 +130,12 @@ export function PublishRequest() {
       }
       kpis={
         <>
-          <StatTile label="전체 신청" value={counts.all} tone="accent" active={filter === 'all'} onClick={() => setFilter('all')} />
-          <StatTile label="검토 대기" value={counts.pending} tone="warn" active={filter === 'pending'} onClick={() => setFilter('pending')} />
-          <StatTile label="승인 · 노출" value={counts.approved} tone="ok" active={filter === 'approved'} onClick={() => setFilter('approved')} />
-          <StatTile label="반려" value={counts.rejected} tone="danger" active={filter === 'rejected'} onClick={() => setFilter('rejected')} />
+          <div style={{ color: 'var(--c-warn)' }}>
+            <KpiStat label="검토 대기" value={counts.pending} unit="건" delta={counts.pending > 0 ? '검토 중' : undefined} deltaTone="warn" sub="게시 승인 대기 중" icon={<StatIcon Icon={ClockIcon} box="var(--warn-soft)" color="var(--c-warn)" />} />
+          </div>
+          <KpiStat label="승인 · 노출" value={counts.approved} unit="건" sub="마켓 노출 중인 서비스" icon={<StatIcon Icon={CheckCircleIcon} box="var(--ok-soft)" color="var(--c-ok)" />} />
+          <KpiStat label="반려" value={counts.rejected} unit="건" sub="반려된 게시 신청" icon={<StatIcon Icon={XCircleIcon} box="var(--danger-soft)" color="var(--c-danger)" />} />
+          <KpiStat label="전체 신청" value={counts.all} unit="건" sub="전체 게시 신청 건" icon={<StatIcon Icon={MegaphoneIcon} box="var(--accent-soft)" color="var(--c-accent)" />} />
         </>
       }
     >
@@ -152,7 +167,11 @@ export function PublishRequest() {
           </div>
         }
       >
-        {shown.length === 0 ? (
+        {loading ? (
+          <div className="flex items-center justify-center" style={{ minHeight: 200 }}><span className="text-muted" style={{ fontSize: 14 }}>게시 신청을 불러오는 중…</span></div>
+        ) : loadError ? (
+          <div className="flex items-center justify-center" style={{ minHeight: 200 }}><span className="text-muted" style={{ fontSize: 14 }}>목록을 불러오지 못했어요. 잠시 후 다시 시도해주세요.</span></div>
+        ) : shown.length === 0 ? (
           <EmptyState
             title="신청 내역이 없어요"
             description="배포한 서비스를 골라 첫 게시 신청을 보내보세요."
@@ -162,24 +181,16 @@ export function PublishRequest() {
           <Table columns={columns} rows={shown} rowKey={(p) => p.id} onRowClick={(p) => goView(p.id)} />
         )}
       </Card>
-    </PageShell>
+      </PageShell>
+    </div>
   )
 }
 
-// 4.6 톤의 클릭 가능한 요약 stat 타일 — 값 + 라벨 + 상태 점, 필터 토글.
-function StatTile({ label, value, tone, active, onClick }: { label: string; value: number; tone: 'accent' | 'warn' | 'ok' | 'danger'; active: boolean; onClick: () => void }) {
-  const color = tone === 'ok' ? 'var(--c-ok)' : tone === 'warn' ? 'var(--c-warn)' : tone === 'danger' ? 'var(--c-danger)' : 'var(--c-accent)'
+// KpiStat 아이콘 — soft 배경 박스(API 신청 관리 4.19와 동일 외형: 30px·radius9·semantic soft).
+function StatIcon({ Icon, box, color }: { Icon: typeof ClockIcon; box: string; color: string }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="bg-card2 rounded-xl text-left transition-colors flex flex-col justify-center hover-lift"
-      style={{ padding: '14px 16px', gap: 4, minHeight: 84, border: `1px solid ${active ? color : 'var(--c-border)'}`, boxShadow: 'var(--shadow-card)' }}
-    >
-      <span className="flex items-center gap-1.5 text-muted font-semibold" style={{ fontSize: 14 }}>
-        <span className="rounded-full" style={{ width: 7, height: 7, background: color }} /> {label}
-      </span>
-      <span style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.5px', lineHeight: 1.1 }}>{value}<span className="text-muted" style={{ fontSize: 14, fontWeight: 600 }}> 건</span></span>
-    </button>
+    <span className="flex items-center justify-center rounded-[9px]" style={{ width: 30, height: 30, background: box, color }}>
+      <Icon style={{ width: 17, height: 17 }} />
+    </span>
   )
 }

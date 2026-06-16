@@ -293,20 +293,30 @@ function PendingReview({ req }: { req: PubRecord }) {
     else toast.push('이 환경에서는 복사를 지원하지 않아요', 'warn')
   }
 
-  const confirmApprove = () => {
+  const confirmApprove = async () => {
     if (submitting) return
     setSubmitting(true)
-    approvePublishRequest(req.id, admin.id, memo.trim() || undefined)
-    toast.push(`${req.serviceName} 게시를 승인했어요. 마켓플레이스에 노출됩니다.`, 'ok')
-    setDone({ mode: 'approved', detail: '마켓플레이스 노출 완료', processedAt: nowLocal() })
+    try {
+      const updated = await approvePublishRequest(req.id, admin.id, memo.trim() || undefined)
+      toast.push(`${req.serviceName} 게시를 승인했어요. 마켓플레이스에 노출됩니다.`, 'ok')
+      setDone({ mode: 'approved', detail: '마켓플레이스 노출 완료', processedAt: updated.processedAt ?? nowLocal() })
+    } catch {
+      toast.push('승인 처리에 실패했어요. 잠시 후 다시 시도해주세요.', 'danger')
+      setSubmitting(false)
+    }
   }
-  const confirmReject = () => {
+  const confirmReject = async () => {
     const reason = rejectReason.trim()
     if (!reasonOk || submitting) return
     setSubmitting(true)
-    rejectPublishRequest(req.id, admin.id, reason, memo.trim() || undefined)
-    toast.push(`${req.serviceName} 게시를 반려했어요. 사유가 알림으로 전송됩니다.`, 'warn')
-    setDone({ mode: 'rejected', detail: reason, processedAt: nowLocal() })
+    try {
+      const updated = await rejectPublishRequest(req.id, admin.id, reason, memo.trim() || undefined)
+      toast.push(`${req.serviceName} 게시를 반려했어요. 사유가 알림으로 전송됩니다.`, 'warn')
+      setDone({ mode: 'rejected', detail: reason, processedAt: updated.processedAt ?? nowLocal() })
+    } catch {
+      toast.push('반려 처리에 실패했어요. 잠시 후 다시 시도해주세요.', 'danger')
+      setSubmitting(false)
+    }
   }
 
   if (done) return (
@@ -391,9 +401,12 @@ export function PublishDetail() {
   const [state, setState] = useState<'loading' | 'ready' | 'notfound'>('loading')
 
   useEffect(() => {
-    const found = getPublishRequest(id)
-    if (found) { setReq(found); setState('ready') }
-    else setState('notfound')
+    let alive = true
+    setState('loading')
+    getPublishRequest(id)
+      .then((r) => { if (alive) { setReq(r); setState('ready') } })
+      .catch(() => { if (alive) setState('notfound') })
+    return () => { alive = false }
   }, [id])
 
   if (state === 'loading') {
@@ -442,9 +455,12 @@ export function PublishView() {
   const [state, setState] = useState<'loading' | 'ready' | 'notfound'>('loading')
 
   useEffect(() => {
-    const found = getPublishRequest(id)
-    if (found) { setReq(found); setState('ready') }
-    else setState('notfound')
+    let alive = true
+    setState('loading')
+    getPublishRequest(id)
+      .then((r) => { if (alive) { setReq(r); setState('ready') } })
+      .catch(() => { if (alive) setState('notfound') })
+    return () => { alive = false }
   }, [id])
 
   if (state === 'loading') {
