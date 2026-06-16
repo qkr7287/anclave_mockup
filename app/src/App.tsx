@@ -29,7 +29,7 @@ import { ApiRequestNew } from './screens/api-request-new'
 import { ApiApprovalDetail } from './screens/api-approval-detail'
 import { PublishRequest } from './screens/publish-request'
 import { PublishNew } from './screens/publish-new'
-import { Events, Notifications } from './screens/events'
+import { Events } from './screens/events'
 import { Board } from './screens/board'
 import { AuditLogScreen, AccessControl } from './screens/audit'
 import { Capabilities, UsersAdmin, InfraIntegrationScreen } from './screens/system'
@@ -67,7 +67,6 @@ const REGISTRY: Record<string, ComponentType> = {
   'publish-request': PublishRequest,
   'publish-new': PublishNew,
   events: Events,
-  notifications: Notifications,
   board: Board,
   audit: AuditLogScreen,
   access: AccessControl,

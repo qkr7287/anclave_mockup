@@ -10,7 +10,7 @@ export const IA_GROUPS: IaGroup[] = [
   { id: 2, label: '할당 관리' },
   { id: 3, label: '모델 관리' },
   { id: 4, label: '마켓플레이스' },
-  { id: 5, label: '이벤트 · 알림' },
+  { id: 5, label: '내 에러 이벤트' },
   { id: 6, label: '게시판' },
   { id: 7, label: '감사 · 보안' },
   { id: 8, label: '시스템 설정' },
@@ -77,7 +77,6 @@ export const ROUTES: RouteDef[] = [
 
   // ⑤ 이벤트 · 알림
   { key: 'events', path: '/events', screen: '4.21', title: '에러 · 이벤트 관제', access: ['A', 'B', 'C'], group: 5, menu: ['A', 'B', 'C'], icon: 'alert' },
-  { key: 'notifications', path: '/notifications', screen: '4.22', title: '알림 센터', access: ['A', 'B', 'C'], group: 5, menu: ['A', 'B', 'C'], icon: 'bell' },
 
   // ⑥ 게시판
   { key: 'board', path: '/board', screen: '4.23', title: '게시판 · 공지', access: ['A', 'B', 'C'], group: 6, menu: ['A', 'B', 'C'], icon: 'chat' },
