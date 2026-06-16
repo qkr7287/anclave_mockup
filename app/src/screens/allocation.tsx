@@ -29,7 +29,7 @@ import {
   teamOf,
   useMutedFix,
 } from './approvals'
-import { CHANGE_TYPE_META, getChangeRequests, getChangeRequestsByUser, allocLabel } from './gpu-change-store'
+import { CHANGE_TYPE_META, fetchChangeRequests, allocLabel } from './gpu-change-store'
 import type { ChangeRequest } from './gpu-change-store'
 
 // G3 · 할당 관리 — 4.8 신청 관리 · 4.11 변경·확장·이전·회수. (4.9·4.10=approvals)
@@ -50,7 +50,7 @@ export function Requests() {
 // ════════════════════════════════ 4.11 변경 · 확장 · 이전 · 회수 ════════════════════════════════
 
 const STATUS_FROM_KO: Record<string, Status> = { 대기: 'pending', 승인: 'approved', 반려: 'rejected' }
-const TYPE_FROM_KO: Record<string, ChangeType> = { 변경: 'change', 확장: 'expand', 이전: 'migrate', 회수: 'reclaim' }
+const TYPE_FROM_KO: Record<string, ChangeType> = { 변경: 'change', 확장: 'expand', 회수: 'reclaim' }
 const TYPE_TONE_BG: Record<ChangeType, { bg: string; fg: string }> = {
   change: { bg: 'var(--accent-soft)', fg: 'var(--c-accent)' },
   expand: { bg: 'var(--ok-soft)', fg: 'var(--c-ok)' },
@@ -111,9 +111,14 @@ export function GpuChange() {
   const navigate = useNavigate()
   const mutedFix = useMutedFix()
 
-  const rows = useMemo<ChangeRow[]>(() => {
-    const src = isAdmin ? getChangeRequests() : getChangeRequestsByUser(user.id)
-    return src.map(toRow)
+  // 변경요청 목록 — backend(관리자=전체 / 사용자=본인). 처리 후 재진입 시 갱신.
+  const [rows, setRows] = useState<ChangeRow[]>([])
+  useEffect(() => {
+    let alive = true
+    fetchChangeRequests(isAdmin ? undefined : user.id)
+      .then((src) => { if (alive) setRows(src.map(toRow)) })
+      .catch(() => { if (alive) setRows([]) })
+    return () => { alive = false }
   }, [isAdmin, user.id])
 
   const [q, setQ] = useState('')
@@ -178,7 +183,7 @@ export function GpuChange() {
         <h1 className="font-bold text-text" style={{ fontSize: 23, lineHeight: 1.2 }}>{isAdmin ? '할당 변경 관리' : '변경 · 확장 · 회수 신청'}</h1>
         <p className="text-muted" style={{ fontSize: 14, marginTop: 8 }}>
           {isAdmin
-            ? '사용자가 신청한 변경 · 확장 · 이전 · 회수 요청을 검토하고 승인 또는 반려합니다.'
+            ? '사용자가 신청한 변경 · 확장 · 회수 요청을 검토하고 승인 또는 반려합니다.'
             : '내 할당 자원에 대한 변경 · 확장 · 회수를 신청하고 처리 상태를 확인합니다.'}
         </p>
       </header>
@@ -204,7 +209,7 @@ export function GpuChange() {
               </button>
             </FieldBox>
             <FilterSelect label="상태" value={statusF} onChange={setStatusF} options={['전체', '대기', '승인', '반려']} width={168} />
-            <FilterSelect label="유형" value={typeF} onChange={setTypeF} options={['전체', '변경', '확장', '이전', '회수']} width={188} />
+            <FilterSelect label="유형" value={typeF} onChange={setTypeF} options={['전체', '변경', '확장', '회수']} width={188} />
           </div>
           <div className="flex items-center gap-3 shrink-0">
             <button type="button" onClick={resetFilters} className="flex items-center gap-2 bg-card2 border border-line rounded-[8px] transition-[transform,background-color] duration-100 hover:bg-soft active:scale-[0.97]" style={{ height: 38, padding: '0 16px' }}>
