@@ -658,14 +658,11 @@ function RankCard({ item, onOpen }: { item: RankItem; onOpen: (s: Service) => vo
   )
 }
 
-// 4.17·4.18 우 — 실시간 서비스 랭킹(검색 동작). fill 시 헤더·버튼 고정 + 카드 내부 스크롤.
+// 4.17·4.18 우 — 실시간 서비스 랭킹. 검색·필터는 좌측 탐색 가이드와 중복이라 제거.
+// '전체 랭킹 보기' → 팝업(FullRankingModal). fill 시 헤더·버튼 고정 + 카드 내부 스크롤.
 function RankingPanel({ fill, onOpen }: { fill: boolean; onOpen: (s: Service) => void }) {
   const p = usePalette()
-  const [q, setQ] = useState('')
-  const list = useMemo(() => {
-    const v = q.trim().toLowerCase()
-    return v ? RANKING.filter((r) => `${r.name} ${r.model}`.toLowerCase().includes(v)) : RANKING
-  }, [q])
+  const [allOpen, setAllOpen] = useState(false)
   return (
     <section className={`rounded-xl min-w-0 flex flex-col ${fill ? 'h-full min-h-0' : ''}`}
       style={{ background: p.panel, border: `1px solid ${p.border}`, boxShadow: PANEL_SHADOW, padding: 16, gap: 14 }}>
@@ -676,26 +673,70 @@ function RankingPanel({ fill, onOpen }: { fill: boolean; onOpen: (s: Service) =>
             <span className="rounded-full" style={{ width: 6, height: 6, background: 'currentColor' }} />LIVE
           </span>
         </div>
-        <span className="flex items-center gap-2 rounded-lg" style={{ padding: '8px 11px', background: p.chip, border: `1px solid ${p.border}` }}>
-          <MagnifyingGlassIcon width={15} height={15} className="shrink-0" style={{ color: p.muted }} />
-          <input value={q} onChange={(e) => setQ(e.target.value)} className="bg-transparent outline-none w-full min-w-0" style={{ fontSize: 14, color: p.text }} placeholder="서비스 검색" aria-label="랭킹 검색" />
-        </span>
-        <span className="flex items-center justify-between gap-2 rounded-lg" style={{ padding: '8px 11px', fontSize: 14, background: p.chip, border: `1px solid ${p.border}` }}>
-          <span style={{ fontWeight: 600, color: p.text }}>필터</span>
-          <span className="flex items-center gap-1 truncate" style={{ color: p.muted }}>종류 · API · 모델 · 상태 <ChevronDownIcon width={14} height={14} className="shrink-0" /></span>
-        </span>
         <div className="flex items-center justify-between gap-2">
           <span style={{ fontSize: 14, fontWeight: 700, color: p.text }}>최대 사용량 서비스 순위</span>
           <span className="flex items-center gap-1" style={{ fontSize: 14, color: p.muted }}><ArrowPathIcon width={12} height={12} /> 1분 전 업데이트</span>
         </div>
       </div>
       <div className={`flex flex-col ${fill ? 'flex-1 min-h-0 overflow-auto' : ''}`} style={{ gap: 10 }}>
-        {list.length === 0
-          ? <p className="text-center" style={{ fontSize: 14, color: p.muted, padding: '18px 0' }}>검색 결과가 없어요.</p>
-          : list.map((r) => <RankCard key={r.rank} item={r} onOpen={onOpen} />)}
+        {RANKING.map((r) => <RankCard key={r.rank} item={r} onOpen={onOpen} />)}
       </div>
-      <Button variant="outline" className="justify-center w-full shrink-0">전체 랭킹 보기 <ChevronRightIcon width={14} height={14} /></Button>
+      <Button variant="outline" className="justify-center w-full shrink-0" onClick={() => setAllOpen(true)}>전체 랭킹 보기 <ChevronRightIcon width={14} height={14} /></Button>
+      {allOpen && <FullRankingModal onClose={() => setAllOpen(false)} onOpen={onOpen} />}
     </section>
+  )
+}
+
+// 전체 서비스 랭킹 팝업 — 전 서비스를 사용량(usageNum)순으로. 행 클릭 시 해당 서비스 상세로.
+function FullRankingModal({ onClose, onOpen }: { onClose: () => void; onOpen: (s: Service) => void }) {
+  const p = usePalette()
+  const ranked = useMemo(() => [...SERVICES].sort((a, b) => b.usageNum - a.usageNum), [])
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    window.addEventListener('keydown', onKey)
+    document.body.style.overflow = 'hidden'
+    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = '' }
+  }, [onClose])
+  const pick = (s: Service) => { onClose(); onOpen(s) }
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center" style={{ background: p.dim, backdropFilter: 'blur(3px)', padding: '5vh 16px', overflowY: 'auto', animation: 'mkFadeIn .18s ease both' }} onClick={onClose} role="presentation">
+      <style>{`@keyframes mkFadeIn{from{opacity:0}to{opacity:1}}@keyframes mkPopIn{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:none}}`}</style>
+      <div className="w-full rounded-2xl relative flex flex-col" style={{ maxWidth: 640, maxHeight: '88vh', background: p.modalCard, border: `1px solid ${p.borderStrong}`, boxShadow: p.shadow, animation: 'mkPopIn .24s cubic-bezier(.2,.7,.2,1) both' }} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="전체 서비스 랭킹">
+        <div className="shrink-0 flex items-center justify-between gap-3" style={{ padding: '17px 22px', borderBottom: `1px solid ${p.divider}` }}>
+          <div className="flex items-center gap-2 min-w-0">
+            <h2 className="truncate" style={{ fontSize: 18, fontWeight: 800, color: p.heading, letterSpacing: '-0.3px' }}>전체 서비스 랭킹</h2>
+            <span className="inline-flex items-center gap-1.5 rounded-full shrink-0" style={{ padding: '3px 9px', fontSize: 14, fontWeight: 700, color: p.ok, background: p.okSoft }}><span className="rounded-full" style={{ width: 6, height: 6, background: 'currentColor' }} />LIVE</span>
+            <span className="text-muted shrink-0" style={{ fontSize: 14, color: p.muted }}>사용량순 {ranked.length}개</span>
+          </div>
+          <button type="button" onClick={onClose} aria-label="닫기" className="flex items-center justify-center rounded-lg shrink-0 transition" style={{ width: 32, height: 32, color: p.text, background: p.inset, border: `1px solid ${p.borderStrong}` }}><XMarkIcon width={17} height={17} /></button>
+        </div>
+        <div className="flex-1 min-h-0 overflow-auto" style={{ padding: '8px 12px' }}>
+          {ranked.map((s, i) => {
+            const tone = toneOf(s.status)
+            const medal = i === 0 ? '#F4C71A' : i === 1 ? '#C7CFDB' : i === 2 ? '#E08A4C' : p.chip
+            const medalFg = i < 3 ? '#10131c' : p.muted
+            return (
+              <button key={s.id} type="button" onClick={() => pick(s)}
+                className="w-full text-left flex items-center gap-3 rounded-xl transition-colors"
+                style={{ padding: '10px 12px', borderBottom: i < ranked.length - 1 ? `1px solid ${p.divider}` : 'none' }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = p.inset)} onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
+                <span className="flex items-center justify-center shrink-0" style={{ width: 24, height: 24, borderRadius: 999, background: medal, color: medalFg, fontSize: 14, fontWeight: 800 }}>{i + 1}</span>
+                <Logo id={s.id} hue={s.hue} icon={s.icon} size={34} />
+                <div className="flex flex-col min-w-0 flex-1">
+                  <span className="truncate" style={{ fontSize: 14, fontWeight: 700, color: p.heading }}>{s.name}</span>
+                  <span className="truncate" style={{ fontSize: 14, color: p.muted }}>{s.provider} · {s.model}</span>
+                </div>
+                <div className="flex flex-col items-end shrink-0" style={{ gap: 2, width: 84 }}>
+                  <span style={{ fontSize: 14, fontWeight: 800, color: p.heading }}>{s.usage}</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: deltaColor(p, s.up) }}>{s.delta}</span>
+                </div>
+                <span className="shrink-0 hidden sm:inline-flex"><StatusBadge status={s.status} tone={tone} /></span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    </div>
   )
 }
 
