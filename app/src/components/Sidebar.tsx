@@ -62,8 +62,12 @@ export function Sidebar({ access, collapsed, onToggle }: SidebarProps) {
         ]
       : []
 
-  const [openMap, setOpenMap] = useState<Record<number, boolean>>({})
-  const isOpen = (gid: number) => openMap[gid] ?? gid === activeGroupId
+  // 초기 진입 시 활성 그룹만 펼침. 이후엔 사용자가 토글한 상태만 유지 —
+  // 페이지 이동(activeGroupId 변경)으로 다른 그룹이 자동으로 접히지 않게.
+  const [openMap, setOpenMap] = useState<Record<number, boolean>>(
+    () => (activeGroupId != null ? { [activeGroupId]: true } : {}),
+  )
+  const isOpen = (gid: number) => openMap[gid] ?? false
   const toggle = (gid: number) => setOpenMap((m) => ({ ...m, [gid]: !isOpen(gid) }))
 
   const overview = groups.filter((g) => g.group.id <= 7)
