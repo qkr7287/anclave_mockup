@@ -43,7 +43,7 @@ import { listPublishRequests, type PubRecord } from './publish-store'
 //  (라우트·App.tsx·routes는 메인에서 연결 완료 — 이 파일만 수정.)
 
 // 다크 테마 muted(#525872)가 본문에 너무 어두워 4.6과 동일하게 톤 보정
-function useMutedFix(): React.CSSProperties | undefined {
+export function useMutedFix(): React.CSSProperties | undefined {
   const { theme } = useTheme()
   return theme === 'dark' ? ({ ['--c-muted']: '#8b93a8' } as React.CSSProperties) : undefined
 }
@@ -57,13 +57,13 @@ const BADGE: Record<Status, { bg: string; fg: string }> = {
 const STATUS_FROM_KO: Record<string, Status> = { 대기: 'pending', 승인: 'approved', 반려: 'rejected' }
 
 // 신청자 소속 부서 — user.department(조직도) 사용.
-function teamOf(userId: string): string {
+export function teamOf(userId: string): string {
   return userById(userId)?.department ?? '미지정'
 }
 
 // ════════════════════════════════════ 공통 프리미티브(4.6 톤) ════════════════════════════════════
 
-function StatBadge({ status }: { status: Status }) {
+export function StatBadge({ status }: { status: Status }) {
   const b = BADGE[status]
   return (
     <span className="inline-flex items-center justify-center rounded-[7px] font-semibold whitespace-nowrap" style={{ background: b.bg, color: b.fg, padding: '3px 12px', minWidth: 56, fontSize: 14, lineHeight: 1.35 }}>
@@ -83,7 +83,7 @@ function StatIcon({ Icon, box, color }: { Icon: typeof ClockIcon; box: string; c
   )
 }
 
-function FieldBox({ children, className = '', style }: { children: ReactNode; className?: string; style?: React.CSSProperties }) {
+export function FieldBox({ children, className = '', style }: { children: ReactNode; className?: string; style?: React.CSSProperties }) {
   return (
     <div className={`flex items-center bg-card2 border border-line rounded-[8px] transition-[border-color,box-shadow] focus-within:border-[color:var(--c-accent)] focus-within:shadow-[0_0_0_3px_var(--accent-soft)] ${className}`} style={{ height: 38, padding: '0 13px', ...style }}>
       {children}
@@ -91,7 +91,7 @@ function FieldBox({ children, className = '', style }: { children: ReactNode; cl
   )
 }
 
-function FilterSelect({ label, value, onChange, options, width }: { label: string; value: string; onChange: (v: string) => void; options: string[]; width: number }) {
+export function FilterSelect({ label, value, onChange, options, width }: { label: string; value: string; onChange: (v: string) => void; options: string[]; width: number }) {
   return (
     <div className="relative flex items-center bg-card2 border border-line rounded-[8px] gap-2 transition-[border-color,box-shadow] focus-within:border-[color:var(--c-accent)] focus-within:shadow-[0_0_0_3px_var(--accent-soft)]" style={{ height: 38, padding: '0 13px', width }}>
       <span className="text-muted shrink-0 pointer-events-none" style={{ fontSize: 14 }}>{label}</span>
@@ -123,7 +123,7 @@ function ReviewPill({ pending, onClick }: { pending: boolean; onClick: (e: React
 }
 
 // 신청자 셀(아바타 + 이름/팀) — 두 테이블 공통
-function RequesterCell({ name, team }: { name: string; team: string }) {
+export function RequesterCell({ name, team }: { name: string; team: string }) {
   return (
     <div className="flex items-center gap-2.5 min-w-0">
       <span className="flex items-center justify-center shrink-0" style={{ width: 32, height: 32, borderRadius: 9, background: 'var(--accent-soft)', color: 'var(--c-accent)', fontSize: 14, fontWeight: 700 }}>{name.slice(0, 1)}</span>
@@ -139,10 +139,10 @@ function StatusCell({ status }: { status: Status }) {
   return <StatBadge status={status} />
 }
 
-interface Col { key: string; label: string; width: number; align?: 'center' | 'right' }
+export interface Col { key: string; label: string; width: number; align?: 'center' | 'right' }
 
 // 신청 목록 테이블 카드(헤더 + 표 + 푸터) — GPU/게시 두 화면 공통 셸
-function TableCard<T extends { id: string; status: Status }>({ headerLeft, cols, rows, cells, onRowClick, empty, footer }: {
+export function TableCard<T extends { id: string; status: Status }>({ headerLeft, cols, rows, cells, onRowClick, empty, footer }: {
   headerLeft: ReactNode
   cols: Col[]
   rows: T[]
@@ -152,7 +152,7 @@ function TableCard<T extends { id: string; status: Status }>({ headerLeft, cols,
   footer: ReactNode
 }) {
   return (
-    <section className="bg-card2 border border-line rounded-[14px] overflow-hidden flex flex-col flex-1 min-h-0" style={{ marginTop: 11 }}>
+    <section className="bg-card2 border border-line rounded-[14px] overflow-hidden flex flex-col flex-1 min-h-0" style={{ marginTop: 18 }}>
       <div className="flex items-center justify-between gap-3 shrink-0 border-b border-line" style={{ padding: '15px 24px' }}>{headerLeft}</div>
       <div className="flex-1 min-h-0 overflow-auto">
         <table className="w-full" style={{ tableLayout: 'fixed', borderCollapse: 'collapse' }}>
@@ -181,7 +181,7 @@ function TableCard<T extends { id: string; status: Status }>({ headerLeft, cols,
   )
 }
 
-function Pagination({ label, page, pageCount, setPage, pageSize, setPageSize }: {
+export function Pagination({ label, page, pageCount, setPage, pageSize, setPageSize }: {
   label: ReactNode
   page: number
   pageCount: number
@@ -323,7 +323,7 @@ const ALLOC_SLICES = TOTAL_SLICES - FREE_SLICES
 const CLUSTER_ALLOC = 100 - CLUSTER_AVAIL
 
 // 모든 행 공통 "상세 보기" — 대기는 상세에서 심사, 처리 완료는 조회. (4.6 자원 신청현황 ActionLink 펠릿 스타일)
-function DetailLink({ onClick }: { onClick: (e: React.MouseEvent) => void }) {
+export function DetailLink({ onClick }: { onClick: (e: React.MouseEvent) => void }) {
   return (
     <button
       type="button"

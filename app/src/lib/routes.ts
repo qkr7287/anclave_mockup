@@ -36,9 +36,9 @@ export const ROUTES: RouteDef[] = [
   { key: 'resource-map-server', path: '/resource-map/:serverId', screen: '4.3', title: '단일 서버 현황', access: ['A'] },
   { key: 'resource-map-gpu', path: '/resource-map/:serverId/:gpuId', screen: '4.4', title: 'GPU 상세 현황', access: ['A'] },
   { key: 'dashboard', path: '/dashboard', screen: '4.5', title: '내 할당 자원', access: ['A', 'B', 'C'], group: 1, menu: ['B', 'C'], icon: 'home' },
-  { key: 'requests-status', path: '/requests/status', screen: '4.6', title: '자원 신청현황', access: ['A', 'B', 'C'], group: 1, menu: ['B', 'C'], icon: 'clipboard' },
-  { key: 'requests-status-detail', path: '/requests/status/:id', screen: '4.6a', title: '신청 상세', access: ['A', 'B', 'C'], group: 1, icon: 'clipboard' },
-  { key: 'requests-new', path: '/requests/new', screen: '4.6b', title: '신규 신청', access: ['B', 'C'], group: 1, icon: 'clipboard' },
+  { key: 'requests-status', path: '/requests/status', screen: '4.6', title: '자원 신청현황', access: ['A', 'B', 'C'], group: 2, menu: ['B', 'C'], icon: 'clipboard' },
+  { key: 'requests-status-detail', path: '/requests/status/:id', screen: '4.6a', title: '신청 상세', access: ['A', 'B', 'C'], group: 2, icon: 'clipboard' },
+  { key: 'requests-new', path: '/requests/new', screen: '4.6b', title: '신규 신청', access: ['B', 'C'], group: 2, icon: 'clipboard' },
   { key: 'admin-monitoring', path: '/admin/monitoring', screen: '4.7', title: '관제 모니터링', access: ['A'], group: 1, menu: ['A'], icon: 'chart' },
 
   // ② 할당 관리
@@ -48,7 +48,9 @@ export const ROUTES: RouteDef[] = [
   { key: 'approvals-gpu', path: '/admin/approvals/gpu', screen: '4.10', title: '승인 관리', access: ['A'], group: 2, menu: ['A'], icon: 'check-badge' },
   { key: 'approvals-gpu-detail', path: '/admin/approvals/gpu/:id', screen: '4.10a', title: '신청 상세', access: ['A'], group: 2, icon: 'check-badge' },
   // 4.11 변경·확장·이전·회수 — 사용자(B=C)는 '자원 신청현황 상세보기'에서 진입(메뉴 제외). 관리자는 메뉴 유지(승인 측).
-  { key: 'gpu-change', path: '/requests/gpu-change', screen: '4.11', title: '변경 · 확장 · 회수', access: ['A', 'B', 'C'], group: 2, menu: ['A'], icon: 'arrows' },
+  { key: 'gpu-change', path: '/requests/gpu-change', screen: '4.11', title: '변경 · 확장 · 회수', access: ['A', 'B', 'C'], group: 2, menu: ['A', 'B', 'C'], icon: 'arrows' },
+  { key: 'gpu-change-new', path: '/requests/gpu-change/new', screen: '4.11b', title: '변경·확장·회수 신청', access: ['A', 'B', 'C'], group: 2, icon: 'arrows' },
+  { key: 'gpu-change-detail', path: '/requests/gpu-change/:id', screen: '4.11a', title: '변경 요청 심사', access: ['A', 'B', 'C'], group: 2, icon: 'arrows' },
 
   // ③ 모델 관리
   { key: 'models', path: '/models', screen: '4.12', title: '모델 카탈로그', access: ['A', 'B', 'C'], group: 3, menu: ['A', 'B', 'C'], icon: 'cube' },
@@ -142,6 +144,8 @@ const HIGHLIGHT_PARENT: Record<string, string> = {
   'model-import': 'model-requests',
   'model-request-new': 'model-requests',
   'model-request-detail': 'model-requests',
+  'gpu-change-new': 'gpu-change',
+  'gpu-change-detail': 'gpu-change',
 }
 export function sidebarHighlightKey(pathname: string): string | undefined {
   const m = matchRoute(pathname)

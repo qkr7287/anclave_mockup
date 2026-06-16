@@ -13,6 +13,7 @@ import { RequestDetail } from './screens/request-detail'
 import { RequestNew } from './screens/request-new'
 import { AdminMonitoring } from './screens/monitoring'
 import { Requests, GpuChange } from './screens/allocation'
+import { GpuChangeReview, GpuChangeRequestNew } from './screens/gpu-change-wizard'
 import { ApprovalsPublish, ApprovalsGpu } from './screens/approvals'
 import { PublishDetail, PublishView } from './screens/publish-detail'
 import { ApprovalDetail } from './screens/approval-detail'
@@ -50,6 +51,8 @@ const REGISTRY: Record<string, ComponentType> = {
   'approvals-gpu': ApprovalsGpu,
   'approvals-gpu-detail': ApprovalDetail,
   'gpu-change': GpuChange,
+  'gpu-change-new': GpuChangeRequestNew,
+  'gpu-change-detail': GpuChangeReview,
   models: ModelCatalog,
   'model-detail': ModelDetail,
   'model-requests': ModelRequests,
