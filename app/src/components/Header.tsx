@@ -28,7 +28,6 @@ interface Crumb { label: string; to?: string }
 // 현재 경로 → 브레드크럼(클릭 이동, 현재는 비활성). 자원맵은 전체 서버 > 서버 > GPU 드릴다운.
 function useCrumbs(): Crumb[] {
   const { pathname } = useLocation()
-  const catalog = useCatalogModels() // 모델 상세 라벨용 — hook 규칙상 조건부 return 전에 호출
   if (pathname.startsWith('/resource-map')) {
     const [, , serverId, gpuId] = pathname.split('/')
     const crumbs: Crumb[] = [{ label: '전체 서버 현황', to: '/resource-map' }]
