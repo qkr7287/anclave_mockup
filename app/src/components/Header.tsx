@@ -13,6 +13,7 @@ import { accessOf, useRole } from '../lib/role'
 import { userById, users } from '../data/users'
 import { notifications } from '../data/events'
 import { IA_GROUPS, ROUTES } from '../lib/routes'
+import { useCatalogModels } from '../screens/model-requests-shared'
 
 const DEMO_IDS = users.map((u) => u.id)
 const ACCESS_LABEL: Record<string, string> = {
@@ -26,6 +27,7 @@ interface Crumb { label: string; to?: string }
 // 현재 경로 → 브레드크럼(클릭 이동, 현재는 비활성). 자원맵은 전체 서버 > 서버 > GPU 드릴다운.
 function useCrumbs(): Crumb[] {
   const { pathname } = useLocation()
+  const catalog = useCatalogModels() // 모델 상세 라벨용 — hook 규칙상 조건부 return 전에 호출
   if (pathname.startsWith('/resource-map')) {
     const [, , serverId, gpuId] = pathname.split('/')
     const crumbs: Crumb[] = [{ label: '전체 서버 현황', to: '/resource-map' }]
@@ -43,6 +45,16 @@ function useCrumbs(): Crumb[] {
       { label: '모델 관리' },
       { label: '모델 신청 관리', to: '/admin/models/requests' },
       { label: '신규 모델 신청' },
+    ]
+  }
+  // 모델 상세(/models/:id) — 마지막 단계를 모델명으로(동적 라벨, useCatalogModels 조회).
+  const modelMatch = pathname.match(/^\/models\/([^/]+)$/)
+  if (modelMatch) {
+    const name = catalog.find((m) => m.id === modelMatch[1])?.name ?? '모델 상세'
+    return [
+      { label: '모델 관리' },
+      { label: '모델 카탈로그', to: '/models' },
+      { label: name },
     ]
   }
   const route = [...ROUTES].filter((r) => r.path !== '/' && pathname.startsWith(r.path)).sort((a, b) => b.path.length - a.path.length)[0]
