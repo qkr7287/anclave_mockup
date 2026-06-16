@@ -80,6 +80,7 @@ export const ROUTES: RouteDef[] = [
 
   // ⑥ 게시판
   { key: 'board', path: '/board', screen: '4.23', title: '게시판 · 공지', access: ['A', 'B', 'C'], group: 6, menu: ['A', 'B', 'C'], icon: 'chat' },
+  { key: 'board-detail', path: '/board/:id', screen: '4.23a', title: '게시글 상세', access: ['A', 'B', 'C'], group: 6, icon: 'chat' },
 
   // ⑦ 감사 · 보안 (A 전용)
   { key: 'audit', path: '/admin/audit', screen: '4.24', title: '감사 로그', access: ['A'], group: 7, menu: ['A'], icon: 'shield' },
@@ -145,6 +146,7 @@ const HIGHLIGHT_PARENT: Record<string, string> = {
   'model-request-detail': 'model-requests',
   'gpu-change-new': 'gpu-change',
   'gpu-change-detail': 'gpu-change',
+  'board-detail': 'board',
 }
 export function sidebarHighlightKey(pathname: string): string | undefined {
   const m = matchRoute(pathname)

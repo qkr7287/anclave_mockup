@@ -31,6 +31,7 @@ import { PublishRequest } from './screens/publish-request'
 import { PublishNew } from './screens/publish-new'
 import { Events } from './screens/events'
 import { Board } from './screens/board'
+import { BoardDetail } from './screens/board-detail'
 import { AuditLogScreen, AccessControl } from './screens/audit'
 import { Capabilities, UsersAdmin, InfraIntegrationScreen } from './screens/system'
 
@@ -68,6 +69,7 @@ const REGISTRY: Record<string, ComponentType> = {
   'publish-new': PublishNew,
   events: Events,
   board: Board,
+  'board-detail': BoardDetail,
   audit: AuditLogScreen,
   access: AccessControl,
   caps: Capabilities,
