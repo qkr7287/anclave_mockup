@@ -917,7 +917,7 @@ function toUsageInsight(raw: MarketServiceUsage): UsageInsight {
 // 랭킹 요약 — API 키별 요청·점유·변화(Figma 'Group 1' 상단 테이블).
 function RankingSummary({ insight }: { insight: UsageInsight }) {
   const p = usePalette()
-  const cols = '24px minmax(0,1.2fr) minmax(0,0.95fr) 116px 132px'
+  const cols = '24px minmax(0,1.1fr) minmax(0,0.8fr) 116px minmax(140px,1fr)'
   const MEDAL = ['#F4C71A', '#C7CFDB', '#E08A4C']
   const rankStyle = (i: number) => (i <= 2
     ? { background: `linear-gradient(140deg, ${MEDAL[i]}, ${MEDAL[i]}bb)`, color: '#10131c', boxShadow: `0 2px 7px ${MEDAL[i]}55` }
