@@ -917,7 +917,7 @@ function toUsageInsight(raw: MarketServiceUsage): UsageInsight {
 // 랭킹 요약 — API 키별 요청·점유·변화(Figma 'Group 1' 상단 테이블).
 function RankingSummary({ insight }: { insight: UsageInsight }) {
   const p = usePalette()
-  const cols = '26px minmax(0,1.55fr) 92px 86px 122px'
+  const cols = '26px minmax(0,1.5fr) minmax(0,1fr) 96px 116px'
   const MEDAL = ['#F4C71A', '#C7CFDB', '#E08A4C']
   const rankStyle = (i: number) => (i <= 2
     ? { background: `linear-gradient(140deg, ${MEDAL[i]}, ${MEDAL[i]}bb)`, color: '#10131c', boxShadow: `0 2px 7px ${MEDAL[i]}55` }
@@ -930,7 +930,7 @@ function RankingSummary({ insight }: { insight: UsageInsight }) {
         <span className="rounded-full" style={{ padding: '2px 10px', fontSize: 14, fontWeight: 700, color: p.accent, background: p.accentSoft }}>API 키 {insight.keyCount}개</span>
       </div>
       <div className="grid items-center" style={{ gridTemplateColumns: cols, gap: 14, padding: '0 4px 9px', fontSize: 14, fontWeight: 600, color: p.muted, borderBottom: `1px solid ${p.divider}` }}>
-        <span className="text-center">#</span><span>소유자 · 팀</span><span>키 발급일</span>
+        <span className="text-center">#</span><span>소유자 · 팀</span><span className="text-center">키 발급일</span>
         <span className="text-right">요청 수</span><span className="text-right">변화 · 7일</span>
       </div>
       <div className="flex flex-col">
@@ -946,7 +946,7 @@ function RankingSummary({ insight }: { insight: UsageInsight }) {
                 <span className="truncate" style={{ fontSize: 14, color: p.muted }}>{r.team}</span>
               </div>
             </div>
-            <span className="tabular-nums truncate" style={{ fontSize: 14, color: p.muted }}>{r.issuedAt}</span>
+            <span className="tabular-nums truncate text-center" style={{ fontSize: 14, color: p.muted }}>{r.issuedAt}</span>
             <div className="flex flex-col items-end" style={{ gap: 5 }}>
               <div className="flex items-baseline" style={{ gap: 5 }}>
                 <span className="tabular-nums" style={{ fontSize: 14.5, fontWeight: 800, color: p.heading, letterSpacing: '-0.3px' }}>{nf(r.requests)}</span>
