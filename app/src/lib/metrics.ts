@@ -1,5 +1,6 @@
 import type { Gpu, GpuServer, MigSlice, Service } from '../data/types'
 import { services } from '../data/services'
+import { gpuRequests } from '../data/requests'
 import { events } from '../data/events'
 
 // H100 80GB HBM3 — VRAM 총량(MB). 자원맵 표기 기준.
@@ -21,8 +22,14 @@ export const serverAvgVram = (s: GpuServer) =>
 export const serverActiveGpus = (s: GpuServer) =>
   s.gpus.filter((g) => g.health !== 'inactive' && !g.xid).length
 
-// 슬라이스 → 서비스 매핑(ownerUserId + modelId 로 역추적)
+// 슬라이스 → 서비스 매핑. requestId(서비스별 고유 신청) 우선 — 같은 owner+model
+// 서비스가 여럿일 때(예: jhs+m5 이미지캣·바이오캣) 역추적 충돌을 피한다.
 export function serviceOfSlice(s: MigSlice): Service | undefined {
+  if (s.requestId) {
+    const name = gpuRequests.find((r) => r.id === s.requestId)?.serviceName
+    const byReq = name ? services.find((sv) => sv.name === name) : undefined
+    if (byReq) return byReq
+  }
   if (!s.ownerUserId || !s.modelId) return undefined
   return services.find((sv) => sv.ownerUserId === s.ownerUserId && sv.model === s.modelId)
 }
