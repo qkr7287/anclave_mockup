@@ -689,6 +689,44 @@ app.get('/api/my-allocations', async (c) => {
   return c.json(rows)
 })
 
+// 전체 서버현황 인벤토리(4.2/4.3/4.4) — servers→gpus→slices 트리. '누구 할당'은
+// 승인+active gpu_requests 의 allocated_gpu_id/slice_id 로 채운다(allocated_* 단일 진실원, seed 폴백).
+// 실시간 수치(smUtil·temp·power 등)는 미포함 — 프론트가 telemetry band 로 합성.
+app.get('/api/servers', async (c) => {
+  const [servers, gpus, slices, allocs, svcs] = await Promise.all([
+    pool.query('select id, name, rack, host, network, note, health, hosted_service_ids, hosted_user_ids from gpu_servers order by id'),
+    pool.query('select id, server_id, name, model, arch, vram_gb, mig_capable, serial, interconnect, health, alloc_mode, xid, assigned_user_id, assigned_service_id from gpus order by id'),
+    pool.query('select id, gpu_id, profile, units, gb, owner_user_id, model_id, container_id, health, request_id, status from mig_slices order by id'),
+    pool.query("select requester_user_id, service_name, allocated_gpu_id, allocated_slice_id from gpu_requests where status='approved' and active=true and allocated_gpu_id is not null"),
+    pool.query('select id, name from services'),
+  ])
+  const svcByName = Object.fromEntries(svcs.rows.map((s) => [s.name, s.id]))
+  const gpuAlloc = {}, sliceAlloc = {}
+  for (const a of allocs.rows) {
+    if (a.allocated_slice_id) sliceAlloc[a.allocated_slice_id] = a.requester_user_id
+    else if (a.allocated_gpu_id) gpuAlloc[a.allocated_gpu_id] = { userId: a.requester_user_id, serviceId: svcByName[a.service_name] ?? null }
+  }
+  const out = servers.rows.map((srv) => ({
+    id: srv.id, name: srv.name, rack: srv.rack, host: srv.host, network: srv.network, note: srv.note, health: srv.health,
+    hostedServiceIds: srv.hosted_service_ids, hostedUserIds: srv.hosted_user_ids,
+    gpus: gpus.rows.filter((g) => g.server_id === srv.id).map((g) => {
+      const ga = gpuAlloc[g.id]
+      return {
+        id: g.id, name: g.name, model: g.model, arch: g.arch, vramGb: g.vram_gb, migCapable: g.mig_capable,
+        serial: g.serial, interconnect: g.interconnect, health: g.health, allocMode: g.alloc_mode, xid: g.xid,
+        assignedUserId: ga?.userId ?? g.assigned_user_id ?? null,
+        assignedServiceId: ga?.serviceId ?? g.assigned_service_id ?? null,
+        slices: slices.rows.filter((sl) => sl.gpu_id === g.id).map((sl) => ({
+          id: sl.id, profile: sl.profile, units: sl.units, gb: sl.gb,
+          ownerUserId: sliceAlloc[sl.id] ?? sl.owner_user_id ?? null,
+          modelId: sl.model_id, containerId: sl.container_id, health: sl.health, requestId: sl.request_id,
+        })),
+      }
+    }),
+  }))
+  return c.json(out)
+})
+
 // 변경·확장·회수 요청 목록 — user 있으면 본인, 없으면 전체(관리자). pending 우선·최신순. before/after 중첩.
 app.get('/api/gpu-change-requests', async (c) => {
   const { user } = c.req.query()
