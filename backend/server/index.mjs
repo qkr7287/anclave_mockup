@@ -523,6 +523,28 @@ app.patch('/api/publish-requests/:id', async (c) => {
   }
 })
 
+// 게시 신청 영구 삭제 — 승인으로 생성된 market_services(mkt-<prid>) 행도 cascade. 404 형태는 GET/PATCH 와 동일.
+app.delete('/api/publish-requests/:id', async (c) => {
+  const id = c.req.param('id')
+  if (!(await pool.query('select id from publish_requests where id=$1', [id])).rows.length)
+    return c.json({ error: 'not found' }, 404)
+  const mktId = 'mkt-' + id.replace(/^pr-/, '')  // 승인 매핑 규칙과 동일(approve upsert 키)
+  const client = await pool.connect()
+  try {
+    await client.query('begin')
+    await client.query('delete from market_services where id=$1', [mktId])
+    await client.query('delete from publish_requests where id=$1', [id])
+    await client.query('commit')
+  } catch (e) {
+    await client.query('rollback')
+    console.error('publish delete failed:', e)
+    return c.json({ error: 'delete failed' }, 500)
+  } finally {
+    client.release()
+  }
+  return c.json({ deleted: id, marketServiceId: mktId })
+})
+
 const AR_COLS = `id, requester_user_id "requesterUserId", service_id "serviceId", model,
   target_service_url "targetServiceUrl", purpose, status, api_key "apiKey",
   reject_reason "rejectReason", processed_by "processedBy", processed_at "processedAt", created_at "createdAt"`
