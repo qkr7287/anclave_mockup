@@ -725,12 +725,12 @@ app.get('/api/market-services/:id/usage', async (c) => {
   const id = c.req.param('id')
   const ms = (await pool.query('select usage_num, owner_user_id, service_id from market_services where id = $1', [id])).rows
   if (!ms.length) return c.json({ error: 'not found' }, 404)
-  // 1순위: 그 서비스에 키 승인받은 실제 클라이언트(api_requests) — serviceName=clientServiceName, owner=요청자.
+  // 1순위: 그 서비스 승인 api_requests = 활성 키(1:1). serviceName=clientServiceName(없으면 null→프론트가 요청자명 폴백).
   if (ms[0].service_id) {
     const reqs = (await pool.query(
       `select ar.client_service_name "serviceName", u.name owner, u.department team
          from api_requests ar join users u on u.id = ar.requester_user_id
-        where ar.service_id = $1 and ar.status = 'approved' and ar.client_service_name is not null
+        where ar.service_id = $1 and ar.status = 'approved'
         order by ar.created_at`, [ms[0].service_id])).rows
     if (reqs.length) return c.json(buildUsage(id, Number(ms[0].usage_num), reqs))
   }
