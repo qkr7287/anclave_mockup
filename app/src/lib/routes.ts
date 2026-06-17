@@ -82,9 +82,9 @@ export const ROUTES: RouteDef[] = [
   { key: 'board', path: '/board', screen: '4.23', title: '게시판 · 공지', access: ['A', 'B', 'C'], group: 6, menu: ['A', 'B', 'C'], icon: 'chat' },
   { key: 'board-detail', path: '/board/:id', screen: '4.23a', title: '게시글 상세', access: ['A', 'B', 'C'], group: 6, icon: 'chat' },
 
-  // ⑦ 감사 · 보안 (A 전용)
-  { key: 'audit', path: '/admin/audit', screen: '4.24', title: '감사 로그', access: ['A'], group: 7, menu: ['A'], icon: 'shield' },
-  { key: 'access', path: '/admin/access', screen: '4.25', title: '접근통제 · 권한', access: ['A'], group: 7, menu: ['A'], icon: 'lock' },
+  // ⑦ 감사 · 보안 (A 전용) — 사이드바 메뉴 숨김(menu 제거). 라우트는 유지.
+  { key: 'audit', path: '/admin/audit', screen: '4.24', title: '감사 로그', access: ['A'], group: 7, icon: 'shield' },
+  { key: 'access', path: '/admin/access', screen: '4.25', title: '접근통제 · 권한', access: ['A'], group: 7, icon: 'lock' },
 
   // ⑧ 시스템 설정 (A 전용)
   { key: 'caps', path: '/admin/settings/capabilities', screen: '4.26', title: '능력 탐지 · 기능 플래그', access: ['A'], group: 8, menu: ['A'], icon: 'adjust' },
