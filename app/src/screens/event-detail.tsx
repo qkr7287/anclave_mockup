@@ -23,6 +23,8 @@ import { fmtPower, fmtTemp, gpuServices, trend } from '../lib/metrics'
 import type { EventLog, EventStatus, Gpu, GpuServer, Severity } from '../data/types'
 import { useMutedFix } from './approvals'
 import {
+  eventRowToLog,
+  filterEventRowsForUser,
   getEventById,
   getEventsForUser,
   markRead,
@@ -30,6 +32,7 @@ import {
   serverIdOf,
   targetOf,
   targetPath,
+  useEvent,
 } from './event-store'
 
 // 4.21a 이벤트 상세 — "발생 순간 스냅샷" 컨셉.
@@ -149,23 +152,36 @@ export function EventDetail({ id: idProp, onBack }: { id?: string; onBack?: () =
   const { user, isAdmin } = useRole()
   const goBack = onBack ?? (() => navigate('/events'))
 
+  // 상세 = DB(/api/events/:id). 접근 허용·표시 모두 DB 우선, 없으면(로딩·404·다운) 시드 폴백.
+  const { data: dbEvent } = useEvent(id ?? null)
+
   const allowed = useMemo(() => {
     if (isAdmin) return true
+    if (dbEvent) return filterEventRowsForUser([dbEvent], user.id).length > 0
     return getEventsForUser(user.id).some((e) => e.id === id)
-  }, [isAdmin, user.id, id])
+  }, [isAdmin, user.id, id, dbEvent])
 
   const [event, setEvent] = useState<EventLog | undefined>(() => (id ? getEventById(id) : undefined))
   const [assignee, setAssignee] = useState('')
   const [action, setAction] = useState('')
+  // 로컬 해결 처리 후 DB 폴링이 덮어쓰지 않게(백엔드 PATCH 없음 — 낙관적 로컬이 SoT).
+  const [resolvedLocal, setResolvedLocal] = useState(false)
 
+  // id 전환 시 읽음 처리 + 로컬 해결 플래그 리셋.
   useEffect(() => {
     if (!id || !allowed) return
     markRead(id)
-    const e = getEventById(id)
+    setResolvedLocal(false)
+  }, [id, allowed])
+
+  // DB(상세) 도착 → 표시 이벤트 갱신(로컬 해결 전까지) · 없으면 시드 폴백.
+  useEffect(() => {
+    if (!id || !allowed || resolvedLocal) return
+    const e = dbEvent ? eventRowToLog(dbEvent) : getEventById(id)
     setEvent(e)
     setAssignee(e?.assignee ?? user.name)
     setAction(e?.action ?? '')
-  }, [id, allowed, user.name])
+  }, [id, allowed, dbEvent, resolvedLocal, user.name])
 
   if (!event || !allowed) {
     return (
@@ -199,9 +215,12 @@ export function EventDetail({ id: idProp, onBack }: { id?: string; onBack?: () =
       toast.push('조치 내용을 입력해 주세요.', 'warn')
       return
     }
-    const updated = resolveEvent(event.id, { assignee, action, resolution: action })
-    toast.push('이벤트를 해결 처리했어요.', 'info')
+    // 낙관적 로컬 반영(백엔드 PATCH 미제공) — DB-only 이벤트도 동작. 시드 세션엔 best-effort 반영.
+    const updated: EventLog = { ...event, status: 'resolved', read: true, assignee, action, resolution: action }
+    resolveEvent(event.id, { assignee, action, resolution: action })
+    setResolvedLocal(true)
     setEvent(updated)
+    toast.push('이벤트를 해결 처리했어요.', 'info')
   }
 
   const chip = 'inline-flex items-center gap-1.5 rounded-[7px] font-medium'

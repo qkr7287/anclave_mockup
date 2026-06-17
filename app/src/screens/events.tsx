@@ -25,7 +25,15 @@ import {
   Pagination,
   useMutedFix,
 } from './approvals'
-import { getEvents, getEventsForUser, targetOf, targetPath, useEventStore } from './event-store'
+import {
+  eventRowToLog,
+  filterEventRowsForUser,
+  getEvents,
+  getEventsForUser,
+  targetOf,
+  targetPath,
+} from './event-store'
+import { useEvents } from '../data/hooks/usePolling'
 import { EventDetail } from './event-detail'
 
 // ⑤ 에러 · 이벤트 관제 (4.21) — 5188 자원 신청현황(4.6/4.10) 톤 풀 화면.
@@ -82,8 +90,6 @@ export function Events() {
   const navigate = useNavigate()
   const mutedFix = useMutedFix()
   const { user, isAdmin } = useRole()
-  // 소스 = DB(/api/events). 적재 완료(ready) 시 재렌더 → scoped 재계산.
-  const { ready, error: loadError } = useEventStore()
 
   // 상세는 팝업이 아니라 별도 페이지 — ?detail=<id> 로 전체 화면 전환(브라우저 뒤로가기로 목록 복귀).
   const [searchParams, setSearchParams] = useSearchParams()
@@ -97,11 +103,15 @@ export function Events() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
 
-  // 역할 범위 — A=전체 · B/C=본인 자원 이벤트. detailId 변동(상세 복귀) 시 재계산해 처리 결과 반영.
-  const scoped = useMemo<EventLog[]>(
-    () => (isAdmin ? getEvents() : getEventsForUser(user.id)),
-    [isAdmin, user.id, detailId, ready],
-  )
+  // 목록 = DB(/api/events). A=전체 · B/C=본인 자원 이벤트(클라 스코프 필터).
+  // data null(로딩)·backend 다운 → 시드 폴백(화면 유지). detailId 변동 시 재계산(폴백 경로의 로컬 처리 반영).
+  const { data: dbEvents } = useEvents({ limit: 100 })
+  const scoped = useMemo<EventLog[]>(() => {
+    const rows = dbEvents
+      ? (isAdmin ? dbEvents : filterEventRowsForUser(dbEvents, user.id))
+      : (isAdmin ? getEvents() : getEventsForUser(user.id))
+    return rows.map(eventRowToLog)
+  }, [dbEvents, isAdmin, user.id, detailId])
 
   const counts = useMemo(() => ({
     total: scoped.length,
@@ -144,18 +154,13 @@ export function Events() {
   const openEvent = (e: EventLog) => setSearchParams({ detail: e.id })
 
   // 상세 페이지 — 목록 위가 아니라 화면 전체를 상세로 교체(팝업 아님). 닫으면 detail 파라미터 제거.
-  // 세션 적재 완료 후 진입(딥링크 ?detail= 직접 접근 시 store 로드 대기).
-  if (detailId && ready) {
+  if (detailId) {
     return <EventDetail id={detailId} onBack={() => setSearchParams({})} />
   }
 
   // 미해결 0건(전체가 해결됨) — 필터 없이 빈 미해결 뷰일 때 안내(빈 상태 5). !hasFilter 면 statusF='전체'.
-  const allResolved = ready && !loadError && scoped.length > 0 && counts.open === 0 && !hasFilter
-  const emptyText = loadError
-    ? '이벤트를 불러오지 못했어요. 잠시 후 다시 시도해주세요.'
-    : !ready
-    ? '이벤트를 불러오는 중…'
-    : scoped.length === 0
+  const allResolved = scoped.length > 0 && counts.open === 0 && !hasFilter
+  const emptyText = scoped.length === 0
     ? (isAdmin ? '발생한 이벤트가 없어요.' : '내 할당 자원에서 발생한 이벤트가 없어요.')
     : statusF === '미해결' && view.length === 0
       ? '처리할 이벤트가 없어요. 모든 이벤트가 해결되었어요.'

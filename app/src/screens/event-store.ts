@@ -1,75 +1,14 @@
-import { useEffect, useState } from 'react'
+import { events } from '../data/events'
 import { servers, allGpus, gpuRequests, services } from '../data'
-import { apiGet } from '../lib/api'
-import type { EventLog, EventStatus, Severity } from '../data/types'
+import type { EventLog, EventStatus } from '../data/types'
+import { usePolling } from '../data/hooks/usePolling'
+import type { EventRow, PollState } from '../data/hooks/usePolling'
 
-// 4.21 에러·이벤트 관제 — 소스를 DB(/api/events)로 와이어링한 세션 store.
-//   backend 행을 EventLog 모양으로 정규화해 모듈 세션(session)에 적재 → 화면 계층은
-//   기존과 동일한 동기 getter(getEvents/getEventsForUser/getEventById)를 그대로 사용한다.
-//   markRead·resolveEvent 는 로컬 세션 반영(backend 이벤트 PATCH endpoint 미제공 — 생기면
-//   resolveEvent 만 REST 로 교체, 화면 계층은 불변).
+// 4.21 에러·이벤트 관제 — 목업 store(세션 사본). 다른 *-store(gpu-change-store 등) 패턴.
+// 시드 events(읽기 전용)를 세션 배열로 복제해, 상세 드로어의 [해결 처리]를 로컬 반영한다.
+// (backend PATCH endpoint 생기면 이 레이어만 REST 로 와이어링 — 화면 계층은 그대로.)
 
-// backend /api/events 행(부분 집합) — read/assignee/resolution 은 미반환(로컬 관리).
-interface EventRow {
-  id: string
-  severity: Severity
-  status: string
-  message: string
-  gpuId: string | null
-  serverId: string | null
-  createdAt: string
-}
-
-// ISO('…T…Z') → 'YYYY-MM-DD HH:mm'(시드 표시 포맷). 파싱 불가 시 원본 유지(이미 포맷됨).
-function fmtStamp(v: string): string {
-  const d = new Date(v)
-  if (isNaN(d.getTime())) return v
-  const p = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
-}
-
-function normalize(r: EventRow): EventLog {
-  return {
-    id: r.id,
-    severity: r.severity,
-    status: (r.status === 'resolved' ? 'resolved' : 'open') as EventStatus,
-    gpuId: r.gpuId ?? undefined,
-    serverId: r.serverId ?? undefined,
-    message: r.message,
-    createdAt: fmtStamp(r.createdAt),
-    read: false,
-  }
-}
-
-// 세션 적재 — 앱 라이프사이클 1회 로드(read·resolve 로컬 상태 보존). 새 fleet 은 리로드로 반영.
-let session: EventLog[] = []
-let loaded = false
-let loadPromise: Promise<void> | null = null
-const subscribers = new Set<() => void>()
-const notify = () => subscribers.forEach((fn) => fn())
-
-function ensureLoaded(): Promise<void> {
-  if (loaded) return Promise.resolve()
-  if (!loadPromise) {
-    loadPromise = apiGet<EventRow[]>('/api/events?limit=1000')
-      .then((rows) => { session = rows.map(normalize); loaded = true; notify() })
-      .catch((e) => { loadPromise = null; throw e })
-  }
-  return loadPromise
-}
-
-// 화면 진입 훅 — 최초 로드 트리거 + 적재 완료 시 재렌더. { ready, error } 반환.
-export function useEventStore(): { ready: boolean; error: boolean } {
-  const [, force] = useState(0)
-  const [error, setError] = useState(false)
-  useEffect(() => {
-    const onChange = () => force((n) => n + 1)
-    subscribers.add(onChange)
-    ensureLoaded().catch(() => setError(true))
-    return () => { subscribers.delete(onChange) }
-  }, [])
-  return { ready: loaded, error }
-}
+let session: EventLog[] = events.map((e) => ({ ...e }))
 
 export function getEvents(): EventLog[] {
   return session
@@ -167,6 +106,49 @@ export function filterEventRowsForUser<
     if (e.serverId && serverIds.has(e.serverId)) return true
     return names.some((n) => e.message.includes(n))
   })
+}
+
+// ── DB 배선(읽기) — 목록은 useEvents(이미 존재), 상세는 useEvent. 둘 다 화면은 EventLog 형태로 소비. ──
+
+// 이벤트 단건(상세) — backend /api/events/:id. 목록 EventRow + 처리 필드(superset) · 없으면 404.
+export interface EventDetailRow extends EventRow {
+  read?: boolean
+  assignee?: string
+  action?: string
+  resolution?: string
+}
+
+export function useEvent(id: string | null, intervalMs = 10000): PollState<EventDetailRow> {
+  return usePolling<EventDetailRow>(id ? `/api/events/${id}` : null, intervalMs)
+}
+
+// 발생일시 정규화 — DB(ISO)는 'YYYY-MM-DD HH:mm' 로, 시드(이미 그 형식)는 그대로.
+// 목록 표시·상세 헤더·날짜 필터(slice(0,10))가 일관되게 동작하도록 매핑 경계에서 통일.
+function fmtCreatedAt(s: string): string {
+  if (!s.includes('T')) return s
+  const d = new Date(s)
+  if (Number.isNaN(d.getTime())) return s
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
+
+// DB EventRow(+상세 superset) → 화면이 쓰는 EventLog. null→undefined, 누락 필드 기본값.
+// 시드 EventLog 를 그대로 넣어도 동일하게 통과(폴백 경로 공용).
+export function eventRowToLog(e: EventRow | EventDetailRow | EventLog): EventLog {
+  const d = e as EventDetailRow & EventLog
+  return {
+    id: d.id,
+    severity: d.severity,
+    status: d.status as EventStatus,
+    gpuId: d.gpuId ?? undefined,
+    serverId: d.serverId ?? undefined,
+    message: d.message,
+    createdAt: fmtCreatedAt(d.createdAt),
+    read: d.read ?? false,
+    assignee: d.assignee ?? undefined,
+    action: d.action ?? undefined,
+    resolution: d.resolution ?? undefined,
+  }
 }
 
 // 드로어 진입 시 읽음 처리(로컬).
