@@ -183,9 +183,19 @@ export interface PublishRequest {
   serviceUrl: string
   demoUrl: string
   meta: string
+  // 신청 입력 → 마켓 상세(4.17) 매핑 필드(전부 optional, 기존 데이터 호환). 승인 시 market_services 로 복사.
+  overview?: string // 서비스 소개(상세 overview)
+  apiDesc?: string // API 설명
+  features?: string[] // 주요 기능
+  tags?: string[] // 태그
+  visibility?: string // 공개범위(public|internal 등)
+  demoNote?: string // 데모 안내(접속/계정 등)
   status: Status
   rejectReason?: string
   createdAt: string
+  adminMemo?: string
+  processedBy?: string
+  processedAt?: string
 }
 
 export interface ApiKeyUsage {

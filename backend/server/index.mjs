@@ -427,7 +427,8 @@ app.post('/api/model-requests', async (c) => {
 // gpu-requests 패턴 미러: GET 목록/단건 · POST 생성 · PATCH {action} 승인/반려. created_at/processed_at 서버 now().
 
 const PR_COLS = `id, requester_user_id "requesterUserId", service_name "serviceName", service_url "serviceUrl",
-  demo_url "demoUrl", meta, status, reject_reason "rejectReason", admin_memo "adminMemo",
+  demo_url "demoUrl", meta, overview, api_desc "apiDesc", features, tags, visibility, demo_note "demoNote",
+  status, reject_reason "rejectReason", admin_memo "adminMemo",
   processed_by "processedBy", processed_at "processedAt", created_at "createdAt"`
 
 app.get('/api/publish-requests', async (c) => {
@@ -444,9 +445,11 @@ app.post('/api/publish-requests', async (c) => {
   if (!b.requesterUserId || !b.serviceName) return c.json({ error: 'requesterUserId, serviceName required' }, 400)
   const id = `pr-${Date.now().toString(36)}`
   const { rows } = await pool.query(
-    `insert into publish_requests(id, requester_user_id, service_name, service_url, demo_url, meta, status)
-     values($1,$2,$3,$4,$5,$6,'pending') returning ${PR_COLS}`,
-    [id, b.requesterUserId, b.serviceName, b.serviceUrl ?? null, b.demoUrl ?? null, b.meta ?? null])
+    `insert into publish_requests(id, requester_user_id, service_name, service_url, demo_url, meta,
+        overview, api_desc, features, tags, visibility, demo_note, status)
+     values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'pending') returning ${PR_COLS}`,
+    [id, b.requesterUserId, b.serviceName, b.serviceUrl ?? null, b.demoUrl ?? null, b.meta ?? null,
+      b.overview ?? null, b.apiDesc ?? null, b.features ?? [], b.tags ?? [], b.visibility ?? null, b.demoNote ?? null])
   return c.json(rows[0], 201)
 })
 app.patch('/api/publish-requests/:id', async (c) => {
@@ -456,16 +459,52 @@ app.patch('/api/publish-requests/:id', async (c) => {
   if (b.action === 'reject' && !b.rejectReason) return c.json({ error: 'rejectReason required' }, 400)
   const cur = await pool.query(`select status from publish_requests where id = $1`, [id])
   if (!cur.rows.length) return c.json({ error: 'not found' }, 404)
-  const { rows } = b.action === 'approve'
-    ? await pool.query(
-        `update publish_requests set status='approved', processed_at=now(), processed_by=$2, admin_memo=$3
-          where id=$1 returning ${PR_COLS}`,
-        [id, b.processedBy ?? null, b.adminMemo ?? null])
-    : await pool.query(
-        `update publish_requests set status='rejected', processed_at=now(), processed_by=$2, reject_reason=$3, admin_memo=$4
-          where id=$1 returning ${PR_COLS}`,
-        [id, b.processedBy ?? null, b.rejectReason, b.adminMemo ?? null])
-  return c.json(rows[0])
+
+  if (b.action === 'reject') {
+    const { rows } = await pool.query(
+      `update publish_requests set status='rejected', processed_at=now(), processed_by=$2, reject_reason=$3, admin_memo=$4
+        where id=$1 returning ${PR_COLS}`,
+      [id, b.processedBy ?? null, b.rejectReason, b.adminMemo ?? null])
+    return c.json(rows[0])
+  }
+
+  // 승인 — 트랜잭션: 신청 상태 갱신 + 신청 입력값으로 market_services(4.17 상세) 생성/갱신.
+  const client = await pool.connect()
+  try {
+    await client.query('begin')
+    const { rows } = await client.query(
+      `update publish_requests set status='approved', processed_at=now(), processed_by=$2, admin_memo=$3
+        where id=$1 returning ${PR_COLS}`,
+      [id, b.processedBy ?? null, b.adminMemo ?? null])
+    const pr = rows[0]
+    // 마켓 카드 id = 신청과 1:1 안정 키(재승인 시 동일 행 갱신). 기존 서비스명이 있으면 service_id 연결.
+    const mktId = 'mkt-' + id.replace(/^pr-/, '')
+    const svc = (await client.query('select id from services where name=$1 limit 1', [pr.serviceName])).rows[0]
+    const ownerName = (await client.query('select name from users where id=$1', [pr.requesterUserId])).rows[0]?.name ?? null
+    await client.query(
+      `insert into market_services(id, name, owner_user_id, owner, service_id, status,
+          overview, api_desc, features, tags, service_url, demo_url, demo_note, description)
+       values($1,$2,$3,$4,$5,'정상',$6,$7,$8::jsonb,$9::jsonb,$10,$11,$12,$13)
+       on conflict (id) do update set
+         name=excluded.name, owner_user_id=excluded.owner_user_id, owner=excluded.owner,
+         service_id=excluded.service_id, overview=excluded.overview, api_desc=excluded.api_desc,
+         features=excluded.features, tags=excluded.tags, service_url=excluded.service_url,
+         demo_url=excluded.demo_url, demo_note=excluded.demo_note, description=excluded.description`,
+      [mktId, pr.serviceName, pr.requesterUserId, ownerName, svc?.id ?? null,
+        pr.overview ?? null, pr.apiDesc ?? null,
+        JSON.stringify(pr.features ?? []), JSON.stringify(pr.tags ?? []),
+        pr.serviceUrl ?? null, pr.demoUrl ?? null, pr.demoNote ?? null, pr.overview ?? null])
+    // 연결된 정식 서비스가 있으면 게시 상태로(마켓 노출).
+    if (svc?.id) await client.query('update services set listed=true where id=$1', [svc.id])
+    await client.query('commit')
+    return c.json({ ...pr, marketServiceId: mktId })
+  } catch (e) {
+    await client.query('rollback')
+    console.error('publish approve failed:', e)
+    return c.json({ error: 'approve failed' }, 500)
+  } finally {
+    client.release()
+  }
 })
 
 const AR_COLS = `id, requester_user_id "requesterUserId", service_id "serviceId", model,
@@ -516,7 +555,7 @@ const MS_COLS = `id, name, kind, provider, model, api, owner, owner_user_id "own
   response_time "responseTime", tier, monthly_req "monthlyReq", usage, usage_num "usageNum",
   delta, up, req_full "reqFull", success, delta_pct "deltaPct", last_call "lastCall",
   tags, description "desc", overview, api_desc "apiDesc", features, ops_notes "opsNotes",
-  service_url "serviceUrl", demo_url "demoUrl", thumbnail, screenshots`
+  service_url "serviceUrl", demo_url "demoUrl", demo_note "demoNote", thumbnail, screenshots`
 
 app.get('/api/market-services', async (c) => {
   const { rows } = await pool.query(`select ${MS_COLS} from market_services order by usage_num desc`)
