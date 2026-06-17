@@ -220,7 +220,7 @@ function CornerMarks() {
   )
 }
 
-interface PubForm { serviceId: string; intro: string; visibility: string; features: string; tags: string; demoNote: string }
+interface PubForm { serviceId: string; intro: string; visibility: string; features: string; tags: string; demoNote: string; apiDesc: string }
 
 function SpecSheet({ f, svc, userName, today, currentStep, reviewing, onEdit, onBack, onSubmit, canSubmit }: {
   f: PubForm; svc: Service | undefined; userName: string; today: string
@@ -274,7 +274,8 @@ function SpecSheet({ f, svc, userName, today, currentStep, reviewing, onEdit, on
             <SpecRow label="공개 범위" value={f.visibility} reviewing={reviewing} pendingW="35%" />
             <SpecRow label="주요 기능" value={f.features ? <span style={{ whiteSpace: 'pre-line' }}>{f.features}</span> : undefined} emptyText="없음" reviewing={reviewing} pendingW="80%" />
             <SpecRow label="태그" value={f.tags} emptyText="없음" reviewing={reviewing} pendingW="50%" />
-            <SpecRow label="데모 안내" value={f.demoNote} emptyText="없음" reviewing={reviewing} pendingW="60%" last />
+            <SpecRow label="데모 안내" value={f.demoNote} emptyText="없음" reviewing={reviewing} pendingW="60%" />
+            <SpecRow label="API 설명" value={f.apiDesc ? <span style={{ whiteSpace: 'pre-line' }}>{f.apiDesc}</span> : undefined} emptyText="없음" reviewing={reviewing} pendingW="85%" last />
           </SpecSection>
         </div>
 
@@ -302,7 +303,7 @@ export function PublishNew() {
   const myServices = services.filter((s) => s.ownerUserId === user.id)
 
   const [step, setStep] = useState(0)
-  const [f, setF] = useState<PubForm>({ serviceId: '', intro: '', visibility: VIS_OPTS[0].v, features: '', tags: '', demoNote: '' })
+  const [f, setF] = useState<PubForm>({ serviceId: '', intro: '', visibility: VIS_OPTS[0].v, features: '', tags: '', demoNote: '', apiDesc: '' })
   const [svcQ, setSvcQ] = useState('')
   const [doneId, setDoneId] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -462,6 +463,10 @@ export function PublishNew() {
                     <FieldLabel text="데모 안내" help="데모 사용법·계정 등. (선택)" />
                     <input value={f.demoNote} onChange={(e) => set('demoNote', e.target.value)} placeholder="예: 게스트 계정으로 바로 체험" style={inputBase} />
                   </div>
+                </div>
+                <div className="shrink-0" style={{ marginBottom: 20 }}>
+                  <FieldLabel text="API 설명" help="이 API로 무엇을 할 수 있는지 알려주세요. 상세에 강조 표시돼요. (API 제공 시)" />
+                  <textarea value={f.apiDesc} maxLength={300} onChange={(e) => set('apiDesc', e.target.value)} placeholder="예: 문서를 업로드하고 질의하면 근거 출처와 함께 답변을 받아요. JSON 요청/응답·권한 기반 검색 지원." style={{ ...inputBase, height: 76, padding: '14px', resize: 'none', lineHeight: 1.5 }} />
                 </div>
                 {/* 주요 기능 — 남는 높이를 끝까지 채움 */}
                 <div className="flex flex-col flex-1 min-h-0">

@@ -699,17 +699,12 @@ function ServiceDetailCard({ service: s, narrow, reserveClose, keyCount }: { ser
             <div className="flex flex-col min-w-0" style={{ gap: 10 }}>
               <h2 style={{ fontSize: 21, fontWeight: 800, letterSpacing: '-0.4px', color: p.heading, lineHeight: 1.1 }}>{s.name}</h2>
               <div className="flex items-center flex-wrap gap-2">
-                <MetaChip label="제공사" value={s.provider} />
                 <MetaChip label="API" value={apiAvailable ? s.api : '미제공'} />
                 <MetaChip label="모델" value={s.model} />
                 <MetaChip label="소유자" value={userById(s.ownerUserId)?.name ?? s.owner} />
                 <StatusBadge status={s.status} tone={tone} />
               </div>
             </div>
-          </div>
-          <div className="flex flex-col items-center justify-center shrink-0 rounded-xl" style={{ padding: '8px 18px', background: p.okSoft, border: `1px solid ${toneColor(p, 'ok')}33` }}>
-            <span className="flex items-center gap-1" style={{ fontSize: 19, fontWeight: 800, color: p.ok, lineHeight: 1.1 }}><StarIcon width={16} height={16} /> {s.rating.toFixed(1)}</span>
-            <span style={{ fontSize: 14, color: p.muted }}>사용자 평점</span>
           </div>
         </div>
         {divider}
@@ -741,11 +736,19 @@ function ServiceDetailCard({ service: s, narrow, reserveClose, keyCount }: { ser
         <p style={{ fontSize: 14, lineHeight: 1.7, color: p.muted }}>{s.overview}</p>
       </div>
 
-      {/* API 설명(API 제공 시) */}
+      {/* API 설명 — 이 API로 할 수 있는 것(강조 박스) */}
       {apiAvailable && s.apiDesc && (
-        <div className="flex flex-col" style={{ gap: 9 }}>
-          <SectionTitle>API 설명</SectionTitle>
-          <p style={{ fontSize: 14, lineHeight: 1.7, color: p.muted }}>{s.apiDesc}</p>
+        <div className="flex flex-col rounded-xl" style={{ gap: 12, padding: narrow ? 16 : '18px 20px', background: p.accentSoft, border: `1px solid ${p.accent}30` }}>
+          <div className="flex items-center" style={{ gap: 11 }}>
+            <span className="flex items-center justify-center shrink-0 rounded-[10px]" style={{ width: 36, height: 36, background: p.accent, color: '#fff' }}>
+              <CodeBracketIcon width={19} height={19} />
+            </span>
+            <div className="flex flex-col" style={{ gap: 1 }}>
+              <span style={{ fontSize: 15, fontWeight: 800, color: p.heading, letterSpacing: '-0.2px' }}>이 API로 할 수 있는 것</span>
+              <span style={{ fontSize: 14, color: p.muted }}>API 키를 발급받으면 아래 기능을 바로 호출할 수 있어요.</span>
+            </div>
+          </div>
+          <p style={{ fontSize: 14.5, lineHeight: 1.8, color: p.text }}>{s.apiDesc}</p>
         </div>
       )}
 
