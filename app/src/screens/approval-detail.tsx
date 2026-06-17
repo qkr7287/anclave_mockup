@@ -1,17 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowDownTrayIcon,
   ArrowLeftIcon,
+  ArrowsRightLeftIcon,
   ArrowTopRightOnSquareIcon,
   CheckCircleIcon,
   CheckIcon,
   ChevronDownIcon,
-  CircleStackIcon,
   CpuChipIcon,
   MagnifyingGlassIcon,
-  RectangleStackIcon,
   ServerStackIcon,
   Squares2X2Icon,
   XCircleIcon,
@@ -26,9 +25,12 @@ import {
 } from '../components/ui'
 import { useTheme } from '../lib/theme'
 import { useRole } from '../lib/role'
-import { modelById, serverById, servers, services, userById } from '../data'
-import type { GpuRequest } from '../data/types'
+import { modelById, servers, services, userById } from '../data'
+import type { GpuRequest, GpuServer } from '../data/types'
+import { usePolling } from '../data/hooks/usePolling'
 import { approveGpuRequest, fetchGpuRequestById, nowStamp, rejectGpuRequest } from './approval-store'
+import { CHANGE_TYPE_META, fetchChangeRequests } from './gpu-change-store'
+import type { ChangeRequest } from './gpu-change-store'
 
 // 4.10a 신청 상세 심사 (/admin/approvals/gpu/:id) — 4.10 승인 관리의 드로어를 전용 페이지로 승격.
 // pending = 2컬럼(좌 할당 판단[멀티스텝 서버→GPU→MIG 슬라이스 · 검색/필터] / 우 신청 상세[명세서 자리]).
@@ -83,25 +85,27 @@ export const STATUS_META: Record<SlotStatus, { label: string; tone: 'ok' | 'neut
   full: { label: '여유 없음', tone: 'neutral', selectable: false },
   maintenance: { label: '점검', tone: 'danger', selectable: false },
 }
-export interface SliceNode { id: string; profile: string; gb: number; free: boolean; tag: string }
+export interface SliceNode { id: string; profile: string; gb: number; units: number; free: boolean; tag: string }
 export interface GpuNode { id: string; name: string; mode: 'cluster' | 'mig'; vramGb: number; load: number; status: SlotStatus; free: boolean; slices: SliceNode[]; freeSlices: number; totalSlices: number; dummy?: boolean }
 export interface ServerNode { id: string; host: string; models: string; gpus: GpuNode[]; status: SlotStatus; load: number; freeUnits: number; totalUnits: number; dummy?: boolean }
 
-export function buildResourceTree(): ServerNode[] {
-  const real = servers.map((server): ServerNode => {
+// fleet = DB(/api/servers) 또는 seed 폴백. DB 응답은 실시간 수치(smUtil·usage 등)를 omit하므로
+// 슬롯 가용성 판정만 사용(load 없으면 0). 등록된 서버만 — 더미 패딩 없음.
+export function buildResourceTree(fleet: GpuServer[]): ServerNode[] {
+  return fleet.map((server): ServerNode => {
     const gpus = server.gpus.map((g): GpuNode => {
       if (g.allocMode === 'mig') {
         const slices: SliceNode[] = (g.slices ?? []).map((s) => {
-          const free = !s.ownerUserId && s.usage === 0
-          return { id: s.id, profile: s.profile, gb: s.gb, free, tag: free ? '가용' : (userById(s.ownerUserId ?? '')?.name ?? '사용 중') }
+          const free = !s.ownerUserId // 소유자 없으면 가용 (DB엔 usage 없음)
+          return { id: s.id, profile: s.profile, gb: s.gb, units: s.units, free, tag: free ? '가용' : (userById(s.ownerUserId ?? '')?.name ?? '사용 중') }
         })
         const freeSlices = slices.filter((s) => s.free).length
         const status: SlotStatus = g.xid || g.health === 'danger' ? 'maintenance' : freeSlices > 0 ? 'available' : 'full'
-        return { id: g.id, name: g.name, mode: 'mig', vramGb: g.vramGb, load: g.smUtil, status, free: status === 'available', slices, freeSlices, totalSlices: slices.length }
+        return { id: g.id, name: g.name, mode: 'mig', vramGb: g.vramGb, load: g.smUtil ?? 0, status, free: status === 'available', slices, freeSlices, totalSlices: slices.length }
       }
       const free = !g.assignedServiceId && !g.xid && g.health !== 'danger'
       const status: SlotStatus = g.xid || g.health === 'danger' ? 'maintenance' : free ? 'available' : 'full'
-      return { id: g.id, name: g.name, mode: 'cluster', vramGb: g.vramGb, load: g.smUtil, status, free, slices: [], freeSlices: 0, totalSlices: 0 }
+      return { id: g.id, name: g.name, mode: 'cluster', vramGb: g.vramGb, load: g.smUtil ?? 0, status, free, slices: [], freeSlices: 0, totalSlices: 0 }
     })
     const freeUnits = gpus.reduce((a, g) => a + (g.mode === 'mig' ? g.freeSlices : g.free ? 1 : 0), 0)
     const totalUnits = gpus.reduce((a, g) => a + (g.mode === 'mig' ? g.totalSlices : 1), 0)
@@ -109,27 +113,35 @@ export function buildResourceTree(): ServerNode[] {
     const status: SlotStatus = server.health === 'danger' ? 'maintenance' : freeUnits > 0 ? 'available' : 'full'
     return { id: server.id, host: server.host, models: [...new Set(server.gpus.map((g) => g.model))].join(', '), gpus, status, load, freeUnits, totalUnits }
   })
-  // 더미 H100 서버 5대 — 가용 자원 풀 확장(테스트). 자원 선택 picker 페이지네이션·검색 검증용.
-  const dummies: ServerNode[] = Array.from({ length: 5 }, (_, i): ServerNode => {
-    const n = i + 1
-    const sid = `srv-h100-${n}`
-    const gpuCount = n <= 2 ? 2 : 1
-    const gpus: GpuNode[] = Array.from({ length: gpuCount }, (_, gi): GpuNode => ({
-      id: `${sid}-gpu${gi}`, name: 'NVIDIA H100 80GB', mode: 'cluster', vramGb: 80, load: 0,
-      status: 'available', free: true, slices: [], freeSlices: 0, totalSlices: 0, dummy: true,
-    }))
-    return { id: sid, host: `gpu-h100-0${n}`, models: 'NVIDIA H100 80GB', gpus, status: 'available', load: 0, freeUnits: gpuCount, totalUnits: gpuCount, dummy: true }
-  })
-  return [...real, ...dummies]
     .sort((a, b) => Number(STATUS_META[b.status].selectable) - Number(STATUS_META[a.status].selectable) || b.freeUnits - a.freeUnits)
 }
 
-// ── 모델별 권장 자원 제한 — Model 자원 요건(reqVram/Ram/Storage/Cpu) 합산(여러 모델이면 합) ──
-const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
-// 관리자 조절 허용 범위 = 추천의 0.5~2배(플랫폼 절대 캡으로 클램프). 추천은 게이지 마커로 표시.
-function limitBounds(rec: number, absMin: number, absMax: number): { min: number; max: number } {
-  return { min: clamp(Math.floor(rec * 0.5), absMin, rec), max: clamp(Math.ceil(rec * 2), rec, absMax) }
+// ── 자원 자동 산정 — 서버별 물리 풀(20% 예약) → 통짜 GPU=나머지/GPU수, MIG=GPU몫×(슬라이스 units 비율) ──
+// gpu-change 마법사와 동일 로직(단일 진실원). 호스트 스펙은 /api/servers 제공값 우선, 미제공 시 host fallback.
+const RESERVE = 0.2 // 시스템 예약
+export type HostSpec = { ramGb: number; storageGb: number; cpuCores: number }
+const HIGH_RAM_HOSTS = new Set(['192.168.0.41', '192.168.0.63']) // 고사양 호스트(RAM 32GB). 그 외 16GB.
+export function hostSpec(srv?: GpuServer): HostSpec {
+  const x = (srv ?? {}) as Partial<HostSpec>
+  const high = srv ? HIGH_RAM_HOSTS.has(srv.host) : false
+  return { ramGb: x.ramGb ?? (high ? 32 : 16), storageGb: x.storageGb ?? 2048, cpuCores: x.cpuCores ?? (high ? 16 : 8) }
 }
+export function unitAlloc(spec: HostSpec, gpuCount: number, fraction: number): HostSpec {
+  const per = (total: number) => Math.round((total * (1 - RESERVE)) / Math.max(1, gpuCount) * fraction)
+  return { ramGb: per(spec.ramGb), storageGb: per(spec.storageGb), cpuCores: per(spec.cpuCores) }
+}
+
+// 모델 종류 → 대표 서빙 런타임 (운영 환경 자동 표기용)
+const KIND_RUNTIME: Record<string, string> = {
+  LLM: 'vLLM', Code: 'vLLM', 'Vision-Language': 'vLLM', Image: 'ComfyUI', STT: 'faster-whisper', Embedding: 'TEI',
+}
+// 운영 환경 자동 산정 — 모델 종류 기준 런타임 + 표준 베이스(Ubuntu 22.04 · CUDA 12.4). 신청서 env 미입력 시 사용.
+function modelEnv(models: string[]): string {
+  const runtimes = [...new Set(models.map((id) => KIND_RUNTIME[modelById(id)?.kind ?? ''] ?? 'vLLM'))]
+  return `Ubuntu 22.04 · CUDA 12.4${runtimes.length ? ` · ${runtimes.join(' / ')}` : ''}`
+}
+
+// ── 모델별 권장 VRAM — Model 자원 요건(reqVram) 합산(여러 모델이면 합) · VRAM 적정성 경고용 ──
 interface Limits { ramGb: number; storageGb: number; cpuCores: number; vramGb: number }
 function recommendLimits(models: string[]): Limits & { basis: string[] } {
   const acc = models.reduce((a, id) => {
@@ -144,10 +156,11 @@ function recommendLimits(models: string[]): Limits & { basis: string[] } {
   return { ...acc, basis: models.map((id) => modelById(id)?.name ?? id) }
 }
 
-// 승인 건 할당 자원 표시 — allocated* 우선(서버 미존재=더미면 raw id), 없으면 serviceName 역추적
-function resolveAllocationLabel(req: GpuRequest): { text: string; link?: { serverId: string; gpuId?: string } } | null {
+// 승인 건 할당 자원 표시 — allocated* 우선(서버 미존재=더미면 raw id), 없으면 serviceName 역추적.
+// fleet = DB(/api/servers) 또는 seed 폴백 — picker 와 동일 인벤토리로 라벨 일관성 유지.
+function resolveAllocationLabel(req: GpuRequest, fleet: GpuServer[]): { text: string; link?: { serverId: string; gpuId?: string } } | null {
   if (req.allocatedServerId) {
-    const server = serverById(req.allocatedServerId)
+    const server = fleet.find((s) => s.id === req.allocatedServerId)
     if (server) {
       const gpu = server.gpus.find((g) => g.id === req.allocatedGpuId)
       const slice = gpu?.slices?.find((sl) => sl.id === req.allocatedSliceId)
@@ -157,7 +170,7 @@ function resolveAllocationLabel(req: GpuRequest): { text: string; link?: { serve
   }
   const svc = services.find((s) => s.name === req.serviceName)
   if (!svc) return null
-  for (const server of servers) {
+  for (const server of fleet) {
     for (const gpu of server.gpus) {
       if (gpu.assignedServiceId === svc.id) return { text: `${server.host} · ${gpu.name}`, link: { serverId: server.id, gpuId: gpu.id } }
       const slice = gpu.slices?.find((sl) => sl.ownerUserId === svc.ownerUserId && sl.modelId === svc.model)
@@ -190,65 +203,6 @@ function LoadBar({ load }: { load: number }) {
       </span>
       <span className="text-muted tabular-nums shrink-0" style={{ fontSize: 12.5 }}>부하 {load}%</span>
     </span>
-  )
-}
-
-// 드래그 게이지 — 트랙·채움·썸 + 추천 마커. 허용 범위 [min,max] 안에서만 조절.
-function Gauge({ value, min, max, rec, step, onChange }: { value: number; min: number; max: number; rec: number; step: number; onChange: (v: number) => void }) {
-  const ref = useRef<HTMLDivElement>(null)
-  const dragging = useRef(false)
-  const span = Math.max(1, max - min)
-  const pct = (v: number) => clamp(((v - min) / span) * 100, 0, 100)
-  const apply = (clientX: number) => {
-    const el = ref.current
-    if (!el) return
-    const r = el.getBoundingClientRect()
-    const ratio = clamp((clientX - r.left) / r.width, 0, 1)
-    onChange(clamp(Math.round((min + ratio * span) / step) * step, min, max))
-  }
-  const onDown = (e: ReactPointerEvent) => { dragging.current = true; (e.currentTarget as Element).setPointerCapture(e.pointerId); apply(e.clientX) }
-  const onMove = (e: ReactPointerEvent) => { if (dragging.current) apply(e.clientX) }
-  const stop = () => { dragging.current = false }
-  return (
-    <div ref={ref} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={stop} onPointerCancel={stop} className="relative cursor-pointer select-none" style={{ height: 18, touchAction: 'none' }} role="slider" aria-valuemin={min} aria-valuemax={max} aria-valuenow={value}>
-      <div className="absolute left-0 right-0 rounded-full overflow-hidden" style={{ top: 6, height: 6, background: 'var(--c-bg)', border: '1px solid var(--c-border)' }}>
-        <div className="h-full" style={{ width: `${pct(value)}%`, background: 'var(--c-accent)' }} />
-      </div>
-      {/* 추천 마커 */}
-      <div className="absolute" style={{ left: `${pct(rec)}%`, top: 1, width: 2, height: 16, marginLeft: -1, background: 'var(--c-muted)', opacity: 0.65, borderRadius: 1 }} title={`추천 ${rec}`} />
-      {/* 썸 */}
-      <div className="absolute rounded-full" style={{ left: `${pct(value)}%`, top: 1, width: 16, height: 16, marginLeft: -8, background: 'var(--c-accent)', border: '2px solid var(--c-card2)', boxShadow: '0 1px 4px rgba(0,0,0,0.25)' }} />
-    </div>
-  )
-}
-
-// 자원 제한 카드 — 아이콘·라벨 / 큰 편집 숫자 / 드래그 게이지(허용 범위·추천 마커) / min·추천·max.
-function LimitCard({ icon, label, value, onChange, unit, rec, min, max, step }: { icon: ReactNode; label: string; value: number; onChange: (v: number) => void; unit: string; rec: number; min: number; max: number; step: number }) {
-  const low = value < rec
-  return (
-    <div className="flex-1 min-w-0 rounded-[10px] border border-line flex flex-col bg-card2" style={{ padding: '10px 12px', gap: 8 }}>
-      <div className="flex items-center gap-1.5 min-w-0">
-        <span className="flex items-center justify-center shrink-0 rounded-[6px]" style={{ width: 22, height: 22, background: 'var(--accent-soft)', color: 'var(--c-accent)' }}>{icon}</span>
-        <span className="text-muted truncate" style={{ fontSize: 13 }}>{label}</span>
-      </div>
-      <div className="flex items-baseline gap-1">
-        <input
-          type="text"
-          inputMode="numeric"
-          value={value}
-          onChange={(e) => onChange(clamp(Number(e.target.value.replace(/[^0-9]/g, '')) || 0, min, max))}
-          className="bg-transparent min-w-0 font-bold tabular-nums text-text rounded focus:bg-soft"
-          style={{ fontSize: 22, lineHeight: 1.1, letterSpacing: '-0.5px', outline: 'none', border: 'none', width: `${Math.max(2, String(value).length)}ch` }}
-        />
-        <span className="text-muted shrink-0" style={{ fontSize: 13, fontWeight: 500 }}>{unit}</span>
-      </div>
-      <Gauge value={value} min={min} max={max} rec={rec} step={step} onChange={onChange} />
-      <div className="flex items-center justify-between" style={{ fontSize: 11.5 }}>
-        <span className="text-muted tabular-nums">{min}{unit}</span>
-        <span className="tabular-nums" style={{ color: low ? 'var(--c-warn)' : 'var(--c-muted)', fontWeight: low ? 600 : 400 }}>추천 {rec}</span>
-        <span className="text-muted tabular-nums">{max}{unit}</span>
-      </div>
-    </div>
   )
 }
 
@@ -303,7 +257,7 @@ export function ServerNodeCard({ node, onSelect }: { node: ServerNode; onSelect:
 
 // ════════ 멀티스텝 심사 (서버 → GPU·자원 → 검토) · g2 신규 신청과 동일 구조(스텝퍼 + morph + 완료) ════════
 const MORPH_EASE = 'cubic-bezier(0.65, 0, 0.35, 1)'
-const WIZARD_STEPS = ['서버 선택', 'GPU·자원', '검토 · 승인']
+const WIZARD_STEPS = ['서버·GPU 선택', '검토 · 승인']
 
 // 상단 스텝퍼 — 현재 단계 액센트 · 완료 체크 (g2 Stepper 동일)
 function Stepper({ current }: { current: number }) {
@@ -424,7 +378,7 @@ export function SpecSheetFrame({
   )
 }
 
-interface Decision { serverHost?: string; gpuLabel?: string; ramGb: number; storageGb: number; cpuCores: number; vramRec: number; selVram?: number; vramLow: boolean }
+interface Decision { serverHost?: string; gpuLabel?: string; ramGb?: number; storageGb?: number; cpuCores?: number; vramRec: number; selVram?: number; vramLow: boolean }
 
 // 신청 명세서 — 검토 시 가운데로 확장(morph). 좌(신청 정보)는 읽기전용, §3 할당 결정은 관리자 선택 실시간 반영.
 function ApplicationSpec({ req, decision, reviewing, onEditAlloc, onBack, memo, setMemo, rejecting, setRejecting, rejectReason, setRejectReason, onApprove, onReject, canApprove }: {
@@ -486,7 +440,7 @@ function ApplicationSpec({ req, decision, reviewing, onEditAlloc, onBack, memo, 
             <SpecRow label="요청 수량" value={`${req.capacity} ${UNIT_KO[req.capacityUnit]}`} pendingW="30%" />
             <SpecRow label="사용 기간" value={req.period} pendingW="35%" />
             <SpecRow label="우선순위" value={req.priority ? PRIORITY_BADGE[req.priority].label : undefined} pendingW="30%" />
-            <SpecRow label="운영 환경" value={req.env || undefined} pendingW="55%" />
+            <SpecRow label="운영 환경" value={req.env || modelEnv(req.models)} pendingW="55%" />
             <SpecRow label="부가 옵션" value={req.addons.length ? req.addons.join(', ') : '없음'} pendingW="45%" />
             <SpecRow label="첨부 공문" value={fileText} pendingW="55%" last />
           </SpecSection>
@@ -494,9 +448,9 @@ function ApplicationSpec({ req, decision, reviewing, onEditAlloc, onBack, memo, 
           <SpecSection title="할당 결정" active={!reviewing} action={reviewing ? <button type="button" onClick={onEditAlloc} className="font-medium hover:underline shrink-0" style={{ fontSize: 13, color: 'var(--c-accent)' }}>수정</button> : <span className="font-semibold shrink-0" style={{ fontSize: 13, color: 'var(--c-accent)' }}>결정 중</span>}>
             <SpecRow label="할당 서버" value={decision.serverHost} pendingW="40%" />
             <SpecRow label="할당 자원" value={decision.gpuLabel} pendingW="70%" />
-            <SpecRow label="메모리" value={`${decision.ramGb} GB`} pendingW="25%" />
-            <SpecRow label="저장 공간" value={`${decision.storageGb} GB`} pendingW="25%" />
-            <SpecRow label="CPU" value={`${decision.cpuCores} 코어`} pendingW="25%" />
+            <SpecRow label="메모리" value={decision.ramGb != null ? `${decision.ramGb} GB` : undefined} pendingW="25%" />
+            <SpecRow label="저장 공간" value={decision.storageGb != null ? `${decision.storageGb} GB` : undefined} pendingW="25%" />
+            <SpecRow label="CPU" value={decision.cpuCores != null ? `${decision.cpuCores} 코어` : undefined} pendingW="25%" />
             <SpecRow
               label="권장 VRAM"
               value={<span style={{ color: decision.vramLow ? 'var(--c-warn)' : 'var(--c-text)' }}>{decision.vramRec}GB{decision.vramLow && decision.selVram != null ? ` · 선택 ${decision.selVram}GB (부족)` : ''}</span>}
@@ -596,6 +550,29 @@ function Completion({ done, reqId, requesterName, processorName, onGo, onMap, mu
   )
 }
 
+// 단일 선택 자원 행 — GPU 단일/MIG 슬라이스 공용. 가용=ok강조 / 여유없음·점검=빗금·딤(선택 불가).
+function UnitRow({ label, sub, vramGb, status, on, onPick, isSlice }: { label: string; sub: string; vramGb: number; status: SlotStatus; on: boolean; onPick: () => void; isSlice: boolean }) {
+  const meta = STATUS_META[status]
+  const disabled = !meta.selectable
+  const bd = on ? 'var(--c-accent)' : disabled ? 'var(--c-border)' : 'color-mix(in srgb, var(--c-ok) 55%, var(--c-border))'
+  const bg = on ? 'var(--c-card2)' : disabled ? 'var(--c-bg)' : 'color-mix(in srgb, var(--c-ok) 9%, var(--c-card2))'
+  const indColor = on ? 'var(--c-accent)' : disabled ? 'var(--c-border)' : 'var(--c-ok)'
+  return (
+    <button type="button" disabled={disabled} onClick={onPick}
+      className="text-left rounded-[10px] flex items-center gap-2.5 transition-[border-color,background,transform] duration-100 disabled:cursor-not-allowed enabled:hover:border-[color:var(--c-accent)] enabled:active:scale-[0.985]"
+      style={{ padding: '10px 12px', border: `1.5px solid ${bd}`, background: bg, opacity: disabled ? 0.5 : 1, backgroundImage: disabled ? 'repeating-linear-gradient(45deg, transparent 0 6px, var(--c-soft) 6px 7px)' : undefined }}>
+      <span className="flex items-center justify-center shrink-0 rounded-full" style={{ width: 18, height: 18, border: `1.5px solid ${indColor}`, background: on ? 'var(--c-accent)' : 'transparent' }}>{on && <CheckIcon width={12} height={12} style={{ color: 'var(--c-onaccent)' }} />}</span>
+      {isSlice ? <Squares2X2Icon width={18} height={18} className="shrink-0" style={{ color: 'var(--c-accent)' }} /> : <CpuChipIcon width={18} height={18} className="shrink-0" style={{ color: 'var(--c-muted)' }} />}
+      <span className="min-w-0 flex-1">
+        <span className="block font-semibold text-text truncate" style={{ fontSize: 14 }}>{label}</span>
+        <span className="block text-muted truncate" style={{ fontSize: 13 }}>{sub}</span>
+      </span>
+      <Badge tone={meta.tone} dot>{meta.label}</Badge>
+      <span className="shrink-0 rounded-[6px] font-semibold tabular-nums" style={{ fontSize: 12, padding: '2px 8px', background: 'var(--c-soft)', color: 'var(--c-muted)' }}>{vramGb}GB</span>
+    </button>
+  )
+}
+
 // ── 멀티스텝 심사 오케스트레이터 (헤더 + 스텝퍼 + morph[좌 마법사 / 우 명세서] + 완료) ──
 function PendingReview({ req }: { req: GpuRequest }) {
   const navigate = useNavigate()
@@ -603,33 +580,24 @@ function PendingReview({ req }: { req: GpuRequest }) {
   const mutedFix = useMutedFix()
   const { user: admin } = useRole()
 
-  const tree = useMemo(() => buildResourceTree(), [])
+  // GPU 현황 — DB(/api/servers) 폴링, 로딩/에러 시 seed 폴백
+  const fleet = usePolling<GpuServer[]>('/api/servers')
+  const inventory = fleet.data ?? servers
+  const tree = useMemo(() => buildResourceTree(inventory), [inventory])
   const rec = useMemo(() => recommendLimits(req.models), [req.models])
-  const bounds = useMemo(() => ({
-    ram: limitBounds(rec.ramGb, 8, 1024),
-    storage: limitBounds(rec.storageGb, 10, 2048),
-    cpu: limitBounds(rec.cpuCores, 2, 128),
-  }), [rec])
 
-  const [step, setStep] = useState(0) // 0 서버 · 1 GPU·자원 · 2 검토
+  const [step, setStep] = useState(0) // 0 서버·GPU 선택 · 1 검토
   const [serverId, setServerId] = useState<string | null>(null)
   const [gpuId, setGpuId] = useState<string | null>(null)
   const [sliceId, setSliceId] = useState<string | null>(null)
-  const [expandedGpu, setExpandedGpu] = useState<string | null>(null)
   const [q, setQ] = useState('')
   const [statusF, setStatusF] = useState('전체')
-  const [ram, setRam] = useState(rec.ramGb)
-  const [storage, setStorage] = useState(rec.storageGb)
-  const [cpu, setCpu] = useState(rec.cpuCores)
   const [memo, setMemo] = useState('')
   const [rejecting, setRejecting] = useState(false)
   const [rejectReason, setRejectReason] = useState('')
-  const [rejectOpen, setRejectOpen] = useState(false) // step 1·2 마법사 footer 반려 모달
+  const [rejectOpen, setRejectOpen] = useState(false) // 선택 단계 footer 반려 모달
   const [done, setDone] = useState<null | DoneState>(null)
   const [submitting, setSubmitting] = useState(false)
-
-  const limitsDirty = ram !== rec.ramGb || storage !== rec.storageGb || cpu !== rec.cpuCores
-  const resetLimits = () => { setRam(rec.ramGb); setStorage(rec.storageGb); setCpu(rec.cpuCores) }
 
   const filtered = tree.filter((n) => {
     if (statusF === '가용만' && n.status !== 'available') return false
@@ -642,37 +610,40 @@ function PendingReview({ req }: { req: GpuRequest }) {
   const valid = !!gpu && (gpu.mode === 'cluster' ? gpu.free : !!slice)
   const selVram = slice ? slice.gb : gpu?.vramGb
   const vramLow = valid && selVram != null && selVram < rec.vramGb
-  const reviewing = step === 2
+  const reviewing = step === 1
 
-  const pickServer = (n: ServerNode) => {
-    setServerId(n.id)
-    const cluster = n.gpus.find((g) => g.mode === 'cluster' && g.free)
-    if (cluster) { setGpuId(cluster.id); setSliceId(null); setExpandedGpu(null) }
-    else {
-      const mig = n.gpus.find((g) => g.mode === 'mig' && g.freeSlices > 0)
-      const fs = mig?.slices.find((s) => s.free)
-      setGpuId(mig?.id ?? null); setSliceId(fs?.id ?? null); setExpandedGpu(mig?.id ?? null)
-    }
-    setStep(1)
+  // 선택 자원 기준 자원 자동 산정(gpu-change 동일) — 호스트 풀 20% 예약 후 GPU 몫 × (슬라이스 units 비율).
+  const alloc = useMemo<HostSpec | null>(() => {
+    if (!node || !gpu || !valid) return null
+    const spec = hostSpec(inventory.find((s) => s.id === node.id))
+    const gpuCount = node.gpus.length
+    if (gpu.mode === 'cluster') return unitAlloc(spec, gpuCount, 1)
+    const totalUnits = gpu.slices.reduce((a, sl) => a + (sl.units || 1), 0) || 1
+    return unitAlloc(spec, gpuCount, (slice?.units || 1) / totalUnits)
+  }, [inventory, node, gpu, slice, valid])
+
+  // 단일 선택 — 서버·GPU(·슬라이스)를 한 번에 지정(이전 선택 교체).
+  const pickUnit = (n: ServerNode, g: GpuNode, s: SliceNode | null) => {
+    setServerId(n.id); setGpuId(g.id); setSliceId(s?.id ?? null)
   }
 
   const gpuLabel = gpu ? `${gpu.name}${slice ? ` · ${slice.profile} ${slice.gb}GB` : gpu.mode === 'cluster' ? ` · GPU 단일 ${gpu.vramGb}GB` : ''}` : undefined
-  const decision: Decision = { serverHost: node?.host, gpuLabel, ramGb: ram, storageGb: storage, cpuCores: cpu, vramRec: rec.vramGb, selVram, vramLow }
+  const decision: Decision = { serverHost: node?.host, gpuLabel, ramGb: alloc?.ramGb, storageGb: alloc?.storageGb, cpuCores: alloc?.cpuCores, vramRec: rec.vramGb, selVram, vramLow }
 
   const requesterName = userById(req.requesterUserId)?.name ?? req.requesterUserId
   const processorName = `${admin.name}${admin.department ? ` · ${admin.department}` : ''}`
 
   const confirmApprove = async () => {
-    if (!node || !gpu || !valid || submitting) return
+    if (!node || !gpu || !valid || !alloc || submitting) return
     setSubmitting(true)
     try {
       const updated = await approveGpuRequest(req.id, {
         processedBy: admin.id, adminMemo: memo.trim() || undefined,
         allocatedServerId: node.id, allocatedGpuId: gpu.id, allocatedSliceId: sliceId ?? undefined,
-        allocatedRamGb: ram, allocatedStorageGb: storage, allocatedCpuCores: cpu,
+        allocatedRamGb: alloc.ramGb, allocatedStorageGb: alloc.storageGb, allocatedCpuCores: alloc.cpuCores,
       })
-      toast.push(`${requesterName}님의 GPU 신청을 승인했어요 · ${node.host} 할당 (RAM ${ram}GB · 디스크 ${storage}GB · CPU ${cpu}코어).`, 'ok')
-      setDone({ mode: 'approved', detail: `${node.host} · ${gpuLabel}`, limits: `메모리 ${ram}GB · 저장 ${storage}GB · CPU ${cpu}코어`, processedAt: updated.processedAt ?? nowStamp(), mapLink: serverById(node.id) ? { serverId: node.id, gpuId: gpu.id } : undefined })
+      toast.push(`${requesterName}님의 GPU 신청을 승인했어요 · ${node.host} 할당 (RAM ${alloc.ramGb}GB · 디스크 ${alloc.storageGb}GB · CPU ${alloc.cpuCores}코어).`, 'ok')
+      setDone({ mode: 'approved', detail: `${node.host} · ${gpuLabel}`, limits: `메모리 ${alloc.ramGb}GB · 저장 ${alloc.storageGb}GB · CPU ${alloc.cpuCores}코어`, processedAt: updated.processedAt ?? nowStamp(), mapLink: inventory.some((s) => s.id === node.id) ? { serverId: node.id, gpuId: gpu.id } : undefined })
     } catch {
       toast.push('승인 처리에 실패했어요. 잠시 후 다시 시도해주세요.', 'danger')
       setSubmitting(false)
@@ -729,135 +700,60 @@ function PendingReview({ req }: { req: GpuRequest }) {
           style={{ width: reviewing ? '0%' : '56%', flex: '0 0 auto', minWidth: 0, opacity: reviewing ? 0 : 1, transform: reviewing ? 'translateX(-48px)' : 'none', pointerEvents: reviewing ? 'none' : 'auto', transition: `width .8s ${MORPH_EASE}, opacity .6s ease, transform .8s ${MORPH_EASE}` }}
         >
           <section className="bg-card2 border border-line rounded-xl flex flex-col h-full min-h-0 overflow-hidden" style={{ boxShadow: 'var(--shadow-card)' }}>
-            {/* 고정 컨트롤 */}
+            {/* 고정 컨트롤 — 안내 + 검색/필터 */}
             <div className="shrink-0 border-b border-line flex flex-col" style={{ padding: '13px 16px', gap: 10 }}>
-              {step === 0 ? (
-                <>
-                  <p className="text-muted" style={{ fontSize: 14 }}>신청 자원 <b className="text-text">{req.capacity} {UNIT_KO[req.capacityUnit]}</b>를 배치할 서버를 선택하세요.</p>
-                  <PickerSearch q={q} setQ={setQ} statusF={statusF} setStatusF={setStatusF} count={filtered.length} />
-                </>
-              ) : node && (
-                <div className="flex items-center justify-between gap-2">
-                  <button type="button" onClick={() => setStep(0)} className="inline-flex items-center gap-1.5 text-muted hover:text-text transition-colors" style={{ fontSize: 14 }}>
-                    <ArrowLeftIcon width={15} height={15} />서버 다시 선택
-                  </button>
-                  <Badge tone={STATUS_META[node.status].tone} dot>{node.host} · 가용 {node.freeUnits}/{node.totalUnits}</Badge>
+              <p className="text-muted" style={{ fontSize: 14 }}>신청 자원 <b className="text-text">{req.capacity} {UNIT_KO[req.capacityUnit]}</b>를 할당할 GPU·슬라이스를 선택하세요. 메모리·저장·CPU는 선택 자원에 맞춰 자동 산정됩니다.</p>
+              <PickerSearch q={q} setQ={setQ} statusF={statusF} setStatusF={setStatusF} count={filtered.length} />
+            </div>
+
+            {/* 본문 — 서버별 그룹 + GPU/슬라이스 단일 선택(가용/여유 없음/점검 시각 구분) */}
+            <div className="flex-1 min-h-0 overflow-hidden flex flex-col" style={{ padding: 16, gap: 12 }}>
+              {filtered.length ? (
+                <div className="flex-1 min-h-0 overflow-auto flex flex-col" style={{ gap: 10 }}>
+                  {filtered.map((n) => {
+                    const sel = n.id === serverId
+                    return (
+                      <div key={n.id} className="rounded-[12px]" style={{ border: `1.5px solid ${sel ? 'var(--c-accent)' : 'var(--c-border)'}`, background: sel ? 'var(--accent-soft)' : 'var(--c-card)', padding: 11 }}>
+                        <div className="flex items-center gap-2" style={{ marginBottom: 9, padding: '0 2px' }}>
+                          <ServerStackIcon width={15} height={15} className="shrink-0" style={{ color: sel ? 'var(--c-accent)' : 'var(--c-muted)' }} />
+                          <span className="font-bold text-text" style={{ fontSize: 13.5 }}>{n.host}</span>
+                          {n.dummy && <span className="rounded font-semibold shrink-0" style={{ fontSize: 11, padding: '1px 6px', background: 'var(--warn-soft)', color: 'var(--c-warn)' }}>테스트</span>}
+                          <span className="ml-auto text-muted tabular-nums shrink-0" style={{ fontSize: 12 }}>가용 {n.freeUnits}/{n.totalUnits} · GPU {n.gpus.length}장</span>
+                        </div>
+                        <div className="flex flex-col" style={{ gap: 8 }}>
+                          {n.gpus.map((g) => g.mode === 'cluster'
+                            ? <UnitRow key={g.id} label={g.name} sub={`GPU 단일 · ${g.vramGb}GB · 부하 ${g.load}%`} vramGb={g.vramGb} status={g.status} on={gpuId === g.id && !sliceId} onPick={() => pickUnit(n, g, null)} isSlice={false} />
+                            : g.slices.map((s) => {
+                                const st: SlotStatus = g.status === 'maintenance' ? 'maintenance' : s.free ? 'available' : 'full'
+                                return <UnitRow key={s.id} label={`${g.name} · ${s.profile}`} sub={`MIG ${s.gb}GB · ${s.tag}`} vramGb={s.gb} status={st} on={sliceId === s.id} onPick={() => pickUnit(n, g, s)} isSlice />
+                              }))}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="flex-1 flex items-center justify-center text-muted" style={{ fontSize: 14 }}>검색 결과가 없어요.</div>
+              )}
+
+              {/* 권장 VRAM 적정성 — 자원 제한은 자동 산정(수동 입력 없음) */}
+              {valid && (
+                <div className="flex items-start gap-1.5 shrink-0" style={{ fontSize: 12.5, lineHeight: 1.5 }}>
+                  <span className="shrink-0 rounded-[5px] font-semibold" style={{ padding: '1px 7px', background: 'var(--accent-soft)', color: 'var(--c-accent)' }}>권장 VRAM {rec.vramGb}GB</span>
+                  <span className="text-muted min-w-0" style={{ paddingTop: 1 }}>
+                    {rec.basis.join(', ')} 기준
+                    {vramLow && <span style={{ color: 'var(--c-warn)', fontWeight: 600 }}> · 선택 자원 VRAM {selVram}GB가 권장보다 작아요</span>}
+                  </span>
                 </div>
               )}
             </div>
 
-            {/* 본문 */}
-            <div className="flex-1 min-h-0 overflow-hidden flex flex-col" style={{ padding: 16, gap: 12 }}>
-              {step === 0 ? (
-                filtered.length ? (
-                  <div className="flex-1 min-h-0 overflow-auto">
-                    <div className="grid" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
-                      {filtered.map((n) => <ServerNodeCard key={n.id} node={n} onSelect={() => pickServer(n)} />)}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex-1 flex items-center justify-center text-muted" style={{ fontSize: 14 }}>검색 결과가 없어요.</div>
-                )
-              ) : node && (
-                <>
-                  <span className="font-semibold text-text shrink-0" style={{ fontSize: 14 }}>GPU·자원 선택 <span className="text-muted" style={{ fontWeight: 400 }}>— MIG GPU는 펼쳐서 슬라이스를 고르세요</span></span>
-                  <div className="flex-1 min-h-0 overflow-auto flex flex-col" style={{ gap: 8 }}>
-                    {node.gpus.map((g) => {
-                      const gMeta = STATUS_META[g.status]
-                      if (g.mode === 'cluster') {
-                        const on = gpuId === g.id && !sliceId
-                        return (
-                          <button key={g.id} type="button" disabled={!g.free} onClick={() => { setGpuId(g.id); setSliceId(null) }}
-                            className="text-left rounded-[9px] border flex items-center gap-2.5 transition-[border-color,background] duration-100 disabled:cursor-not-allowed"
-                            style={{ padding: '11px 12px', background: on ? 'var(--accent-soft)' : 'var(--c-card)', borderColor: on ? 'var(--c-accent)' : 'var(--c-border)', boxShadow: on ? '0 0 0 1px var(--c-accent)' : 'none', opacity: g.free ? 1 : 0.55, backgroundImage: g.free ? undefined : 'repeating-linear-gradient(45deg, transparent 0 6px, var(--c-soft) 6px 7px)' }}>
-                            <span className="flex items-center justify-center shrink-0 rounded-full" style={{ width: 18, height: 18, border: `1.5px solid ${on ? 'var(--c-accent)' : 'var(--c-border)'}`, background: on ? 'var(--c-accent)' : 'transparent' }}>{on && <CheckIcon width={12} height={12} style={{ color: 'var(--c-onaccent)' }} />}</span>
-                            <CpuChipIcon width={18} height={18} className="shrink-0" style={{ color: 'var(--c-muted)' }} />
-                            <span className="min-w-0 flex-1">
-                              <span className="block font-semibold text-text truncate" style={{ fontSize: 14 }}>{g.name}</span>
-                              <span className="block text-muted truncate" style={{ fontSize: 13 }}>GPU 단일 · {g.vramGb}GB · 부하 {g.load}%</span>
-                            </span>
-                            <Badge tone={gMeta.tone} dot>{gMeta.label}</Badge>
-                          </button>
-                        )
-                      }
-                      const open = expandedGpu === g.id
-                      return (
-                        <div key={g.id} className="rounded-[9px] border" style={{ borderColor: open ? 'var(--c-accent)' : 'var(--c-border)', background: 'var(--c-card)', overflow: 'hidden' }}>
-                          <button type="button" onClick={() => setExpandedGpu(open ? null : g.id)} className="w-full text-left flex items-center gap-2.5" style={{ padding: '11px 12px' }}>
-                            <ChevronDownIcon width={16} height={16} className="shrink-0 transition-transform" style={{ color: 'var(--c-muted)', transform: open ? 'rotate(0deg)' : 'rotate(-90deg)' }} />
-                            <Squares2X2Icon width={18} height={18} className="shrink-0" style={{ color: 'var(--c-accent)' }} />
-                            <span className="min-w-0 flex-1">
-                              <span className="flex items-center gap-1.5 min-w-0">
-                                <span className="font-semibold text-text truncate" style={{ fontSize: 14 }}>{g.name}</span>
-                                {g.dummy && <span className="shrink-0 rounded font-semibold" style={{ fontSize: 11, padding: '1px 6px', background: 'var(--warn-soft)', color: 'var(--c-warn)' }}>테스트</span>}
-                              </span>
-                              <span className="block text-muted truncate" style={{ fontSize: 13 }}>MIG {g.totalSlices}분할 · 가용 {g.freeSlices} · 부하 {g.load}%</span>
-                            </span>
-                            <Badge tone={gMeta.tone} dot>{gMeta.label}</Badge>
-                          </button>
-                          {open && (
-                            <div className="grid border-t border-line" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8, padding: 10 }}>
-                              {g.slices.map((s) => {
-                                const on = sliceId === s.id
-                                return (
-                                  <button key={s.id} type="button" disabled={!s.free} onClick={() => { setGpuId(g.id); setSliceId(s.id) }}
-                                    className="text-left rounded-[8px] border flex items-center gap-2 transition-[border-color,background] duration-100 disabled:cursor-not-allowed"
-                                    style={{ padding: '8px 10px', background: on ? 'var(--accent-soft)' : 'var(--c-bg)', borderColor: on ? 'var(--c-accent)' : 'var(--c-border)', boxShadow: on ? '0 0 0 1px var(--c-accent)' : 'none', opacity: s.free ? 1 : 0.5, backgroundImage: s.free ? undefined : 'repeating-linear-gradient(45deg, transparent 0 5px, var(--c-soft) 5px 6px)' }}>
-                                    <span className="flex items-center justify-center shrink-0 rounded-full" style={{ width: 16, height: 16, border: `1.5px solid ${on ? 'var(--c-accent)' : 'var(--c-border)'}`, background: on ? 'var(--c-accent)' : 'transparent' }}>{on && <CheckIcon width={10} height={10} style={{ color: 'var(--c-onaccent)' }} />}</span>
-                                    <span className="min-w-0 flex-1">
-                                      <span className="block font-semibold text-text truncate" style={{ fontSize: 13.5 }}>{s.profile}</span>
-                                      <span className="block truncate" style={{ fontSize: 12.5, color: s.free ? 'var(--c-ok)' : 'var(--c-muted)' }}>{s.gb}GB · {s.tag}</span>
-                                    </span>
-                                  </button>
-                                )
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-
-                  {/* 자원 제한 */}
-                  <div className="rounded-[12px] border border-line flex flex-col shrink-0" style={{ background: 'var(--c-card)', padding: 13, gap: 11 }}>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="flex items-center gap-2 min-w-0">
-                        <span className="font-bold text-text" style={{ fontSize: 14 }}>자원 제한</span>
-                        <Badge tone="info">모델 {rec.basis.length}개 기준 추천</Badge>
-                      </span>
-                      <button type="button" onClick={resetLimits} disabled={!limitsDirty} className="inline-flex items-center gap-1 font-semibold transition-opacity disabled:opacity-0" style={{ fontSize: 12.5, color: 'var(--c-accent)' }}>
-                        <ArrowDownTrayIcon width={13} height={13} style={{ transform: 'rotate(180deg)' }} />추천값 적용
-                      </button>
-                    </div>
-                    <div className="flex" style={{ gap: 8 }}>
-                      <LimitCard icon={<RectangleStackIcon width={13} height={13} />} label="메모리" value={ram} onChange={setRam} unit="GB" rec={rec.ramGb} min={bounds.ram.min} max={bounds.ram.max} step={4} />
-                      <LimitCard icon={<CircleStackIcon width={13} height={13} />} label="저장 공간" value={storage} onChange={setStorage} unit="GB" rec={rec.storageGb} min={bounds.storage.min} max={bounds.storage.max} step={8} />
-                      <LimitCard icon={<CpuChipIcon width={13} height={13} />} label="CPU" value={cpu} onChange={setCpu} unit="코어" rec={rec.cpuCores} min={bounds.cpu.min} max={bounds.cpu.max} step={1} />
-                    </div>
-                    <div className="flex items-start gap-1.5" style={{ fontSize: 12.5, lineHeight: 1.5 }}>
-                      <span className="shrink-0 rounded-[5px] font-semibold" style={{ padding: '1px 7px', background: 'var(--accent-soft)', color: 'var(--c-accent)' }}>권장 VRAM {rec.vramGb}GB</span>
-                      <span className="text-muted min-w-0" style={{ paddingTop: 1 }}>
-                        {rec.basis.join(', ')} 기준
-                        {vramLow && <span style={{ color: 'var(--c-warn)', fontWeight: 600 }}> · 선택 자원 VRAM {selVram}GB가 권장보다 작아요</span>}
-                      </span>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* 하단 바 — 이전 / 검토하기 */}
+            {/* 하단 바 — 반려 / 검토하기 */}
             <div className="flex items-center justify-between shrink-0 border-t border-line" style={{ padding: '14px 16px' }}>
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0}>이전</Button>
-                {/* 서버/GPU 선택 단계에서도 즉시 반려 — 사유 모달 */}
-                <Button variant="danger" onClick={() => { setRejectReason(''); setRejectOpen(true) }}><XCircleIcon width={16} height={16} />반려</Button>
-              </div>
+              <Button variant="danger" onClick={() => { setRejectReason(''); setRejectOpen(true) }}><XCircleIcon width={16} height={16} />반려</Button>
               <div className="flex items-center gap-3">
-                {step === 0
-                  ? <span className="text-muted" style={{ fontSize: 14 }}>가용 서버를 선택하면 다음으로 이동해요.</span>
-                  : !valid && <span className="text-muted" style={{ fontSize: 14 }}>할당할 자원을 선택해주세요.</span>}
-                {step === 1 && <Button onClick={() => setStep(2)} disabled={!valid}>검토하기</Button>}
+                {!valid && <span className="text-muted" style={{ fontSize: 14 }}>할당할 GPU·슬라이스를 선택해주세요.</span>}
+                <Button onClick={() => setStep(1)} disabled={!valid}>검토하기</Button>
               </div>
             </div>
           </section>
@@ -869,8 +765,8 @@ function PendingReview({ req }: { req: GpuRequest }) {
             req={req}
             decision={decision}
             reviewing={reviewing}
-            onEditAlloc={() => setStep(1)}
-            onBack={() => setStep(1)}
+            onEditAlloc={() => setStep(0)}
+            onBack={() => setStep(0)}
             memo={memo} setMemo={setMemo}
             rejecting={rejecting} setRejecting={setRejecting}
             rejectReason={rejectReason} setRejectReason={setRejectReason}
@@ -925,11 +821,22 @@ function ProcessedSpec({ req }: { req: GpuRequest }) {
   const modelText = req.models.map((m) => modelById(m)?.name ?? m).join(', ')
   const fileText = req.attachmentUrl?.split('/').pop()
   const approved = req.status === 'approved'
-  const alloc = approved ? resolveAllocationLabel(req) : null
+  const fleet = usePolling<GpuServer[]>('/api/servers')
+  const alloc = approved ? resolveAllocationLabel(req, fleet.data ?? servers) : null
   const processor = req.processedBy ? userById(req.processedBy) : undefined
   const stamp = approved ? 'var(--c-ok)' : 'var(--c-danger)'
   const stampBg = approved ? 'var(--ok-soft)' : 'var(--danger-soft)'
   const hasLimits = req.allocatedRamGb != null || req.allocatedStorageGb != null || req.allocatedCpuCores != null
+  // 변경 이력 — 이 할당(req.id)을 대상으로 한 변경·회수 요청. 있으면 하단에 '이전 변경 이력 보기'.
+  const [history, setHistory] = useState<ChangeRequest[]>([])
+  const [histOpen, setHistOpen] = useState(false)
+  useEffect(() => {
+    let alive = true
+    fetchChangeRequests()
+      .then((all) => { if (alive) setHistory(all.filter((c) => c.before.requestId === req.id)) })
+      .catch(() => { if (alive) setHistory([]) })
+    return () => { alive = false }
+  }, [req.id])
   return (
     <SpecSheetFrame
       title="자원 신청 명세서 · 심사"
@@ -984,6 +891,43 @@ function ProcessedSpec({ req }: { req: GpuRequest }) {
             <SpecRow final label="처리일시" value={req.processedAt} emptyText="—" />
             <SpecRow final label="처리 메모" value={req.adminMemo} emptyText="메모 없음" last />
           </SpecSection>
+          {history.length > 0 && (
+            <SpecSection title="변경 이력">
+              <button
+                type="button"
+                onClick={() => setHistOpen((v) => !v)}
+                className="w-full flex items-center gap-2 rounded-[10px] border border-line transition-[background-color,border-color] duration-150 hover:border-[color:var(--c-accent)] hover:bg-soft"
+                style={{ padding: '11px 13px', background: histOpen ? 'var(--accent-soft)' : 'var(--c-card)' }}
+              >
+                <ArrowsRightLeftIcon width={16} height={16} className="shrink-0" style={{ color: 'var(--c-accent)' }} />
+                <span className="font-semibold text-text" style={{ fontSize: 14 }}>이전 변경 이력 보기</span>
+                <span className="rounded-full font-bold tabular-nums" style={{ fontSize: 12, padding: '1px 8px', background: 'var(--c-accent)', color: 'var(--c-onaccent)' }}>{history.length}</span>
+                <ChevronDownIcon width={16} height={16} className="ml-auto shrink-0 transition-transform" style={{ color: 'var(--c-muted)', transform: histOpen ? 'rotate(180deg)' : 'none' }} />
+              </button>
+              {histOpen && (
+                <div className="anim-fade flex flex-col" style={{ gap: 8, marginTop: 10 }}>
+                  {history.map((c) => {
+                    const meta = CHANGE_TYPE_META[c.type]
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => navigate(`/requests/gpu-change/${c.id}`)}
+                        className="text-left flex items-center gap-2.5 rounded-[10px] border border-line transition-[transform,border-color] duration-100 hover:border-[color:var(--c-accent)] active:scale-[0.99]"
+                        style={{ padding: '10px 12px', background: 'var(--c-card)' }}
+                      >
+                        <Badge tone={meta.tone === 'warn' ? 'neutral' : meta.tone}>{meta.label}</Badge>
+                        <span className="min-w-0 flex-1 truncate text-text" style={{ fontSize: 14 }}>{c.reason || '사유 미기재'}</span>
+                        <span className="shrink-0 text-muted tabular-nums" style={{ fontSize: 12.5 }}>{c.createdAt.slice(0, 10)}</span>
+                        <StatusBadge status={c.status} />
+                        <ArrowTopRightOnSquareIcon width={14} height={14} className="shrink-0" style={{ color: 'var(--c-muted)' }} />
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </SpecSection>
+          )}
     </SpecSheetFrame>
   )
 }

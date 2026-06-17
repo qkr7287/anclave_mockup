@@ -1,8 +1,8 @@
 import { apiGet, apiPatch, apiPost } from '../lib/api'
 import { userById } from '../data'
-import type { ChangeType, Status } from '../data/types'
+import type { ChangeType, GpuRequest, GpuServer, Status } from '../data/types'
 
-// 4.11 변경·확장·회수 — Hono backend(REST) 연동.
+// 4.11 변경·회수 — Hono backend(REST) 연동.
 //   GET   /api/my-allocations?user=        내 할당 자원(승인·할당된 gpu_requests = AllocSpec)
 //   GET   /api/gpu-change-requests[?user=] 변경요청 목록(관리자=전체)
 //   GET   /api/gpu-change-requests/:id     단건(before/after 중첩)
@@ -19,6 +19,7 @@ export const CHANGE_TYPE_META: Record<ChangeType, { label: string; tone: 'info' 
 
 export interface AllocSpec {
   requestId?: string
+  ownerUserId?: string // 할당 소유자(관리자 전체 할당 조회 시 표시용)
   serverId?: string
   serverHost?: string
   gpuId?: string
@@ -79,7 +80,7 @@ export function allocLabel(s: AllocSpec): string {
 function cleanAlloc(a?: AllocSpec | null): AllocSpec {
   if (!a) return {}
   return {
-    requestId: a.requestId ?? undefined, serverId: a.serverId ?? undefined, serverHost: a.serverHost ?? undefined,
+    requestId: a.requestId ?? undefined, ownerUserId: a.ownerUserId ?? undefined, serverId: a.serverId ?? undefined, serverHost: a.serverHost ?? undefined,
     gpuId: a.gpuId ?? undefined, sliceId: a.sliceId ?? undefined, gpuLabel: a.gpuLabel ?? undefined,
     ramGb: a.ramGb ?? undefined, storageGb: a.storageGb ?? undefined, cpuCores: a.cpuCores ?? undefined,
     extra: a.extra ?? undefined,
@@ -137,6 +138,29 @@ export function fetchMyAllocations(userId: string): Promise<AllocSpec[]> {
   return apiGet<AllocSpec[]>(`/api/my-allocations?user=${encodeURIComponent(userId)}`).then((rows) => rows.map((a) => cleanAlloc(a)))
 }
 
+// 전체 할당 자원 — 최종 관리자용. /api/my-allocations 는 user 필수·전체 모드 없음이라
+// 승인·할당된 모든 gpu_requests 를 fleet(/api/servers) 라벨과 합성해 AllocSpec[] 로 만든다.
+export async function fetchAllAllocations(): Promise<AllocSpec[]> {
+  const [reqs, fleet] = await Promise.all([
+    apiGet<GpuRequest[]>('/api/gpu-requests'),
+    apiGet<GpuServer[]>('/api/servers').catch(() => [] as GpuServer[]),
+  ])
+  return reqs
+    .filter((r) => r.status === 'approved' && r.allocatedServerId)
+    .map((r) => {
+      const server = fleet.find((s) => s.id === r.allocatedServerId)
+      const gpu = server?.gpus.find((g) => g.id === r.allocatedGpuId)
+      return cleanAlloc({
+        requestId: r.id, ownerUserId: r.requesterUserId,
+        serverId: r.allocatedServerId, serverHost: server?.host,
+        gpuId: r.allocatedGpuId, sliceId: r.allocatedSliceId, gpuLabel: gpu?.name,
+        ramGb: r.allocatedRamGb != null ? Number(r.allocatedRamGb) : undefined,
+        storageGb: r.allocatedStorageGb != null ? Number(r.allocatedStorageGb) : undefined,
+        cpuCores: r.allocatedCpuCores != null ? Number(r.allocatedCpuCores) : undefined,
+      })
+    })
+}
+
 // 변경요청 목록 — userId 있으면 본인, 없으면 전체(관리자).
 export function fetchChangeRequests(userId?: string): Promise<ChangeRequest[]> {
   const q = userId ? `?user=${encodeURIComponent(userId)}` : ''
@@ -147,7 +171,7 @@ export function fetchChangeRequestById(id: string): Promise<ChangeRequest | unde
   return apiGet<RawCR>(`/api/gpu-change-requests/${id}`).then(normalizeCR).catch(() => undefined)
 }
 
-// 사용자 신규 신청 — 본인 할당(before.requestId) 대상 변경/확장/회수
+// 신규 신청 — 대상 할당(before.requestId)에 대한 변경/회수 (관리자는 전체 할당 대상 가능)
 export function createChangeRequest(input: { requesterUserId: string; type: ChangeType; reason: string; before: AllocSpec; after?: AllocSpec }): Promise<ChangeRequest> {
   return apiPost<RawCR>('/api/gpu-change-requests', {
     requesterUserId: input.requesterUserId,
