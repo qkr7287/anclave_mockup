@@ -4,6 +4,7 @@ import type { ComponentType, ReactNode, SVGProps } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Button } from '../components/ui'
 import { SparkLine } from '../components/charts'
+import { userById } from '../data/users'
 import { useTheme } from '../lib/theme'
 import { QaPolish } from './qa-polish'
 import { type MarketService as Service, type MarketServiceUsage, listMarketServices, getMarketService, getMarketServiceUsage } from './market-store'
@@ -701,7 +702,7 @@ function ServiceDetailCard({ service: s, narrow, reserveClose, keyCount }: { ser
                 <MetaChip label="제공사" value={s.provider} />
                 <MetaChip label="API" value={apiAvailable ? s.api : '미제공'} />
                 <MetaChip label="모델" value={s.model} />
-                <MetaChip label="소유자" value={s.owner} />
+                <MetaChip label="소유자" value={userById(s.ownerUserId)?.name ?? s.owner} />
                 <StatusBadge status={s.status} tone={tone} />
               </div>
             </div>
@@ -801,7 +802,7 @@ function ServiceDetailCard({ service: s, narrow, reserveClose, keyCount }: { ser
           <span className="flex items-center justify-center rounded-full shrink-0" style={{ width: 18, height: 18, background: p.accentSoft, color: p.accent }}>
             <CheckIcon width={11} height={11} strokeWidth={3} />
           </span>
-          소유자 <b style={{ color: p.text }}>{s.owner}</b> 님이 GPU에 배포한 서비스 · 내부 사용자에게만 제공
+          소유자 <b style={{ color: p.text }}>{userById(s.ownerUserId)?.name ?? s.owner}</b> 님이 GPU에 배포한 서비스 · 내부 사용자에게만 제공
         </span>
         <div className="flex items-center gap-2.5 shrink-0">
           <Button variant="outline">서비스 문의</Button>

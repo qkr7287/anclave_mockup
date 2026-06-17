@@ -11,6 +11,7 @@ export interface MarketService {
   model: string
   api: string
   owner: string
+  ownerUserId: string
   rating: number
   status: string
   hue: number
