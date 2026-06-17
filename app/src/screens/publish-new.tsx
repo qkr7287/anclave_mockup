@@ -331,6 +331,12 @@ export function PublishNew() {
         serviceUrl: svc.serviceUrl,
         demoUrl: svc.testUrl ?? svc.serviceUrl,
         meta: `${kindOf(svc)} · ${modelOf(svc)}`,
+        overview: f.intro.trim(),
+        apiDesc: f.apiDesc.trim(),
+        features: f.features.split('\n').map((x) => x.trim()).filter(Boolean),
+        tags: f.tags.split(',').map((x) => x.trim()).filter(Boolean),
+        visibility: f.visibility,
+        demoNote: f.demoNote.trim(),
       })
       setDoneId(created.id)
       toast.push('게시 신청을 접수했어요. 관리자 검토 후 마켓에 노출됩니다.', 'ok')

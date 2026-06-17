@@ -32,7 +32,7 @@ export function getPublishRequest(id: string): Promise<PubRecord> {
   return apiGet<PubRecord>(`/api/publish-requests/${id}`).then(normalize)
 }
 
-export function createPublishRequest(input: { requesterUserId: string; serviceName: string; serviceUrl: string; demoUrl: string; meta: string }): Promise<PubRecord> {
+export function createPublishRequest(input: { requesterUserId: string; serviceName: string; serviceUrl: string; demoUrl: string; meta: string; overview: string; apiDesc: string; features: string[]; tags: string[]; visibility: string; demoNote: string }): Promise<PubRecord> {
   return apiPost<PubRecord>('/api/publish-requests', input).then(normalize)
 }
 
