@@ -15,12 +15,6 @@ import {
   CpuChipIcon,
   CubeIcon,
   ClockIcon,
-  CommandLineIcon,
-  CodeBracketIcon,
-  InformationCircleIcon,
-  ChevronRightIcon,
-  RocketLaunchIcon,
-  XMarkIcon,
   EyeIcon,
   ArrowTopRightOnSquareIcon,
   CheckIcon,
@@ -447,89 +441,6 @@ function EventLogCard({ gpuId, serverId }: { gpuId?: string; serverId?: string }
 }
 
 // ── 플로팅 "작업 런칭" 패널(오버레이 + ··· 토글) ──
-const LAUNCH_ITEMS: { Icon: IconType; label: string; sub: string; tone: string }[] = [
-  { Icon: CommandLineIcon, label: '콘솔 접속', sub: '웹 터미널 열기', tone: '#3b82f6' },
-  { Icon: CodeBracketIcon, label: '코드 접속', sub: 'VS Code 서버', tone: '#8b5cf6' },
-  { Icon: ServerStackIcon, label: 'SSH 접속', sub: 'SSH 자격 증명 발급', tone: '#12b39c' },
-  { Icon: InformationCircleIcon, label: '상세 정보 보기', sub: '할당 리소스 상세', tone: '#e0922e' },
-]
-
-function FloatingControl() {
-  const [open, setOpen] = useState(false) // 기본 = 접힘
-  const toast = useToast()
-  const launch = (label: string) => {
-    toast.push(`${label} 세션을 시작했어요 (목업)`, 'info')
-    setOpen(false)
-  }
-  // 접힘: 우하단 그라데이션 FAB(글로우 + hover 모션)
-  if (!open) {
-    return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="group flex items-center justify-center rounded-full transition-transform duration-200 hover:scale-105 active:scale-95"
-        style={{ position: 'absolute', right: 24, bottom: 24, width: 58, height: 58, background: 'linear-gradient(135deg,#0568fc,#4f9bff)', color: '#fff', boxShadow: '0 10px 28px rgba(5,104,252,0.45), inset 0 1px 0 rgba(255,255,255,0.28)', zIndex: 30 }}
-        aria-label="작업 런칭 열기"
-      >
-        <RocketLaunchIcon className="transition-transform duration-200 group-hover:-rotate-12 group-hover:-translate-y-0.5" style={{ width: 24, height: 24 }} />
-        <span className="absolute rounded-full" style={{ top: 4, right: 4, width: 9, height: 9, background: '#3bd27a', border: '2px solid #1158d8' }} />
-      </button>
-    )
-  }
-  // 펼침: 우하단 다크 런처 패널(헤더 + 라이브 상태 + 아이콘 타일 항목)
-  return (
-    <div
-      className="rounded-[20px] overflow-hidden anim-fade"
-      style={{ position: 'absolute', right: 24, bottom: 24, width: 270, background: '#0b1326', boxShadow: 'var(--shadow-pop)', border: '1px solid rgba(255,255,255,0.07)', zIndex: 30 }}
-    >
-      {/* 헤더 */}
-      <div style={{ background: 'linear-gradient(135deg,#10204a,#0b1326)', padding: '15px 15px 13px' }}>
-        <div className="flex items-center gap-3">
-          <span className="flex items-center justify-center rounded-[11px] shrink-0" style={{ width: 36, height: 36, background: 'linear-gradient(135deg,#0568fc,#4f9bff)', color: '#fff', boxShadow: '0 4px 12px rgba(5,104,252,0.4)' }}>
-            <RocketLaunchIcon style={{ width: 19, height: 19 }} />
-          </span>
-          <div className="flex-1 min-w-0">
-            <div className="font-bold" style={{ fontSize: 14, color: '#eaf0fa', lineHeight: 1.2 }}>작업 런칭</div>
-            <div style={{ fontSize: 11.5, color: '#8b97b4', marginTop: 1 }}>환경에 빠르게 접속</div>
-          </div>
-          <button type="button" onClick={() => setOpen(false)} className="flex items-center justify-center rounded-lg transition-colors hover:bg-white/10 active:scale-90" style={{ width: 26, height: 26, color: '#8b97b4' }} aria-label="접기">
-            <XMarkIcon style={{ width: 17, height: 17 }} />
-          </button>
-        </div>
-        {/* 라이브 상태 */}
-        <div className="flex items-center gap-2 rounded-[9px]" style={{ marginTop: 12, padding: '7px 10px', background: 'rgba(255,255,255,0.05)' }}>
-          <span className="relative flex" style={{ width: 7, height: 7 }}>
-            <span className="absolute inline-flex rounded-full opacity-60 animate-ping" style={{ width: 7, height: 7, background: '#3bd27a' }} />
-            <span className="relative inline-flex rounded-full" style={{ width: 7, height: 7, background: '#3bd27a' }} />
-          </span>
-          <span style={{ fontSize: 11.5, color: '#c3cbdd' }}>SRV-10 · A100 1GPU · <span style={{ color: '#3bd27a', fontWeight: 600 }}>정상 가동</span></span>
-        </div>
-      </div>
-      {/* 항목 */}
-      <div className="flex flex-col stagger" style={{ padding: '8px 9px 11px', gap: 2 }}>
-        {LAUNCH_ITEMS.map((it) => (
-          <button
-            key={it.label}
-            type="button"
-            onClick={() => launch(it.label)}
-            className="group flex items-center gap-3 rounded-[12px] text-left transition-[transform,background-color] duration-100 hover:bg-white/[0.07] active:scale-[0.98]"
-            style={{ padding: '9px 10px' }}
-          >
-            <span className="flex items-center justify-center rounded-[10px] shrink-0" style={{ width: 36, height: 36, background: `${it.tone}22`, color: it.tone }}>
-              <it.Icon style={{ width: 18, height: 18 }} />
-            </span>
-            <span className="flex-1 min-w-0">
-              <span className="block font-semibold truncate" style={{ fontSize: 13.5, color: '#eaf0fa' }}>{it.label}</span>
-              <span className="block truncate" style={{ fontSize: 11.5, color: '#8b97b4' }}>{it.sub}</span>
-            </span>
-            <ChevronRightIcon className="shrink-0 transition-transform duration-150 group-hover:translate-x-0.5" style={{ width: 15, height: 15, color: '#5b6680' }} />
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-}
-
 // ════════════════════════════════════════════════════════════════════
 // 4.5 자원 선택 스위처 — 헤더 검색형 드롭다운(G2 자체). resource-map 셀렉터와 시각 통일.
 //  · 옵션 = 내가 할당받은 자원(= 할당 시 서비스명) · 항목: 상태 dot·서비스명·GPU·주력·현재 체크
@@ -721,13 +632,12 @@ export function MyResources() {
         ))}
       </div>
 
-      {/* 4·5·6) 토큰 사용량 + 이벤트 로그 (+ 플로팅 작업 런칭은 한 레이어 위 오버레이) */}
-      <div className="relative" style={{ marginTop: 36, flex: '330 1 330px', minHeight: 300 }}>
+      {/* 4·5) 토큰 사용량 + 이벤트 로그 */}
+      <div style={{ marginTop: 36, flex: '330 1 330px', minHeight: 300 }}>
         <div className="grid items-stretch h-full" style={{ gridTemplateColumns: '614fr 783fr', gap: 16 }}>
           <BarCard data={tokens ?? undefined} serviceIds={current?.serviceIds ?? []} />
           <EventLogCard gpuId={gpuAlloc?.gpuId ?? undefined} serverId={gpuAlloc?.serverId ?? undefined} />
         </div>
-        <FloatingControl />
       </div>
     </div>
   )
