@@ -10,7 +10,7 @@ export const IA_GROUPS: IaGroup[] = [
   { id: 2, label: '할당 관리' },
   { id: 3, label: '모델 관리' },
   { id: 4, label: '마켓플레이스' },
-  { id: 5, label: '이벤트 · 알림' },
+  { id: 5, label: '내 에러 이벤트 알림' },
   { id: 6, label: '게시판' },
   { id: 7, label: '감사 · 보안' },
   { id: 8, label: '시스템 설정' },
@@ -36,9 +36,9 @@ export const ROUTES: RouteDef[] = [
   { key: 'resource-map-server', path: '/resource-map/:serverId', screen: '4.3', title: '단일 서버 현황', access: ['A'] },
   { key: 'resource-map-gpu', path: '/resource-map/:serverId/:gpuId', screen: '4.4', title: 'GPU 상세 현황', access: ['A'] },
   { key: 'dashboard', path: '/dashboard', screen: '4.5', title: '내 할당 자원', access: ['A', 'B', 'C'], group: 1, menu: ['B', 'C'], icon: 'home' },
-  { key: 'requests-status', path: '/requests/status', screen: '4.6', title: '자원 신청현황', access: ['A', 'B', 'C'], group: 1, menu: ['B', 'C'], icon: 'clipboard' },
-  { key: 'requests-status-detail', path: '/requests/status/:id', screen: '4.6a', title: '신청 상세', access: ['A', 'B', 'C'], group: 1, icon: 'clipboard' },
-  { key: 'requests-new', path: '/requests/new', screen: '4.6b', title: '신규 신청', access: ['B', 'C'], group: 1, icon: 'clipboard' },
+  { key: 'requests-status', path: '/requests/status', screen: '4.6', title: '자원 신청현황', access: ['A', 'B', 'C'], group: 2, menu: ['B', 'C'], icon: 'clipboard' },
+  { key: 'requests-status-detail', path: '/requests/status/:id', screen: '4.6a', title: '신청 상세', access: ['A', 'B', 'C'], group: 2, icon: 'clipboard' },
+  { key: 'requests-new', path: '/requests/new', screen: '4.6b', title: '신규 신청', access: ['B', 'C'], group: 2, icon: 'clipboard' },
   { key: 'admin-monitoring', path: '/admin/monitoring', screen: '4.7', title: '관제 모니터링', access: ['A'], group: 1, menu: ['A'], icon: 'chart' },
 
   // ② 할당 관리
@@ -48,12 +48,17 @@ export const ROUTES: RouteDef[] = [
   { key: 'approvals-gpu', path: '/admin/approvals/gpu', screen: '4.10', title: '승인 관리', access: ['A'], group: 2, menu: ['A'], icon: 'check-badge' },
   { key: 'approvals-gpu-detail', path: '/admin/approvals/gpu/:id', screen: '4.10a', title: '신청 상세', access: ['A'], group: 2, icon: 'check-badge' },
   // 4.11 변경·확장·이전·회수 — 사용자(B=C)는 '자원 신청현황 상세보기'에서 진입(메뉴 제외). 관리자는 메뉴 유지(승인 측).
-  { key: 'gpu-change', path: '/requests/gpu-change', screen: '4.11', title: '변경 · 확장 · 이전 · 회수', access: ['A', 'B', 'C'], group: 2, menu: ['A'], icon: 'arrows' },
+  { key: 'gpu-change', path: '/requests/gpu-change', screen: '4.11', title: '변경 · 확장 · 회수', access: ['A', 'B', 'C'], group: 2, menu: ['A', 'B', 'C'], icon: 'arrows' },
+  { key: 'gpu-change-new', path: '/requests/gpu-change/new', screen: '4.11b', title: '변경·확장·회수 신청', access: ['A', 'B', 'C'], group: 2, icon: 'arrows' },
+  { key: 'gpu-change-detail', path: '/requests/gpu-change/:id', screen: '4.11a', title: '변경 요청 심사', access: ['A', 'B', 'C'], group: 2, icon: 'arrows' },
 
   // ③ 모델 관리
   { key: 'models', path: '/models', screen: '4.12', title: '모델 카탈로그', access: ['A', 'B', 'C'], group: 3, menu: ['A', 'B', 'C'], icon: 'cube' },
   { key: 'model-detail', path: '/models/:id', screen: '4.13', title: '모델 상세', access: ['A', 'B', 'C'] },
-  { key: 'model-requests', path: '/admin/models/requests', screen: '4.14', title: '모델 신청 관리', access: ['A'], group: 3, menu: ['A'], icon: 'doc-plus' },
+  { key: 'model-requests', path: '/models/requests', screen: '4.14', title: '모델 신청 관리', access: ['A', 'B', 'C'], group: 3, menu: ['A', 'B', 'C'], icon: 'doc-plus' },
+  { key: 'model-import', path: '/models/requests/import', screen: '4.14a', title: '신규 모델 반입', access: ['A'] },
+  { key: 'model-request-new', path: '/models/requests/new', screen: '4.14b', title: '모델 등록 신청', access: ['B', 'C'] },
+  { key: 'model-request-detail', path: '/models/requests/:id', screen: '4.14c', title: '모델 신청 상세', access: ['A', 'B', 'C'] },
 
   // ④ 마켓플레이스 — 메뉴 순서: 둘러보기(4.17) → 게시 신청(4.29) → API 신청 관리(4.19) → 게시 승인 관리(4.9, 관리자)
   { key: 'marketplace', path: '/marketplace', screen: '4.17', title: '마켓플레이스', access: ['A', 'B', 'C'], group: 4, menu: ['A', 'B', 'C'], icon: 'bag' },
@@ -72,19 +77,19 @@ export const ROUTES: RouteDef[] = [
 
   // ⑤ 이벤트 · 알림
   { key: 'events', path: '/events', screen: '4.21', title: '에러 · 이벤트 관제', access: ['A', 'B', 'C'], group: 5, menu: ['A', 'B', 'C'], icon: 'alert' },
-  { key: 'notifications', path: '/notifications', screen: '4.22', title: '알림 센터', access: ['A', 'B', 'C'], group: 5, menu: ['A', 'B', 'C'], icon: 'bell' },
 
   // ⑥ 게시판
   { key: 'board', path: '/board', screen: '4.23', title: '게시판 · 공지', access: ['A', 'B', 'C'], group: 6, menu: ['A', 'B', 'C'], icon: 'chat' },
+  { key: 'board-detail', path: '/board/:id', screen: '4.23a', title: '게시글 상세', access: ['A', 'B', 'C'], group: 6, icon: 'chat' },
 
-  // ⑦ 감사 · 보안 (A 전용)
-  { key: 'audit', path: '/admin/audit', screen: '4.24', title: '감사 로그', access: ['A'], group: 7, menu: ['A'], icon: 'shield' },
-  { key: 'access', path: '/admin/access', screen: '4.25', title: '접근통제 · 권한', access: ['A'], group: 7, menu: ['A'], icon: 'lock' },
+  // ⑦ 감사 · 보안 (A 전용) — 사이드바 메뉴 숨김(menu 제거). 라우트는 유지.
+  { key: 'audit', path: '/admin/audit', screen: '4.24', title: '감사 로그', access: ['A'], group: 7, icon: 'shield' },
+  { key: 'access', path: '/admin/access', screen: '4.25', title: '접근통제 · 권한', access: ['A'], group: 7, icon: 'lock' },
 
-  // ⑧ 시스템 설정 (A 전용)
-  { key: 'caps', path: '/admin/settings/capabilities', screen: '4.26', title: '능력 탐지 · 기능 플래그', access: ['A'], group: 8, menu: ['A'], icon: 'adjust' },
-  { key: 'users', path: '/admin/settings/users', screen: '4.27', title: '사용자 · 역할 관리', access: ['A'], group: 8, menu: ['A'], icon: 'users' },
-  { key: 'infra', path: '/admin/settings/infra', screen: '4.28', title: '인프라 연동', access: ['A'], group: 8, menu: ['A'], icon: 'link' },
+  // ⑧ 시스템 설정 (A 전용) — 사이드바 메뉴 숨김(menu 제거). 라우트는 유지.
+  { key: 'caps', path: '/admin/settings/capabilities', screen: '4.26', title: '능력 탐지 · 기능 플래그', access: ['A'], group: 8, icon: 'adjust' },
+  { key: 'users', path: '/admin/settings/users', screen: '4.27', title: '사용자 · 역할 관리', access: ['A'], group: 8, icon: 'users' },
+  { key: 'infra', path: '/admin/settings/infra', screen: '4.28', title: '인프라 연동', access: ['A'], group: 8, icon: 'link' },
 ]
 
 // 사이드바: 역할(access)에 맞는 메뉴만, IA 8 그룹으로.
@@ -136,6 +141,12 @@ const HIGHLIGHT_PARENT: Record<string, string> = {
   'publish-view': 'publish-request',
   'api-request': 'marketplace',
   'api-approval-detail': 'api-approvals',
+  'model-import': 'model-requests',
+  'model-request-new': 'model-requests',
+  'model-request-detail': 'model-requests',
+  'gpu-change-new': 'gpu-change',
+  'gpu-change-detail': 'gpu-change',
+  'board-detail': 'board',
 }
 export function sidebarHighlightKey(pathname: string): string | undefined {
   const m = matchRoute(pathname)

@@ -77,17 +77,17 @@ const PRIORITY_BADGE: Record<NonNullable<GpuRequest['priority']>, { tone: 'dange
 }
 
 // ── 자원맵(서버별 할당 보기) 요약 트리 — 서버 → GPU → (MIG)슬라이스 ──
-type SlotStatus = 'available' | 'full' | 'maintenance'
-const STATUS_META: Record<SlotStatus, { label: string; tone: 'ok' | 'neutral' | 'danger'; selectable: boolean }> = {
+export type SlotStatus = 'available' | 'full' | 'maintenance'
+export const STATUS_META: Record<SlotStatus, { label: string; tone: 'ok' | 'neutral' | 'danger'; selectable: boolean }> = {
   available: { label: '가용', tone: 'ok', selectable: true },
   full: { label: '여유 없음', tone: 'neutral', selectable: false },
   maintenance: { label: '점검', tone: 'danger', selectable: false },
 }
-interface SliceNode { id: string; profile: string; gb: number; free: boolean; tag: string }
-interface GpuNode { id: string; name: string; mode: 'cluster' | 'mig'; vramGb: number; load: number; status: SlotStatus; free: boolean; slices: SliceNode[]; freeSlices: number; totalSlices: number; dummy?: boolean }
-interface ServerNode { id: string; host: string; models: string; gpus: GpuNode[]; status: SlotStatus; load: number; freeUnits: number; totalUnits: number; dummy?: boolean }
+export interface SliceNode { id: string; profile: string; gb: number; free: boolean; tag: string }
+export interface GpuNode { id: string; name: string; mode: 'cluster' | 'mig'; vramGb: number; load: number; status: SlotStatus; free: boolean; slices: SliceNode[]; freeSlices: number; totalSlices: number; dummy?: boolean }
+export interface ServerNode { id: string; host: string; models: string; gpus: GpuNode[]; status: SlotStatus; load: number; freeUnits: number; totalUnits: number; dummy?: boolean }
 
-function buildResourceTree(): ServerNode[] {
+export function buildResourceTree(): ServerNode[] {
   const real = servers.map((server): ServerNode => {
     const gpus = server.gpus.map((g): GpuNode => {
       if (g.allocMode === 'mig') {
@@ -109,7 +109,18 @@ function buildResourceTree(): ServerNode[] {
     const status: SlotStatus = server.health === 'danger' ? 'maintenance' : freeUnits > 0 ? 'available' : 'full'
     return { id: server.id, host: server.host, models: [...new Set(server.gpus.map((g) => g.model))].join(', '), gpus, status, load, freeUnits, totalUnits }
   })
-  return real
+  // 더미 H100 서버 5대 — 가용 자원 풀 확장(테스트). 자원 선택 picker 페이지네이션·검색 검증용.
+  const dummies: ServerNode[] = Array.from({ length: 5 }, (_, i): ServerNode => {
+    const n = i + 1
+    const sid = `srv-h100-${n}`
+    const gpuCount = n <= 2 ? 2 : 1
+    const gpus: GpuNode[] = Array.from({ length: gpuCount }, (_, gi): GpuNode => ({
+      id: `${sid}-gpu${gi}`, name: 'NVIDIA H100 80GB', mode: 'cluster', vramGb: 80, load: 0,
+      status: 'available', free: true, slices: [], freeSlices: 0, totalSlices: 0, dummy: true,
+    }))
+    return { id: sid, host: `gpu-h100-0${n}`, models: 'NVIDIA H100 80GB', gpus, status: 'available', load: 0, freeUnits: gpuCount, totalUnits: gpuCount, dummy: true }
+  })
+  return [...real, ...dummies]
     .sort((a, b) => Number(STATUS_META[b.status].selectable) - Number(STATUS_META[a.status].selectable) || b.freeUnits - a.freeUnits)
 }
 
@@ -243,7 +254,7 @@ function LimitCard({ icon, label, value, onChange, unit, rec, min, max, step }: 
 
 
 // ── 검색/필터 바 (서버·GPU 모델 검색 + 상태 필터) ──
-function PickerSearch({ q, setQ, statusF, setStatusF, count }: { q: string; setQ: (v: string) => void; statusF: string; setStatusF: (v: string) => void; count: number }) {
+export function PickerSearch({ q, setQ, statusF, setStatusF, count }: { q: string; setQ: (v: string) => void; statusF: string; setStatusF: (v: string) => void; count: number }) {
   return (
     <div className="flex items-center gap-2 shrink-0">
       <div className="flex items-center bg-card2 border border-line rounded-[8px] flex-1 min-w-0 transition-[border-color,box-shadow] focus-within:border-[color:var(--c-accent)] focus-within:shadow-[0_0_0_3px_var(--accent-soft)]" style={{ height: 36, padding: '0 11px', gap: 8 }}>
@@ -264,7 +275,7 @@ function PickerSearch({ q, setQ, statusF, setStatusF, count }: { q: string; setQ
 }
 
 // 콤팩트 서버 카드 — 서버명·모델·가용 슬롯·부하·상태색
-function ServerNodeCard({ node, onSelect }: { node: ServerNode; onSelect: () => void }) {
+export function ServerNodeCard({ node, onSelect }: { node: ServerNode; onSelect: () => void }) {
   const meta = STATUS_META[node.status]
   const sel = meta.selectable
   return (
@@ -322,7 +333,7 @@ function Pending({ w = '60%' }: { w?: string }) {
   return <span aria-hidden style={{ display: 'inline-block', width: w, height: 16, borderRadius: 3, background: 'repeating-linear-gradient(45deg, color-mix(in srgb, var(--c-muted) 32%, transparent) 0 1px, transparent 1px 6px)', border: '1px dashed var(--c-border)' }} />
 }
 // final=true(확정 명세서) → 빈 값은 빗금 대신 안내 문구(emptyText). false(작성 중 심사) → 빗금 placeholder.
-function SpecRow({ label, value, pendingW = '60%', last, emptyText, final }: { label: string; value?: ReactNode; pendingW?: string; last?: boolean; emptyText?: string; final?: boolean }) {
+export function SpecRow({ label, value, pendingW = '60%', last, emptyText, final }: { label: string; value?: ReactNode; pendingW?: string; last?: boolean; emptyText?: string; final?: boolean }) {
   const empty = value == null || value === ''
   return (
     <div className="flex items-start gap-3" style={{ padding: '10px 0', borderBottom: last ? 'none' : '1px dashed var(--c-border-s)' }}>
@@ -336,11 +347,11 @@ function SpecRow({ label, value, pendingW = '60%', last, emptyText, final }: { l
   )
 }
 // 섹션 헤더 — 제목 + 가는 구분선 + 액션(수정/결정 중). 문서 양식의 절 구분(g2 SectionHead 동일).
-function SpecSection({ title, active, action, children }: { title: string; active?: boolean; action?: ReactNode; children: ReactNode }) {
+export function SpecSection({ title, active, action, compact, children }: { title: string; active?: boolean; action?: ReactNode; compact?: boolean; children: ReactNode }) {
   return (
-    <div style={{ marginBottom: 12, borderRadius: 10, padding: '6px 12px', background: active ? 'var(--accent-soft)' : 'transparent', transition: 'background .35s ease' }}>
-      <div className="flex items-center gap-2.5" style={{ marginBottom: 6 }}>
-        <span className="font-bold shrink-0" style={{ fontSize: 15, color: active ? 'var(--c-accent)' : 'var(--c-text)' }}>{title}</span>
+    <div style={{ marginBottom: compact ? 8 : 12, borderRadius: 10, padding: compact ? '4px 10px' : '6px 12px', background: active ? 'var(--accent-soft)' : 'transparent', transition: 'background .35s ease' }}>
+      <div className="flex items-center gap-2.5" style={{ marginBottom: compact ? 4 : 6 }}>
+        <span className="font-bold shrink-0" style={{ fontSize: compact ? 13.5 : 15, color: active ? 'var(--c-accent)' : 'var(--c-text)' }}>{title}</span>
         <span className="flex-1" style={{ height: 1, background: 'var(--c-border)' }} />
         {action}
       </div>
@@ -348,7 +359,7 @@ function SpecSection({ title, active, action, children }: { title: string; activ
     </div>
   )
 }
-function CornerMarks() {
+export function CornerMarks() {
   const c = 'color-mix(in srgb, var(--c-muted) 45%, transparent)'
   const base: React.CSSProperties = { position: 'absolute', width: 11, height: 11, zIndex: 2, pointerEvents: 'none' }
   return (
@@ -358,6 +369,58 @@ function CornerMarks() {
       <span style={{ ...base, bottom: 9, left: 9, borderBottom: `1.5px solid ${c}`, borderLeft: `1.5px solid ${c}` }} />
       <span style={{ ...base, bottom: 9, right: 9, borderBottom: `1.5px solid ${c}`, borderRight: `1.5px solid ${c}` }} />
     </>
+  )
+}
+
+// 명세서 문서 프레임 — 카드(코너마크·워터마크·이중선 레터헤드·스크롤 본문+하단 fade).
+// 처리완료 조회(ProcessedSpec)와 변경요청 조회(ChangeSpecCard)가 동일 박스를 공유하도록 추출.
+export function SpecSheetFrame({
+  title, stampText, stampColor, stampBg, watermark, docNo, who, dateText, chipText, maxWidth = 880, headerBg, footer, reviewing, compact, bodyRef, children,
+}: {
+  title: string; stampText: string; stampColor: string; stampBg: string; watermark?: string
+  docNo: string; who: string; dateText: string; chipText?: string
+  maxWidth?: number | string; headerBg?: string; footer?: ReactNode; reviewing?: boolean; compact?: boolean
+  bodyRef?: React.Ref<HTMLDivElement>; children: ReactNode
+}) {
+  const headPad = compact ? '12px 16px 9px' : '15px 18px 12px'
+  const titleFs = compact ? 16 : 18
+  const wmFs = compact ? 104 : 128
+  const bodyPad = compact ? '10px 16px' : '12px 18px'
+  const fadeH = compact ? 44 : 56
+  return (
+    <div className="relative flex flex-col h-full" style={{ background: 'var(--c-card2)', border: '1px solid var(--c-border)', borderRadius: 14, boxShadow: reviewing ? 'var(--shadow-pop)' : 'var(--shadow-card)', overflow: 'hidden', width: '100%', maxWidth, margin: '0 auto', transition: 'box-shadow .6s ease' }}>
+      <CornerMarks />
+      {watermark && (
+        <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 0, pointerEvents: 'none', overflow: 'hidden' }} aria-hidden>
+          <span style={{ fontSize: wmFs, fontWeight: 900, color: stampColor, opacity: 0.055, transform: 'rotate(-20deg)', letterSpacing: '0.14em', whiteSpace: 'nowrap', userSelect: 'none' }}>{watermark}</span>
+        </div>
+      )}
+      <div className="relative flex flex-col h-full min-h-0" style={{ zIndex: 1 }}>
+        {/* 레터헤드 */}
+        <div className="shrink-0" style={{ padding: headPad, borderBottom: '3px double var(--c-border)', background: headerBg ?? 'linear-gradient(180deg, var(--accent-soft), transparent)' }}>
+          <div className="flex items-start justify-between gap-3">
+            <h3 className="font-bold min-w-0" style={{ fontSize: titleFs, color: 'var(--c-text)' }}>{title}</h3>
+            <span className="shrink-0 font-bold" style={{ alignSelf: 'flex-start', transform: 'rotate(-5deg)', border: `1.5px solid ${stampColor}`, color: stampColor, background: stampBg, borderRadius: 6, padding: compact ? '2px 9px' : '3px 10px', fontSize: compact ? 13 : 14 }}>{stampText}</span>
+          </div>
+          <div className="flex items-center justify-between gap-2" style={{ marginTop: compact ? 6 : 8, fontSize: compact ? 12 : 13, color: 'var(--c-muted)' }}>
+            <span>문서번호 <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--c-text)' }}>{docNo}</span></span>
+            <span>발급 Anclave GPU 자원관리</span>
+          </div>
+          <div className="flex items-center gap-1.5 flex-wrap" style={{ marginTop: compact ? 5 : 6, fontSize: compact ? 12.5 : 14, color: 'var(--c-muted)' }}>
+            <span className="font-medium" style={{ color: 'var(--c-text)' }}>{who}</span>
+            <span>·</span>
+            <span style={{ fontFamily: 'var(--font-mono)' }}>{dateText}</span>
+            {chipText && <span className="rounded-[5px] font-medium" style={{ marginLeft: 2, padding: '1px 8px', fontSize: compact ? 12 : 13, background: 'var(--accent-soft)', color: 'var(--c-accent)' }}>{chipText}</span>}
+          </div>
+        </div>
+        {/* 본문 — 스크롤 영역 + 하단 fade */}
+        <div className="relative flex-1 min-h-0">
+          <div ref={bodyRef} className="h-full overflow-auto" style={{ padding: bodyPad }}>{children}</div>
+          <div aria-hidden className="absolute left-0 right-0 bottom-0 pointer-events-none" style={{ height: fadeH, background: 'linear-gradient(to bottom, transparent, var(--c-card2))' }} />
+        </div>
+        {footer && <div className="shrink-0 anim-fade" style={{ borderTop: '1px solid var(--c-border)', padding: compact ? '10px 16px' : '12px 18px' }}>{footer}</div>}
+      </div>
+    </div>
   )
 }
 
@@ -868,32 +931,12 @@ function ProcessedSpec({ req }: { req: GpuRequest }) {
   const stampBg = approved ? 'var(--ok-soft)' : 'var(--danger-soft)'
   const hasLimits = req.allocatedRamGb != null || req.allocatedStorageGb != null || req.allocatedCpuCores != null
   return (
-    <div className="relative flex flex-col h-full" style={{ background: 'var(--c-card2)', border: '1px solid var(--c-border)', borderRadius: 14, boxShadow: 'var(--shadow-card)', overflow: 'hidden', width: '100%', maxWidth: 880, margin: '0 auto' }}>
-      <CornerMarks />
-      <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 0, pointerEvents: 'none', overflow: 'hidden' }} aria-hidden>
-        <span style={{ fontSize: 128, fontWeight: 900, color: stamp, opacity: 0.055, transform: 'rotate(-20deg)', letterSpacing: '0.14em', whiteSpace: 'nowrap', userSelect: 'none' }}>{approved ? '승인' : '반려'}</span>
-      </div>
-      <div className="relative flex flex-col h-full min-h-0" style={{ zIndex: 1 }}>
-        {/* 레터헤드 */}
-        <div className="shrink-0" style={{ padding: '15px 18px 12px', borderBottom: '3px double var(--c-border)', background: 'linear-gradient(180deg, var(--accent-soft), transparent)' }}>
-          <div className="flex items-start justify-between gap-3">
-            <h3 className="font-bold min-w-0" style={{ fontSize: 18, color: 'var(--c-text)' }}>자원 신청 명세서 · 심사</h3>
-            <span className="shrink-0 font-bold" style={{ alignSelf: 'flex-start', transform: 'rotate(-5deg)', border: `1.5px solid ${stamp}`, color: stamp, background: stampBg, borderRadius: 6, padding: '3px 10px', fontSize: 14 }}>{approved ? '승인' : '반려'}</span>
-          </div>
-          <div className="flex items-center justify-between gap-2" style={{ marginTop: 8, fontSize: 13, color: 'var(--c-muted)' }}>
-            <span>문서번호 <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--c-text)' }}>{docNo}</span></span>
-            <span>발급 Anclave GPU 자원관리</span>
-          </div>
-          <div className="flex items-center gap-1.5 flex-wrap" style={{ marginTop: 6, fontSize: 14, color: 'var(--c-muted)' }}>
-            <span className="font-medium" style={{ color: 'var(--c-text)' }}>{name}</span>
-            <span>·</span>
-            <span style={{ fontFamily: 'var(--font-mono)' }}>{today}</span>
-            <span className="rounded-[5px] font-medium" style={{ marginLeft: 2, padding: '1px 8px', fontSize: 13, background: 'var(--accent-soft)', color: 'var(--c-accent)' }}>{req.id.toUpperCase()}</span>
-          </div>
-        </div>
-        {/* 본문 — 스크롤 영역 + 하단 fade(넘치는 콘텐츠가 카드색으로 부드럽게 사라져 하드 컷 방지) */}
-        <div className="relative flex-1 min-h-0">
-          <div className="h-full overflow-auto" style={{ padding: '12px 18px' }}>
+    <SpecSheetFrame
+      title="자원 신청 명세서 · 심사"
+      stampText={approved ? '승인' : '반려'} stampColor={stamp} stampBg={stampBg}
+      watermark={approved ? '승인' : '반려'}
+      docNo={docNo} who={name} dateText={today} chipText={req.id.toUpperCase()}
+    >
           <SpecSection title="신청 정보">
             <SpecRow final label="신청자" value={`${name} · ${u?.department ?? '미지정'}`} />
             <SpecRow final label="이메일" value={u?.email} emptyText="미등록" />
@@ -941,11 +984,7 @@ function ProcessedSpec({ req }: { req: GpuRequest }) {
             <SpecRow final label="처리일시" value={req.processedAt} emptyText="—" />
             <SpecRow final label="처리 메모" value={req.adminMemo} emptyText="메모 없음" last />
           </SpecSection>
-          </div>
-          <div aria-hidden className="absolute left-0 right-0 bottom-0 pointer-events-none" style={{ height: 56, background: 'linear-gradient(to bottom, transparent, var(--c-card2))' }} />
-        </div>
-      </div>
-    </div>
+    </SpecSheetFrame>
   )
 }
 

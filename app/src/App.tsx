@@ -13,19 +13,25 @@ import { RequestDetail } from './screens/request-detail'
 import { RequestNew } from './screens/request-new'
 import { AdminMonitoring } from './screens/monitoring'
 import { Requests, GpuChange } from './screens/allocation'
+import { GpuChangeReview, GpuChangeRequestNew } from './screens/gpu-change-wizard'
 import { ApprovalsPublish, ApprovalsGpu } from './screens/approvals'
 import { PublishDetail, PublishView } from './screens/publish-detail'
 import { ApprovalDetail } from './screens/approval-detail'
-import { ModelCatalog, ModelDetail } from './screens/catalog'
+import { ModelCatalog } from './screens/catalog'
+import { ModelDetail } from './screens/model-detail'
 import { ModelRequests } from './screens/model-requests'
+import { ModelImport } from './screens/model-import'
+import { ModelRequestNew } from './screens/model-request-new'
+import { ModelRequestDetail } from './screens/model-request-detail'
 import { Marketplace, ServiceDetail } from './screens/market'
 import { ApiApprovals } from './screens/activation'
 import { ApiRequestNew } from './screens/api-request-new'
 import { ApiApprovalDetail } from './screens/api-approval-detail'
 import { PublishRequest } from './screens/publish-request'
 import { PublishNew } from './screens/publish-new'
-import { Events, Notifications } from './screens/events'
+import { Events } from './screens/events'
 import { Board } from './screens/board'
+import { BoardDetail } from './screens/board-detail'
 import { AuditLogScreen, AccessControl } from './screens/audit'
 import { Capabilities, UsersAdmin, InfraIntegrationScreen } from './screens/system'
 
@@ -46,9 +52,14 @@ const REGISTRY: Record<string, ComponentType> = {
   'approvals-gpu': ApprovalsGpu,
   'approvals-gpu-detail': ApprovalDetail,
   'gpu-change': GpuChange,
+  'gpu-change-new': GpuChangeRequestNew,
+  'gpu-change-detail': GpuChangeReview,
   models: ModelCatalog,
   'model-detail': ModelDetail,
   'model-requests': ModelRequests,
+  'model-import': ModelImport,
+  'model-request-new': ModelRequestNew,
+  'model-request-detail': ModelRequestDetail,
   marketplace: Marketplace,
   'service-detail': ServiceDetail,
   'api-approvals': ApiApprovals,
@@ -57,8 +68,8 @@ const REGISTRY: Record<string, ComponentType> = {
   'publish-request': PublishRequest,
   'publish-new': PublishNew,
   events: Events,
-  notifications: Notifications,
   board: Board,
+  'board-detail': BoardDetail,
   audit: AuditLogScreen,
   access: AccessControl,
   caps: Capabilities,

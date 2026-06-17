@@ -43,7 +43,6 @@ export function Sidebar({ access, collapsed, onToggle }: SidebarProps) {
   const groups = buildSidebar(access)
   const { pathname } = useLocation()
   const activeKey = sidebarHighlightKey(pathname)
-  const activeGroupId = groups.find((g) => g.items.some((it) => it.key === activeKey))?.group.id
 
   // 전체 서버 현황 하위: 단일 서버 현황 / GPU 상세 현황 (현재 드릴다운 위치 또는 첫 서버·GPU로 링크)
   const segs = pathname.split('/')
@@ -62,8 +61,9 @@ export function Sidebar({ access, collapsed, onToggle }: SidebarProps) {
         ]
       : []
 
+  // 사이드바 펼침은 전부 수동 — 자동 펼침/접힘 없음. 사용자가 토글한 그룹만 열림.
   const [openMap, setOpenMap] = useState<Record<number, boolean>>({})
-  const isOpen = (gid: number) => openMap[gid] ?? gid === activeGroupId
+  const isOpen = (gid: number) => openMap[gid] ?? false
   const toggle = (gid: number) => setOpenMap((m) => ({ ...m, [gid]: !isOpen(gid) }))
 
   const overview = groups.filter((g) => g.group.id <= 7)
