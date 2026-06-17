@@ -998,6 +998,12 @@ function ServiceAllocTable({ server, onGpu }: { server: GpuServer; onGpu: (g: Gp
   )
 }
 
+// 호스트 스토리지 GB → 표기('7.2 TB' | '512 GB'). DB 미제공 시 undefined.
+function fmtStorage(gb?: number): string | undefined {
+  if (!gb) return undefined
+  return gb >= 1024 ? `${(gb / 1024).toFixed(1)} TB` : `${gb} GB`
+}
+
 export function ServerDetail() {
   const { serverId = '' } = useParams()
   const navigate = useNavigate()
@@ -1012,13 +1018,15 @@ export function ServerDetail() {
   const seed = seedOf(server.id)
   // 신규(단일 RTX) 서버 정보 = 호스트 정적 사양(2열 스펙시트). GPU 사양/지표는 GPU 정보 패널로 분리.
   const idn = parseInt(server.id.replace(/\D/g, '')) || 1
+  // 호스트 스펙은 DB(/api/servers)가 제공하면 사용, 없으면 정적 폴백(GpuServer 타입엔 아직 옵셔널 미반영 → 로컬 캐스트).
+  const spec = server as GpuServer & { cpu?: string; ramGb?: number; storageGb?: number; cpuCores?: number }
   const info: [string, string][] = [
     ['서버명', server.name],
     ['유형', 'GPU 노드'],
-    ['CPU', 'Intel Xeon 8358P'],
-    ['코어', '32C / 64T'],
-    ['RAM', '512 GB'],
-    ['스토리지', '7.2 TB NVMe'],
+    ['CPU', spec.cpu ?? 'Intel Xeon 8358P'],
+    ['코어', spec.cpuCores ? `${spec.cpuCores}C` : '32C / 64T'],
+    ['RAM', spec.ramGb ? `${spec.ramGb} GB` : '512 GB'],
+    ['스토리지', fmtStorage(spec.storageGb) ?? '7.2 TB NVMe'],
     ['네트워크', server.network],
     ['IP', `10.20.${idn}.10`],
     ['OS', 'Ubuntu 22.04 LTS'],
@@ -1036,8 +1044,8 @@ export function ServerDetail() {
     ['아키텍처', archs.join(' / ')],
     ['총 VRAM', `${totalVram} GB`],
     ['할당 방식', allocStr],
-    ['CPU', 'Intel Xeon 8358P'],
-    ['RAM', '512 GB'],
+    ['CPU', spec.cpu ?? 'Intel Xeon 8358P'],
+    ['RAM', spec.ramGb ? `${spec.ramGb} GB` : '512 GB'],
     ['네트워크', server.network],
     ['위치', `데이터센터 · ${server.host}`],
     ['생성일', `2025-0${(seed % 8) + 1}-${String((seed % 27) + 1).padStart(2, '0')} 11:23`],
