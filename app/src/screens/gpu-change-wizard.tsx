@@ -37,7 +37,7 @@ const TYPE_TONE: Record<ChangeType, 'info' | 'ok' | 'warn' | 'danger'> = {
 
 // 자원 자동 할당 — 서버 1대 고정 풀에서 20% 예약 후 통짜 GPU=나머지 전부(GPU 수로 분할),
 // MIG 슬라이스=GPU 몫 × (슬라이스 컴퓨트 units 비율). 수동 슬라이더 대체.
-const HOST_SPEC = { ramGb: 512, storageGb: 4096, cpuCores: 64 } // 서버 1대 물리 풀(고정)
+const HOST_SPEC = { ramGb: 128, storageGb: 1024, cpuCores: 32 } // 서버 1대 물리 풀(고정)
 const RESERVE = 0.2 // 시스템 예약
 function unitAlloc(gpuCount: number, fraction: number): { ramGb: number; storageGb: number; cpuCores: number } {
   const per = (total: number) => Math.round((total * (1 - RESERVE)) / Math.max(1, gpuCount) * fraction)
