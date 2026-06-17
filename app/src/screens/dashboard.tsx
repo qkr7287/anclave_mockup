@@ -29,7 +29,7 @@ import { EmptyState, Button, KpiStat, useToast } from '../components/ui'
 import { useRole } from '../lib/role'
 import { useTheme } from '../lib/theme'
 import { useAllocations, useTelemetrySeries, useEvents, useServiceTokens, type AllocationRow, type SeriesPoint, type ServiceTokens } from '../data/hooks/usePolling'
-import { modelById } from '../data'
+import { useModelLookup } from './db-lookups'
 import { useRequests, allocationLink, type RequestItem } from './requests-shared'
 
 // 다크 테마에서 공유 --c-muted(#525872)가 카드 대비 ~2.7:1로 너무 어두움 → 페이지 루트에서만 더 밝게 오버라이드.
@@ -175,6 +175,7 @@ function InfoItem({ Icon, label, value, valueColor }: { Icon: IconType; label: s
 
 // ── 할당 요약(hero) 카드 — DB allocations 연동 ──
 function HeroCard({ allocs, totalServices }: { allocs: AllocationRow[]; totalServices?: number }) {
+  const modelName = useModelLookup()
   const gpuAlloc = allocs.find((a) => a.gpuId) ?? allocs[0]
   const count = allocs.length
   const opCount = totalServices ?? count // "운영 서비스" 필드는 전체 보유 수(필터 시에도 진짜 운영 수)
@@ -183,7 +184,7 @@ function HeroCard({ allocs, totalServices }: { allocs: AllocationRow[]; totalSer
   const server = gpuAlloc?.serverHost ?? '—'
   const gpuLabel = gpuAlloc?.gpuModel ? `${gpuAlloc.gpuModel}${gpuAlloc.allocMode === 'mig' ? ' · MIG' : ''}` : 'MIG 슬라이스'
   // 모델은 ID(m8) 대신 모델명(SDXL)으로 — 정적 메타 modelById 매핑, 실패 시 ID 폴백
-  const model = first?.modelId ? (modelById(first.modelId)?.name ?? first.modelId) : '—'
+  const model = first?.modelId ? (modelName(first.modelId) ?? first.modelId) : '—'
   return (
     <section className="bg-card2 border border-line rounded-[14px] shrink-0" style={{ boxShadow: 'var(--shadow-card)', padding: 24, minHeight: 140 }}>
       <div className="flex items-stretch gap-6 min-w-0 h-full">
@@ -390,9 +391,10 @@ const EV_BADGE: Record<EvLevel, { bg: string; fg: string }> = {
   경고: { bg: 'var(--warn-soft)', fg: 'var(--c-warn)' },
 }
 function EventLogCard({ gpuId, serverId }: { gpuId?: string; serverId?: string }) {
-  const toast = useToast()
+  const navigate = useNavigate()
   const { data } = useEvents({ gpuId, serverId, limit: 8 })
-  const events: { time: string; level: EvLevel; msg: string }[] = (data ?? []).map((e) => ({
+  const events: { id: string; time: string; level: EvLevel; msg: string }[] = (data ?? []).map((e) => ({
+    id: e.id,
     time: fmtReqDate(e.createdAt),
     level: e.severity === 'warn' || e.severity === 'critical' ? '경고' : '정보',
     msg: e.message,
@@ -405,7 +407,7 @@ function EventLogCard({ gpuId, serverId }: { gpuId?: string; serverId?: string }
     <section className="bg-card2 border border-line rounded-[14px] flex flex-col min-w-0" style={{ boxShadow: 'var(--shadow-card)', padding: '18px 20px' }}>
       <header className="flex items-center justify-between gap-3 shrink-0">
         <h3 className="font-bold text-text" style={{ fontSize: 15 }}>이벤트 로그</h3>
-        <button type="button" onClick={() => toast.push('이벤트 로그 전체 보기 (목업)', 'neutral')} className="font-medium hover:underline" style={{ fontSize: 14, color: 'var(--c-accent)' }}>전체 보기</button>
+        <button type="button" onClick={() => navigate('/events')} className="font-medium hover:underline cursor-pointer" style={{ fontSize: 14, color: 'var(--c-accent)' }}>전체 보기</button>
       </header>
       <div className="flex items-center text-muted font-medium shrink-0" style={{ fontSize: 14, marginTop: 14, paddingBottom: 9, borderBottom: '1px solid var(--c-border)' }}>
         <span style={{ width: 150 }}>시간</span>
@@ -414,7 +416,12 @@ function EventLogCard({ gpuId, serverId }: { gpuId?: string; serverId?: string }
       </div>
       <div className="relative flex-1 min-h-0 flex flex-col">
         {rows.map((e, i) => (
-          <div key={i} className="flex items-center flex-1" style={{ minHeight: 32, borderBottom: i < ROW_SLOTS - 1 ? '1px solid var(--c-border-s)' : 'none' }}>
+          <div
+            key={i}
+            onClick={e ? () => navigate(`/events?detail=${e.id}`) : undefined}
+            className={`flex items-center flex-1 transition-colors ${e ? 'cursor-pointer hover:bg-[var(--accent-soft)]' : ''}`}
+            style={{ minHeight: 32, borderBottom: i < ROW_SLOTS - 1 ? '1px solid var(--c-border-s)' : 'none' }}
+          >
             {e ? (
               <>
                 <span className="shrink-0 text-muted" style={{ width: 150, fontSize: 14 }}>{e.time}</span>
@@ -800,14 +807,14 @@ function fmtReqDate(iso: string): string {
   const p = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
-function toReqRow(r: RequestItem, isAdmin: boolean): ReqRow {
+function toReqRow(r: RequestItem, isAdmin: boolean, modelName: (id?: string) => string | undefined): ReqRow {
   const status = STATUS_KR[r.status] ?? '대기'
   const unit = r.capacityUnit === 'slice' ? '슬라이스' : 'GPU'
   const date = fmtReqDate(r.createdAt)
   return {
     no: r.id,
     resource: `${r.capacity} ${unit}`,
-    model: r.models?.[0] ? (modelById(r.models[0])?.name ?? r.models[0]) : '-',
+    model: r.models?.[0] ? (modelName(r.models[0]) ?? r.models[0]) : '-',
     reason: r.purpose || r.serviceName || '-',
     date,
     status,
@@ -964,7 +971,8 @@ export function RequestStatus() {
   const { user, isAdmin } = useRole()
   // A=전체 신청, B/C=내 신청만(requester=나). DB 우선 · backend 미기동 시 시드 폴백 · 로컬 신규 신청(4.6b 제출) 병합.
   const { items: reqItems, isLoading } = useRequests(isAdmin ? undefined : user.id)
-  const rows = useMemo(() => reqItems.map((it) => toReqRow(it, isAdmin)), [reqItems, isAdmin])
+  const modelName = useModelLookup()
+  const rows = useMemo(() => reqItems.map((it) => toReqRow(it, isAdmin, modelName)), [reqItems, isAdmin, modelName])
   const total = rows.length
   // 검색·필터: draft(입력값) → '필터 적용' 시 applied 로 반영(실제 검색)
   const [q, setQ] = useState('')

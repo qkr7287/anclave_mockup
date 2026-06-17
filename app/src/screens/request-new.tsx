@@ -42,16 +42,16 @@ const M = {
   onAccent: 'var(--c-onaccent)', activeBg: 'var(--accent-soft)', value: 'var(--c-text)',
 }
 
-const WIZARD_STEPS = ['기본 정보', '모델 선택', '상세 설정', '확인 · 제출']
+const WIZARD_STEPS = ['기본 정보', '모델 선택', '상세 설정', '제출 전 검토']
 const PERIOD_OPTS = ['1개월', '3개월', '6개월', '무기한'] as const
 const PRIORITY_OPTS = ['낮음', '보통', '높음'] as const
 const PRIORITY_EN: Record<string, 'low' | 'normal' | 'high'> = { 낮음: 'low', 보통: 'normal', 높음: 'high' }
 const PRIORITY_KR: Record<string, string> = { low: '낮음', normal: '보통', high: '높음' }
 // 상세 설정 — 운영 의도 신호(자원 산정은 관리자 몫이라 기술 스펙은 받지 않음)
+// 공개 여부 — 마켓플레이스 게시(공개) 여부. 비공개=소유자·팀 내부 사용.
 const SECURITY_OPTS = [
-  { v: '일반', desc: '사내 공개 가능 데이터' },
-  { v: '대외비', desc: '부서·팀 한정 데이터' },
-  { v: '기밀', desc: '접근 통제 필요 데이터' },
+  { v: '비공개', desc: '소유자·팀 내부에서만 사용' },
+  { v: '공개', desc: '마켓플레이스에 게시·공유' },
 ] as const
 const SCALE_OPTS = [
   { v: '소규모', desc: '~ 수십 요청/일' },
@@ -91,7 +91,7 @@ interface ReqForm {
   remark: string
 }
 const EMPTY_FORM: ReqForm = {
-  serviceName: '', team: '', reason: '', modelIds: [], period: '', startDate: '', priority: '보통', security: '일반', scale: '중규모', files: [], remark: '',
+  serviceName: '', team: '', reason: '', modelIds: [], period: '', startDate: '', priority: '보통', security: '비공개', scale: '중규모', files: [], remark: '',
 }
 
 // ?from=<id> 재신청 프리필 — 로컬/시드에서 동기 조회
@@ -107,7 +107,7 @@ function prefillFrom(id: string | null): ReqForm {
     period: src.period ?? '',
     startDate: src.startDate ?? '',
     priority: PRIORITY_KR[src.priority ?? 'normal'] ?? '보통',
-    security: src.security ?? '일반',
+    security: src.security ?? '비공개',
     scale: src.scale ?? '중규모',
     files: file ? [file] : [],
     remark: src.remark ?? '',
@@ -272,36 +272,34 @@ function Stepper({ current }: { current: number }) {
 // 모델 카드 — 제공사 로고(모델 카탈로그와 동일) + 다중 선택(체크 토글)
 function ModelCard({ m, active, onClick }: { m: Model; active: boolean; onClick: () => void }) {
   const provider = providerName(m.id)
+  const meta = provider !== '—' ? `${provider} · ${m.kind} · ${m.params}` : `${m.kind} · ${m.params}`
   return (
     <button
       type="button"
       onClick={onClick}
-      className="relative text-left rounded-[12px] transition-[transform,background-color,border-color] duration-100 active:scale-[0.985] flex flex-col"
-      style={{ padding: 14, background: active ? M.activeBg : M.inputBg, border: `1px solid ${active ? M.blue : M.border}` }}
+      className="text-left rounded-[12px] transition-[transform,background-color,border-color] duration-100 active:scale-[0.99] flex items-center gap-3.5 w-full"
+      style={{ padding: '12px 16px', background: active ? M.activeBg : M.inputBg, border: `1px solid ${active ? M.blue : M.border}` }}
     >
-      {active && (
-        <span className="absolute flex items-center justify-center rounded-full" style={{ top: 10, right: 10, width: 20, height: 20, background: M.blue }}>
-          <CheckIcon style={{ width: 13, height: 13, color: M.onAccent }} />
-        </span>
-      )}
-      <div className="flex items-start gap-3 w-full">
-        <Logo id={m.id} size={40} />
-        <div className="min-w-0 flex-1" style={{ paddingRight: active ? 22 : 0 }}>
-          <div className="flex items-center gap-1.5">
-            <span className="font-bold truncate" style={{ fontSize: 14, color: M.text }}>{m.name}</span>
-            {m.usageRank <= 3 && (
-              <span className="shrink-0 rounded-[5px] font-medium" style={{ fontSize: 11, padding: '1px 6px', background: M.activeBg, color: M.blue }}>인기</span>
-            )}
-          </div>
-          <div className="truncate" style={{ fontSize: 12.5, color: M.help, marginTop: 2 }}>
-            {provider !== '—' ? `${provider} · ${m.kind} · ${m.params}` : `${m.kind} · ${m.params}`}
-          </div>
+      <Logo id={m.id} size={42} />
+      {/* 본문 — 모델명·인기 / 메타·설명(1줄 말줄임) */}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5">
+          <span className="font-bold truncate" style={{ fontSize: 14, color: M.text }}>{m.name}</span>
+          {m.usageRank <= 3 && (
+            <span className="shrink-0 rounded-[5px] font-medium" style={{ fontSize: 11, padding: '1px 6px', background: M.activeBg, color: M.blue }}>인기</span>
+          )}
+        </div>
+        <div className="truncate" style={{ fontSize: 12.5, color: M.help, marginTop: 3 }}>
+          <span style={{ color: M.value }}>{meta}</span> · {m.description}
         </div>
       </div>
-      <p className="truncate w-full" style={{ fontSize: 12.5, color: M.value, marginTop: 10 }}>{m.description}</p>
-      <div className="flex items-center justify-between w-full" style={{ marginTop: 10 }}>
-        <span className="truncate rounded-[5px] font-medium" style={{ fontSize: 11, padding: '2px 7px', background: M.inputBg, border: `1px solid ${M.border}`, color: M.help }}>{m.recommendedGpu}</span>
-        <span className="shrink-0" style={{ fontSize: 11.5, color: M.help, marginLeft: 8 }}>사용 {m.usageRank}위</span>
+      {/* 우측 메타 — 권장 GPU · 사용순위 · 선택 표시 */}
+      <div className="shrink-0 flex items-center" style={{ gap: 12 }}>
+        <span className="truncate rounded-[6px] font-medium" style={{ fontSize: 11, padding: '3px 8px', background: M.inputBg, border: `1px solid ${M.border}`, color: M.help, maxWidth: 180 }}>{m.recommendedGpu}</span>
+        <span style={{ fontSize: 11.5, color: M.help, whiteSpace: 'nowrap' }}>사용 {m.usageRank}위</span>
+        <span className="flex items-center justify-center rounded-full" style={{ width: 22, height: 22, background: active ? M.blue : 'transparent', border: active ? 'none' : `1.5px solid ${M.border}` }}>
+          {active && <CheckIcon style={{ width: 14, height: 14, color: M.onAccent }} />}
+        </span>
       </div>
     </button>
   )
@@ -441,7 +439,7 @@ function SpecSheet({ f, modelText, fileText, userName, today, fromId, currentSte
             <SpecRow label="사용 기간" value={f.period} reviewing={reviewing} pendingW="40%" />
             <SpecRow label="희망 시작일" value={f.startDate} emptyText="미정" reviewing={reviewing} pendingW="42%" />
             <SpecRow label="우선순위" value={f.priority} reviewing={reviewing} pendingW="35%" />
-            <SpecRow label="보안 등급" value={f.security} reviewing={reviewing} pendingW="38%" />
+            <SpecRow label="공개 여부" value={f.security} reviewing={reviewing} pendingW="38%" />
             <SpecRow label="예상 규모" value={f.scale} reviewing={reviewing} pendingW="38%" />
             <SpecRow label="파일 첨부" value={fileText} emptyText="첨부 없음" reviewing={reviewing} pendingW="60%" last />
           </SpecSection>
@@ -698,7 +696,7 @@ export function RequestNew() {
                 </div>
                 {/* 모델 그리드 — 남는 높이 채우고 스크롤 */}
                 <div className="flex-1 min-h-0 overflow-auto" style={{ marginRight: -6, paddingRight: 6 }}>
-                  <div className="grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+                  <div className="flex flex-col" style={{ gap: 10 }}>
                     {list.map((m) => (
                       <ModelCard key={m.id} m={m} active={f.modelIds.includes(m.id)} onClick={() => toggleModel(m.id)} />
                     ))}
@@ -738,8 +736,8 @@ export function RequestNew() {
                 <div className="grid grid-cols-3" style={{ gap: 10, marginBottom: 24 }}>
                   {PRIORITY_OPTS.map((p) => <SelectCard key={p} label={p} active={f.priority === p} onClick={() => set('priority', p)} />)}
                 </div>
-                <FieldLabel text="보안 등급" required help="다루는 데이터의 민감도를 선택해주세요. 격리 수준 산정에 사용됩니다." />
-                <div className="grid grid-cols-3" style={{ gap: 10, marginBottom: 24 }}>
+                <FieldLabel text="공개 여부" required help="서비스를 마켓플레이스에 공개할지 선택해주세요." />
+                <div className="grid grid-cols-2" style={{ gap: 10, marginBottom: 24 }}>
                   {SECURITY_OPTS.map((o) => <SelectCard key={o.v} label={o.v} sub={o.desc} active={f.security === o.v} onClick={() => set('security', o.v)} />)}
                 </div>
                 <FieldLabel text="예상 규모" required help="예상 운영 트래픽 규모입니다. 관리자의 자원 산정에 참고됩니다." />
@@ -798,7 +796,9 @@ export function RequestNew() {
 
           {/* 좌 하단 고정 바 */}
           <div className="flex items-center justify-between shrink-0" style={{ borderTop: '1px solid var(--c-border)', padding: '14px 26px' }}>
-            <Button variant="ghost" onClick={() => go(-1)} disabled={step === 0}>이전</Button>
+            {step === 0
+              ? <Button variant="ghost" onClick={() => navigate('/requests/status')}>목록</Button>
+              : <Button variant="ghost" onClick={() => go(-1)}>이전</Button>}
             <div className="flex items-center gap-3">
               {!canNext && (
                 <span className="text-muted" style={{ fontSize: 14 }}>필수 항목을 입력하면 진행할 수 있어요.</span>

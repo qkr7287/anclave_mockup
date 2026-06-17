@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
-import { userById, modelById } from '../data'
 import type { RequestItem } from './requests-shared'
+import { useUserLookup, useModelLookup } from './db-lookups'
 
 // 읽기전용 "자원 신청 명세서" — 신규 신청(4.6b)의 명세서와 동일한 룩.
 // 신청 상세(4.6a)에서 제출된 신청을 문서 형태로 보여준다.
@@ -57,9 +57,11 @@ const STAMP: Record<RequestItem['status'], { label: string; color: string; soft:
 }
 
 export function RequestSpec({ item }: { item: RequestItem }) {
-  const requester = userById(item.requesterUserId)
-  const reqName = requester ? `${requester.name}${requester.department ? ` · ${requester.department}` : ''}` : item.requesterUserId
-  const modelText = item.models.map((mid) => modelById(mid)?.name ?? mid).join(', ')
+  const userLk = useUserLookup()
+  const modelLk = useModelLookup()
+  const rDept = userLk.dept(item.requesterUserId)
+  const reqName = `${userLk.name(item.requesterUserId) ?? item.requesterUserId}${rDept ? ` · ${rDept}` : ''}`
+  const modelText = item.models.map((mid) => modelLk(mid) ?? mid).join(', ')
   const unitLabel = item.capacityUnit === 'slice' ? 'MIG 슬라이스' : 'GPU 카드'
   const fileName = item.attachmentUrl?.split('/').pop()
   const st = STAMP[item.status] ?? STAMP.pending
@@ -109,7 +111,7 @@ export function RequestSpec({ item }: { item: RequestItem }) {
             <Row label="사용 기간" value={item.period} />
             <Row label="희망 시작일" value={item.startDate} />
             <Row label="우선순위" value={PRIORITY_KR[item.priority ?? 'normal']} />
-            <Row label="보안 등급" value={item.security} />
+            <Row label="공개 여부" value={item.security} />
             <Row label="예상 규모" value={item.scale} />
             <Row label="파일 첨부" value={fileName} last />
           </div>
