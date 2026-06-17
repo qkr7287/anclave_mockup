@@ -28,7 +28,7 @@ function buildSlices(gpuId: string, instances: FleetInstance[]): MigSlice[] {
     return {
       id: `${gpuId}-s${i + 1}`,
       profile: inst.profile as MigProfile,
-      units: 1,
+      units: parseInt(inst.profile, 10) || 1, // '3g.90gb' → 3, '2g.45gb' → 2
       gb: inst.gb,
       usage: inst.usage,
       vramUtil: used ? Math.max(8, inst.usage - 6) : 0,
@@ -77,16 +77,16 @@ function buildGpu(serverId: string, fg: FleetGpu, gi: number): Gpu {
 
 function buildServer(node: FleetNode): GpuServer {
   const gpus = node.gpus.map((fg, gi) => buildGpu(node.id, fg, gi))
-  // 호스팅 서비스·사용자 집계(단일=assignedServiceId · MIG=슬라이스 owner+model 역추적)
+  // 호스팅 서비스·사용자 집계 — fleet 인벤토리(serviceId) 직접 참조(백엔드 seed-db 와 동일).
+  // 슬라이스 owner+model 역추적은 같은 owner+model 서비스 충돌(jhs+m5)을 일으켜 사용하지 않음.
   const serviceIds = new Set<string>()
   const userIds = new Set<string>()
-  gpus.forEach((g) => {
-    if (g.assignedUserId) userIds.add(g.assignedUserId)
-    if (g.assignedServiceId) serviceIds.add(g.assignedServiceId)
-    g.slices?.forEach((sl) => {
-      if (sl.ownerUserId) userIds.add(sl.ownerUserId)
-      const sv = services.find((x) => x.ownerUserId === sl.ownerUserId && x.model === sl.modelId)
-      if (sv) serviceIds.add(sv.id)
+  node.gpus.forEach((fg) => {
+    const direct = svcById(fg.serviceId)
+    if (direct) { serviceIds.add(direct.id); userIds.add(direct.ownerUserId) }
+    fg.instances?.forEach((inst) => {
+      const s = svcById(inst.serviceId)
+      if (s) { serviceIds.add(s.id); userIds.add(s.ownerUserId) }
     })
   })
   const anyXid = gpus.some((g) => g.xid)

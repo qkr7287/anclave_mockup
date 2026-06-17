@@ -1,12 +1,75 @@
-import { events } from '../data/events'
-import { servers, allGpus, gpuRequests } from '../data'
-import type { EventLog } from '../data/types'
+import { useEffect, useState } from 'react'
+import { servers, allGpus, gpuRequests, services } from '../data'
+import { apiGet } from '../lib/api'
+import type { EventLog, EventStatus, Severity } from '../data/types'
 
-// 4.21 에러·이벤트 관제 — 목업 store(세션 사본). 다른 *-store(gpu-change-store 등) 패턴.
-// 시드 events(읽기 전용)를 세션 배열로 복제해, 상세 드로어의 [해결 처리]를 로컬 반영한다.
-// (backend PATCH endpoint 생기면 이 레이어만 REST 로 와이어링 — 화면 계층은 그대로.)
+// 4.21 에러·이벤트 관제 — 소스를 DB(/api/events)로 와이어링한 세션 store.
+//   backend 행을 EventLog 모양으로 정규화해 모듈 세션(session)에 적재 → 화면 계층은
+//   기존과 동일한 동기 getter(getEvents/getEventsForUser/getEventById)를 그대로 사용한다.
+//   markRead·resolveEvent 는 로컬 세션 반영(backend 이벤트 PATCH endpoint 미제공 — 생기면
+//   resolveEvent 만 REST 로 교체, 화면 계층은 불변).
 
-let session: EventLog[] = events.map((e) => ({ ...e }))
+// backend /api/events 행(부분 집합) — read/assignee/resolution 은 미반환(로컬 관리).
+interface EventRow {
+  id: string
+  severity: Severity
+  status: string
+  message: string
+  gpuId: string | null
+  serverId: string | null
+  createdAt: string
+}
+
+// ISO('…T…Z') → 'YYYY-MM-DD HH:mm'(시드 표시 포맷). 파싱 불가 시 원본 유지(이미 포맷됨).
+function fmtStamp(v: string): string {
+  const d = new Date(v)
+  if (isNaN(d.getTime())) return v
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
+
+function normalize(r: EventRow): EventLog {
+  return {
+    id: r.id,
+    severity: r.severity,
+    status: (r.status === 'resolved' ? 'resolved' : 'open') as EventStatus,
+    gpuId: r.gpuId ?? undefined,
+    serverId: r.serverId ?? undefined,
+    message: r.message,
+    createdAt: fmtStamp(r.createdAt),
+    read: false,
+  }
+}
+
+// 세션 적재 — 앱 라이프사이클 1회 로드(read·resolve 로컬 상태 보존). 새 fleet 은 리로드로 반영.
+let session: EventLog[] = []
+let loaded = false
+let loadPromise: Promise<void> | null = null
+const subscribers = new Set<() => void>()
+const notify = () => subscribers.forEach((fn) => fn())
+
+function ensureLoaded(): Promise<void> {
+  if (loaded) return Promise.resolve()
+  if (!loadPromise) {
+    loadPromise = apiGet<EventRow[]>('/api/events?limit=1000')
+      .then((rows) => { session = rows.map(normalize); loaded = true; notify() })
+      .catch((e) => { loadPromise = null; throw e })
+  }
+  return loadPromise
+}
+
+// 화면 진입 훅 — 최초 로드 트리거 + 적재 완료 시 재렌더. { ready, error } 반환.
+export function useEventStore(): { ready: boolean; error: boolean } {
+  const [, force] = useState(0)
+  const [error, setError] = useState(false)
+  useEffect(() => {
+    const onChange = () => force((n) => n + 1)
+    subscribers.add(onChange)
+    ensureLoaded().catch(() => setError(true))
+    return () => { subscribers.delete(onChange) }
+  }, [])
+  return { ready: loaded, error }
+}
 
 export function getEvents(): EventLog[] {
   return session
@@ -84,6 +147,25 @@ export function getEventsForUser(userId: string): EventLog[] {
     if (e.gpuId) return gpuIds.has(e.gpuId)
     if (e.serverId) return serverIds.has(e.serverId)
     return false
+  })
+}
+
+// 사용자 소유 서비스명 — 자원 id 없는 이벤트(메시지에 서비스명만)도 본인 것으로 포착.
+function myServiceNames(userId: string): string[] {
+  return services.filter((s) => s.ownerUserId === userId).map((s) => s.name)
+}
+
+// DB(/api/events) · 시드 공용 — 임의 이벤트 행을 사용자 스코프로 필터(A는 호출 안 함).
+// 본인 소유 GPU/서버 OR 메시지에 본인 서비스명 포함.
+export function filterEventRowsForUser<
+  T extends { gpuId?: string | null; serverId?: string | null; message: string },
+>(rows: T[], userId: string): T[] {
+  const { gpuIds, serverIds } = myResourceSets(userId)
+  const names = myServiceNames(userId)
+  return rows.filter((e) => {
+    if (e.gpuId && gpuIds.has(e.gpuId)) return true
+    if (e.serverId && serverIds.has(e.serverId)) return true
+    return names.some((n) => e.message.includes(n))
   })
 }
 

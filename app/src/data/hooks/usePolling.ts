@@ -1,7 +1,9 @@
 // 경량 폴링 훅 — react-query 없이 fetch + 주기 갱신(폐쇄망 데모엔 충분).
 // 동기 import(static data)를 점진적으로 이 훅으로 교체한다. 로딩/에러는 화면에서 처리.
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { apiGet } from '../../lib/api'
+import { setLiveRequests, setLiveServices, setLiveUsers } from '../../lib/liveData'
+import type { Service, User } from '../types'
 
 export interface PollState<T> {
   data: T | null
@@ -115,4 +117,27 @@ export interface ServiceTokens {
 
 export function useServiceTokens(userId: string | null, intervalMs = 10000): PollState<ServiceTokens> {
   return usePolling<ServiceTokens>(userId ? `/api/service-tokens?user=${encodeURIComponent(userId)}` : null, intervalMs)
+}
+
+// 표시명 마스터 — backend /api/users · /api/services. id→이름 조회용(g4·activation 등 공용).
+export function useUsers(intervalMs = 30000): PollState<User[]> {
+  return usePolling<User[]>('/api/users', intervalMs)
+}
+export function useServicesList(intervalMs = 30000): PollState<Service[]> {
+  return usePolling<Service[]>('/api/services', intervalMs)
+}
+
+// liveData 런타임 캐시 하이드레이션 — users/services/requests 를 DB로 채워
+// 순수 lookup(userById·gpuServices·serviceOfSlice)이 DB 표시명을 쓰게 한다.
+// useMemo 로 자식 렌더 전에 동기 반영(미스/다운 시 seed 유지).
+export function useLiveData(): { ready: boolean } {
+  const users = useUsers()
+  const services = useServicesList()
+  const requests = useGpuRequests()
+  useMemo(() => {
+    setLiveUsers(users.data)
+    setLiveServices(services.data)
+    setLiveRequests(requests.data)
+  }, [users.data, services.data, requests.data])
+  return { ready: !!(users.data && services.data) }
 }
