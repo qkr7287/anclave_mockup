@@ -18,7 +18,7 @@ import { STAGE_META, useCatalogModels, useModelRequests } from './model-requests
 // G5 · 4.14c 모델 신청 상세 — A·B·C 공용 별도 페이지. 5173 자원 신청현황 상세(g2 request-detail)와 동일 UI 체계.
 // 상단 가로 진행 스텝퍼 + 좌(신청 명세서) + 우(처리 결과). 색=공통 토큰. 본문 14px floor.
 
-const LIST_PATH = '/admin/models/requests'
+const LIST_PATH = '/models/requests'
 const DASH = '—'
 const userName = (id: string): string => userById(id)?.name ?? id
 // createdAt/processedAt 은 backend(ISO) · 시드('YYYY-MM-DD HH:mm') 혼재 → 'YYYY-MM-DD HH:mm' 로 통일.
@@ -369,7 +369,7 @@ export function ModelRequestDetail() {
           req={req}
           model={model}
           isAdmin={isAdmin}
-          onProcess={() => navigate(`/admin/models/requests/new?id=${req.id}`)}
+          onProcess={() => navigate(`/models/requests/import?id=${req.id}`)}
           onViewModel={() => model && navigate(`/models/${model.id}`)}
         />
       </div>

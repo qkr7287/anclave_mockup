@@ -55,9 +55,9 @@ export const ROUTES: RouteDef[] = [
   // ③ 모델 관리
   { key: 'models', path: '/models', screen: '4.12', title: '모델 카탈로그', access: ['A', 'B', 'C'], group: 3, menu: ['A', 'B', 'C'], icon: 'cube' },
   { key: 'model-detail', path: '/models/:id', screen: '4.13', title: '모델 상세', access: ['A', 'B', 'C'] },
-  { key: 'model-requests', path: '/admin/models/requests', screen: '4.14', title: '모델 신청 관리', access: ['A', 'B', 'C'], group: 3, menu: ['A', 'B', 'C'], icon: 'doc-plus' },
-  { key: 'model-import', path: '/admin/models/requests/new', screen: '4.14a', title: '신규 모델 반입', access: ['A'] },
-  { key: 'model-request-new', path: '/models/request/new', screen: '4.14b', title: '모델 등록 신청', access: ['B', 'C'] },
+  { key: 'model-requests', path: '/models/requests', screen: '4.14', title: '모델 신청 관리', access: ['A', 'B', 'C'], group: 3, menu: ['A', 'B', 'C'], icon: 'doc-plus' },
+  { key: 'model-import', path: '/models/requests/import', screen: '4.14a', title: '신규 모델 반입', access: ['A'] },
+  { key: 'model-request-new', path: '/models/requests/new', screen: '4.14b', title: '모델 등록 신청', access: ['B', 'C'] },
   { key: 'model-request-detail', path: '/models/requests/:id', screen: '4.14c', title: '모델 신청 상세', access: ['A', 'B', 'C'] },
 
   // ④ 마켓플레이스 — 메뉴 순서: 둘러보기(4.17) → 게시 신청(4.29) → API 신청 관리(4.19) → 게시 승인 관리(4.9, 관리자)
@@ -82,14 +82,14 @@ export const ROUTES: RouteDef[] = [
   { key: 'board', path: '/board', screen: '4.23', title: '게시판 · 공지', access: ['A', 'B', 'C'], group: 6, menu: ['A', 'B', 'C'], icon: 'chat' },
   { key: 'board-detail', path: '/board/:id', screen: '4.23a', title: '게시글 상세', access: ['A', 'B', 'C'], group: 6, icon: 'chat' },
 
-  // ⑦ 감사 · 보안 (A 전용)
-  { key: 'audit', path: '/admin/audit', screen: '4.24', title: '감사 로그', access: ['A'], group: 7, menu: ['A'], icon: 'shield' },
-  { key: 'access', path: '/admin/access', screen: '4.25', title: '접근통제 · 권한', access: ['A'], group: 7, menu: ['A'], icon: 'lock' },
+  // ⑦ 감사 · 보안 (A 전용) — 사이드바 메뉴 숨김(menu 제거). 라우트는 유지.
+  { key: 'audit', path: '/admin/audit', screen: '4.24', title: '감사 로그', access: ['A'], group: 7, icon: 'shield' },
+  { key: 'access', path: '/admin/access', screen: '4.25', title: '접근통제 · 권한', access: ['A'], group: 7, icon: 'lock' },
 
-  // ⑧ 시스템 설정 (A 전용)
-  { key: 'caps', path: '/admin/settings/capabilities', screen: '4.26', title: '능력 탐지 · 기능 플래그', access: ['A'], group: 8, menu: ['A'], icon: 'adjust' },
-  { key: 'users', path: '/admin/settings/users', screen: '4.27', title: '사용자 · 역할 관리', access: ['A'], group: 8, menu: ['A'], icon: 'users' },
-  { key: 'infra', path: '/admin/settings/infra', screen: '4.28', title: '인프라 연동', access: ['A'], group: 8, menu: ['A'], icon: 'link' },
+  // ⑧ 시스템 설정 (A 전용) — 사이드바 메뉴 숨김(menu 제거). 라우트는 유지.
+  { key: 'caps', path: '/admin/settings/capabilities', screen: '4.26', title: '능력 탐지 · 기능 플래그', access: ['A'], group: 8, icon: 'adjust' },
+  { key: 'users', path: '/admin/settings/users', screen: '4.27', title: '사용자 · 역할 관리', access: ['A'], group: 8, icon: 'users' },
+  { key: 'infra', path: '/admin/settings/infra', screen: '4.28', title: '인프라 연동', access: ['A'], group: 8, icon: 'link' },
 ]
 
 // 사이드바: 역할(access)에 맞는 메뉴만, IA 8 그룹으로.

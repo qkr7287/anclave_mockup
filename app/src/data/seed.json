@@ -12,16 +12,6 @@
       "department": "시스템 관리"
     },
     {
-      "id": "u-hwang",
-      "username": "hwang",
-      "name": "황상곤",
-      "role": "user",
-      "email": "hwang@anclave.local",
-      "hasHosting": true,
-      "initialRoute": "/dashboard",
-      "department": "대표이사"
-    },
-    {
       "id": "u-kgr",
       "username": "kgr",
       "name": "김가람",
@@ -370,7 +360,7 @@
       "serviceUrl": "http://svc.anclave.local/doc-search",
       "testUrl": "http://svc.anclave.local/doc-search/playground",
       "description": "BGE-M3 임베딩 기반 문서 검색(RAG).",
-      "ownerUserId": "u-hwang",
+      "ownerUserId": "u-jhs",
       "tags": [
         "Embedding",
         "RAG",
@@ -414,7 +404,7 @@
       "serviceUrl": "http://svc.anclave.local/sd-image",
       "testUrl": "http://svc.anclave.local/sd-image/playground",
       "description": "SDXL 기반 이미지 생성 워크스페이스.",
-      "ownerUserId": "u-hwang",
+      "ownerUserId": "u-jhs",
       "tags": [
         "Image"
       ],
@@ -743,7 +733,7 @@
     },
     {
       "id": "gr-03",
-      "requesterUserId": "u-hwang",
+      "requesterUserId": "u-jhs",
       "capacity": 1,
       "capacityUnit": "card",
       "models": [
@@ -771,7 +761,7 @@
     },
     {
       "id": "gr-04",
-      "requesterUserId": "u-hwang",
+      "requesterUserId": "u-jhs",
       "capacity": 1,
       "capacityUnit": "card",
       "models": [
@@ -958,40 +948,9 @@
       "format": "other",
       "scan": "fail",
       "rejectReason": "picklescan 검출 — pickle 직렬화 위험 코드 발견. safetensors 포맷으로 재신청 바랍니다."
-    },
-    {
-      "id": "mr-04",
-      "requesterUserId": "u-hwang",
-      "modelName": "Gemma2-27B",
-      "kind": "LLM",
-      "source": "huggingface.co/google/gemma-2-27b",
-      "reason": "경량 모델 비교 평가용",
-      "status": "pending",
-      "stage": "requested",
-      "createdAt": "2026-06-06 09:40"
     }
   ],
   "apiRequests": [
-    {
-      "id": "ar-01",
-      "requesterUserId": "u-hwang",
-      "serviceId": "svc-qwen",
-      "model": "m12",
-      "targetServiceUrl": "http://app.anclave.local/park-rag",
-      "status": "approved",
-      "apiKey": "ak_live_qwen_8f2a1c9d4e",
-      "createdAt": "2026-05-22 10:00"
-    },
-    {
-      "id": "ar-02",
-      "requesterUserId": "u-hwang",
-      "serviceId": "svc-llama",
-      "model": "m11",
-      "targetServiceUrl": "http://app.anclave.local/jung-bot",
-      "status": "approved",
-      "apiKey": "ak_live_llama_3b7e0a2f15",
-      "createdAt": "2026-05-24 14:20"
-    },
     {
       "id": "ar-03",
       "requesterUserId": "u-jhs",
@@ -1082,41 +1041,9 @@
       "meta": "챗봇 · Llama 3 8B",
       "status": "approved",
       "createdAt": "2026-05-22 15:40"
-    },
-    {
-      "id": "pr-03",
-      "requesterUserId": "u-hwang",
-      "serviceName": "doc-search",
-      "serviceUrl": "http://svc.anclave.local/doc-search",
-      "demoUrl": "http://svc.anclave.local/doc-search/playground",
-      "meta": "RAG 검색 · BGE-M3",
-      "status": "pending",
-      "createdAt": "2026-06-03 10:25"
-    },
-    {
-      "id": "pr-04",
-      "requesterUserId": "u-hwang",
-      "serviceName": "sd-image",
-      "serviceUrl": "http://svc.anclave.local/sd-image",
-      "demoUrl": "http://svc.anclave.local/sd-image/playground",
-      "meta": "이미지 생성 · SDXL",
-      "status": "rejected",
-      "rejectReason": "데모 URL이 응답하지 않아요. 점검 후 다시 신청해 주세요.",
-      "createdAt": "2026-05-30 14:05"
     }
   ],
   "gpuChangeRequests": [
-    {
-      "id": "cr-01",
-      "requesterUserId": "u-hwang",
-      "type": "expand",
-      "targetRequestId": "gr-03",
-      "reason": "RAG 문서량 증가로 메모리·저장 공간 확장이 필요합니다.",
-      "status": "pending",
-      "createdAt": "2026-06-10 09:30",
-      "afterRamGb": 32,
-      "afterStorageGb": 30
-    },
     {
       "id": "cr-02",
       "requesterUserId": "u-pts",
@@ -1148,19 +1075,6 @@
       "processedBy": "u-admin",
       "adminMemo": "잔여 용량 충분 — 승인합니다.",
       "afterStorageGb": 40
-    },
-    {
-      "id": "cr-05",
-      "requesterUserId": "u-hwang",
-      "type": "change",
-      "targetRequestId": "gr-04",
-      "reason": "이미지 배치 크기 상향으로 시스템 메모리 증설을 요청합니다.",
-      "status": "approved",
-      "createdAt": "2026-06-05 13:00",
-      "processedAt": "2026-06-06 09:40",
-      "processedBy": "u-admin",
-      "adminMemo": "승인 처리했습니다.",
-      "afterRamGb": 48
     },
     {
       "id": "cr-06",
