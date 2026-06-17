@@ -351,6 +351,7 @@ app.post('/api/models', async (c) => {
 
 // model_requests projection (snake→camel) — GET 목록 / POST / PATCH 공유.
 const MR_COLS = `id, requester_user_id "requesterUserId", model_name "modelName", kind, source, reason,
+  description, license, addons,
   status, stage, created_at "createdAt", reject_reason "rejectReason",
   processed_at "processedAt", processed_by "processedBy",
   file_name "fileName", format, scan, checksum, registered_model_id "registeredModelId"`
@@ -398,6 +399,18 @@ app.patch('/api/model-requests/:id', async (c) => {
   const { rows } = await pool.query(
     `update model_requests set ${sets.join(', ')} where id = $${vals.length} returning ${MR_COLS}`, vals)
   if (!rows.length) return c.json({ error: 'not found' }, 404)
+  // ★반입 매핑 — 카탈로그 등록(registeredModelId 기록) 시 신청 명세를 모델로 복사.
+  //   description/license 는 신청값 우선(없으면 모델 기존값 유지), addons 는 신청에 값이 있을 때만 덮어씀.
+  if (b.registeredModelId) {
+    const r = rows[0]
+    await pool.query(
+      `update models set
+         description = coalesce($2, description),
+         license     = coalesce($3, license),
+         addons      = case when coalesce(array_length($4::text[], 1), 0) > 0 then $4::text[] else addons end
+       where id = $1`,
+      [b.registeredModelId, r.description ?? null, r.license ?? null, r.addons ?? []])
+  }
   return c.json(rows[0])
 })
 
@@ -416,10 +429,12 @@ app.post('/api/model-requests', async (c) => {
     return c.json({ error: 'requesterUserId, modelName, reason required' }, 400)
   const id = `mr-${Date.now().toString(36)}`
   const { rows } = await pool.query(
-    `insert into model_requests(id, requester_user_id, model_name, kind, source, reason, status, stage)
-     values($1, $2, $3, $4, $5, $6, 'pending', 'requested')
+    `insert into model_requests(id, requester_user_id, model_name, kind, source, reason,
+        description, license, addons, status, stage)
+     values($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending', 'requested')
      returning ${MR_COLS}`,
-    [id, b.requesterUserId, b.modelName, b.kind ?? null, b.source ?? null, b.reason])
+    [id, b.requesterUserId, b.modelName, b.kind ?? null, b.source ?? null, b.reason,
+      b.description ?? null, b.license ?? null, b.addons ?? []])
   return c.json(rows[0], 201)
 })
 

@@ -133,8 +133,8 @@ async function main() {
   // --- model_requests (4.14 모델 신청 관리 — 프론트 ModelRequest 싱크, 구 model_imports 대체) ---
   for (const r of seed.modelRequests ?? [])
     await ins('model_requests',
-      ['id', 'requester_user_id', 'model_name', 'kind', 'source', 'reason', 'status', 'stage', 'created_at', 'reject_reason', 'processed_at', 'processed_by', 'file_name', 'format', 'scan', 'checksum', 'registered_model_id'],
-      [r.id, r.requesterUserId, r.modelName, r.kind ?? null, r.source ?? null, r.reason ?? null, r.status, r.stage, r.createdAt, r.rejectReason ?? null, r.processedAt ?? null, r.processedBy ?? null, r.fileName ?? null, r.format ?? null, r.scan ?? null, r.checksum ?? null, r.registeredModelId ?? null])
+      ['id', 'requester_user_id', 'model_name', 'kind', 'source', 'reason', 'description', 'license', 'addons', 'status', 'stage', 'created_at', 'reject_reason', 'processed_at', 'processed_by', 'file_name', 'format', 'scan', 'checksum', 'registered_model_id'],
+      [r.id, r.requesterUserId, r.modelName, r.kind ?? null, r.source ?? null, r.reason ?? null, r.description ?? null, r.license ?? null, r.addons ?? [], r.status, r.stage, r.createdAt, r.rejectReason ?? null, r.processedAt ?? null, r.processedBy ?? null, r.fileName ?? null, r.format ?? null, r.scan ?? null, r.checksum ?? null, r.registeredModelId ?? null])
 
   for (const k of seed.apiKeyUsages ?? [])
     await ins('api_key_usage', ['key_id', 'service_id', 'connections'],
