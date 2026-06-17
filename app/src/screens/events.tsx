@@ -41,6 +41,8 @@ import { EventDetail } from './event-detail'
 //   목록·필터·상세 드로어(open 건 해결 처리 → 세션 store 로컬 반영). 라우트/레지스트리는 등록 완료.
 
 const SEV_FROM_KO: Record<string, Severity> = { 위험: 'critical', 경고: 'warn', 정보: 'info', 복구: 'recovered' }
+// 자원맵 KPI 딥링크(/events?severity=critical) → 심각도 필터 초기값 매핑.
+const KO_FROM_SEV: Record<string, string> = { critical: '위험', warn: '경고', info: '정보', recovered: '복구' }
 const SEV_RANK: Record<Severity, number> = { critical: 0, warn: 1, info: 2, recovered: 3 }
 const EVST_FROM_KO: Record<string, EventStatus> = { 미해결: 'open', 해결: 'resolved' }
 
@@ -96,7 +98,11 @@ export function Events() {
   const detailId = searchParams.get('detail')
 
   const [q, setQ] = useState('')
-  const [sevF, setSevF] = useState('전체')
+  // 심각도 필터 초기값 — ?severity= 딥링크(자원맵 위험 KPI 카드)면 그 값으로, 없으면 '전체'.
+  const [sevF, setSevF] = useState(() => {
+    const sevParam = searchParams.get('severity')
+    return sevParam && KO_FROM_SEV[sevParam] ? KO_FROM_SEV[sevParam] : '전체'
+  })
   const [statusF, setStatusF] = useState('전체')
   const [dateStart, setDateStart] = useState('')
   const [dateEnd, setDateEnd] = useState('')
