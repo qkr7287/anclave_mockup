@@ -1,5 +1,6 @@
-import { Fragment } from 'react'
+import { Fragment, useState } from 'react'
 import type { CSSProperties } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   ResponsiveContainer,
   BarChart,
@@ -419,8 +420,9 @@ function fmtTime(createdAt: string): string {
   return m ? m[0] : createdAt
 }
 
-type AlarmRow = { gpuId?: string | null; serverId?: string | null; severity: string; message: string; createdAt: string }
+type AlarmRow = { id: string; gpuId?: string | null; serverId?: string | null; severity: string; message: string; createdAt: string }
 const toAlarm = (e: AlarmRow) => ({
+  id: e.id,
   sev: SEV[e.severity] ?? SEV.info,
   msg: e.message,
   srv: e.serverId ?? '—',
@@ -429,6 +431,8 @@ const toAlarm = (e: AlarmRow) => ({
 
 function AlarmTable() {
   const { user, isAdmin } = useRole()
+  const navigate = useNavigate()
+  const [hover, setHover] = useState<string | null>(null)
   // 실시간 알림 — DB(/api/events). 관리자=전체(7), 사용자=본인 스코프 확보 위해 넉넉히 받아 클라 필터.
   const { data } = useEvents({ limit: isAdmin ? 7 : 60 })
   // data null(로딩·backend 다운) → 시드 폴백.
@@ -436,6 +440,8 @@ function AlarmTable() {
   // 사용자(B/C)는 본인 소유 자원·서비스 이벤트만(자원맵은 A 전용 → event-store 스코프 재사용).
   const scoped = isAdmin ? rows : filterEventRowsForUser(rows, user.id)
   const alarms = scoped.slice(0, 7).map(toAlarm)
+  // 행 클릭 → 이벤트 상세(이벤트 로그 ?detail=<id> · 자원맵/대시보드와 동일 패턴).
+  const openEvent = (id: string) => navigate(`/events?detail=${id}`)
 
   const th: CSSProperties = { fontSize: 11, fontWeight: 700, color: MUTED, textAlign: 'left', padding: '7px 8px', whiteSpace: 'nowrap', position: 'sticky', top: 0, background: 'var(--th-bg)', borderBottom: '2px solid var(--c-border)' }
   const td: CSSProperties = { fontSize: 12.5, padding: '8px 8px', borderBottom: '1px solid var(--c-border-s)', verticalAlign: 'middle' }
@@ -456,8 +462,15 @@ function AlarmTable() {
               <td colSpan={4} style={{ ...td, color: MUTED, textAlign: 'center', padding: '24px 8px' }}>표시할 알림이 없습니다.</td>
             </tr>
           ) : (
-            alarms.map((a, i) => (
-              <tr key={i}>
+            alarms.map((a) => (
+              <tr
+                key={a.id}
+                onClick={() => openEvent(a.id)}
+                onMouseEnter={() => setHover(a.id)}
+                onMouseLeave={() => setHover((h) => (h === a.id ? null : h))}
+                className="cursor-pointer"
+                style={{ background: hover === a.id ? 'var(--c-soft)' : undefined }}
+              >
                 <td style={td}>
                   <span className="rounded font-bold whitespace-nowrap" style={{ fontSize: 10.5, padding: '2px 7px', color: a.sev.color, background: `color-mix(in srgb, ${a.sev.color} 16%, transparent)` }}>{a.sev.label}</span>
                 </td>
