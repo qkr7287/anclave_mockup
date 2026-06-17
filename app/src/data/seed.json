@@ -12,6 +12,16 @@
       "department": "시스템 관리"
     },
     {
+      "id": "u-jhs",
+      "username": "jhs",
+      "name": "정휘선",
+      "role": "user",
+      "email": "jhs@anclave.local",
+      "hasHosting": true,
+      "initialRoute": "/dashboard",
+      "department": "서비스 기술개발팀"
+    },
+    {
       "id": "u-kgr",
       "username": "kgr",
       "name": "김가람",
@@ -48,16 +58,6 @@
       "role": "user",
       "email": "pjh@anclave.local",
       "hasHosting": false,
-      "initialRoute": "/dashboard",
-      "department": "서비스 기술개발팀"
-    },
-    {
-      "id": "u-jhs",
-      "username": "jhs",
-      "name": "정휘선",
-      "role": "user",
-      "email": "jhs@anclave.local",
-      "hasHosting": true,
       "initialRoute": "/dashboard",
       "department": "서비스 기술개발팀"
     },
@@ -411,7 +411,7 @@
   "fleet": [
     {
       "id": "srv-01",
-      "host": "gpu-a01",
+      "host": "192.168.0.41",
       "cpu": "Intel Xeon 8358P",
       "ramGb": 512,
       "cpuUtil": 38,
@@ -422,19 +422,24 @@
           "model": "NVIDIA RTX PRO 4500 Blackwell",
           "arch": "Blackwell",
           "vramGb": 32,
-          "migCapable": false,
-          "temp": 61,
-          "power": 200,
+          "migCapable": true,
+          "temp": 64,
+          "power": 210,
           "interconnect": "PCIe 5.0",
           "serial": "GPU-A01-1000",
-          "serviceId": "svc-educat",
-          "health": "normal"
+          "serviceId": null,
+          "health": "normal",
+          "instances": [
+            { "profile": "3g.90gb", "gb": 90, "serviceId": "svc-educat", "usage": 34 },
+            { "profile": "3g.90gb", "gb": 90, "serviceId": "svc-imagecat", "usage": 48 },
+            { "profile": "3g.90gb", "gb": 90, "serviceId": "svc-biocat", "usage": 27 }
+          ]
         }
       ]
     },
     {
       "id": "srv-02",
-      "host": "gpu-a02",
+      "host": "192.168.0.47",
       "cpu": "Intel Xeon 8358P",
       "ramGb": 512,
       "cpuUtil": 44,
@@ -450,16 +455,16 @@
           "power": 220,
           "interconnect": "PCIe 5.0",
           "serial": "GPU-A02-1001",
-          "serviceId": "svc-doragi",
-          "smUtil": 58,
-          "vramUtil": 61,
+          "serviceId": "svc-dootory",
+          "smUtil": 51,
+          "vramUtil": 58,
           "health": "normal"
         }
       ]
     },
     {
       "id": "srv-03",
-      "host": "gpu-a03",
+      "host": "192.168.0.214",
       "cpu": "Intel Xeon 8358P",
       "ramGb": 512,
       "cpuUtil": 33,
@@ -475,7 +480,7 @@
           "power": 158,
           "interconnect": "PCIe 4.0",
           "serial": "GPU-A03-1002",
-          "serviceId": "svc-voicecat",
+          "serviceId": "svc-dreamlog",
           "smUtil": 44,
           "vramUtil": 52,
           "health": "normal"
@@ -484,11 +489,11 @@
     },
     {
       "id": "srv-04",
-      "host": "gpu-a04",
+      "host": "192.168.0.130",
       "cpu": "Intel Xeon 8358P",
       "ramGb": 512,
-      "cpuUtil": 62,
-      "memUtil": 70,
+      "cpuUtil": 18,
+      "memUtil": 23,
       "network": "10 Gbps",
       "gpus": [
         {
@@ -496,24 +501,25 @@
           "arch": "Turing",
           "vramGb": 8,
           "migCapable": false,
-          "temp": 78,
-          "power": 205,
+          "temp": 47,
+          "power": 0,
           "interconnect": "PCIe 4.0",
           "serial": "GPU-A04-1003",
-          "serviceId": "svc-biocat",
-          "smUtil": 71,
-          "vramUtil": 68,
-          "health": "normal"
+          "serviceId": null,
+          "smUtil": 0,
+          "vramUtil": 0,
+          "health": "danger",
+          "xid": "XID 48"
         }
       ]
     },
     {
       "id": "srv-05",
-      "host": "gpu-a05",
+      "host": "192.168.0.165",
       "cpu": "Intel Xeon 8358P",
       "ramGb": 512,
-      "cpuUtil": 12,
-      "memUtil": 18,
+      "cpuUtil": 9,
+      "memUtil": 14,
       "network": "1 Gbps",
       "gpus": [
         {
@@ -521,24 +527,24 @@
           "arch": "Turing",
           "vramGb": 6,
           "migCapable": false,
-          "temp": 41,
-          "power": 16,
+          "temp": 38,
+          "power": 14,
           "interconnect": "PCIe 4.0",
           "serial": "GPU-A05-1004",
-          "serviceId": "svc-imagecat",
+          "serviceId": null,
           "smUtil": 0,
           "vramUtil": 0,
-          "health": "normal"
+          "health": "inactive"
         }
       ]
     },
     {
       "id": "srv-06",
-      "host": "gpu-a06",
+      "host": "192.168.0.55",
       "cpu": "Intel Xeon 8358P",
       "ramGb": 512,
-      "cpuUtil": 29,
-      "memUtil": 38,
+      "cpuUtil": 7,
+      "memUtil": 12,
       "network": "10 Gbps",
       "gpus": [
         {
@@ -546,24 +552,24 @@
           "arch": "Ampere",
           "vramGb": 8,
           "migCapable": false,
-          "temp": 61,
-          "power": 162,
+          "temp": 36,
+          "power": 12,
           "interconnect": "PCIe 4.0",
           "serial": "GPU-A06-1005",
-          "serviceId": "svc-dootory",
-          "smUtil": 39,
-          "vramUtil": 47,
-          "health": "normal"
+          "serviceId": null,
+          "smUtil": 0,
+          "vramUtil": 0,
+          "health": "inactive"
         }
       ]
     },
     {
       "id": "srv-07",
-      "host": "gpu-a07",
+      "host": "192.168.0.43",
       "cpu": "Intel Xeon 8358P",
       "ramGb": 512,
-      "cpuUtil": 8,
-      "memUtil": 14,
+      "cpuUtil": 6,
+      "memUtil": 11,
       "network": "1 Gbps",
       "gpus": [
         {
@@ -571,21 +577,20 @@
           "arch": "Pascal",
           "vramGb": 8,
           "migCapable": false,
-          "temp": 88,
-          "power": 0,
+          "temp": 35,
+          "power": 8,
           "interconnect": "PCIe 3.0",
           "serial": "GPU-A07-1006",
           "serviceId": null,
           "smUtil": 0,
           "vramUtil": 0,
-          "health": "danger",
-          "xid": "XID 79"
+          "health": "inactive"
         }
       ]
     },
     {
       "id": "srv-08",
-      "host": "gpu-a08",
+      "host": "192.168.0.63",
       "cpu": "Intel Xeon 8358P",
       "ramGb": 512,
       "cpuUtil": 52,
@@ -598,25 +603,16 @@
           "vramGb": 32,
           "migCapable": true,
           "temp": 62,
-          "power": 200,
+          "power": 205,
           "interconnect": "PCIe 5.0",
           "serial": "GPU-A08-2000",
           "serviceId": null,
-          "health": "inactive"
-        },
-        {
-          "model": "RTX 2070",
-          "arch": "Turing",
-          "vramGb": 8,
-          "migCapable": false,
-          "temp": 66,
-          "power": 176,
-          "interconnect": "PCIe 4.0",
-          "serial": "GPU-A08-2001",
-          "serviceId": "svc-dreamlog",
-          "smUtil": 47,
-          "vramUtil": 51,
-          "health": "normal"
+          "health": "normal",
+          "instances": [
+            { "profile": "2g.45gb", "gb": 45, "serviceId": "svc-doragi", "usage": 56 },
+            { "profile": "2g.45gb", "gb": 45, "serviceId": "svc-voicecat", "usage": 39 },
+            { "profile": "2g.45gb", "gb": 45, "serviceId": null, "usage": 0 }
+          ]
         }
       ]
     }
@@ -644,6 +640,7 @@
       "processedBy": "u-admin",
       "allocatedServerId": "srv-01",
       "allocatedGpuId": "srv-01-gpu0",
+      "allocatedSliceId": "srv-01-gpu0-s1",
       "allocatedRamGb": 12,
       "allocatedStorageGb": 30,
       "allocatedCpuCores": 8,
@@ -669,8 +666,9 @@
       "priority": "normal",
       "processedAt": "2026-05-23 09:40",
       "processedBy": "u-admin",
-      "allocatedServerId": "srv-02",
-      "allocatedGpuId": "srv-02-gpu0",
+      "allocatedServerId": "srv-08",
+      "allocatedGpuId": "srv-08-gpu0",
+      "allocatedSliceId": "srv-08-gpu0-s1",
       "allocatedRamGb": 8,
       "allocatedStorageGb": 15,
       "allocatedCpuCores": 4,
@@ -696,8 +694,9 @@
       "priority": "normal",
       "processedAt": "2026-05-23 09:40",
       "processedBy": "u-admin",
-      "allocatedServerId": "srv-03",
-      "allocatedGpuId": "srv-03-gpu0",
+      "allocatedServerId": "srv-08",
+      "allocatedGpuId": "srv-08-gpu0",
+      "allocatedSliceId": "srv-08-gpu0-s2",
       "allocatedRamGb": 16,
       "allocatedStorageGb": 28,
       "allocatedCpuCores": 6,
@@ -723,8 +722,9 @@
       "priority": "normal",
       "processedAt": "2026-05-23 09:40",
       "processedBy": "u-admin",
-      "allocatedServerId": "srv-04",
-      "allocatedGpuId": "srv-04-gpu0",
+      "allocatedServerId": "srv-01",
+      "allocatedGpuId": "srv-01-gpu0",
+      "allocatedSliceId": "srv-01-gpu0-s3",
       "allocatedRamGb": 18,
       "allocatedStorageGb": 32,
       "allocatedCpuCores": 8,
@@ -750,8 +750,9 @@
       "priority": "normal",
       "processedAt": "2026-05-23 09:40",
       "processedBy": "u-admin",
-      "allocatedServerId": "srv-05",
-      "allocatedGpuId": "srv-05-gpu0",
+      "allocatedServerId": "srv-01",
+      "allocatedGpuId": "srv-01-gpu0",
+      "allocatedSliceId": "srv-01-gpu0-s2",
       "allocatedRamGb": 18,
       "allocatedStorageGb": 32,
       "allocatedCpuCores": 8,
@@ -777,8 +778,8 @@
       "priority": "normal",
       "processedAt": "2026-05-23 09:40",
       "processedBy": "u-admin",
-      "allocatedServerId": "srv-06",
-      "allocatedGpuId": "srv-06-gpu0",
+      "allocatedServerId": "srv-02",
+      "allocatedGpuId": "srv-02-gpu0",
       "allocatedRamGb": 10,
       "allocatedStorageGb": 20,
       "allocatedCpuCores": 6,
@@ -804,8 +805,8 @@
       "priority": "normal",
       "processedAt": "2026-05-23 09:40",
       "processedBy": "u-admin",
-      "allocatedServerId": "srv-08",
-      "allocatedGpuId": "srv-08-gpu1",
+      "allocatedServerId": "srv-03",
+      "allocatedGpuId": "srv-03-gpu0",
       "allocatedRamGb": 12,
       "allocatedStorageGb": 30,
       "allocatedCpuCores": 8,

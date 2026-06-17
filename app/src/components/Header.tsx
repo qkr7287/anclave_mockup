@@ -3,7 +3,6 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import {
   BellIcon,
   CheckIcon,
-  MagnifyingGlassIcon,
   MoonIcon,
   SunIcon,
   PlayIcon,
@@ -105,19 +104,6 @@ export function Header() {
 
       {/* 우: 검색 · 알림 · 테마 · 프로필 */}
       <div className="flex items-center" style={{ gap: 20 }}>
-        <div
-          className="flex items-center gap-2 rounded-md min-w-0"
-          style={{ width: 240, height: 40, padding: '0 12px', background: 'var(--c-soft)', border: '1px solid var(--c-border)' }}
-        >
-          <MagnifyingGlassIcon width={16} height={16} className="shrink-0" style={{ color: 'var(--c-muted)', opacity: 0.5 }} />
-          <input
-            className="bg-transparent outline-none w-full min-w-0 text-text"
-            style={{ fontSize: 14 }}
-            placeholder="서비스 · 모델 검색"
-            aria-label="검색"
-          />
-        </div>
-
         {/* 알림 벨 */}
         <button
           type="button"
