@@ -88,14 +88,52 @@ app.get('/api/events', async (c) => {
   return c.json(rows)
 })
 
-// 이벤트 단건(상세 페이지) — 목록과 동일 id. 상세용 assignee/action/resolution/read 도 함께 반환(EventRow superset).
+// 이벤트 발생 시점 자원 스냅샷(상세 전용·payload 절약). 이벤트 id 시드 → 결정적(새로고침 동일).
+// gpuId 없으면 null. severity/메시지 성격별 현실 범위. power=TDP비율(MIG/데이터센터 600W, 단일 250W).
+function buildEventSnapshot(row) {
+  if (!row.gpuId) return null
+  const rng = seededRng(hashStr(row.id + ':snap'))
+  const pick = (lo, hi) => Math.round(lo + (hi - lo) * rng())
+  const tdp = row.migCapable ? 600 : 250
+  const msg = row.message || ''
+  const sev = row.severity
+  let temp, smUtil, vramUtil, ratio
+  if (sev === 'critical') {                               // XID 하드웨어 행 — 멈춤(저부하)·정상~약간높음
+    temp = pick(60, 75); smUtil = pick(0, 5); vramUtil = pick(55, 85); ratio = 0.12 + rng() * 0.08
+  } else if (sev === 'recovered' || /유휴|회수|정상화|해소/.test(msg)) { // 유휴/회수/복구
+    temp = pick(32, 45); smUtil = pick(0, 5); vramUtil = pick(0, 10); ratio = 0.08 + rng() * 0.07
+  } else if (sev === 'warn' && /온도|°C/.test(msg)) {     // 고온(온도 임계)
+    temp = pick(76, 89); smUtil = pick(70, 95); vramUtil = pick(60, 90); ratio = 0.80 + rng() * 0.20
+  } else if (sev === 'warn') {                            // 부하(사용률/VRAM/토큰/지연/ECC)
+    temp = pick(68, 80); smUtil = pick(88, 99); vramUtil = pick(70, 95); ratio = 0.78 + rng() * 0.17
+  } else {                                                // info(배포/점검 등)
+    temp = pick(45, 62); smUtil = pick(25, 65); vramUtil = pick(50, 85); ratio = 0.40 + rng() * 0.25
+  }
+  const power = Math.round(tdp * ratio)
+  // tempSeries: temp 주변 ±4~6, 끝값 == temp(발생 지점). 고온=상승추세·유휴=하강추세.
+  const len = 24 + Math.floor(rng() * 7)                  // 24~30
+  const amp = 4 + rng() * 2                               // ±4~6
+  const trend = (sev === 'warn' && /온도|°C/.test(msg)) ? 1 : (sev === 'recovered' ? -1 : 0)
+  const series = []
+  for (let i = 0; i < len; i++) {
+    const t = len > 1 ? i / (len - 1) : 1                 // 0..1
+    const drift = trend * (1 - t) * (amp + 2)            // 시작점이 추세만큼 떨어짐/올라감, 발생점=0
+    series.push(Math.round(temp - drift + (rng() * 2 - 1) * amp))
+  }
+  series[series.length - 1] = temp                        // 끝값 == temp
+  return { temp, smUtil, vramUtil, power, tempSeries: series }
+}
+
+// 이벤트 단건(상세 페이지) — 목록과 동일 id. assignee/action/resolution/read + 발생 시점 snapshot.
 app.get('/api/events/:id', async (c) => {
   const { rows } = await pool.query(
-    `select id, severity, status, message, gpu_id "gpuId", server_id "serverId", created_at "createdAt",
-            read, assignee, action, resolution
-       from event_logs where id = $1`, [c.req.param('id')])
+    `select e.id, e.severity, e.status, e.message, e.gpu_id "gpuId", e.server_id "serverId", e.created_at "createdAt",
+            e.read, e.assignee, e.action, e.resolution, g.mig_capable "migCapable"
+       from event_logs e left join gpus g on g.id = e.gpu_id
+      where e.id = $1`, [c.req.param('id')])
   if (!rows.length) return c.json({ error: 'not found' }, 404)
-  return c.json(rows[0])
+  const { migCapable, ...row } = rows[0]
+  return c.json({ ...row, snapshot: buildEventSnapshot({ ...row, migCapable }) })
 })
 
 // 단일 시리즈 — 특정 엔티티의 한 지표 시계열
