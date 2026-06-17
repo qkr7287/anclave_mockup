@@ -20,7 +20,7 @@ import { Badge, Button, EmptyState, SeverityBadge, useToast } from '../component
 import { useRole } from '../lib/role'
 import { gpuById, serverById, userById } from '../data'
 import { fmtPower, fmtTemp, gpuServices, trend } from '../lib/metrics'
-import type { EventLog, EventStatus, Gpu, GpuServer, Severity } from '../data/types'
+import type { EventLog, EventStatus, GpuServer, Severity } from '../data/types'
 import { useMutedFix } from './approvals'
 import {
   eventRowToLog,
@@ -53,12 +53,14 @@ function EventStatusBadge({ status }: { status: EventStatus }) {
   return status === 'open' ? <Badge tone="warn">미해결</Badge> : <Badge tone="ok">해결</Badge>
 }
 
-// 발생 상황 1줄 설명 + 원인 메트릭(임계 대비).
-function describe(event: EventLog, gpu?: Gpu): { lead: string; cause?: { label: string; value: string; note: string; tone: typeof SEV[Severity] } } {
+// 발생 상황 1줄 설명 + 원인 메트릭(임계 대비). 수치는 발생 시점 캡처값(capTemp/capSm).
+// XID는 DB 이벤트 메시지에서 추출(xidCode) — seed gpu.xid 에 의존하지 않음.
+function describe(event: EventLog, capTemp: number, capSm: number, xidCode?: string): { lead: string; cause?: { label: string; value: string; note: string; tone: typeof SEV[Severity] } } {
   const sev = SEV[event.severity]
-  if (gpu?.xid) return { lead: `GPU 하드웨어 장애(${gpu.xid})가 감지되어 점검 모드로 전환됐어요. 드라이버 응답이 없는 상태로 캡처됐습니다.`, cause: { label: '장애 코드', value: gpu.xid, note: 'XID 하드웨어 오류', tone: SEV.critical } }
-  if (gpu && gpu.temp >= 75) return { lead: '발생 시점 GPU 온도가 경고 임계(75°C)를 초과했어요. 과열 직전 상태로 스냅샷이 캡처됐습니다.', cause: { label: '온도', value: fmtTemp(gpu.temp), note: '임계 75°C 초과', tone: sev } }
-  if (event.severity === 'warn') return { lead: '자원 사용률이 높아 모니터링 대상으로 표시됐어요. 발생 시점 상태를 스냅샷으로 남겼습니다.', cause: gpu ? { label: 'SM 사용률', value: `${gpu.smUtil}%`, note: '부하 모니터링', tone: sev } : undefined }
+  if (xidCode) return { lead: `GPU 하드웨어 장애(${xidCode})가 감지되어 점검 모드로 전환됐어요. 드라이버 응답이 없는 상태로 캡처됐습니다.`, cause: { label: '장애 코드', value: xidCode, note: 'XID 하드웨어 오류', tone: SEV.critical } }
+  if (capTemp >= 75) return { lead: '발생 시점 GPU 온도가 경고 임계(75°C)를 초과했어요. 과열 직전 상태로 스냅샷이 캡처됐습니다.', cause: { label: '온도', value: fmtTemp(capTemp), note: '임계 75°C 초과', tone: sev } }
+  if (event.severity === 'warn') return { lead: '자원 사용률이 높아 모니터링 대상으로 표시됐어요. 발생 시점 상태를 스냅샷으로 남겼습니다.', cause: capSm > 0 ? { label: 'SM 사용률', value: `${capSm}%`, note: '부하 모니터링', tone: sev } : undefined }
+  if (event.severity === 'critical') return { lead: '치명 등급 이벤트가 발생한 시점의 시스템 상태를 스냅샷으로 캡처했어요.' }
   if (event.severity === 'recovered') return { lead: '자원이 회수되어 가용 상태로 복구됐어요. 회수 시점 상태를 스냅샷으로 남겼습니다.' }
   return { lead: '배포가 정상 완료된 시점의 상태를 스냅샷으로 캡처했어요.' }
 }
@@ -206,9 +208,29 @@ export function EventDetail({ id: idProp, onBack }: { id?: string; onBack?: () =
   const gpu = event.gpuId ? gpuById(event.gpuId) : undefined
   const server: GpuServer | undefined = srvId ? serverById(srvId) : undefined
   const svc = gpu ? gpuServices(gpu)[0] : undefined
-  const tempHot = gpu ? gpu.temp >= 75 : false
-  const series = gpu ? trend(gpu.temp, 30, 7, 4) : []
-  const { lead, cause } = describe(event, gpu)
+  // 발생 시점 스냅샷 — backend 캡처값(동결값) 우선, 없으면(전환기·시드 폴백) GPU 현재값.
+  const snap = dbEvent?.snapshot
+  const capTemp = snap?.temp ?? gpu?.temp ?? 0
+  const capSm = snap?.smUtil ?? gpu?.smUtil ?? 0
+  const capVram = snap?.vramUtil ?? gpu?.vramUtil ?? 0
+  const capPower = snap?.power ?? gpu?.power ?? 0
+  const tempHot = capTemp >= 75
+  // XID 장애 코드 — DB 이벤트는 메시지에만 담겨오므로(seed gpu.xid 미설정) 메시지에서도 추출.
+  const xidCode = gpu?.xid ?? event.message.match(/XID\s*\d+/i)?.[0]
+  const tdp = gpu ? (gpu.migCapable ? 600 : 250) : 350 // 전력 게이지 기준(대략 TDP)
+  // 발생 직전 추이 — 캡처 시계열 우선, 없으면 캡처 온도로 수렴하는 결정적 추이(끝점=발생값).
+  const series = snap?.tempSeries?.length
+    ? snap.tempSeries
+    : gpu
+      ? trend(capTemp, 30, 7, 4).map((v, i, a) => (i === a.length - 1 ? capTemp : v))
+      : []
+  // 추이 Y 도메인·눈금 — 캡처 온도대에 맞춰 동적(저온 복구·고온 경고 모두 자연스럽게). 5°C 격자.
+  const tLo = series.length ? Math.max(0, Math.floor((Math.min(...series) - 4) / 5) * 5) : 45
+  const tHi = series.length ? Math.ceil((Math.max(...series) + 4) / 5) * 5 : 95
+  const tStep = Math.max(5, Math.round((tHi - tLo) / 4 / 5) * 5)
+  const tTicks: number[] = []
+  for (let t = tLo; t <= tHi; t += tStep) tTicks.push(t)
+  const { lead, cause } = describe(event, capTemp, capSm, xidCode)
 
   const submit = () => {
     if (!action.trim()) {
@@ -320,16 +342,16 @@ export function EventDetail({ id: idProp, onBack }: { id?: string; onBack?: () =
             <div className="flex items-center gap-2 flex-wrap shrink-0">
               <span className={chip} style={chipStyle}><ViewfinderCircleIcon style={{ width: 14, height: 14 }} />발생 시점 동결값</span>
               {svc && <span className={chip} style={chipStyle}><CubeTransparentIcon style={{ width: 14, height: 14 }} />영향 서비스 · {svc.name}</span>}
-              {gpu?.xid && <span className="inline-flex items-center gap-1.5 rounded-[7px] font-mono font-semibold" style={{ fontSize: FS, padding: '4px 10px', background: 'var(--danger-soft)', color: 'var(--c-danger)' }}><ExclamationTriangleIcon style={{ width: 14, height: 14 }} />{gpu.xid}</span>}
+              {xidCode && <span className="inline-flex items-center gap-1.5 rounded-[7px] font-mono font-semibold" style={{ fontSize: FS, padding: '4px 10px', background: 'var(--danger-soft)', color: 'var(--c-danger)' }}><ExclamationTriangleIcon style={{ width: 14, height: 14 }} />{xidCode}</span>}
             </div>
 
             {/* 캡처값 메트릭 — 2×2 컴팩트 */}
             {gpu && (
               <div className="grid shrink-0" style={{ gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                <Metric label="온도" value={fmtTemp(gpu.temp)} ratio={gpu.temp / 100} tone={tempHot ? sev : undefined} Icon={FireIcon} />
-                <Metric label="SM 사용률" value={`${gpu.smUtil}%`} ratio={gpu.smUtil / 100} Icon={BoltIcon} />
-                <Metric label="VRAM" value={`${gpu.vramUtil}%`} ratio={gpu.vramUtil / 100} Icon={Squares2X2Icon} />
-                <Metric label="전력" value={fmtPower(gpu.power)} ratio={gpu.power / 350} Icon={SignalIcon} />
+                <Metric label="온도" value={fmtTemp(capTemp)} ratio={capTemp / 100} tone={tempHot ? sev : undefined} Icon={FireIcon} />
+                <Metric label="SM 사용률" value={`${capSm}%`} ratio={capSm / 100} Icon={BoltIcon} />
+                <Metric label="VRAM" value={`${capVram}%`} ratio={capVram / 100} Icon={Squares2X2Icon} />
+                <Metric label="전력" value={fmtPower(capPower)} ratio={capPower / tdp} Icon={SignalIcon} />
               </div>
             )}
             {!gpu && server && (
@@ -347,11 +369,11 @@ export function EventDetail({ id: idProp, onBack }: { id?: string; onBack?: () =
                   <span className="font-mono" style={{ fontSize: FS, color: tempHot ? sev.color : 'var(--c-muted)' }}>임계 75°C{tempHot ? ' 초과' : ''}</span>
                 </div>
                 <div className="flex-1 min-h-0 rounded-[10px] border border-line overflow-hidden" style={{ minHeight: 150, background: 'var(--c-card)', padding: '8px 10px 6px 6px' }}>
-                  <CaptureTrend data={series} color={tempHot ? sev.color : 'var(--c-accent)'} threshold={75} domain={[45, 95]} ticks={[55, 65, 75, 85, 95]} />
+                  <CaptureTrend data={series} color={tempHot ? sev.color : 'var(--c-accent)'} threshold={75 >= tLo && 75 <= tHi ? 75 : undefined} domain={[tLo, tHi]} ticks={tTicks} />
                 </div>
                 <div className="flex items-center justify-between font-mono shrink-0" style={{ fontSize: FS, color: 'var(--c-muted)', paddingLeft: 38 }}>
                   <span>-22h 전</span>
-                  <span style={{ color: sev.color, fontWeight: 700 }}>● 발생 {fmtTemp(gpu.temp)}</span>
+                  <span style={{ color: sev.color, fontWeight: 700 }}>● 발생 {fmtTemp(capTemp)}</span>
                 </div>
               </div>
             )}

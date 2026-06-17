@@ -110,12 +110,22 @@ export function filterEventRowsForUser<
 
 // ── DB 배선(읽기) — 목록은 useEvents(이미 존재), 상세는 useEvent. 둘 다 화면은 EventLog 형태로 소비. ──
 
-// 이벤트 단건(상세) — backend /api/events/:id. 목록 EventRow + 처리 필드(superset) · 없으면 404.
+// 발생 시점 스냅샷 — backend가 이벤트 발생 순간 캡처한 자원 수치(동결값). 자원 없는 이벤트면 null.
+export interface EventSnapshot {
+  temp: number | null // °C
+  smUtil: number | null // %
+  vramUtil: number | null // %
+  power: number | null // W
+  tempSeries?: number[] // 발생 직전 온도 추이(최근→발생, 끝값=temp)
+}
+
+// 이벤트 단건(상세) — backend /api/events/:id. 목록 EventRow + 처리 필드 + 스냅샷(superset) · 없으면 404.
 export interface EventDetailRow extends EventRow {
   read?: boolean
   assignee?: string
   action?: string
   resolution?: string
+  snapshot?: EventSnapshot | null
 }
 
 export function useEvent(id: string | null, intervalMs = 10000): PollState<EventDetailRow> {
