@@ -296,7 +296,7 @@ function SliceStatus({ allGpus }: { allGpus: Gpu[] }) {
       const sl = g.slices.map((s) => ({ gb: s.gb, state: sliceState(s) }))
       return { gpu: g, type: 'MIG' as const, slices: sl, boxes: sl.map((x) => x.state) }
     }
-    return { gpu: g, type: '단일' as const, slices: null, boxes: [g.assignedServiceId ? ('used' as BoxState) : ('free' as BoxState)] }
+    return { gpu: g, type: '단일' as const, slices: null, boxes: [(g.assignedServiceId || g.assignedUserId) ? ('used' as BoxState) : ('free' as BoxState)] }
   })
   const allBoxes = items.flatMap((it) => it.boxes)
   const total = allBoxes.length
@@ -562,8 +562,10 @@ function gpuAllocBoxes(g: Gpu): { boxes: { state: BoxState; tip: string }[]; wid
     })
     return { boxes, wide: false }
   }
-  const used = !!g.assignedServiceId
-  return { boxes: [{ state: used ? 'used' : 'free', tip: `${g.model} 단일 · ${used ? (gpuServices(g)[0]?.name ?? '할당됨') : '할당 가능(가용)'}` }], wide: true }
+  const used = !!g.assignedServiceId || !!g.assignedUserId
+  // 승인만 된(서비스 미생성) cluster 할당은 service가 없으므로 사용자명으로 보강
+  const usedName = gpuServices(g)[0]?.name ?? userById(g.assignedUserId ?? '')?.name ?? '할당됨'
+  return { boxes: [{ state: used ? 'used' : 'free', tip: `${g.model} 단일 · ${used ? usedName : '할당 가능(가용)'}` }], wide: true }
 }
 
 // 서버 = 폴더, 안에 GPU별 할당 가능 공간을 박스로. GPU 여러 장이면 GPU별로 묶어 표시.
