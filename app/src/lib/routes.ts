@@ -86,10 +86,10 @@ export const ROUTES: RouteDef[] = [
   { key: 'audit', path: '/admin/audit', screen: '4.24', title: '감사 로그', access: ['A'], group: 7, icon: 'shield' },
   { key: 'access', path: '/admin/access', screen: '4.25', title: '접근통제 · 권한', access: ['A'], group: 7, icon: 'lock' },
 
-  // ⑧ 시스템 설정 (A 전용)
-  { key: 'caps', path: '/admin/settings/capabilities', screen: '4.26', title: '능력 탐지 · 기능 플래그', access: ['A'], group: 8, menu: ['A'], icon: 'adjust' },
-  { key: 'users', path: '/admin/settings/users', screen: '4.27', title: '사용자 · 역할 관리', access: ['A'], group: 8, menu: ['A'], icon: 'users' },
-  { key: 'infra', path: '/admin/settings/infra', screen: '4.28', title: '인프라 연동', access: ['A'], group: 8, menu: ['A'], icon: 'link' },
+  // ⑧ 시스템 설정 (A 전용) — 사이드바 메뉴 숨김(menu 제거). 라우트는 유지.
+  { key: 'caps', path: '/admin/settings/capabilities', screen: '4.26', title: '능력 탐지 · 기능 플래그', access: ['A'], group: 8, icon: 'adjust' },
+  { key: 'users', path: '/admin/settings/users', screen: '4.27', title: '사용자 · 역할 관리', access: ['A'], group: 8, icon: 'users' },
+  { key: 'infra', path: '/admin/settings/infra', screen: '4.28', title: '인프라 연동', access: ['A'], group: 8, icon: 'link' },
 ]
 
 // 사이드바: 역할(access)에 맞는 메뉴만, IA 8 그룹으로.
