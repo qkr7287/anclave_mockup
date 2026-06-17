@@ -662,7 +662,7 @@ function ImageLightbox({ images, index, onIndex, onClose }: { images: string[]; 
   )
 }
 
-function ServiceDetailCard({ service: s, narrow, reserveClose }: { service: Service; narrow: boolean; reserveClose?: boolean }) {
+function ServiceDetailCard({ service: s, narrow, reserveClose, keyCount }: { service: Service; narrow: boolean; reserveClose?: boolean; keyCount?: number }) {
   const p = usePalette()
   const navigate = useNavigate()
   const [lightbox, setLightbox] = useState<number | null>(null)
@@ -730,7 +730,7 @@ function ServiceDetailCard({ service: s, narrow, reserveClose }: { service: Serv
       <div className="grid" style={{ gap: 12, gridTemplateColumns: narrow ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)' }}>
         <StatCard icon={ClockIcon} label="평균 응답 시간" value={s.responseTime} />
         <StatCard icon={CodeBracketIcon} label="호출 방식" value={apiAvailable ? s.api : '콘솔'} />
-        <StatCard icon={StarIcon} label="모델 등급" value={s.tier} />
+        <StatCard icon={KeyIcon} label="활성 API 키" value={keyCount != null ? `${keyCount}개` : '—'} />
         <StatCard icon={ChartBarIcon} label="월 요청수" value={s.monthlyReq} />
       </div>
 
@@ -1076,7 +1076,7 @@ export function ServiceDetail() {
         <div className="grid min-w-0" style={{ gap: 14, flex: fill ? '1 1 0%' : undefined, minHeight: 0, gridTemplateColumns: narrow ? '1fr' : 'minmax(0, 1.25fr) minmax(0, 1fr)' }}>
           {/* 좌 — 서비스 상세(콘텐츠 많을 때 컬럼 내부에서만 스크롤) */}
           <div className="rounded-2xl min-w-0 min-h-0" style={{ ...panel, overflowY: fill ? 'auto' : 'visible', padding: narrow ? 20 : 24 }}>
-            <ServiceDetailCard service={service} narrow={narrow} />
+            <ServiceDetailCard service={service} narrow={narrow} keyCount={insight.keyCount} />
           </div>
           {/* 우 — 랭킹 요약(위) + 사용량 추이(아래) */}
           <div className="flex flex-col min-w-0 min-h-0" style={{ gap: 14, overflowY: fill ? 'auto' : 'visible' }}>
