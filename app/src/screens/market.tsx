@@ -899,7 +899,12 @@ const compactNum = (n: number) => (n >= 1e9 ? `${(n / 1e9).toFixed(2)}B` : n >= 
 const consumerColor = (i: number) => `hsl(${(214 + i * 40) % 360}, 64%, 57%)`
 // 키 발급일(목업) — keyId 기반 deterministic. 실제 승인일은 backend 필드 추가 시 교체.
 const hashKey = (s: string) => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) } return h >>> 0 }
-const issuedDate = (keyId: string) => { const h = hashKey(keyId); const m = 1 + (h % 5); const d = 1 + ((h >>> 8) % 28); return `2024.${String(m).padStart(2, '0')}.${String(d).padStart(2, '0')}` }
+const issuedDate = (keyId: string) => {
+  const h = hashKey(keyId)
+  const ym = (2026 * 12 + 5) - (h % 12) // 최근 12개월(2025.07~2026.06) 분산, 0-indexed month
+  const d = 1 + ((h >>> 8) % 28)
+  return `${Math.floor(ym / 12)}.${String((ym % 12) + 1).padStart(2, '0')}.${String(d).padStart(2, '0')}`
+}
 
 interface RankRow { name: string; keyId: string; tag: string; serviceName?: string; team: string; teamHue: number; requests: number; reqPct: number; tokens: number; tokenPct: number; deltaPct: number; up: boolean; spark: number[]; color: string; issuedAt: string }
 interface DayStack { label: string; perUser: number[]; total: number; concurrent: number }
@@ -1034,7 +1039,7 @@ function UsageTrendChart({ insight }: { insight: UsageInsight }) {
       <div className="flex flex-wrap items-center shrink-0" style={{ gap: '6px 14px', marginTop: 14 }}>
         {rows.map((r) => (
           <span key={r.keyId} className="flex items-center" style={{ gap: 5, fontSize: 14, color: p.muted }}>
-            <span className="rounded-sm" style={{ width: 10, height: 10, background: r.color }} /> {r.name}
+            <span className="rounded-sm" style={{ width: 10, height: 10, background: r.color }} /> {r.serviceName ?? r.name}
           </span>
         ))}
         <span className="flex items-center" style={{ gap: 5, fontSize: 14, color: p.muted }}>
