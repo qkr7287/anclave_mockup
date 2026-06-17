@@ -408,19 +408,29 @@ const KPI_TONE: Record<KpiTone, { fg: string; bg: string }> = {
   danger: { fg: 'var(--c-danger)', bg: 'var(--danger-soft)' },
   neutral: { fg: 'var(--c-accent)', bg: 'var(--accent-soft)' },
 }
-function ServerKpi({ title, value, unit, link, delta, deltaTone, icon }: {
-  title: string; value: ReactNode; unit: string; link: string; delta?: string; deltaTone: KpiTone; icon: ReactNode
+function ServerKpi({ title, value, unit, link, delta, deltaTone, icon, to }: {
+  title: string; value: ReactNode; unit: string; link: string; delta?: string; deltaTone: KpiTone; icon: ReactNode; to?: string
 }) {
+  const navigate = useNavigate()
   const t = KPI_TONE[deltaTone]
+  const go = to ? () => navigate(to) : undefined
   return (
-    <div className="bg-card2 border border-line rounded-xl flex justify-between min-w-0 hover-lift" style={{ padding: '16px 20px', boxShadow: 'var(--shadow-card)' }}>
+    <div
+      role={go ? 'button' : undefined}
+      tabIndex={go ? 0 : undefined}
+      onClick={go}
+      onKeyDown={go ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go() } } : undefined}
+      className={`bg-card2 border border-line rounded-xl flex justify-between min-w-0 hover-lift${go ? ' cursor-pointer' : ''}`}
+      style={{ padding: '16px 20px', boxShadow: 'var(--shadow-card)' }}>
       <div className="flex flex-col min-w-0" style={{ gap: 12 }}>
         <span className="text-muted font-semibold truncate" style={{ fontSize: 16 }}>{title}</span>
         <div className="flex items-baseline" style={{ gap: 6 }}>
           <span className="font-bold" style={{ fontSize: 30, lineHeight: 1, letterSpacing: '-0.3px' }}>{value}</span>
           <span className="text-muted" style={{ fontSize: 15 }}>{unit}</span>
         </div>
-        <span className="text-muted truncate" style={{ fontSize: 14, textDecoration: 'underline' }}>{link}</span>
+        {go
+          ? <span className="inline-flex items-center gap-1 font-semibold truncate" style={{ fontSize: 14, color: t.fg }}>{link}<span aria-hidden style={{ fontSize: 13 }}>→</span></span>
+          : <span className="text-muted truncate" style={{ fontSize: 14, textDecoration: 'underline' }}>{link}</span>}
       </div>
       <div className="flex flex-col items-end justify-between shrink-0">
         {delta ? <span className="font-semibold" style={{ fontSize: 14, color: t.fg }}>{delta}</span> : <span aria-hidden />}
@@ -725,7 +735,7 @@ export function ResourceMap() {
             <ServerKpi title="총 서버 수" value={servers.length} unit="대" link="서버 관리 전체보기" deltaTone="neutral" icon={<ServerIcon width={22} height={22} />} />
             <ServerKpi title="가동 GPU" value={activeGpus} unit={`/ ${allGpus.length}`} link="가동 GPU 전체보기" delta={downGpus > 0 ? `${downGpus} 비가동` : '전체 가동'} deltaTone={downGpus > 0 ? 'danger' : 'ok'} icon={<CpuChipIcon width={22} height={22} />} />
             <ServerKpi title="평균 사용률" value={avgUtil} unit="%" link="평균 사용률 추이" delta={avgUtil >= 85 ? '높음' : avgUtil >= 70 ? '주의' : '적정'} deltaTone={avgUtil >= 85 ? 'danger' : avgUtil >= 70 ? 'warn' : 'ok'} icon={<ChartBarSquareIcon width={22} height={22} />} />
-            <ServerKpi title="위험 이벤트" value={critEvents} unit="건" link="위험 이벤트 전체보기" delta={critEvents > 0 ? '확인 필요' : '없음'} deltaTone={critEvents > 0 ? 'danger' : 'ok'} icon={<ExclamationTriangleIcon width={22} height={22} />} />
+            <ServerKpi title="위험 이벤트" value={critEvents} unit="건" link="위험 이벤트 전체보기" delta={critEvents > 0 ? '확인 필요' : '없음'} deltaTone={critEvents > 0 ? 'danger' : 'ok'} icon={<ExclamationTriangleIcon width={22} height={22} />} to="/events?severity=critical" />
           </>
         }
       >
