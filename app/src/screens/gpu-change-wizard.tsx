@@ -536,8 +536,8 @@ function Wizard({ mode, id, initialType, before: initBefore, initAfter, reviewRe
       </div>
       <div>
         <div className="font-semibold text-text" style={{ fontSize: 14, marginBottom: 8 }}>요청 유형</div>
-        <div className="grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-          {(['change', 'expand', 'reclaim'] as ChangeType[]).map((t) => {
+        <div className="grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+          {(['change', 'reclaim'] as ChangeType[]).map((t) => {
             const on = type === t
             return (
               <button key={t} type="button" onClick={() => setType(t)} className="rounded-[10px] border text-center transition" style={{ padding: '12px 8px', background: on ? 'var(--accent-soft)' : 'var(--c-card)', borderColor: on ? 'var(--c-accent)' : 'var(--c-border)', boxShadow: on ? '0 0 0 1px var(--c-accent)' : 'none' }}>
@@ -634,7 +634,9 @@ function Wizard({ mode, id, initialType, before: initBefore, initAfter, reviewRe
           <section className="bg-card2 border border-line rounded-xl flex flex-col h-full min-h-0 overflow-hidden" style={{ boxShadow: 'var(--shadow-card)' }}>
             <div className="flex-1 min-h-0 overflow-auto" style={{ padding: '16px 18px' }}>{leftContent}</div>
             <div className="flex items-center justify-between shrink-0 border-t border-line" style={{ padding: '14px 18px' }}>
-              <Button variant="ghost" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0}>이전</Button>
+              {step === 0
+                ? <Button variant="ghost" onClick={goList}>목록</Button>
+                : <Button variant="ghost" onClick={() => setStep((s) => Math.max(0, s - 1))}>이전</Button>}
               <Button onClick={() => setStep((s) => Math.min(lastStep, s + 1))} disabled={!canNext}>{step === lastStep - 1 ? '검토' : '다음'}</Button>
             </div>
           </section>
