@@ -109,7 +109,7 @@ export function RequestSpec({ item }: { item: RequestItem }) {
             <Row label="사용 기간" value={item.period} />
             <Row label="희망 시작일" value={item.startDate} />
             <Row label="우선순위" value={PRIORITY_KR[item.priority ?? 'normal']} />
-            <Row label="보안 등급" value={item.security} />
+            <Row label="공개 여부" value={item.security} />
             <Row label="예상 규모" value={item.scale} />
             <Row label="파일 첨부" value={fileName} last />
           </div>
