@@ -322,7 +322,7 @@ app.post('/api/gpu-requests', async (c) => {
 
 // 카탈로그용 전체 모델 — 자원요건(req_*) 포함. 4.10a 자원 제한 추천 기준.
 // models projection (snake→camel) — GET 카탈로그 / POST 배포 등록 공유.
-const MODEL_COLS = `id, name, kind, description, addons, license, recommended_gpu "recommendedGpu",
+const MODEL_COLS = `id, name, kind, description, usage_guide "usageGuide", addons, license, recommended_gpu "recommendedGpu",
   params, usage_rank "usageRank", usage_count "usageCount",
   req_vram_gb "reqVramGb", req_ram_gb "reqRamGb", req_storage_gb "reqStorageGb", req_cpu_cores "reqCpuCores"`
 
@@ -339,11 +339,11 @@ app.post('/api/models', async (c) => {
   const id = b.id || `lm-${Date.now().toString(36)}`
   const rank = (await pool.query(`select coalesce(max(usage_rank), 0) + 1 n from models`)).rows[0].n
   const { rows } = await pool.query(
-    `insert into models(id, name, kind, description, addons, license, recommended_gpu, params,
+    `insert into models(id, name, kind, description, usage_guide, addons, license, recommended_gpu, params,
         usage_rank, usage_count, req_vram_gb, req_ram_gb, req_storage_gb, req_cpu_cores)
-     values($1,$2,$3,$4,$5,$6,$7,$8,$9,0,$10,$11,$12,$13)
+     values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,0,$11,$12,$13,$14)
      returning ${MODEL_COLS}`,
-    [id, b.name, b.kind ?? null, b.description ?? null, b.addons ?? [], b.license ?? null,
+    [id, b.name, b.kind ?? null, b.description ?? null, b.usageGuide ?? null, b.addons ?? [], b.license ?? null,
       b.recommendedGpu ?? null, b.params ?? null, rank,
       b.reqVramGb ?? null, b.reqRamGb ?? null, b.reqStorageGb ?? null, b.reqCpuCores ?? null])
   return c.json(rows[0], 201)
@@ -351,7 +351,7 @@ app.post('/api/models', async (c) => {
 
 // model_requests projection (snake→camel) — GET 목록 / POST / PATCH 공유.
 const MR_COLS = `id, requester_user_id "requesterUserId", model_name "modelName", kind, source, reason,
-  description, license, addons,
+  description, license, addons, usage_guide "usageGuide",
   status, stage, created_at "createdAt", reject_reason "rejectReason",
   processed_at "processedAt", processed_by "processedBy",
   file_name "fileName", format, scan, checksum, registered_model_id "registeredModelId"`
@@ -407,9 +407,10 @@ app.patch('/api/model-requests/:id', async (c) => {
       `update models set
          description = coalesce($2, description),
          license     = coalesce($3, license),
-         addons      = case when coalesce(array_length($4::text[], 1), 0) > 0 then $4::text[] else addons end
+         addons      = case when coalesce(array_length($4::text[], 1), 0) > 0 then $4::text[] else addons end,
+         usage_guide = coalesce($5, usage_guide)
        where id = $1`,
-      [b.registeredModelId, r.description ?? null, r.license ?? null, r.addons ?? []])
+      [b.registeredModelId, r.description ?? null, r.license ?? null, r.addons ?? [], r.usageGuide ?? null])
   }
   return c.json(rows[0])
 })
@@ -430,11 +431,11 @@ app.post('/api/model-requests', async (c) => {
   const id = `mr-${Date.now().toString(36)}`
   const { rows } = await pool.query(
     `insert into model_requests(id, requester_user_id, model_name, kind, source, reason,
-        description, license, addons, status, stage)
-     values($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending', 'requested')
+        description, license, addons, usage_guide, status, stage)
+     values($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending', 'requested')
      returning ${MR_COLS}`,
     [id, b.requesterUserId, b.modelName, b.kind ?? null, b.source ?? null, b.reason,
-      b.description ?? null, b.license ?? null, b.addons ?? []])
+      b.description ?? null, b.license ?? null, b.addons ?? [], b.usageGuide ?? null])
   return c.json(rows[0], 201)
 })
 

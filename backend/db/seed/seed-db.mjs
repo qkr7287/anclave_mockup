@@ -14,6 +14,11 @@ try {
   const market = JSON.parse(readFileSync(resolve(here, '../../../app/scripts/market-services.seed.json'), 'utf-8'))
   seed.marketServices = market.marketServices
 } catch { /* 파일 없으면 0건(seed.marketServices ?? []) */ }
+// 모델 소개·사용법 정본(app/scripts/model-content.json) 주입 — description/usageGuide 덮어씀.
+let modelContent = {}
+try {
+  modelContent = JSON.parse(readFileSync(resolve(here, '../../../app/scripts/model-content.json'), 'utf-8'))
+} catch { /* 없으면 seed.json 값 유지 */ }
 
 const client = new pg.Client({ connectionString: process.env.DATABASE_URL })
 
@@ -40,11 +45,13 @@ async function main() {
       ['id', 'username', 'name', 'role', 'email', 'has_hosting', 'initial_route', 'department'],
       [u.id, u.username, u.name, u.role, u.email, !!u.hasHosting, u.initialRoute, u.department ?? null])
 
-  // --- models (자원요건 req_* 포함 — 프론트 Model 싱크) ---
-  for (const m of seed.models)
+  // --- models (자원요건 req_* 포함 — 프론트 Model 싱크) · description/usageGuide 는 model-content.json 우선 ---
+  for (const m of seed.models) {
+    const mc = modelContent[m.id] ?? {}
     await ins('models',
-      ['id', 'name', 'kind', 'description', 'addons', 'license', 'recommended_gpu', 'params', 'usage_rank', 'usage_count', 'req_vram_gb', 'req_ram_gb', 'req_storage_gb', 'req_cpu_cores'],
-      [m.id, m.name, m.kind, m.description ?? null, m.addons ?? [], m.license ?? null, m.recommendedGpu ?? null, m.params ?? null, m.usageRank ?? null, m.usageCount ?? 0, m.reqVramGb ?? null, m.reqRamGb ?? null, m.reqStorageGb ?? null, m.reqCpuCores ?? null])
+      ['id', 'name', 'kind', 'description', 'usage_guide', 'addons', 'license', 'recommended_gpu', 'params', 'usage_rank', 'usage_count', 'req_vram_gb', 'req_ram_gb', 'req_storage_gb', 'req_cpu_cores'],
+      [m.id, m.name, m.kind, mc.description ?? m.description ?? null, mc.usageGuide ?? m.usageGuide ?? null, m.addons ?? [], m.license ?? null, m.recommendedGpu ?? null, m.params ?? null, m.usageRank ?? null, m.usageCount ?? 0, m.reqVramGb ?? null, m.reqRamGb ?? null, m.reqStorageGb ?? null, m.reqCpuCores ?? null])
+  }
 
   // --- services (listed=true: 기존 7개는 이미 게시된 상태) ---
   for (const s of seed.services)
