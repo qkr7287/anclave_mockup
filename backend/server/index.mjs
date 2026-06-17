@@ -610,6 +610,15 @@ app.get('/api/services', async (c) => {
   return c.json(rows)
 })
 
+// 사용자 표시명 lookup(전 화면 id→이름 매핑 SoT) — 프론트 seed userById 대체. 4.3/4.10 등 공용.
+app.get('/api/users', async (c) => {
+  const { rows } = await pool.query(
+    `select id, username, name, role, email, has_hosting "hasHosting",
+            initial_route "initialRoute", department
+       from users order by id`)
+  return c.json(rows)
+})
+
 // 내 할당 — user 의 게시된 서비스 + 각 서비스가 올라간 gpu/server. 4.5 내 할당 자원.
 app.get('/api/allocations', async (c) => {
   const { user } = c.req.query()
