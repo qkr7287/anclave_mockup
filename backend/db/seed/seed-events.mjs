@@ -76,12 +76,19 @@ async function main() {
   const svcByGpu = (gpuId) => alloc.filter((s) => s.gpu_id === gpuId)
   const mName = (s) => models[s.model_id] ?? '모델'
 
-  // 1) GPU 상태 — XID 장애(critical, 기존 유지) · 고온 · 유휴
-  for (const g of gpus) {
+  // 1) GPU 하드웨어 상태 — XID 장애 · 고온 · 전력 · 유휴 · 팬/ECC/드라이버(다양화)
+  // ⚠ g.xid 필드값이 이미 "XID 48" 형태 → 별도 'XID ' 접두사 붙이지 않음(중복 방지).
+  const HW_EXTRA = ['팬 속도 정상(2400rpm)', 'ECC 정정 가능 오류 0건 — 정상', '드라이버 점검 완료(정상)']
+  gpus.forEach((g, gi) => {
     if (g.xid) {
       add('critical', 'open', g.id, g.server_id,
-        `XID ${g.xid} — ${g.model} 응답 없음(드라이버 hang). 점검 모드 전환`, jit(14),
+        `${g.xid} — ${g.model} 응답 없음(드라이버 hang). 점검 모드 전환`, jit(14),
         { assignee: 'u-admin', action: '드라이버 재로드 점검' })
+      // 장애 노드 하드웨어 이벤트 보강(2~4건) — 선행 ECC 경고 + 워크로드 격리
+      add('warn', 'open', g.id, g.server_id, `${g.model} ECC 정정 불가 오류 감지 — 장애 선행 징후`, jit(48),
+        { assignee: 'u-admin', action: '메모리 진단(dcgmi) 실행' })
+      add('info', 'resolved', g.id, g.server_id, `${g.model} 워크로드 격리 — 점검 모드 전환 완료`, jit(11),
+        { resolution: '신규 할당 차단 · 격리' })
     }
     const temp = gpuTemp(g.id)
     if (temp > 75) {
@@ -98,9 +105,15 @@ async function main() {
       add('info', 'resolved', g.id, g.server_id, `${g.model} 전력 ${gpuPower(g.id)}W — 고부하 구간`, jit(40))
     }
     if (g.health === 'inactive') {
-      add('info', 'resolved', g.id, g.server_id, `${g.model} 유휴 노드 — 미할당(가용)`, jit(110))
+      // 빈 서버(srv-06/07 등)도 2건: 유휴 + 직전 할당 회수 복구
+      add('info', 'resolved', g.id, g.server_id, `${g.model} 유휴 노드 — 미할당(가용)`, jit(110 + gi * 6))
+      add('recovered', 'resolved', g.id, g.server_id, `${g.model} 직전 할당 회수 완료 — 노드 가용`, jit(150 + gi * 6),
+        { resolution: '자원 회수 · 풀 반환' })
+    } else if (!g.xid) {
+      // 가동 GPU 하드웨어 정상 점검(팬/ECC/드라이버) — 자원맵 4.4 최근활동 다양화
+      add('info', 'resolved', g.id, g.server_id, `${g.model} ${HW_EXTRA[gi % HW_EXTRA.length]}`, jit(120 + gi * 7))
     }
-  }
+  })
 
   // 2) 서비스 배포/운영 — 할당 GPU/서버에 귀속. 모든 할당 GPU에 분포.
   alloc.forEach((s, i) => {

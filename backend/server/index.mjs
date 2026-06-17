@@ -88,6 +88,16 @@ app.get('/api/events', async (c) => {
   return c.json(rows)
 })
 
+// 이벤트 단건(상세 페이지) — 목록과 동일 id. 상세용 assignee/action/resolution/read 도 함께 반환(EventRow superset).
+app.get('/api/events/:id', async (c) => {
+  const { rows } = await pool.query(
+    `select id, severity, status, message, gpu_id "gpuId", server_id "serverId", created_at "createdAt",
+            read, assignee, action, resolution
+       from event_logs where id = $1`, [c.req.param('id')])
+  if (!rows.length) return c.json({ error: 'not found' }, 404)
+  return c.json(rows[0])
+})
+
 // 단일 시리즈 — 특정 엔티티의 한 지표 시계열
 app.get('/api/telemetry', async (c) => {
   const { kind, id, metric, range = '1h' } = c.req.query()
