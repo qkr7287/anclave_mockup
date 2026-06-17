@@ -100,7 +100,7 @@ async function main() {
         const s = svcById(inst.serviceId)
         await ins('mig_slices',
           ['id', 'gpu_id', 'profile', 'units', 'gb', 'owner_user_id', 'model_id', 'container_id', 'health', 'request_id', 'status'],
-          [`${gpuId}-s${i + 1}`, gpuId, inst.profile, 1, inst.gb, s?.ownerUserId ?? null, s?.model ?? null,
+          [`${gpuId}-s${i + 1}`, gpuId, inst.profile, parseInt(inst.profile, 10) || 1, inst.gb, s?.ownerUserId ?? null, s?.model ?? null,
             s ? `cont-${s.id.slice(4)}-01` : null,
             !s ? 'inactive' : inst.usage >= 80 ? 'warn' : 'normal',
             s ? (reqByService(s.name) ?? null) : null, 'active'])

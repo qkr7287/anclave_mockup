@@ -390,6 +390,60 @@
       ],
       "ownerUserId": "u-jhs",
       "serviceId": "svc-imagecat"
+    },
+    {
+      "id": "moa",
+      "name": "그룹웨어 모아",
+      "kind": "사내 업무 도우미",
+      "provider": "서비스 기술개발팀",
+      "model": "Qwen2.5 7B",
+      "api": "REST API",
+      "owner": "이은혜",
+      "rating": 4.4,
+      "status": "정상",
+      "hue": 100,
+      "icon": "Squares2X2Icon",
+      "responseTime": "1.4s",
+      "tier": "Standard",
+      "monthlyReq": "8.2K",
+      "usage": "8.2K",
+      "usageNum": 8200,
+      "delta": "▲ 5%",
+      "up": true,
+      "reqFull": "8,180건",
+      "success": "99.00%",
+      "deltaPct": "+5.0%",
+      "lastCall": "3분 전",
+      "tags": [
+        "그룹웨어",
+        "업무비서",
+        "검색"
+      ],
+      "desc": "사내 그룹웨어의 공지·일정·문서를 한곳에 모아 요약·검색해주는 업무 비서.",
+      "overview": "그룹웨어 모아는 사내 그룹웨어에 흩어진 공지·일정·문서·메일을 한곳에 모아 AI가 요약하고 자연어로 검색·응답해주는 업무 비서입니다. 구성원이 필요한 정보를 빠르게 찾고 일정을 정리하도록 도와 업무 생산성을 높이는 것을 목표로 합니다.",
+      "apiDesc": "REST 엔드포인트로 문서 색인·자연어 질의·요약을 제공합니다. 권한 기반으로 검색 범위를 제어합니다.",
+      "features": [
+        "공지·일정·문서 통합 모아보기",
+        "자연어 검색·요약",
+        "일정 브리핑",
+        "권한 기반 접근",
+        "대화형 질의"
+      ],
+      "opsNotes": [
+        "사내 그룹웨어 연동 후 색인합니다.",
+        "권한 기반으로 검색 범위가 제한됩니다.",
+        "요약 결과는 원문 출처를 함께 제공합니다."
+      ],
+      "serviceUrl": "",
+      "demoUrl": "",
+      "thumbnail": "/services/moa/thumb.webp",
+      "screenshots": [
+        "/services/moa/01.webp",
+        "/services/moa/02.webp",
+        "/services/moa/03.webp"
+      ],
+      "ownerUserId": "u-leh",
+      "serviceId": "svc-moa"
     }
   ]
 }
