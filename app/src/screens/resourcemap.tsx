@@ -8,7 +8,6 @@ import {
   Badge,
   HealthBadge,
   Drawer,
-  FloatingButtons,
   CriticalAlert,
   Picker,
 } from '../components/ui'
@@ -25,8 +24,6 @@ import {
   serverAvgUtil,
   gpuServices,
   serviceOfSlice,
-  serverEvents,
-  gpuEvents,
   vramUsedMb,
   vramTotalMb,
   fmtNum,
@@ -451,7 +448,7 @@ function ServiceEmptySlot({ none }: { none: boolean }) {
 function GpuServicePanel({ gpu }: { gpu: Gpu }) {
   const svcs = gpuServices(gpu)
   if (svcs.length === 0) return (
-    <div className="flex flex-col h-full min-w-0" style={{ paddingBottom: 44 }}><ServiceEmptySlot none /></div>
+    <div className="flex flex-col h-full min-w-0"><ServiceEmptySlot none /></div>
   )
   const ranked = [...svcs].sort((a, b) => b.usageCount - a.usageCount)
   // 카드 1개면 콘텐츠 높이+빗금 여유슬롯, 2개+면 flex로 패널을 균등히 꽉 채움(아래 빈 공간 X)
@@ -462,8 +459,7 @@ function GpuServicePanel({ gpu }: { gpu: Gpu }) {
     ? [`단일 · ${gpu.vramGb}GB`]
     : (gpu.slices ?? []).filter((sl) => serviceOfSlice(sl)?.id === s.id).map((sl) => sl.profile)
   return (
-    // paddingBottom = 우하단 FloatingButtons 클리어런스(마지막 카드 콘텐츠 안 가림)
-    <div className="flex flex-col h-full min-w-0" style={{ gap: 12, paddingBottom: 44 }}>
+    <div className="flex flex-col h-full min-w-0" style={{ gap: 12 }}>
       {ranked.map((s, i) => {
         const model = shortModel(modelById(s.model)?.name ?? s.model)
         const deployer = userById(s.deployerUserId ?? s.ownerUserId)?.name ?? '—'
@@ -978,7 +974,6 @@ function ServiceAllocTable({ server, onGpu }: { server: GpuServer; onGpu: (g: Gp
 export function ServerDetail() {
   const { serverId = '' } = useParams()
   const navigate = useNavigate()
-  const [drawer, setDrawer] = useState(false)
   const servers = useFleet()
   const server = servers.find((s) => s.id === serverId)
   if (!server) return <Navigate to="/resource-map" replace />
@@ -1122,8 +1117,6 @@ export function ServerDetail() {
       </PageShell>
       </div>
 
-      <FloatingButtons target={server.name} onEventLog={() => setDrawer(true)} />
-      <Drawer open={drawer} onClose={() => setDrawer(false)} title={`${server.name} 이벤트 로그`}><EventList rows={serverEvents(server.id)} /></Drawer>
     </>
   )
 }
@@ -1211,7 +1204,6 @@ const GPU_KPI_METRICS = ['sm', 'vram', 'temp', 'power'] // 4.4 KPI 추이 metric
 function GpuDetailInner() {
   const { serverId = '', gpuId = '' } = useParams()
   const navigate = useNavigate()
-  const [drawer, setDrawer] = useState(false)
   const servers = useFleet()
   const server = servers.find((s) => s.id === serverId)
   const gpu = server?.gpus.find((g) => g.id === gpuId)
@@ -1356,8 +1348,6 @@ function GpuDetailInner() {
       </PageShell>
       </div>
 
-      <FloatingButtons target={gpu.name} onEventLog={() => setDrawer(true)} />
-      <Drawer open={drawer} onClose={() => setDrawer(false)} title={`${gpu.name} 이벤트 로그`}><EventList rows={gpuEvents(gpu.id)} /></Drawer>
     </>
   )
 }
