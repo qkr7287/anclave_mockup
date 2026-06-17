@@ -814,8 +814,8 @@ function ServiceDetailCard({ service: s, narrow, reserveClose, keyCount }: { ser
           </span>
           소유자 <b style={{ color: p.text }}>{userById(s.ownerUserId)?.name ?? s.owner}</b> 님이 GPU에 배포한 서비스 · 내부 사용자에게만 제공
         </span>
-        <div className="flex items-center gap-2.5 shrink-0">
-          <Button variant="outline">서비스 문의</Button>
+        <div className="flex items-center gap-3 shrink-0">
+          <span style={{ fontSize: 13.5, color: p.muted }}>서비스 문의는 관리자에게 문의하세요</span>
           {apiAvailable
             ? <Button onClick={() => navigate(`/marketplace/api-request/${s.id}`)}><KeyIcon width={15} height={15} /> API 키 요청</Button>
             : <Button>워크스페이스 열기</Button>}

@@ -6,15 +6,17 @@ import {
   ClockIcon,
   EyeIcon,
   KeyIcon,
+  MagnifyingGlassIcon,
   XCircleIcon,
 } from '@heroicons/react/24/outline'
 import { PageShell } from '../components/PageShell'
 import { Card, KpiStat, Table, StatusBadge } from '../components/ui'
 import type { Column } from '../components/ui'
-import { modelById, serviceById, services, userById } from '../data'
+import { modelById, serviceById, userById } from '../data'
 import type { Status } from '../data/types'
 import { useRole } from '../lib/role'
 import { listApiRequests, type ApiRecord } from './api-store'
+import { listServices, type DeployedService } from './market-store'
 import { QaPolish } from './qa-polish'
 
 // G8 · 4.19 API 신청 관리 (B · 소유자) — 내가 올린 서비스에 온 API 키 신청을 5188 자원 신청현황 톤 테이블로.
@@ -35,20 +37,25 @@ export function ApiApprovals() {
   const navigate = useNavigate()
   const { user } = useRole()
 
-  // 내가 소유한(올린) API 서비스 → 그 서비스에 온 API 키 신청만.
-  const myServiceIds = useMemo(() => new Set(services.filter((s) => s.ownerUserId === user.id && s.hasApi).map((s) => s.id)), [user.id])
-  // 목록은 backend(REST)에서 로드 후 소유자 서비스로 필터.
+  // 배포 서비스·API 신청 모두 backend(REST)에서 로드 → 내 소유(hasApi) 서비스에 온 신청만 필터.
   const [rows, setRows] = useState<ApiRecord[]>([])
+  const [svcMap, setSvcMap] = useState<Record<string, DeployedService>>({})
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
   useEffect(() => {
     let alive = true
-    listApiRequests()
-      .then((all) => { if (alive) { setRows(all.filter((r) => myServiceIds.has(r.serviceId))); setLoadError(false) } })
+    Promise.all([listServices(), listApiRequests()])
+      .then(([svcs, reqs]) => {
+        if (!alive) return
+        setSvcMap(Object.fromEntries(svcs.map((s) => [s.id, s])))
+        const mine = new Set(svcs.filter((s) => s.ownerUserId === user.id && s.hasApi).map((s) => s.id))
+        setRows(reqs.filter((r) => mine.has(r.serviceId)))
+        setLoadError(false)
+      })
       .catch(() => { if (alive) setLoadError(true) })
       .finally(() => { if (alive) setLoading(false) })
     return () => { alive = false }
-  }, [myServiceIds])
+  }, [user.id])
   const [filter, setFilter] = useState<(typeof STATUS_FILTERS)[number]>('전체')
 
   const counts = useMemo(() => {
@@ -63,7 +70,15 @@ export function ApiApprovals() {
     }
   }, [rows])
 
-  const shown = filter === '전체' ? rows : rows.filter((r) => r.status === STATUS_FROM_KO[filter])
+  const [query, setQuery] = useState('')
+  const q = query.trim().toLowerCase()
+  const matchQuery = (r: ApiRecord) => {
+    if (!q) return true
+    const requester = userById(r.requesterUserId)?.name ?? r.requesterUserId
+    const target = (svcMap[r.serviceId] ?? serviceById(r.serviceId))?.name ?? r.serviceId
+    return [requester, target, r.clientServiceName].filter(Boolean).some((t) => String(t).toLowerCase().includes(q))
+  }
+  const shown = (filter === '전체' ? rows : rows.filter((r) => r.status === STATUS_FROM_KO[filter])).filter(matchQuery)
   const goDetail = (id: string) => navigate(`/api-approvals/${id}`)
 
   const columns: Column<ApiRecord>[] = [
@@ -86,7 +101,7 @@ export function ApiApprovals() {
       header: '대상 서비스',
       width: '22%',
       render: (r) => {
-        const s = serviceById(r.serviceId)
+        const s = svcMap[r.serviceId] ?? serviceById(r.serviceId)
         return (
           <div className="flex flex-col min-w-0">
             <span className="font-semibold truncate" style={{ fontSize: 14 }}>{s?.name ?? r.serviceId}</span>
@@ -161,7 +176,17 @@ export function ApiApprovals() {
           </span>
         }
         action={
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            <div className="relative">
+              <MagnifyingGlassIcon className="absolute" style={{ left: 10, top: 8, width: 15, height: 15, color: 'var(--c-muted)' }} />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="서비스명 · 요청자 검색"
+                className="rounded-lg border border-line text-text"
+                style={{ height: 32, width: 200, paddingLeft: 32, paddingRight: 10, fontSize: 14, background: 'var(--c-bg)', outline: 'none' }}
+              />
+            </div>
             {STATUS_FILTERS.map((f) => {
               const on = filter === f
               return (
