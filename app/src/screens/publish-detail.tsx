@@ -5,15 +5,18 @@ import {
   ArrowLeftIcon,
   CheckCircleIcon,
   ClipboardDocumentCheckIcon,
+  ExclamationTriangleIcon,
   MegaphoneIcon,
+  TrashIcon,
   XCircleIcon,
 } from '@heroicons/react/24/outline'
-import { Button, EmptyState, StatusBadge, useToast } from '../components/ui'
+import { Button, EmptyState, Modal, StatusBadge, useToast } from '../components/ui'
 import { useTheme } from '../lib/theme'
 import { useRole } from '../lib/role'
 import { modelById, services, userById } from '../data'
 import {
   approvePublishRequest,
+  deletePublishRequest,
   getPublishRequest,
   rejectPublishRequest,
   type PubRecord,
@@ -393,10 +396,107 @@ function nowLocal(): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
+// 영구 삭제 확인 팝업 — 위험 작업이라 한 번 더 멈춰 세운다. 무엇이 삭제되는지 명시 + 되돌릴 수 없음 경고.
+function DeleteConfirmModal({ open, approved, req, deleting, onClose, onConfirm }: {
+  open: boolean; approved: boolean; req: PubRecord; deleting: boolean; onClose: () => void; onConfirm: () => void
+}) {
+  const Row = ({ k, v }: { k: string; v: ReactNode }) => (
+    <div className="flex items-start gap-3" style={{ padding: '7px 0', borderTop: '1px dashed var(--c-border-s)' }}>
+      <span className="shrink-0 text-muted" style={{ width: 64, fontSize: 14 }}>{k}</span>
+      <span className="flex-1 min-w-0 font-medium text-text" style={{ fontSize: 14, lineHeight: 1.5, wordBreak: 'break-word' }}>{v}</span>
+    </div>
+  )
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      width={460}
+      title={<span className="inline-flex items-center gap-2" style={{ color: 'var(--c-danger)' }}><ExclamationTriangleIcon width={17} height={17} />게시 신청 영구 삭제</span>}
+      footer={
+        <>
+          <ActionBtn variant="ghost" disabled={deleting} onClick={onClose}>취소</ActionBtn>
+          <ActionBtn variant="danger" disabled={deleting} onClick={onConfirm}><TrashIcon width={16} height={16} />{deleting ? '삭제 중…' : '영구 삭제'}</ActionBtn>
+        </>
+      }
+    >
+      <div className="flex flex-col" style={{ gap: 14 }}>
+        <div className="flex items-start gap-3 rounded-[10px]" style={{ background: 'var(--danger-soft)', border: '1px solid color-mix(in srgb, var(--c-danger) 30%, transparent)', padding: '12px 14px' }}>
+          <span className="flex items-center justify-center shrink-0 rounded-full" style={{ width: 34, height: 34, background: 'var(--c-card2)', color: 'var(--c-danger)' }}>
+            <ExclamationTriangleIcon width={19} height={19} />
+          </span>
+          <div className="flex flex-col" style={{ gap: 3 }}>
+            <span className="font-bold" style={{ fontSize: 14, color: 'var(--c-danger)' }}>이 작업은 되돌릴 수 없어요</span>
+            <span style={{ fontSize: 14, lineHeight: 1.55, color: 'var(--c-text)' }}>
+              {approved
+                ? '마켓플레이스 노출이 즉시 내려가고, 신청·승인 이력이 DB에서 완전히 삭제됩니다.'
+                : '이 게시 신청의 이력이 DB에서 완전히 삭제됩니다.'}
+            </span>
+          </div>
+        </div>
+        <div className="rounded-[10px]" style={{ border: '1px dashed var(--c-border)', background: 'var(--c-card)', padding: '2px 14px 10px' }}>
+          <Row k="신청번호" v={<span style={{ fontFamily: 'var(--font-mono)' }}>{req.id.toUpperCase()}</span>} />
+          <Row k="서비스" v={req.serviceName} />
+          <Row k="현재 상태" v={approved ? '게시됨 · 마켓 노출 중' : '반려됨'} />
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+// 처리 완료(승인/반려) 건 — 1컬럼 명세서 조회 + 위험 구역(영구 삭제). 관리자 전용.
+function ProcessedDetail({ req }: { req: PubRecord }) {
+  const navigate = useNavigate()
+  const toast = useToast()
+  const mutedFix = useMutedFix()
+  const [confirming, setConfirming] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const approved = req.status === 'approved'
+
+  const copyUrl = (url: string) => { navigator.clipboard?.writeText(url) }
+
+  const onDelete = async () => {
+    if (deleting) return
+    setDeleting(true)
+    try {
+      await deletePublishRequest(req.id)
+      toast.push(`${req.serviceName} 게시 신청을 영구 삭제했어요.`, 'ok')
+      navigate('/admin/approvals/publish')
+    } catch {
+      toast.push('삭제에 실패했어요. 잠시 후 다시 시도해주세요.', 'danger')
+      setDeleting(false)
+    }
+  }
+
+  const footer = (
+    <div className="shrink-0 anim-fade flex items-center justify-between gap-3" style={{ borderTop: '1px solid var(--c-border)', padding: '12px 18px' }}>
+      <div className="flex flex-col min-w-0">
+        <span className="font-semibold" style={{ fontSize: 14, color: 'var(--c-text)' }}>위험 구역</span>
+        <span className="text-muted" style={{ fontSize: 14, lineHeight: 1.4 }}>
+          {approved ? '마켓플레이스 노출을 내리고 이 신청을 영구 삭제합니다.' : '이 신청 이력을 영구 삭제합니다.'}
+        </span>
+      </div>
+      <ActionBtn variant="dangerOutline" onClick={() => setConfirming(true)}><TrashIcon width={16} height={16} />게시 신청 삭제</ActionBtn>
+    </div>
+  )
+
+  return (
+    <div data-pubdetail className="anim-fade flex flex-col min-w-0 h-full" style={mutedFix}>
+      <PolishCss />
+      <Header req={req} onBack={() => navigate('/admin/approvals/publish')} />
+      <div className="flex-1 min-h-0 anim-fade flex" style={{ marginTop: 18 }}>
+        <PublishSpec req={req} reviewing={false} onCopy={copyUrl} footer={footer} />
+      </div>
+      <DeleteConfirmModal
+        open={confirming} approved={approved} req={req} deleting={deleting}
+        onClose={() => { if (!deleting) setConfirming(false) }} onConfirm={onDelete}
+      />
+    </div>
+  )
+}
+
 export function PublishDetail() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
-  const mutedFix = useMutedFix()
   const [req, setReq] = useState<PubRecord | null>(null)
   const [state, setState] = useState<'loading' | 'ready' | 'notfound'>('loading')
 
@@ -431,19 +531,9 @@ export function PublishDetail() {
     )
   }
 
-  // 대기 = 심사(승인/반려) / 처리 완료 = 1컬럼 조회.
+  // 대기 = 심사(승인/반려) / 처리 완료 = 1컬럼 조회 + 영구 삭제(관리자).
   if (req.status === 'pending') return <PendingReview req={req} />
-
-  const copyUrl = (url: string) => { navigator.clipboard?.writeText(url) }
-  return (
-    <div data-pubdetail className="anim-fade flex flex-col min-w-0 h-full" style={mutedFix}>
-      <PolishCss />
-      <Header req={req} onBack={() => navigate('/admin/approvals/publish')} />
-      <div className="flex-1 min-h-0 anim-fade flex" style={{ marginTop: 18 }}>
-        <PublishSpec req={req} reviewing={false} onCopy={copyUrl} />
-      </div>
-    </div>
-  )
+  return <ProcessedDetail req={req} />
 }
 
 // 4.29b 게시 신청 상세 — 신청자(사용자)용 읽기전용 명세서 조회. 수정·심사 불가, 명세서만 본다.

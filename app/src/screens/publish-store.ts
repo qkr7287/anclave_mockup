@@ -1,4 +1,4 @@
-import { apiGet, apiPatch, apiPost } from '../lib/api'
+import { API_BASE, apiGet, apiPatch, apiPost } from '../lib/api'
 import type { PublishRequest } from '../data/types'
 
 // 4.29/4.9/4.9a 게시 신청 — Hono backend(REST) 연동(gpu-requests 패턴 미러).
@@ -42,4 +42,12 @@ export function approvePublishRequest(id: string, processedBy: string, adminMemo
 
 export function rejectPublishRequest(id: string, processedBy: string, rejectReason: string, adminMemo?: string): Promise<PubRecord> {
   return apiPatch<PubRecord>(`/api/publish-requests/${id}`, { action: 'reject', processedBy, rejectReason, adminMemo }).then(normalize)
+}
+
+// 4.9a 게시 신청 영구 삭제 — 관리자 전용. publish_requests 행 + (승인 시 생성된) market_services 행을 cascade 제거.
+//   DELETE /api/publish-requests/:id   → 200/204(성공) · 404(없음)
+// lib/api.ts 에 DELETE 래퍼가 없어 여기서 직접 호출(단일 사용처).
+export async function deletePublishRequest(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/publish-requests/${id}`, { method: 'DELETE' })
+  if (!res.ok) throw new Error(`API ${res.status} DELETE /api/publish-requests/${id}`)
 }
