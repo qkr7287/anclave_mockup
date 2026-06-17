@@ -131,6 +131,11 @@ export interface NewRequest {
   reason: string
   kind?: ModelKind
   source?: string
+  // 모델 명세(모델 상세 표시와 매칭) — backend ModelRequest 확장 시 영속, 반입 시 카탈로그 Model 로 매핑.
+  description?: string
+  usageGuide?: string
+  license?: string
+  addons?: string[]
 }
 export async function createRequest(body: NewRequest): Promise<ModelRequest> {
   try {
@@ -144,6 +149,10 @@ export async function createRequest(body: NewRequest): Promise<ModelRequest> {
       modelName: body.modelName,
       kind: body.kind,
       source: body.source,
+      description: body.description,
+      usageGuide: body.usageGuide,
+      license: body.license,
+      addons: body.addons,
       reason: body.reason,
       status: 'pending',
       stage: 'requested',

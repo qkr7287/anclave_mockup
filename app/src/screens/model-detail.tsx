@@ -233,7 +233,6 @@ function SpecRow({ label, children }: { label: string; children: ReactNode }) {
 }
 
 function SpecCard({ model, actions }: { model: Model; actions?: ReactNode }) {
-  const endpoint = `/v1/models/${slugify(model.name)}`
   const callExample = [
     `curl -X POST https://api.anclave.local/v1/chat/completions \\`,
     `  -H "Authorization: Bearer $ANCLAVE_API_KEY" \\`,
@@ -275,14 +274,10 @@ function SpecCard({ model, actions }: { model: Model; actions?: ReactNode }) {
         <SpecRow label="파라미터">{model.params}</SpecRow>
       </SpecSection>
 
-      <SpecSection title="사용법" active={false} reviewing={false}>
-        <SpecRow label="엔드포인트"><code style={{ fontFamily: 'var(--font-mono)', fontSize: 14 }}>{endpoint}</code></SpecRow>
-        <SpecRow label="가이드">OpenAI 호환 chat/completions 엔드포인트로 호출합니다.</SpecRow>
-      </SpecSection>
-
+      {/* 사용법 — 엔드포인트·가이드 행 제거, 호출 예시 코드 박스 하나로 통일 */}
       <div className="flex flex-col flex-1 min-h-0" style={{ marginBottom: 10, borderRadius: 10, padding: '6px 12px' }}>
-        <SectionHead title="호출 예시" active={false} reviewing={false} />
-        <pre className="flex-1 min-h-0 overflow-auto rounded-[8px]" style={{ padding: '12px 13px', background: 'var(--c-bg)', border: `1px solid ${M.border}`, fontSize: 14, fontFamily: 'var(--font-mono)', color: M.text, lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-all', margin: 0 }}>{callExample}</pre>
+        <SectionHead title="사용법" active={false} reviewing={false} />
+        <pre className="flex-1 min-h-0 overflow-auto rounded-[8px]" style={{ marginTop: 8, padding: '12px 13px', background: 'var(--c-bg)', border: `1px solid ${M.border}`, fontSize: 14, fontFamily: 'var(--font-mono)', color: M.text, lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{model.usageGuide?.trim() || callExample}</pre>
       </div>
 
       {actions}

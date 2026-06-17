@@ -34,6 +34,7 @@ export interface Model {
   name: string
   kind: ModelKind
   description: string
+  usageGuide?: string // 사용법(호출 방법·예시) — 없으면 모델명 기반 자동 생성으로 폴백
   addons: string[]
   license: string
   recommendedGpu: string
@@ -256,6 +257,11 @@ export interface ModelRequest {
   modelName: string // 요청 모델명(예: 'Qwen2.5-72B')
   kind?: ModelKind // 모델 종류(선택)
   source?: string // 출처(HuggingFace URL 등, 선택)
+  // 신청 명세 → 반입 시 카탈로그 Model 로 매핑(전부 optional, 기존 데이터 호환)
+  description?: string // 모델 소개
+  usageGuide?: string // 사용법(호출 방법·예시)
+  license?: string // 라이선스
+  addons?: string[] // 태그/애드온
   reason: string // 신청 사유
   status: Status // 큰 분류(대기/승인/반려) — 필터·배지용
   stage: ModelStage // 세부 진행 단계
