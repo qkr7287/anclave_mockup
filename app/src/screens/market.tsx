@@ -1023,7 +1023,7 @@ function UsageTrendChart({ insight }: { insight: UsageInsight }) {
       <div className="flex flex-wrap items-center shrink-0" style={{ gap: '6px 14px', marginTop: 14 }}>
         {rows.map((r) => (
           <span key={r.keyId} className="flex items-center" style={{ gap: 5, fontSize: 14, color: p.muted }}>
-            <span className="rounded-sm" style={{ width: 10, height: 10, background: r.color }} /> {r.keyId}
+            <span className="rounded-sm" style={{ width: 10, height: 10, background: r.color }} /> {r.name}
           </span>
         ))}
         <span className="flex items-center" style={{ gap: 5, fontSize: 14, color: p.muted }}>
