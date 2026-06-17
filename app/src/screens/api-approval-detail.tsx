@@ -399,6 +399,7 @@ export function ApiApprovalDetail() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
   const mutedFix = useMutedFix()
+  const { user, access } = useRole()
   // api-store는 동기 인메모리 — 매 렌더 조회(저렴). 처리 후 목록 복귀 시 재마운트로 반영.
   const [req, setReq] = useState<ApiRecord | null>(null)
   const [state, setState] = useState<'loading' | 'ready' | 'notfound'>('loading')
@@ -429,7 +430,9 @@ export function ApiApprovalDetail() {
     )
   }
 
-  if (req.status === 'pending') return <PendingReview req={req} />
+  // 대상 서비스 소유자·관리자만 심사. 요청자(C, 내 신청 조회)는 pending이어도 조회 전용.
+  const canReview = access === 'A' || serviceById(req.serviceId)?.ownerUserId === user.id
+  if (req.status === 'pending' && canReview) return <PendingReview req={req} />
 
   return (
     <div data-apidetail className="anim-fade flex flex-col min-w-0 h-full" style={mutedFix}>

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
@@ -8,12 +8,13 @@ import {
   KeyIcon,
 } from '@heroicons/react/24/outline'
 import { Button, EmptyState, StepBack, useToast } from '../components/ui'
-import { modelById, serviceById, services, userById } from '../data'
+import { modelById, userById } from '../data'
 import type { Service } from '../data/types'
 import { useRole } from '../lib/role'
 import { useTheme } from '../lib/theme'
 import { Logo } from './catalog'
 import { createApiRequest } from './api-store'
+import { getMarketService, listServices, type DeployedService } from './market-store'
 import { QaPolish } from './qa-polish'
 
 // G8 · 4.20 API 키 요청(/marketplace/api-request/:id) — 마켓 서비스 상세의 'API 키 요청'에서 진입.
@@ -264,8 +265,18 @@ export function ApiRequestNew() {
   const { user } = useRole()
   const { id = '' } = useParams()
 
-  // 라우트 :id = data 서비스 id, 없으면 마켓 서비스 id(= data name)로 역매칭.
-  const svc = serviceById(id) ?? services.find((s) => s.name === id)
+  // 라우트 :id = 마켓 서비스 id(doragi). market_services.serviceId(svc-doragi)로 배포 서비스 매칭.
+  // 마켓 id와 배포 서비스 id 체계가 달라 getMarketService → serviceId → listServices 2단계.
+  const [svc, setSvc] = useState<DeployedService | null>(null)
+  const [svcState, setSvcState] = useState<'loading' | 'ready' | 'notfound'>('loading')
+  useEffect(() => {
+    let alive = true
+    getMarketService(id)
+      .then((m) => listServices().then((rows) => rows.find((s) => s.id === m.serviceId || s.id === id || s.name === id) ?? null))
+      .then((found) => { if (alive) { setSvc(found); setSvcState(found ? 'ready' : 'notfound') } })
+      .catch(() => { if (alive) setSvcState('notfound') })
+    return () => { alive = false }
+  }, [id])
   const owner = svc ? (userById(svc.ownerUserId)?.name ?? svc.ownerUserId) : ''
   const modelName = svc ? (modelById(svc.model)?.name ?? svc.model) : ''
 
@@ -304,6 +315,15 @@ export function ApiRequestNew() {
     if (!canNext) return
     if (isLast) submit()
     else go(1)
+  }
+
+  if (svcState === 'loading') {
+    return (
+      <div data-qa className="anim-fade flex items-center justify-center" style={{ ...mutedFix, minHeight: 360 }}>
+        <QaPolish />
+        <span className="text-muted" style={{ fontSize: 14 }}>서비스 정보를 불러오는 중…</span>
+      </div>
+    )
   }
 
   if (!svc) {

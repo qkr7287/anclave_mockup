@@ -9,6 +9,8 @@ import type { ApiRequest } from '../data/types'
 // 데모(김가람→svc-doc) 3건은 backend seed 정본. timestamptz(ISO) → 표시 포맷으로 정규화.
 export interface ApiRecord extends ApiRequest {
   purpose?: string
+  clientServiceName?: string | null // 키를 사용할 클라이언트 서비스명(랭킹 메인 라벨 원천)
+  scale?: string | null
   processedBy?: string
   processedAt?: string
 }
