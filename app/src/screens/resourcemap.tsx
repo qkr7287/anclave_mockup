@@ -8,7 +8,6 @@ import {
   Badge,
   HealthBadge,
   Drawer,
-  FloatingButtons,
   CriticalAlert,
   Picker,
 } from '../components/ui'
@@ -485,8 +484,7 @@ function GpuServicePanel({ gpu }: { gpu: Gpu }) {
     ? [`단일 · ${gpu.vramGb}GB`]
     : (gpu.slices ?? []).filter((sl) => serviceOfSlice(sl)?.id === s.id).map((sl) => sl.profile)
   return (
-    // paddingBottom = 우하단 FloatingButtons 클리어런스(마지막 카드 콘텐츠 안 가림)
-    <div className="flex flex-col h-full min-w-0" style={{ gap: 12, paddingBottom: 44 }}>
+    <div className="flex flex-col h-full min-w-0" style={{ gap: 12, paddingBottom: 8 }}>
       {ranked.map((s, i) => {
         const model = shortModel(modelById(s.model)?.name ?? s.model)
         const deployer = userById(s.deployerUserId ?? s.ownerUserId)?.name ?? '—'
@@ -1158,7 +1156,6 @@ export function ServerDetail() {
       </PageShell>
       </div>
 
-      <FloatingButtons target={server.name} onEventLog={() => setDrawer(true)} />
       <Drawer open={drawer} onClose={() => setDrawer(false)} title={`${server.name} 이벤트 로그`}><EventList rows={dbEv.data ? dbEventsToLogs(dbEv.data) : serverEvents(server.id)} /></Drawer>
     </>
   )
@@ -1418,7 +1415,6 @@ function GpuDetailInner() {
       </PageShell>
       </div>
 
-      <FloatingButtons target={gpu.name} onEventLog={() => setDrawer(true)} />
       <Drawer open={drawer} onClose={() => setDrawer(false)} title={`${gpu.name} 이벤트 로그`}><EventList rows={dbEv.data ? dbEventsToLogs(dbEv.data) : gpuEvents(gpu.id)} /></Drawer>
     </>
   )

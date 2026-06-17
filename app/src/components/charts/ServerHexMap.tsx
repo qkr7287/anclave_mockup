@@ -285,21 +285,28 @@ export function ServerHexMap({ regions, bare = false }: ServerHexMapProps) {
         </svg>
       </div>}
       {/* 사용률 6단계 범례 — 맵 하단 중앙 floating(Figma) */}
-      <div className="absolute z-10 left-1/2 -translate-x-1/2 flex items-center rounded-lg pointer-events-none" style={{ bottom: 12, gap: 18, padding: '9px 18px', background: 'rgba(13,17,32,0.72)', border: '1px solid rgba(255,255,255,0.12)', backdropFilter: 'blur(10px)' }}>
+      <div className="absolute z-10 left-1/2 -translate-x-1/2 flex items-center flex-nowrap rounded-lg pointer-events-none max-w-[calc(100%-24px)] overflow-hidden" style={{ bottom: 12, gap: 14, padding: '8px 16px', background: 'var(--c-card2)', border: '1px solid var(--c-border)', boxShadow: 'var(--shadow-card)', backdropFilter: 'blur(8px)' }}>
         {LOAD_BANDS.map((b) => (
-          <span key={b.label} className="inline-flex items-center" style={{ gap: 7 }}>
-            <svg width="16" height="15" viewBox="0 0 14 13" aria-hidden><polygon points="7,0 13,3.5 13,9.5 7,13 1,9.5 1,3.5" fill={b.color} /></svg>
-            <span style={{ fontSize: 14, fontWeight: 600, color: '#eef2fb' }}>{b.label}</span>
+          <span key={b.label} className="inline-flex items-center shrink-0" style={{ gap: 6 }}>
+            <svg width="14" height="13" viewBox="0 0 14 13" aria-hidden className="shrink-0"><polygon points="7,0 13,3.5 13,9.5 7,13 1,9.5 1,3.5" fill={b.color} /></svg>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--c-text)', whiteSpace: 'nowrap' }}>{b.label}</span>
           </span>
         ))}
       </div>
       {hover && hoverO && (
-        <div className="fixed z-50 pointer-events-none bg-card2 border border-line rounded-lg" style={{ left: hover.x + 14, top: hover.y + 14, padding: '11px 15px', boxShadow: 'var(--shadow-pop)', whiteSpace: 'nowrap', maxWidth: 420 }}>
-          <div className="flex items-center gap-2" style={{ fontSize: 16, fontWeight: 700 }}>
-            <span className="rounded-full shrink-0" style={{ width: 9, height: 9, background: HOVER_ORANGE }} />
-            {hoverO.reg.regionTip}
+        <div className="fixed z-50 pointer-events-none rounded-lg" style={{
+          left: hover.x + (hover.x > window.innerWidth * 0.62 ? -14 : 14),
+          top: hover.y + (hover.y > window.innerHeight * 0.72 ? -14 : 18),
+          transform: `translate(${hover.x > window.innerWidth * 0.62 ? '-100%' : '0'}, ${hover.y > window.innerHeight * 0.72 ? '-100%' : '0'})`,
+          padding: '10px 14px', width: 'max-content', maxWidth: 320,
+          background: 'var(--c-card2)', border: '1px solid var(--c-border)',
+          boxShadow: '0 0 0 1px var(--c-border), var(--shadow-pop)',
+        }}>
+          <div className="flex items-start gap-2" style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.3 }}>
+            <span className="rounded-full shrink-0" style={{ width: 9, height: 9, marginTop: 4, background: HOVER_ORANGE }} />
+            <span>{hoverO.reg.regionTip}</span>
           </div>
-          <div className="text-muted" style={{ fontSize: 14.5, marginTop: 3 }}>{hover.bayTip}</div>
+          <div className="text-muted" style={{ fontSize: 13.5, marginTop: 4, lineHeight: 1.4 }}>{hover.bayTip}</div>
         </div>
       )}
     </div>
