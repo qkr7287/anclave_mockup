@@ -137,7 +137,7 @@ function deriveMeta(req: PubRecord) {
 function UrlValue({ url, onCopy }: { url: string; onCopy: (url: string) => void }) {
   return (
     <span className="inline-flex items-center gap-1.5 min-w-0 max-w-full">
-      <span className="truncate" style={{ color: 'var(--c-accent)' }}>{url}</span>
+      <a href={url} target="_blank" rel="noopener noreferrer" className="truncate hover:underline" style={{ color: 'var(--c-accent)' }}>{url}</a>
       <button type="button" onClick={() => onCopy(url)} aria-label="URL 복사" className="shrink-0 text-muted hover:text-text transition-transform active:scale-90">
         <ClipboardDocumentCheckIcon style={{ width: 14, height: 14 }} />
       </button>
@@ -195,10 +195,28 @@ function PublishSpec({ req, reviewing, onCopy, footer }: { req: PubRecord; revie
 
             <SpecSection title="서비스 정보">
               <SpecRow label="종류 / 모델" value={`${m.kind} · ${m.model}`} />
-              <SpecRow label="API 제공" value={m.hasApi ? '예 (REST API)' : '아니오 (웹 UI)'} />
-              <SpecRow label="태그" value={m.tags.length ? m.tags.join(', ') : undefined} emptyText="없음" />
-              <SpecRow label="누적 호출" value={m.usage ? `${m.usage.toLocaleString('en-US')}회${m.usageRank ? ` · 사용 ${m.usageRank}위` : ''}` : '신규 서비스'} />
-              <SpecRow label="소개" value={m.intro || undefined} emptyText="소개 미등록" />
+              <SpecRow label="API 제공" value={m.hasApi ? '예 (REST API)' : '아니오 (웹 UI)'} last />
+            </SpecSection>
+
+            {/* 마켓 노출 콘텐츠 — 마켓 상세(ServiceDetailCard)와 동일 항목을 신청서 입력값으로 표시. */}
+            <SpecSection title="마켓 노출 콘텐츠">
+              <SpecRow label="서비스 개요" value={req.overview || undefined} emptyText="개요 미작성" />
+              {/* 마켓 상세 강조 박스(apiAvailable && apiDesc)와 동일 조건 — apiDesc 있을 때만. */}
+              {req.apiDesc && <SpecRow label="API 설명" value={req.apiDesc} />}
+              <SpecRow label="주요 기능" value={req.features && req.features.length ? <span style={{ whiteSpace: 'pre-line', lineHeight: 1.6 }}>{req.features.join('\n')}</span> : undefined} emptyText="없음" />
+              <SpecRow label="태그" value={req.tags && req.tags.length ? req.tags.join(', ') : undefined} emptyText="없음" />
+              <SpecRow label="공개 범위" value={req.visibility || undefined} emptyText="미지정" />
+              <SpecRow label="데모 안내" value={req.demoNote || undefined} emptyText="없음" />
+              <SpecRow label="스크린샷" last emptyText="없음" value={req.screenshots && req.screenshots.length ? (
+                <div className="flex flex-wrap" style={{ gap: 8 }}>
+                  {req.screenshots.map((src, i) => (
+                    <img key={i} src={src} alt={`스크린샷 ${i + 1}`} style={{ height: 60, borderRadius: 6, border: '1px solid var(--c-border)', objectFit: 'cover' }} />
+                  ))}
+                </div>
+              ) : undefined} />
+            </SpecSection>
+
+            <SpecSection title="접속 정보">
               <SpecRow label="서비스 URL" value={<UrlValue url={req.serviceUrl} onCopy={onCopy} />} />
               <SpecRow label="데모 URL" value={<UrlValue url={req.demoUrl} onCopy={onCopy} />} last />
             </SpecSection>

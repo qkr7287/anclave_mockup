@@ -8,6 +8,15 @@ import type { PublishRequest } from '../data/types'
 //   PATCH /api/publish-requests/:id   { action:'approve'|'reject', ... }  processed_at 서버 now()
 // backend 는 timestamptz 를 ISO 로 반환 → 경계에서 시드 표시 포맷('YYYY-MM-DD HH:mm')으로 정규화.
 export interface PubRecord extends PublishRequest {
+  // 신청자가 작성한 마켓 노출 콘텐츠 — 마켓 상세(ServiceDetailCard)와 동일 항목.
+  // types.ts PublishRequest(정본)엔 없어 여기서 확장. backend JSON 응답엔 포함.
+  overview?: string | null
+  apiDesc?: string | null
+  features?: string[]
+  tags?: string[]
+  visibility?: string | null
+  demoNote?: string | null
+  screenshots?: string[]
   adminMemo?: string
   processedBy?: string
   processedAt?: string
@@ -32,7 +41,7 @@ export function getPublishRequest(id: string): Promise<PubRecord> {
   return apiGet<PubRecord>(`/api/publish-requests/${id}`).then(normalize)
 }
 
-export function createPublishRequest(input: { requesterUserId: string; serviceName: string; serviceUrl: string; demoUrl: string; meta: string; overview: string; apiDesc: string; features: string[]; tags: string[]; visibility: string; demoNote: string }): Promise<PubRecord> {
+export function createPublishRequest(input: { requesterUserId: string; serviceName: string; serviceUrl: string; demoUrl: string; meta: string; overview: string; apiDesc: string; features: string[]; tags: string[]; visibility: string; demoNote: string; screenshots: string[] }): Promise<PubRecord> {
   return apiPost<PubRecord>('/api/publish-requests', input).then(normalize)
 }
 

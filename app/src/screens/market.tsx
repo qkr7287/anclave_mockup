@@ -609,7 +609,7 @@ function UrlRow({ label, url }: { label: string; url: string }) {
   return (
     <div className="flex items-center gap-3 rounded-lg" style={{ padding: '10px 12px', background: p.inset, border: `1px solid ${p.border}` }}>
       <span className="shrink-0" style={{ fontSize: 14, color: p.muted, width: 84 }}>{label}</span>
-      <span className="truncate flex-1 min-w-0" style={{ fontSize: 14, color: p.accent }}>{url}</span>
+      <a href={url} target="_blank" rel="noopener noreferrer" className="truncate flex-1 min-w-0 hover:underline" style={{ fontSize: 14, color: p.accent }}>{url}</a>
       <button type="button" onClick={copy} aria-label={`${label} 복사`} className="shrink-0 transition-transform active:scale-90" style={{ color: p.muted }}>
         <ClipboardIcon p={p} />
       </button>
@@ -702,6 +702,7 @@ function ServiceDetailCard({ service: s, narrow, reserveClose, keyCount }: { ser
                 <MetaChip label="API" value={apiAvailable ? s.api : '미제공'} />
                 <MetaChip label="모델" value={s.model} />
                 <MetaChip label="소유자" value={userById(s.ownerUserId)?.name ?? s.owner} />
+                {s.visibility && <MetaChip label="공개" value={s.visibility} />}
                 <StatusBadge status={s.status} tone={tone} />
               </div>
             </div>
@@ -794,6 +795,12 @@ function ServiceDetailCard({ service: s, narrow, reserveClose, keyCount }: { ser
         <div className="flex flex-col" style={{ gap: 8 }}>
           <UrlRow label="서비스 URL" url={s.serviceUrl || `http://svc.anclave.local/${s.id}`} />
           {apiAvailable && <UrlRow label="데모 URL" url={s.demoUrl || `http://svc.anclave.local/${s.id}/playground`} />}
+          {s.demoNote && (
+            <div className="flex items-start gap-2" style={{ fontSize: 14, lineHeight: 1.6, marginTop: 2 }}>
+              <span className="shrink-0 font-semibold" style={{ color: p.text }}>데모 안내</span>
+              <span style={{ color: p.muted }}>{s.demoNote}</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -894,14 +901,14 @@ const consumerColor = (i: number) => `hsl(${(214 + i * 40) % 360}, 64%, 57%)`
 const hashKey = (s: string) => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) } return h >>> 0 }
 const issuedDate = (keyId: string) => { const h = hashKey(keyId); const m = 1 + (h % 5); const d = 1 + ((h >>> 8) % 28); return `2024.${String(m).padStart(2, '0')}.${String(d).padStart(2, '0')}` }
 
-interface RankRow { name: string; keyId: string; tag: string; team: string; teamHue: number; requests: number; reqPct: number; tokens: number; tokenPct: number; deltaPct: number; up: boolean; spark: number[]; color: string; issuedAt: string }
+interface RankRow { name: string; keyId: string; tag: string; serviceName?: string; team: string; teamHue: number; requests: number; reqPct: number; tokens: number; tokenPct: number; deltaPct: number; up: boolean; spark: number[]; color: string; issuedAt: string }
 interface DayStack { label: string; perUser: number[]; total: number; concurrent: number }
 interface UsageInsight { keyCount: number; rows: RankRow[]; days: DayStack[]; totalRequests: number; totalTokens: number; maxRequests: number; maxConcurrent: number; avgConcurrent: number; todayDeltaPct: number; todayUp: boolean }
 
 // backend raw 집계 → 비율·색·축 스케일 등 화면 표현값 계산(색·정렬·스케일은 프론트 책임).
 function toUsageInsight(raw: MarketServiceUsage): UsageInsight {
   const rows: RankRow[] = raw.rows.map((r, i) => ({
-    name: r.owner, keyId: r.keyId, tag: r.tag, team: r.team, teamHue: r.teamHue,
+    name: r.owner, keyId: r.keyId, tag: r.tag, serviceName: r.serviceName, team: r.team, teamHue: r.teamHue,
     requests: r.requests, reqPct: 0, tokens: r.tokens, tokenPct: 0,
     deltaPct: r.deltaPct, up: r.deltaPct >= 0, spark: r.spark, color: consumerColor(i), issuedAt: issuedDate(r.keyId),
   }))
@@ -934,7 +941,7 @@ function RankingSummary({ insight }: { insight: UsageInsight }) {
         <span className="rounded-full" style={{ padding: '2px 10px', fontSize: 14, fontWeight: 700, color: p.accent, background: p.accentSoft }}>API 키 {insight.keyCount}개</span>
       </div>
       <div className="grid items-center" style={{ gridTemplateColumns: cols, gap: 16, padding: '0 4px 9px', fontSize: 14, fontWeight: 600, color: p.muted, borderBottom: `1px solid ${p.divider}` }}>
-        <span className="text-center">#</span><span>소유자 · 팀</span><span className="text-center">키 발급일</span>
+        <span className="text-center">#</span><span>서비스명 · 요청자</span><span className="text-center">키 발급일</span>
         <span className="text-right">요청 수</span><span className="text-right">변화 · 7일</span>
       </div>
       <div className="flex flex-col">
@@ -944,10 +951,10 @@ function RankingSummary({ insight }: { insight: UsageInsight }) {
             onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}>
             <span className="flex items-center justify-center justify-self-center" style={{ width: 24, height: 24, borderRadius: 999, fontSize: 14, fontWeight: 800, ...rankStyle(i) }}>{i + 1}</span>
             <div className="flex items-center min-w-0" style={{ gap: 8 }}>
-              <span className="flex items-center justify-center shrink-0 rounded-full" style={{ width: 28, height: 28, fontSize: 14, fontWeight: 800, color: '#fff', background: `linear-gradient(140deg, hsl(${r.teamHue},64%,56%), hsl(${(r.teamHue + 24) % 360},60%,46%))` }}>{r.name.slice(0, 1)}</span>
+              <span className="flex items-center justify-center shrink-0 rounded-full" style={{ width: 28, height: 28, fontSize: 14, fontWeight: 800, color: '#fff', background: `linear-gradient(140deg, hsl(${r.teamHue},64%,56%), hsl(${(r.teamHue + 24) % 360},60%,46%))` }}>{(r.serviceName ?? r.tag).slice(0, 1)}</span>
               <div className="flex flex-col min-w-0" style={{ gap: 1 }}>
-                <span className="truncate" style={{ fontSize: 14, fontWeight: 700, color: p.heading }}>{r.name}</span>
-                <span className="truncate" style={{ fontSize: 14, color: p.muted }}>{r.team}</span>
+                <span className="truncate" style={{ fontSize: 14, fontWeight: 700, color: p.heading }}>{r.serviceName ?? r.tag}</span>
+                <span className="truncate" style={{ fontSize: 14, color: p.muted }}>{r.name} · {r.team}</span>
               </div>
             </div>
             <span className="tabular-nums truncate text-center" style={{ fontSize: 14, color: p.muted }}>{r.issuedAt}</span>
