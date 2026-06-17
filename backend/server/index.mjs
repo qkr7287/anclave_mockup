@@ -512,7 +512,7 @@ app.patch('/api/api-requests/:id', async (c) => {
 })
 
 // ── 마켓플레이스 표시 전용 서비스(4.17) — 읽기 전용. description 컬럼은 'desc' 키로 반환. jsonb 는 자동 파싱. ──
-const MS_COLS = `id, name, kind, provider, model, api, owner, rating, status, hue, icon,
+const MS_COLS = `id, name, kind, provider, model, api, owner, owner_user_id "ownerUserId", rating, status, hue, icon,
   response_time "responseTime", tier, monthly_req "monthlyReq", usage, usage_num "usageNum",
   delta, up, req_full "reqFull", success, delta_pct "deltaPct", last_call "lastCall",
   tags, description "desc", overview, api_desc "apiDesc", features, ops_notes "opsNotes",
