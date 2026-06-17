@@ -677,13 +677,26 @@ app.get('/api/users', async (c) => {
 app.get('/api/allocations', async (c) => {
   const { user } = c.req.query()
   if (!user) return c.json({ error: 'user required' }, 400)
+  // 할당 링크: service → 승인·active gpu_request(service_name 매칭)의 allocated_gpu_id/server_id → gpus/gpu_servers.
+  //   (MIG 재배치로 assigned_service_id join 이 끊김 → gpu_requests 가 단일 진실원. 없으면 assigned_service_id 폴백.)
+  //   GPU 미할당 서비스는 g/srv 가 null(프론트 'GPU 미할당' 처리). 실시간 수치는 omit(telemetry 별도, id=gpuId).
   const { rows } = await pool.query(
     `select s.id "serviceId", s.name "serviceName", s.model_id "modelId", s.usage_count "usageCount",
             g.id "gpuId", g.server_id "serverId", g.model "gpuModel", g.vram_gb "vramGb", g.alloc_mode "allocMode",
             srv.host "serverHost"
        from services s
-       left join gpus g on g.assigned_service_id = s.id
-       left join gpu_servers srv on srv.id = g.server_id
+       left join lateral (
+         select gr.allocated_gpu_id, gr.allocated_server_id
+           from gpu_requests gr
+          where gr.service_name = s.name and gr.status = 'approved' and gr.active = true
+                and gr.allocated_gpu_id is not null
+          order by gr.processed_at desc nulls last, gr.created_at desc
+          limit 1
+       ) req on true
+       left join gpus g
+         on g.id = coalesce(req.allocated_gpu_id,
+                            (select id from gpus where assigned_service_id = s.id limit 1))
+       left join gpu_servers srv on srv.id = coalesce(req.allocated_server_id, g.server_id)
       where s.owner_user_id = $1
       order by s.id`,
     [user])
