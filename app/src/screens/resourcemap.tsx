@@ -17,7 +17,9 @@ import { BandChart, SparkLine, ServerHexMap, bandColor, heatColor } from '../com
 import type { ServerRegion, Bay, BandSeries, BandAxis } from '../components/charts'
 import { ServerIcon, CpuChipIcon, ChartBarSquareIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 import { ArrowLeftIcon } from '@heroicons/react/24/solid'
-import { servers as seedServers, allGpus as seedAllGpus, userById, modelById, gpuRequests } from '../data'
+import { servers as seedServers, allGpus as seedAllGpus, modelById } from '../data'
+import { liveUserById as userById, liveRequestById } from '../lib/liveData'
+import { useLiveData } from '../data/hooks/usePolling'
 import type { Gpu, MigSlice, EventLog, Service, GpuServer } from '../data/types'
 import {
   serverAvgUtil,
@@ -119,6 +121,7 @@ async function fetchServers(): Promise<GpuServer[] | null> {
 
 // 자원맵 데이터 소스 — 초기값=seed(로딩 밀림 없음), 마운트 후 /api/servers 성공 시 교체.
 function useFleet(): GpuServer[] {
+  useLiveData() // users/services/requests 표시명 DB 하이드레이션(seed 폴백)
   const [fleet, setFleet] = useState<GpuServer[]>(seedServers)
   useEffect(() => {
     let alive = true
@@ -924,8 +927,8 @@ function ServiceAllocTable({ server, onGpu }: { server: GpuServer; onGpu: (g: Gp
           const status = g.xid ? '장애' : active ? '실행중' : '대기중'
           const totalGb = g.allocMode === 'cluster' ? g.vramGb : (g.slices?.reduce((a, sl) => a + sl.gb, 0) ?? g.vramGb)
           const usedGb = !active ? 0 : g.allocMode === 'cluster'
-            ? Math.round((g.vramUtil / 100) * g.vramGb * 10) / 10
-            : Math.round((g.slices?.filter((sl) => sl.usage > 0 || sl.ownerUserId).reduce((a, sl) => a + (sl.vramUtil / 100) * sl.gb, 0) ?? 0) * 10) / 10
+            ? Math.round(((g.vramUtil || 0) / 100) * g.vramGb * 10) / 10
+            : Math.round((g.slices?.filter((sl) => sl.usage > 0 || sl.ownerUserId).reduce((a, sl) => a + ((sl.vramUtil || 0) / 100) * sl.gb, 0) ?? 0) * 10) / 10
           const vramPct = totalGb ? Math.min(100, Math.round((usedGb / totalGb) * 100)) : 0
           const time = active ? `2026-06-0${(s % 8) + 1} / ${String(8 + (s % 12)).padStart(2, '0')}:${String((s % 6) * 10).padStart(2, '0')}` : ''
           return (
@@ -1031,7 +1034,7 @@ export function ServerDetail() {
       bays = g.slices.map((s) => {
         const used = s.usage > 0 || !!s.ownerUserId
         const owner = s.ownerUserId ? userById(s.ownerUserId)?.name : undefined
-        const req = s.requestId ? gpuRequests.find((r) => r.id === s.requestId) : undefined
+        const req = liveRequestById(s.requestId)
         return { util: s.usage, idle: !used, tip: used ? `${owner ?? '—'} · ${req?.serviceName ?? '신청'} · ${s.profile} ${s.gb}GB · 부하 ${s.usage}%` : `가용 · ${s.profile} ${s.gb}GB` }
       })
     }
@@ -1456,7 +1459,7 @@ function SliceCell({ slice, gpu }: { slice: MigSlice; gpu: Gpu }) {
   const used = slice.usage > 0 || !!slice.ownerUserId
   const owner = slice.ownerUserId ? userById(slice.ownerUserId)?.name : undefined
   const model = slice.modelId ? shortModel(modelById(slice.modelId)?.name) : undefined
-  const req = slice.requestId ? gpuRequests.find((r) => r.id === slice.requestId) : undefined
+  const req = liveRequestById(slice.requestId)
   const svcName = serviceOfSlice(slice)?.name ?? req?.serviceName ?? '할당 서비스'
   const hot = (v: number) => (v > 85 ? 'var(--c-warn)' : 'var(--c-text)')
   const seed = seedOf(slice.id)
