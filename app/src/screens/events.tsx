@@ -25,7 +25,15 @@ import {
   Pagination,
   useMutedFix,
 } from './approvals'
-import { getEvents, getEventsForUser, targetOf, targetPath } from './event-store'
+import {
+  eventRowToLog,
+  filterEventRowsForUser,
+  getEvents,
+  getEventsForUser,
+  targetOf,
+  targetPath,
+} from './event-store'
+import { useEvents } from '../data/hooks/usePolling'
 import { EventDetail } from './event-detail'
 
 // ⑤ 에러 · 이벤트 관제 (4.21) — 5188 자원 신청현황(4.6/4.10) 톤 풀 화면.
@@ -95,11 +103,15 @@ export function Events() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
 
-  // 역할 범위 — A=전체 · B/C=본인 자원 이벤트. detailId 변동(상세 복귀) 시 재계산해 처리 결과 반영.
-  const scoped = useMemo<EventLog[]>(
-    () => (isAdmin ? getEvents() : getEventsForUser(user.id)),
-    [isAdmin, user.id, detailId],
-  )
+  // 목록 = DB(/api/events). A=전체 · B/C=본인 자원 이벤트(클라 스코프 필터).
+  // data null(로딩)·backend 다운 → 시드 폴백(화면 유지). detailId 변동 시 재계산(폴백 경로의 로컬 처리 반영).
+  const { data: dbEvents } = useEvents({ limit: 100 })
+  const scoped = useMemo<EventLog[]>(() => {
+    const rows = dbEvents
+      ? (isAdmin ? dbEvents : filterEventRowsForUser(dbEvents, user.id))
+      : (isAdmin ? getEvents() : getEventsForUser(user.id))
+    return rows.map(eventRowToLog)
+  }, [dbEvents, isAdmin, user.id, detailId])
 
   const counts = useMemo(() => ({
     total: scoped.length,

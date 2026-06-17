@@ -69,7 +69,7 @@ export interface Service {
 export type MigProfile =
   | '1g.10gb' | '1g.20gb' | '2g.20gb' | '3g.40gb' | '4g.40gb' | '7g.80gb'
   | '1g.36gb' | '2g.72gb' | '3g.144gb' | '4g.144gb' | '7g.288gb'
-  | '1g.16gb'
+  | '1g.16gb' | '2g.45gb' | '3g.90gb'
 export const MIG_PROFILES: Record<MigProfile, { units: number; gb: number }> = {
   '1g.10gb': { units: 1, gb: 10 },
   '1g.20gb': { units: 1, gb: 20 },
@@ -85,6 +85,9 @@ export const MIG_PROFILES: Record<MigProfile, { units: number; gb: number }> = {
   '7g.288gb': { units: 7, gb: 288 },
   // RTX PRO 4500 Blackwell(32GB) — 16GB 인스턴스 2개
   '1g.16gb': { units: 1, gb: 16 },
+  // RTX PRO 4500 Blackwell MIG(목업 가정값 — 물리 용량 초과는 의도)
+  '2g.45gb': { units: 2, gb: 45 },
+  '3g.90gb': { units: 3, gb: 90 },
 }
 
 export interface MigSlice {

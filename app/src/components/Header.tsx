@@ -1,9 +1,8 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
   BellIcon,
   CheckIcon,
-  MagnifyingGlassIcon,
   MoonIcon,
   SunIcon,
   PlayIcon,
@@ -13,7 +12,9 @@ import { accessOf, useRole } from '../lib/role'
 import { userById, users } from '../data/users'
 import { modelById } from '../data/models'
 import { getPostById } from '../screens/board-store'
-import { notifications } from '../data/events'
+import { filterEventRowsForUser, targetPath } from '../screens/event-store'
+import { useEvents } from '../data/hooks/usePolling'
+import type { EventLog } from '../data/types'
 import { IA_GROUPS, matchRoute, parentRouteKey, routeByKey } from '../lib/routes'
 
 const DEMO_IDS = users.map((u) => u.id)
@@ -73,8 +74,18 @@ export function Header() {
   const navigate = useNavigate()
   const [bellOpen, setBellOpen] = useState(false)
   const [roleOpen, setRoleOpen] = useState(false)
-  const unread = notifications.filter((n) => !n.read).length
   const crumbs = useCrumbs()
+
+  // 알림 벨 — DB(/api/events) 라이브. 관리자=전체 / 사용자=본인 자원 이벤트만.
+  // 스코프는 event-store filterEventRowsForUser 공용 — /events·/monitoring 과 동일 정책.
+  // 미확인 = status 'open'(미해결).
+  const isAdmin = access === 'A'
+  const ev = useEvents({ limit: 50 }, 10000)
+  const myEvents = useMemo(() => {
+    const all = ev.data ?? []
+    return isAdmin ? all : filterEventRowsForUser(all, user.id)
+  }, [ev.data, isAdmin, user.id])
+  const unread = myEvents.filter((e) => e.status === 'open').length
 
   const close = () => {
     setBellOpen(false)
@@ -105,19 +116,6 @@ export function Header() {
 
       {/* 우: 검색 · 알림 · 테마 · 프로필 */}
       <div className="flex items-center" style={{ gap: 20 }}>
-        <div
-          className="flex items-center gap-2 rounded-md min-w-0"
-          style={{ width: 240, height: 40, padding: '0 12px', background: 'var(--c-soft)', border: '1px solid var(--c-border)' }}
-        >
-          <MagnifyingGlassIcon width={16} height={16} className="shrink-0" style={{ color: 'var(--c-muted)', opacity: 0.5 }} />
-          <input
-            className="bg-transparent outline-none w-full min-w-0 text-text"
-            style={{ fontSize: 14 }}
-            placeholder="서비스 · 모델 검색"
-            aria-label="검색"
-          />
-        </div>
-
         {/* 알림 벨 */}
         <button
           type="button"
@@ -176,26 +174,33 @@ export function Header() {
             <button type="button" className="text-accent" style={{ fontSize: 14 }}>모두 읽음</button>
           </div>
           <div className="max-h-80 overflow-y-auto">
-            {notifications.slice(0, 6).map((n) => (
-              <button
-                key={n.id}
-                type="button"
-                onClick={() => {
-                  close()
-                  if (n.link) navigate(n.link)
-                }}
-                className="flex w-full items-start gap-2.5 px-4 py-2.5 text-left hover:bg-[var(--accent-soft)] border-b border-line last:border-0"
-              >
-                <span
-                  className="rounded-full shrink-0 mt-1.5"
-                  style={{ width: 7, height: 7, background: n.read ? 'var(--c-inactive)' : 'var(--c-accent)' }}
-                />
-                <span className="flex-1 min-w-0">
-                  <span className="block" style={{ fontSize: 14 }}>{n.message}</span>
-                  <span className="text-muted block" style={{ fontSize: 14 }}>{n.createdAt}</span>
-                </span>
-              </button>
-            ))}
+            {myEvents.length === 0 && (
+              <div className="px-4 py-6 text-center text-muted" style={{ fontSize: 14 }}>
+                {ev.isLoading ? '불러오는 중…' : '새 이벤트 없음'}
+              </div>
+            )}
+            {myEvents.slice(0, 6).map((e) => {
+              const link = targetPath(e as unknown as EventLog, isAdmin)
+              const dot =
+                e.status !== 'open' ? 'var(--c-inactive)' : e.severity === 'critical' ? 'var(--c-danger)' : 'var(--c-accent)'
+              return (
+                <button
+                  key={e.id}
+                  type="button"
+                  onClick={() => {
+                    close()
+                    if (link) navigate(link)
+                  }}
+                  className="flex w-full items-start gap-2.5 px-4 py-2.5 text-left hover:bg-[var(--accent-soft)] border-b border-line last:border-0"
+                >
+                  <span className="rounded-full shrink-0 mt-1.5" style={{ width: 7, height: 7, background: dot }} />
+                  <span className="flex-1 min-w-0">
+                    <span className="block" style={{ fontSize: 14 }}>{e.message}</span>
+                    <span className="text-muted block" style={{ fontSize: 14 }}>{e.createdAt.slice(0, 16).replace('T', ' ')}</span>
+                  </span>
+                </button>
+              )
+            })}
           </div>
         </div>
       )}

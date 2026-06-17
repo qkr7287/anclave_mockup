@@ -1,6 +1,8 @@
 import { events } from '../data/events'
-import { servers, allGpus, gpuRequests } from '../data'
-import type { EventLog } from '../data/types'
+import { servers, allGpus, gpuRequests, services } from '../data'
+import type { EventLog, EventStatus } from '../data/types'
+import { usePolling } from '../data/hooks/usePolling'
+import type { EventRow, PollState } from '../data/hooks/usePolling'
 
 // 4.21 에러·이벤트 관제 — 목업 store(세션 사본). 다른 *-store(gpu-change-store 등) 패턴.
 // 시드 events(읽기 전용)를 세션 배열로 복제해, 상세 드로어의 [해결 처리]를 로컬 반영한다.
@@ -85,6 +87,68 @@ export function getEventsForUser(userId: string): EventLog[] {
     if (e.serverId) return serverIds.has(e.serverId)
     return false
   })
+}
+
+// 사용자 소유 서비스명 — 자원 id 없는 이벤트(메시지에 서비스명만)도 본인 것으로 포착.
+function myServiceNames(userId: string): string[] {
+  return services.filter((s) => s.ownerUserId === userId).map((s) => s.name)
+}
+
+// DB(/api/events) · 시드 공용 — 임의 이벤트 행을 사용자 스코프로 필터(A는 호출 안 함).
+// 본인 소유 GPU/서버 OR 메시지에 본인 서비스명 포함.
+export function filterEventRowsForUser<
+  T extends { gpuId?: string | null; serverId?: string | null; message: string },
+>(rows: T[], userId: string): T[] {
+  const { gpuIds, serverIds } = myResourceSets(userId)
+  const names = myServiceNames(userId)
+  return rows.filter((e) => {
+    if (e.gpuId && gpuIds.has(e.gpuId)) return true
+    if (e.serverId && serverIds.has(e.serverId)) return true
+    return names.some((n) => e.message.includes(n))
+  })
+}
+
+// ── DB 배선(읽기) — 목록은 useEvents(이미 존재), 상세는 useEvent. 둘 다 화면은 EventLog 형태로 소비. ──
+
+// 이벤트 단건(상세) — backend /api/events/:id. 목록 EventRow + 처리 필드(superset) · 없으면 404.
+export interface EventDetailRow extends EventRow {
+  read?: boolean
+  assignee?: string
+  action?: string
+  resolution?: string
+}
+
+export function useEvent(id: string | null, intervalMs = 10000): PollState<EventDetailRow> {
+  return usePolling<EventDetailRow>(id ? `/api/events/${id}` : null, intervalMs)
+}
+
+// 발생일시 정규화 — DB(ISO)는 'YYYY-MM-DD HH:mm' 로, 시드(이미 그 형식)는 그대로.
+// 목록 표시·상세 헤더·날짜 필터(slice(0,10))가 일관되게 동작하도록 매핑 경계에서 통일.
+function fmtCreatedAt(s: string): string {
+  if (!s.includes('T')) return s
+  const d = new Date(s)
+  if (Number.isNaN(d.getTime())) return s
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
+
+// DB EventRow(+상세 superset) → 화면이 쓰는 EventLog. null→undefined, 누락 필드 기본값.
+// 시드 EventLog 를 그대로 넣어도 동일하게 통과(폴백 경로 공용).
+export function eventRowToLog(e: EventRow | EventDetailRow | EventLog): EventLog {
+  const d = e as EventDetailRow & EventLog
+  return {
+    id: d.id,
+    severity: d.severity,
+    status: d.status as EventStatus,
+    gpuId: d.gpuId ?? undefined,
+    serverId: d.serverId ?? undefined,
+    message: d.message,
+    createdAt: fmtCreatedAt(d.createdAt),
+    read: d.read ?? false,
+    assignee: d.assignee ?? undefined,
+    action: d.action ?? undefined,
+    resolution: d.resolution ?? undefined,
+  }
 }
 
 // 드로어 진입 시 읽음 처리(로컬).

@@ -12,6 +12,16 @@
       "department": "시스템 관리"
     },
     {
+      "id": "u-jhs",
+      "username": "jhs",
+      "name": "정휘선",
+      "role": "user",
+      "email": "jhs@anclave.local",
+      "hasHosting": true,
+      "initialRoute": "/dashboard",
+      "department": "서비스 기술개발팀"
+    },
+    {
       "id": "u-kgr",
       "username": "kgr",
       "name": "김가람",
@@ -48,16 +58,6 @@
       "role": "user",
       "email": "pjh@anclave.local",
       "hasHosting": false,
-      "initialRoute": "/dashboard",
-      "department": "서비스 기술개발팀"
-    },
-    {
-      "id": "u-jhs",
-      "username": "jhs",
-      "name": "정휘선",
-      "role": "user",
-      "email": "jhs@anclave.local",
-      "hasHosting": true,
       "initialRoute": "/dashboard",
       "department": "서비스 기술개발팀"
     },
@@ -285,162 +285,133 @@
   ],
   "services": [
     {
-      "id": "svc-qwen",
-      "name": "qwen-agent",
-      "kind": "LLM 에이전트",
+      "id": "svc-educat",
+      "name": "에듀캣",
+      "kind": "동화 창작",
       "hasApi": true,
-      "model": "m12",
-      "serviceUrl": "http://svc.anclave.local/qwen-agent",
-      "testUrl": "http://svc.anclave.local/qwen-agent/playground",
-      "description": "Qwen2.5-7B 기반 업무 자동화 에이전트.",
-      "manualUrl": "/board?post=manual-qwen",
-      "ownerUserId": "u-pts",
+      "model": "m8",
+      "serviceUrl": "http://svc.anclave.local/educat",
+      "testUrl": "http://svc.anclave.local/educat/playground",
+      "description": "아이가 직접 이야기 전개를 상상해 완성하는 AI 동화 창작 서비스.",
+      "ownerUserId": "u-jhs",
       "tags": [
-        "LLM",
-        "API",
-        "에이전트"
+        "교육",
+        "동화",
+        "창작"
       ],
-      "usageCount": 142800,
-      "usageRank": 1,
-      "models": [
-        "m12",
-        "m11"
-      ]
+      "usageCount": 8400,
+      "usageRank": 6
     },
     {
-      "id": "svc-llama",
-      "name": "llama-chat",
-      "kind": "챗봇",
-      "hasApi": true,
-      "model": "m11",
-      "serviceUrl": "http://svc.anclave.local/llama-chat",
-      "testUrl": "http://svc.anclave.local/llama-chat/playground",
-      "description": "Llama 3 8B 기반 사내 대화 챗봇.",
-      "manualUrl": "/board?post=manual-llama",
-      "ownerUserId": "u-kgr",
-      "tags": [
-        "LLM",
-        "API",
-        "챗봇"
-      ],
-      "usageCount": 121300,
-      "usageRank": 2,
-      "models": [
-        "m11",
-        "m13"
-      ]
-    },
-    {
-      "id": "svc-code",
-      "name": "code-assist",
-      "kind": "코딩",
-      "hasApi": true,
-      "model": "m13",
-      "serviceUrl": "http://svc.anclave.local/code-assist",
-      "testUrl": "http://svc.anclave.local/code-assist/playground",
-      "description": "Qwen2.5-Coder 7B 기반 코드 어시스턴트.",
-      "ownerUserId": "u-pts",
-      "tags": [
-        "Code",
-        "API"
-      ],
-      "usageCount": 87600,
-      "usageRank": 3,
-      "models": [
-        "m13",
-        "m12"
-      ]
-    },
-    {
-      "id": "svc-doc",
-      "name": "doc-search",
-      "kind": "RAG 검색",
+      "id": "svc-doragi",
+      "name": "도라지",
+      "kind": "지식 검색(RAG)",
       "hasApi": true,
       "model": "m10",
-      "serviceUrl": "http://svc.anclave.local/doc-search",
-      "testUrl": "http://svc.anclave.local/doc-search/playground",
-      "description": "BGE-M3 임베딩 기반 문서 검색(RAG).",
+      "serviceUrl": "http://svc.anclave.local/doragi",
+      "testUrl": "http://svc.anclave.local/doragi/playground",
+      "description": "사내 비정형 데이터를 통합 아카이빙하고 RAG로 실시간 검색·답변하는 지식 솔루션.",
       "ownerUserId": "u-jhs",
       "tags": [
-        "Embedding",
         "RAG",
-        "API"
+        "지식검색",
+        "협업"
       ],
       "usageCount": 64200,
-      "usageRank": 4,
-      "models": [
-        "m10",
-        "m12",
-        "m9"
-      ]
+      "usageRank": 1
     },
     {
-      "id": "svc-stt",
-      "name": "speech-text",
-      "kind": "음성→텍스트",
+      "id": "svc-voicecat",
+      "name": "보이스캣",
+      "kind": "VoC 분석",
       "hasApi": true,
-      "model": "m9",
-      "serviceUrl": "http://svc.anclave.local/speech-text",
-      "testUrl": "http://svc.anclave.local/speech-text/playground",
-      "description": "Whisper Large v3 기반 음성 인식.",
+      "model": "m12",
+      "serviceUrl": "http://svc.anclave.local/voicecat",
+      "testUrl": "http://svc.anclave.local/voicecat/playground",
+      "description": "LLM 기반 VoC 분석·민원 대응 이력 관리·보고서 생성 솔루션.",
       "ownerUserId": "u-jhs",
       "tags": [
-        "STT",
-        "API"
+        "VoC",
+        "LLM",
+        "민원"
       ],
-      "usageCount": 41900,
-      "usageRank": 5,
-      "models": [
-        "m9",
-        "m10"
-      ]
+      "usageCount": 38600,
+      "usageRank": 2
     },
     {
-      "id": "svc-sd",
-      "name": "sd-image",
+      "id": "svc-biocat",
+      "name": "바이오캣",
+      "kind": "비전 분석",
+      "hasApi": false,
+      "model": "m5",
+      "serviceUrl": "http://svc.anclave.local/biocat",
+      "testUrl": "http://svc.anclave.local/biocat/playground",
+      "description": "이미지 기반 병원성 미생물 자동 계수·시각화 분석 프로그램.",
+      "ownerUserId": "u-jhs",
+      "tags": [
+        "비전",
+        "미생물",
+        "분석"
+      ],
+      "usageCount": 5200,
+      "usageRank": 7
+    },
+    {
+      "id": "svc-imagecat",
+      "name": "이미지캣",
+      "kind": "인터랙티브 콘텐츠",
+      "hasApi": false,
+      "model": "m5",
+      "serviceUrl": "http://svc.anclave.local/imagecat",
+      "testUrl": "http://svc.anclave.local/imagecat/playground",
+      "description": "모션인식·스트림 처리 기반 인터랙티브 콘텐츠 서비스.",
+      "ownerUserId": "u-jhs",
+      "tags": [
+        "모션인식",
+        "인터랙티브"
+      ],
+      "usageCount": 9600,
+      "usageRank": 5
+    },
+    {
+      "id": "svc-dreamlog",
+      "name": "드림로그",
       "kind": "이미지 생성",
       "hasApi": false,
       "model": "m8",
-      "serviceUrl": "http://svc.anclave.local/sd-image",
-      "testUrl": "http://svc.anclave.local/sd-image/playground",
-      "description": "SDXL 기반 이미지 생성 워크스페이스.",
-      "ownerUserId": "u-jhs",
+      "serviceUrl": "http://svc.anclave.local/dreamlog",
+      "testUrl": "http://svc.anclave.local/dreamlog/playground",
+      "description": "기억에 남는 꿈을 기록하면 AI가 꿈 이미지를 카드로 생성하는 기록 앱.",
+      "ownerUserId": "u-pts",
       "tags": [
-        "Image"
+        "꿈기록",
+        "이미지생성"
       ],
-      "usageCount": 33500,
-      "usageRank": 6,
-      "models": [
-        "m8",
-        "m5"
-      ]
+      "usageCount": 21000,
+      "usageRank": 3
     },
     {
-      "id": "svc-vqa",
-      "name": "vision-qa",
-      "kind": "이미지 Q&A",
-      "hasApi": false,
-      "model": "m5",
-      "serviceUrl": "http://svc.anclave.local/vision-qa",
-      "testUrl": "http://svc.anclave.local/vision-qa/playground",
-      "description": "Qwen2.5-VL 7B 기반 이미지 질의응답.",
-      "ownerUserId": "u-kgr",
+      "id": "svc-dootory",
+      "name": "두투리",
+      "kind": "음성 요약·정리",
+      "hasApi": true,
+      "model": "m9",
+      "serviceUrl": "http://svc.anclave.local/dootory",
+      "testUrl": "http://svc.anclave.local/dootory/playground",
+      "description": "말로 입력하면 AI가 요약·체크리스트로 정리하는 라이프 관리 앱.",
+      "ownerUserId": "u-leh",
       "tags": [
-        "Vision-Language"
+        "음성기록",
+        "체크리스트"
       ],
-      "usageCount": 22100,
-      "usageRank": 7,
-      "models": [
-        "m5",
-        "m8",
-        "m11"
-      ]
+      "usageCount": 17800,
+      "usageRank": 4
     }
   ],
   "fleet": [
     {
       "id": "srv-01",
-      "host": "gpu-a01",
+      "host": "192.168.0.41",
       "cpu": "Intel Xeon 8358P",
       "ramGb": 512,
       "cpuUtil": 38,
@@ -452,30 +423,23 @@
           "arch": "Blackwell",
           "vramGb": 32,
           "migCapable": true,
-          "temp": 61,
-          "power": 200,
+          "temp": 64,
+          "power": 210,
           "interconnect": "PCIe 5.0",
           "serial": "GPU-A01-1000",
+          "serviceId": null,
+          "health": "normal",
           "instances": [
-            {
-              "profile": "1g.16gb",
-              "gb": 16,
-              "serviceId": "svc-qwen",
-              "usage": 68
-            },
-            {
-              "profile": "1g.16gb",
-              "gb": 16,
-              "serviceId": null,
-              "usage": 0
-            }
+            { "profile": "3g.90gb", "gb": 90, "serviceId": "svc-educat", "usage": 34 },
+            { "profile": "3g.90gb", "gb": 90, "serviceId": "svc-imagecat", "usage": 48 },
+            { "profile": "3g.90gb", "gb": 90, "serviceId": "svc-biocat", "usage": 27 }
           ]
         }
       ]
     },
     {
       "id": "srv-02",
-      "host": "gpu-a02",
+      "host": "192.168.0.47",
       "cpu": "Intel Xeon 8358P",
       "ramGb": 512,
       "cpuUtil": 44,
@@ -491,16 +455,16 @@
           "power": 220,
           "interconnect": "PCIe 5.0",
           "serial": "GPU-A02-1001",
-          "serviceId": "svc-sd",
-          "smUtil": 58,
-          "vramUtil": 61,
+          "serviceId": "svc-dootory",
+          "smUtil": 51,
+          "vramUtil": 58,
           "health": "normal"
         }
       ]
     },
     {
       "id": "srv-03",
-      "host": "gpu-a03",
+      "host": "192.168.0.214",
       "cpu": "Intel Xeon 8358P",
       "ramGb": 512,
       "cpuUtil": 33,
@@ -516,7 +480,7 @@
           "power": 158,
           "interconnect": "PCIe 4.0",
           "serial": "GPU-A03-1002",
-          "serviceId": "svc-doc",
+          "serviceId": "svc-dreamlog",
           "smUtil": 44,
           "vramUtil": 52,
           "health": "normal"
@@ -525,11 +489,11 @@
     },
     {
       "id": "srv-04",
-      "host": "gpu-a04",
+      "host": "192.168.0.130",
       "cpu": "Intel Xeon 8358P",
       "ramGb": 512,
-      "cpuUtil": 62,
-      "memUtil": 70,
+      "cpuUtil": 18,
+      "memUtil": 23,
       "network": "10 Gbps",
       "gpus": [
         {
@@ -537,24 +501,25 @@
           "arch": "Turing",
           "vramGb": 8,
           "migCapable": false,
-          "temp": 78,
-          "power": 205,
+          "temp": 47,
+          "power": 0,
           "interconnect": "PCIe 4.0",
           "serial": "GPU-A04-1003",
-          "serviceId": "svc-stt",
-          "smUtil": 71,
-          "vramUtil": 68,
-          "health": "normal"
+          "serviceId": null,
+          "smUtil": 0,
+          "vramUtil": 0,
+          "health": "danger",
+          "xid": "XID 48"
         }
       ]
     },
     {
       "id": "srv-05",
-      "host": "gpu-a05",
+      "host": "192.168.0.165",
       "cpu": "Intel Xeon 8358P",
       "ramGb": 512,
-      "cpuUtil": 12,
-      "memUtil": 18,
+      "cpuUtil": 9,
+      "memUtil": 14,
       "network": "1 Gbps",
       "gpus": [
         {
@@ -562,8 +527,8 @@
           "arch": "Turing",
           "vramGb": 6,
           "migCapable": false,
-          "temp": 41,
-          "power": 16,
+          "temp": 38,
+          "power": 14,
           "interconnect": "PCIe 4.0",
           "serial": "GPU-A05-1004",
           "serviceId": null,
@@ -575,11 +540,11 @@
     },
     {
       "id": "srv-06",
-      "host": "gpu-a06",
+      "host": "192.168.0.55",
       "cpu": "Intel Xeon 8358P",
       "ramGb": 512,
-      "cpuUtil": 29,
-      "memUtil": 38,
+      "cpuUtil": 7,
+      "memUtil": 12,
       "network": "10 Gbps",
       "gpus": [
         {
@@ -587,24 +552,24 @@
           "arch": "Ampere",
           "vramGb": 8,
           "migCapable": false,
-          "temp": 61,
-          "power": 162,
+          "temp": 36,
+          "power": 12,
           "interconnect": "PCIe 4.0",
           "serial": "GPU-A06-1005",
-          "serviceId": "svc-vqa",
-          "smUtil": 39,
-          "vramUtil": 47,
-          "health": "normal"
+          "serviceId": null,
+          "smUtil": 0,
+          "vramUtil": 0,
+          "health": "inactive"
         }
       ]
     },
     {
       "id": "srv-07",
-      "host": "gpu-a07",
+      "host": "192.168.0.43",
       "cpu": "Intel Xeon 8358P",
       "ramGb": 512,
-      "cpuUtil": 8,
-      "memUtil": 14,
+      "cpuUtil": 6,
+      "memUtil": 11,
       "network": "1 Gbps",
       "gpus": [
         {
@@ -612,21 +577,20 @@
           "arch": "Pascal",
           "vramGb": 8,
           "migCapable": false,
-          "temp": 88,
-          "power": 0,
+          "temp": 35,
+          "power": 8,
           "interconnect": "PCIe 3.0",
           "serial": "GPU-A07-1006",
           "serviceId": null,
           "smUtil": 0,
           "vramUtil": 0,
-          "health": "danger",
-          "xid": "XID 79"
+          "health": "inactive"
         }
       ]
     },
     {
       "id": "srv-08",
-      "host": "gpu-a08",
+      "host": "192.168.0.63",
       "cpu": "Intel Xeon 8358P",
       "ramGb": 512,
       "cpuUtil": 52,
@@ -639,37 +603,16 @@
           "vramGb": 32,
           "migCapable": true,
           "temp": 62,
-          "power": 200,
+          "power": 205,
           "interconnect": "PCIe 5.0",
           "serial": "GPU-A08-2000",
+          "serviceId": null,
+          "health": "normal",
           "instances": [
-            {
-              "profile": "1g.16gb",
-              "gb": 16,
-              "serviceId": "svc-llama",
-              "usage": 71
-            },
-            {
-              "profile": "1g.16gb",
-              "gb": 16,
-              "serviceId": null,
-              "usage": 0
-            }
+            { "profile": "2g.45gb", "gb": 45, "serviceId": "svc-doragi", "usage": 56 },
+            { "profile": "2g.45gb", "gb": 45, "serviceId": "svc-voicecat", "usage": 39 },
+            { "profile": "2g.45gb", "gb": 45, "serviceId": null, "usage": 0 }
           ]
-        },
-        {
-          "model": "RTX 2070",
-          "arch": "Turing",
-          "vramGb": 8,
-          "migCapable": false,
-          "temp": 66,
-          "power": 176,
-          "interconnect": "PCIe 4.0",
-          "serial": "GPU-A08-2001",
-          "serviceId": "svc-code",
-          "smUtil": 47,
-          "vramUtil": 51,
-          "health": "normal"
         }
       ]
     }
@@ -677,37 +620,91 @@
   "gpuRequests": [
     {
       "id": "gr-01",
-      "requesterUserId": "u-pts",
+      "requesterUserId": "u-jhs",
       "capacity": 1,
-      "capacityUnit": "slice",
+      "capacityUnit": "card",
+      "models": [
+        "m8"
+      ],
+      "env": "Ubuntu 22.04 · CUDA 12.4",
+      "addons": [
+        "API"
+      ],
+      "serviceName": "에듀캣",
+      "purpose": "에듀캣 서비스 운영",
+      "status": "approved",
+      "createdAt": "2026-05-22 10:00",
+      "period": "6개월",
+      "priority": "normal",
+      "processedAt": "2026-05-23 09:40",
+      "processedBy": "u-admin",
+      "allocatedServerId": "srv-01",
+      "allocatedGpuId": "srv-01-gpu0",
+      "allocatedSliceId": "srv-01-gpu0-s1",
+      "allocatedRamGb": 12,
+      "allocatedStorageGb": 30,
+      "allocatedCpuCores": 8,
+      "active": true
+    },
+    {
+      "id": "gr-02",
+      "requesterUserId": "u-jhs",
+      "capacity": 1,
+      "capacityUnit": "card",
+      "models": [
+        "m10"
+      ],
+      "env": "Ubuntu 22.04 · CUDA 12.4",
+      "addons": [
+        "API"
+      ],
+      "serviceName": "도라지",
+      "purpose": "도라지 서비스 운영",
+      "status": "approved",
+      "createdAt": "2026-05-22 10:00",
+      "period": "6개월",
+      "priority": "normal",
+      "processedAt": "2026-05-23 09:40",
+      "processedBy": "u-admin",
+      "allocatedServerId": "srv-08",
+      "allocatedGpuId": "srv-08-gpu0",
+      "allocatedSliceId": "srv-08-gpu0-s1",
+      "allocatedRamGb": 8,
+      "allocatedStorageGb": 15,
+      "allocatedCpuCores": 4,
+      "active": true
+    },
+    {
+      "id": "gr-03",
+      "requesterUserId": "u-jhs",
+      "capacity": 1,
+      "capacityUnit": "card",
       "models": [
         "m12"
       ],
       "env": "Ubuntu 22.04 · CUDA 12.4",
       "addons": [
-        "주피터",
         "API"
       ],
-      "serviceName": "qwen-agent",
-      "purpose": "Qwen2.5-7B 업무 자동화 에이전트",
-      "attachmentUrl": "/docs/공문-gr01.pdf",
+      "serviceName": "보이스캣",
+      "purpose": "보이스캣 서비스 운영",
       "status": "approved",
-      "createdAt": "2026-05-21 10:12",
-      "period": "3개월",
+      "createdAt": "2026-05-22 10:00",
+      "period": "6개월",
       "priority": "normal",
-      "processedAt": "2026-05-22 09:40",
+      "processedAt": "2026-05-23 09:40",
       "processedBy": "u-admin",
-      "adminMemo": "우선 슬라이스 1개 할당. 사용량 추이 보고 확장 검토 예정.",
-      "allocatedRamGb": 24,
+      "allocatedServerId": "srv-08",
+      "allocatedGpuId": "srv-08-gpu0",
+      "allocatedSliceId": "srv-08-gpu0-s2",
+      "allocatedRamGb": 16,
       "allocatedStorageGb": 28,
       "allocatedCpuCores": 6,
-      "allocatedServerId": "srv-01",
-      "allocatedGpuId": "srv-01-gpu0",
-      "allocatedSliceId": "srv-01-gpu0-s1"
+      "active": true
     },
     {
-      "id": "gr-02",
-      "requesterUserId": "u-kgr",
+      "id": "gr-04",
+      "requesterUserId": "u-jhs",
       "capacity": 1,
       "capacityUnit": "card",
       "models": [
@@ -717,73 +714,21 @@
       "addons": [
         "API"
       ],
-      "serviceName": "vision-qa",
-      "purpose": "이미지 문서 QA 추론 서비스",
+      "serviceName": "바이오캣",
+      "purpose": "바이오캣 서비스 운영",
       "status": "approved",
-      "createdAt": "2026-05-23 14:30",
+      "createdAt": "2026-05-22 10:00",
       "period": "6개월",
       "priority": "normal",
-      "processedAt": "2026-05-24 11:15",
+      "processedAt": "2026-05-23 09:40",
       "processedBy": "u-admin",
-      "allocatedRamGb": 28,
+      "allocatedServerId": "srv-01",
+      "allocatedGpuId": "srv-01-gpu0",
+      "allocatedSliceId": "srv-01-gpu0-s3",
+      "allocatedRamGb": 18,
       "allocatedStorageGb": 32,
       "allocatedCpuCores": 8,
-      "allocatedServerId": "srv-06",
-      "allocatedGpuId": "srv-06-gpu0"
-    },
-    {
-      "id": "gr-03",
-      "requesterUserId": "u-jhs",
-      "capacity": 1,
-      "capacityUnit": "card",
-      "models": [
-        "m10"
-      ],
-      "env": "Ubuntu 22.04",
-      "addons": [
-        "API"
-      ],
-      "serviceName": "doc-search",
-      "purpose": "RAG 문서 검색 임베딩",
-      "attachmentUrl": "/docs/공문-gr03.pdf",
-      "status": "approved",
-      "createdAt": "2026-05-24 09:05",
-      "period": "1개월",
-      "priority": "normal",
-      "processedAt": "2026-05-25 14:05",
-      "processedBy": "u-admin",
-      "adminMemo": "검색 임베딩용 단일 카드 충분. 모니터링 애드온 권장.",
-      "allocatedRamGb": 16,
-      "allocatedStorageGb": 15,
-      "allocatedCpuCores": 4,
-      "allocatedServerId": "srv-03",
-      "allocatedGpuId": "srv-03-gpu0"
-    },
-    {
-      "id": "gr-04",
-      "requesterUserId": "u-jhs",
-      "capacity": 1,
-      "capacityUnit": "card",
-      "models": [
-        "m8"
-      ],
-      "env": "Ubuntu 22.04",
-      "addons": [
-        "주피터"
-      ],
-      "serviceName": "sd-image",
-      "purpose": "SDXL 이미지 생성 워크스페이스",
-      "status": "approved",
-      "createdAt": "2026-05-25 16:48",
-      "period": "무기한",
-      "priority": "normal",
-      "processedAt": "2026-05-26 16:20",
-      "processedBy": "u-admin",
-      "allocatedRamGb": 24,
-      "allocatedStorageGb": 30,
-      "allocatedCpuCores": 8,
-      "allocatedServerId": "srv-02",
-      "allocatedGpuId": "srv-02-gpu0"
+      "active": true
     },
     {
       "id": "gr-05",
@@ -791,87 +736,87 @@
       "capacity": 1,
       "capacityUnit": "card",
       "models": [
-        "m9"
+        "m5"
       ],
-      "env": "Ubuntu 22.04",
+      "env": "Ubuntu 22.04 · CUDA 12.4",
       "addons": [
         "API"
       ],
-      "serviceName": "speech-text",
-      "purpose": "Whisper STT 추론",
+      "serviceName": "이미지캣",
+      "purpose": "이미지캣 서비스 운영",
       "status": "approved",
-      "createdAt": "2026-05-27 11:20",
-      "period": "3개월",
+      "createdAt": "2026-05-22 10:00",
+      "period": "6개월",
       "priority": "normal",
-      "processedAt": "2026-05-28 09:40",
+      "processedAt": "2026-05-23 09:40",
       "processedBy": "u-admin",
-      "allocatedRamGb": 16,
-      "allocatedStorageGb": 20,
-      "allocatedCpuCores": 6,
-      "allocatedServerId": "srv-04",
-      "allocatedGpuId": "srv-04-gpu0"
+      "allocatedServerId": "srv-01",
+      "allocatedGpuId": "srv-01-gpu0",
+      "allocatedSliceId": "srv-01-gpu0-s2",
+      "allocatedRamGb": 18,
+      "allocatedStorageGb": 32,
+      "allocatedCpuCores": 8,
+      "active": true
     },
     {
       "id": "gr-06",
+      "requesterUserId": "u-leh",
+      "capacity": 1,
+      "capacityUnit": "card",
+      "models": [
+        "m9"
+      ],
+      "env": "Ubuntu 22.04 · CUDA 12.4",
+      "addons": [
+        "API"
+      ],
+      "serviceName": "두투리",
+      "purpose": "두투리 서비스 운영",
+      "status": "approved",
+      "createdAt": "2026-05-22 10:00",
+      "period": "6개월",
+      "priority": "normal",
+      "processedAt": "2026-05-23 09:40",
+      "processedBy": "u-admin",
+      "allocatedServerId": "srv-02",
+      "allocatedGpuId": "srv-02-gpu0",
+      "allocatedRamGb": 10,
+      "allocatedStorageGb": 20,
+      "allocatedCpuCores": 6,
+      "active": true
+    },
+    {
+      "id": "gr-07",
       "requesterUserId": "u-pts",
       "capacity": 1,
       "capacityUnit": "card",
       "models": [
-        "m13"
+        "m8"
       ],
       "env": "Ubuntu 22.04 · CUDA 12.4",
       "addons": [
-        "주피터",
         "API"
       ],
-      "serviceName": "code-assist",
-      "purpose": "코드 어시스턴트 추론",
-      "attachmentUrl": "/docs/공문-gr06.pdf",
+      "serviceName": "드림로그",
+      "purpose": "드림로그 서비스 운영",
       "status": "approved",
-      "createdAt": "2026-05-29 13:02",
+      "createdAt": "2026-05-22 10:00",
       "period": "6개월",
       "priority": "normal",
-      "processedAt": "2026-05-30 11:15",
+      "processedAt": "2026-05-23 09:40",
       "processedBy": "u-admin",
-      "allocatedRamGb": 24,
-      "allocatedStorageGb": 28,
-      "allocatedCpuCores": 6,
-      "allocatedServerId": "srv-08",
-      "allocatedGpuId": "srv-08-gpu1"
-    },
-    {
-      "id": "gr-07",
-      "requesterUserId": "u-kgr",
-      "capacity": 1,
-      "capacityUnit": "slice",
-      "models": [
-        "m11"
-      ],
-      "env": "Ubuntu 22.04",
-      "addons": [
-        "API"
-      ],
-      "serviceName": "llama-chat",
-      "purpose": "사내 대화 챗봇",
-      "status": "approved",
-      "createdAt": "2026-05-30 10:41",
-      "period": "1개월",
-      "priority": "normal",
-      "processedAt": "2026-05-31 14:05",
-      "processedBy": "u-admin",
-      "adminMemo": "동일 서버 내 잔여 슬롯 배정.",
-      "allocatedRamGb": 24,
+      "allocatedServerId": "srv-03",
+      "allocatedGpuId": "srv-03-gpu0",
+      "allocatedRamGb": 12,
       "allocatedStorageGb": 30,
-      "allocatedCpuCores": 6,
-      "allocatedServerId": "srv-08",
-      "allocatedGpuId": "srv-08-gpu0",
-      "allocatedSliceId": "srv-08-gpu0-s1"
+      "allocatedCpuCores": 8,
+      "active": true
     }
   ],
   "modelRequests": [
     {
       "id": "mr-01",
-      "requesterUserId": "u-kim",
+      "requesterUserId": "u-jhs",
       "modelName": "Qwen2.5-72B",
       "kind": "LLM",
       "source": "huggingface.co/Qwen/Qwen2.5-72B",
@@ -889,7 +834,7 @@
     },
     {
       "id": "mr-02",
-      "requesterUserId": "u-park",
+      "requesterUserId": "u-pts",
       "modelName": "DeepSeek-V3",
       "kind": "LLM",
       "source": "huggingface.co/deepseek-ai/DeepSeek-V3",
@@ -907,7 +852,7 @@
     },
     {
       "id": "mr-05",
-      "requesterUserId": "u-park",
+      "requesterUserId": "u-leh",
       "modelName": "Phi-3.5-mini",
       "kind": "LLM",
       "source": "huggingface.co/microsoft/Phi-3.5-mini-instruct",
@@ -922,7 +867,7 @@
     },
     {
       "id": "mr-06",
-      "requesterUserId": "u-kim",
+      "requesterUserId": "u-lim",
       "modelName": "Mistral Small 3",
       "kind": "LLM",
       "source": "huggingface.co/mistralai/Mistral-Small-3",
@@ -936,7 +881,7 @@
     },
     {
       "id": "mr-03",
-      "requesterUserId": "u-lee",
+      "requesterUserId": "u-kgr",
       "modelName": "custom-lora (사내 파인튜닝)",
       "reason": "사내 파인튜닝 LoRA 어댑터 적용 필요",
       "status": "rejected",
@@ -952,148 +897,151 @@
   ],
   "apiRequests": [
     {
-      "id": "ar-03",
-      "requesterUserId": "u-jhs",
-      "serviceId": "svc-code",
-      "model": "m13",
-      "targetServiceUrl": "http://app.anclave.local/yoon-ide",
+      "id": "ar-01",
+      "requesterUserId": "u-kgr",
+      "serviceId": "svc-doragi",
+      "model": "m10",
+      "targetServiceUrl": "http://app.anclave.local/u-kgr-doragi",
+      "purpose": "도라지 API 연동",
       "status": "approved",
-      "apiKey": "ak_live_code_a91d4f7c20",
-      "createdAt": "2026-05-29 09:45"
+      "apiKey": "ak_live_doragi_8f2a1c",
+      "createdAt": "2026-06-03 13:00"
+    },
+    {
+      "id": "ar-02",
+      "requesterUserId": "u-lim",
+      "serviceId": "svc-voicecat",
+      "model": "m12",
+      "targetServiceUrl": "http://app.anclave.local/u-lim-voicecat",
+      "purpose": "보이스캣 API 연동",
+      "status": "approved",
+      "apiKey": "ak_live_voicecat_3b7e0a",
+      "createdAt": "2026-06-03 13:00"
+    },
+    {
+      "id": "ar-03",
+      "requesterUserId": "u-pjh",
+      "serviceId": "svc-educat",
+      "model": "m8",
+      "targetServiceUrl": "http://app.anclave.local/u-pjh-educat",
+      "purpose": "에듀캣 API 연동",
+      "status": "approved",
+      "apiKey": "ak_live_educat_a91d4f",
+      "createdAt": "2026-06-03 13:00"
     },
     {
       "id": "ar-04",
-      "requesterUserId": "u-kgr",
-      "serviceId": "svc-doc",
-      "model": "m10",
-      "targetServiceUrl": "http://app.anclave.local/lee-search",
-      "status": "approved",
-      "apiKey": "ak_live_doc_5c8b2e3a90",
-      "createdAt": "2026-05-31 16:30"
+      "requesterUserId": "u-kmw",
+      "serviceId": "svc-dootory",
+      "model": "m9",
+      "targetServiceUrl": "http://app.anclave.local/u-kmw-dootory",
+      "purpose": "두투리 API 연동",
+      "status": "pending",
+      "createdAt": "2026-06-03 13:00"
     },
     {
       "id": "ar-05",
-      "requesterUserId": "u-lim",
-      "serviceId": "svc-qwen",
-      "model": "m12",
-      "targetServiceUrl": "http://app.anclave.local/choi-agent",
+      "requesterUserId": "u-psj",
+      "serviceId": "svc-doragi",
+      "model": "m10",
+      "targetServiceUrl": "http://app.anclave.local/u-psj-doragi",
+      "purpose": "도라지 API 연동",
       "status": "pending",
-      "createdAt": "2026-06-03 13:12"
+      "createdAt": "2026-06-03 13:00"
     },
     {
       "id": "ar-06",
-      "requesterUserId": "u-pjh",
-      "serviceId": "svc-stt",
-      "model": "m9",
-      "targetServiceUrl": "http://app.anclave.local/han-stt",
+      "requesterUserId": "u-jhw",
+      "serviceId": "svc-biocat",
+      "model": "m5",
+      "targetServiceUrl": "http://app.anclave.local/u-jhw-biocat",
+      "purpose": "바이오캣 API 연동",
       "status": "rejected",
-      "rejectReason": "대상 서비스 URL이 사내망에서 확인되지 않아요.",
-      "createdAt": "2026-06-01 11:08"
-    },
-    {
-      "id": "ar-demo-1",
-      "requesterUserId": "u-kgr",
-      "serviceId": "svc-doc",
-      "model": "m10",
-      "targetServiceUrl": "http://app.anclave.local/kgr-wiki-search",
-      "purpose": "사내 위키 문서 검색(RAG) 연동에 사용 예정입니다.",
-      "status": "pending",
-      "createdAt": "2026-06-14 11:20"
-    },
-    {
-      "id": "ar-demo-2",
-      "requesterUserId": "u-kgr",
-      "serviceId": "svc-doc",
-      "model": "m10",
-      "targetServiceUrl": "http://app.anclave.local/kgr-helpdesk",
-      "purpose": "헬프데스크 상담 문서 자동 검색에 사용합니다.",
-      "status": "pending",
-      "createdAt": "2026-06-15 09:05"
-    },
-    {
-      "id": "ar-demo-3",
-      "requesterUserId": "u-kgr",
-      "serviceId": "svc-doc",
-      "model": "m10",
-      "targetServiceUrl": "http://app.anclave.local/kgr-report-gen",
-      "purpose": "주간 보고서 초안 작성용 근거 문서 검색.",
-      "status": "pending",
-      "createdAt": "2026-06-16 08:40"
+      "rejectReason": "대상 URL이 사내망에서 확인되지 않아요.",
+      "createdAt": "2026-06-03 13:00"
     }
   ],
   "publishRequests": [
     {
       "id": "pr-01",
-      "requesterUserId": "u-pts",
-      "serviceName": "qwen-agent",
-      "serviceUrl": "http://svc.anclave.local/qwen-agent",
-      "demoUrl": "http://svc.anclave.local/qwen-agent/playground",
-      "meta": "LLM 에이전트 · Qwen2.5-7B",
+      "requesterUserId": "u-jhs",
+      "serviceName": "에듀캣",
+      "serviceUrl": "http://svc.anclave.local/educat",
+      "demoUrl": "http://svc.anclave.local/educat/demo",
+      "meta": "동화 창작 · m8",
       "status": "approved",
       "createdAt": "2026-05-20 09:00"
     },
     {
       "id": "pr-02",
-      "requesterUserId": "u-kgr",
-      "serviceName": "llama-chat",
-      "serviceUrl": "http://svc.anclave.local/llama-chat",
-      "demoUrl": "http://svc.anclave.local/llama-chat/playground",
-      "meta": "챗봇 · Llama 3 8B",
+      "requesterUserId": "u-jhs",
+      "serviceName": "도라지",
+      "serviceUrl": "http://svc.anclave.local/doragi",
+      "demoUrl": "http://svc.anclave.local/doragi/demo",
+      "meta": "지식 검색(RAG) · m10",
       "status": "approved",
-      "createdAt": "2026-05-22 15:40"
+      "createdAt": "2026-05-20 09:00"
+    },
+    {
+      "id": "pr-03",
+      "requesterUserId": "u-pts",
+      "serviceName": "드림로그",
+      "serviceUrl": "http://svc.anclave.local/dreamlog",
+      "demoUrl": "http://svc.anclave.local/dreamlog/demo",
+      "meta": "이미지 생성 · m8",
+      "status": "pending",
+      "createdAt": "2026-05-20 09:00"
     }
   ],
   "gpuChangeRequests": [
     {
+      "id": "cr-01",
+      "requesterUserId": "u-jhs",
+      "type": "expand",
+      "targetRequestId": "gr-02",
+      "reason": "사용량 증가로 자원 확장",
+      "status": "pending",
+      "createdAt": "2026-06-10 09:30",
+      "afterRamGb": 16,
+      "afterStorageGb": 30
+    },
+    {
       "id": "cr-02",
       "requesterUserId": "u-pts",
       "type": "change",
-      "targetRequestId": "gr-01",
-      "reason": "에이전트 동시 처리량 증가로 CPU 코어 증설을 요청합니다.",
+      "targetRequestId": "gr-07",
+      "reason": "구성 변경 요청",
       "status": "pending",
-      "createdAt": "2026-06-11 14:10",
+      "createdAt": "2026-06-10 09:30",
       "afterCpuCores": 12
     },
     {
       "id": "cr-03",
-      "requesterUserId": "u-kgr",
+      "requesterUserId": "u-leh",
       "type": "reclaim",
-      "targetRequestId": "gr-02",
-      "reason": "비전 QA 파일럿 종료로 할당 자원을 회수합니다.",
+      "targetRequestId": "gr-06",
+      "reason": "서비스 종료로 자원 회수",
       "status": "pending",
-      "createdAt": "2026-06-12 10:00"
+      "createdAt": "2026-06-10 09:30"
     },
     {
       "id": "cr-04",
       "requesterUserId": "u-jhs",
       "type": "expand",
-      "targetRequestId": "gr-05",
-      "reason": "음성 데이터 누적으로 저장 공간 확장이 필요합니다.",
+      "targetRequestId": "gr-01",
+      "reason": "사용량 증가로 자원 확장",
       "status": "approved",
-      "createdAt": "2026-06-07 16:00",
-      "processedAt": "2026-06-08 11:20",
+      "createdAt": "2026-06-10 09:30",
+      "afterStorageGb": 60,
+      "processedAt": "2026-06-11 10:00",
       "processedBy": "u-admin",
-      "adminMemo": "잔여 용량 충분 — 승인합니다.",
-      "afterStorageGb": 40
-    },
-    {
-      "id": "cr-06",
-      "requesterUserId": "u-kgr",
-      "type": "expand",
-      "targetRequestId": "gr-07",
-      "reason": "챗봇 트래픽 증가로 CPU 코어 확장을 요청합니다.",
-      "status": "approved",
-      "createdAt": "2026-06-08 09:00",
-      "processedAt": "2026-06-09 10:15",
-      "processedBy": "u-admin",
-      "adminMemo": "승인합니다.",
-      "afterCpuCores": 12
+      "adminMemo": "승인합니다."
     }
   ],
   "apiKeyUsages": [
     {
-      "keyId": "ak_live_qwen_8f2a1c9d4e",
-      "serviceId": "svc-qwen",
+      "keyId": "ak_live_doragi_8f2a1c",
+      "serviceId": "svc-doragi",
       "calls": [
         820,
         910,
@@ -1106,8 +1054,8 @@
       "connections": 6
     },
     {
-      "keyId": "ak_live_llama_3b7e0a2f15",
-      "serviceId": "svc-llama",
+      "keyId": "ak_live_voicecat_3b7e0a",
+      "serviceId": "svc-voicecat",
       "calls": [
         640,
         720,
@@ -1120,8 +1068,8 @@
       "connections": 4
     },
     {
-      "keyId": "ak_live_code_a91d4f7c20",
-      "serviceId": "svc-code",
+      "keyId": "ak_live_educat_a91d4f",
+      "serviceId": "svc-educat",
       "calls": [
         410,
         520,
@@ -1134,8 +1082,8 @@
       "connections": 3
     },
     {
-      "keyId": "ak_live_doc_5c8b2e3a90",
-      "serviceId": "svc-doc",
+      "keyId": "ak_live_dootory_5c8b2e",
+      "serviceId": "svc-dootory",
       "calls": [
         220,
         280,
