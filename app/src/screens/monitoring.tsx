@@ -15,6 +15,9 @@ import { Card, KpiStat } from '../components/ui'
 import { BandChart } from '../components/charts'
 import type { BandSeries, BandAxis } from '../components/charts'
 import { servers, allGpus, events } from '../data'
+import { useEvents } from '../data/hooks/usePolling'
+import { useRole } from '../lib/role'
+import { filterEventRowsForUser } from './event-store'
 import { serverAvgUtil, vramUsedMb, vramTotalMb, fmtNum } from '../lib/metrics'
 import {
   RANGES,
@@ -404,14 +407,36 @@ const SEV: Record<string, { label: string; color: string }> = {
   info: { label: '관심', color: ACCENT },
   recovered: { label: '복구', color: OK },
 }
-const ALARMS = events.slice(0, 7).map((e) => ({
+// 발생 시간 — DB(ISO) · 시드('YYYY-MM-DD HH:mm') 둘 다 HH:mm 으로 표시.
+function fmtTime(createdAt: string): string {
+  if (createdAt.includes('T')) {
+    const d = new Date(createdAt)
+    if (!Number.isNaN(d.getTime())) {
+      return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+    }
+  }
+  const m = createdAt.match(/\d{2}:\d{2}/)
+  return m ? m[0] : createdAt
+}
+
+type AlarmRow = { gpuId?: string | null; serverId?: string | null; severity: string; message: string; createdAt: string }
+const toAlarm = (e: AlarmRow) => ({
   sev: SEV[e.severity] ?? SEV.info,
   msg: e.message,
   srv: e.serverId ?? '—',
-  time: e.createdAt.length > 10 ? e.createdAt.slice(11) : e.createdAt,
-}))
+  time: fmtTime(e.createdAt),
+})
 
 function AlarmTable() {
+  const { user, isAdmin } = useRole()
+  // 실시간 알림 — DB(/api/events). 관리자=전체(7), 사용자=본인 스코프 확보 위해 넉넉히 받아 클라 필터.
+  const { data } = useEvents({ limit: isAdmin ? 7 : 60 })
+  // data null(로딩·backend 다운) → 시드 폴백.
+  const rows: AlarmRow[] = data ?? events
+  // 사용자(B/C)는 본인 소유 자원·서비스 이벤트만(자원맵은 A 전용 → event-store 스코프 재사용).
+  const scoped = isAdmin ? rows : filterEventRowsForUser(rows, user.id)
+  const alarms = scoped.slice(0, 7).map(toAlarm)
+
   const th: CSSProperties = { fontSize: 11, fontWeight: 700, color: MUTED, textAlign: 'left', padding: '7px 8px', whiteSpace: 'nowrap', position: 'sticky', top: 0, background: 'var(--th-bg)', borderBottom: '2px solid var(--c-border)' }
   const td: CSSProperties = { fontSize: 12.5, padding: '8px 8px', borderBottom: '1px solid var(--c-border-s)', verticalAlign: 'middle' }
   return (
@@ -426,16 +451,22 @@ function AlarmTable() {
           </tr>
         </thead>
         <tbody>
-          {ALARMS.map((a, i) => (
-            <tr key={i}>
-              <td style={td}>
-                <span className="rounded font-bold whitespace-nowrap" style={{ fontSize: 10.5, padding: '2px 7px', color: a.sev.color, background: `color-mix(in srgb, ${a.sev.color} 16%, transparent)` }}>{a.sev.label}</span>
-              </td>
-              <td style={{ ...td, color: 'var(--c-text)' }}>{a.msg}</td>
-              <td style={{ ...td, color: MUTED }} className="tabular-nums">{a.srv}</td>
-              <td style={{ ...td, color: MUTED, textAlign: 'right', whiteSpace: 'nowrap' }} className="tabular-nums">{a.time}</td>
+          {alarms.length === 0 ? (
+            <tr>
+              <td colSpan={4} style={{ ...td, color: MUTED, textAlign: 'center', padding: '24px 8px' }}>표시할 알림이 없습니다.</td>
             </tr>
-          ))}
+          ) : (
+            alarms.map((a, i) => (
+              <tr key={i}>
+                <td style={td}>
+                  <span className="rounded font-bold whitespace-nowrap" style={{ fontSize: 10.5, padding: '2px 7px', color: a.sev.color, background: `color-mix(in srgb, ${a.sev.color} 16%, transparent)` }}>{a.sev.label}</span>
+                </td>
+                <td style={{ ...td, color: 'var(--c-text)' }}>{a.msg}</td>
+                <td style={{ ...td, color: MUTED }} className="tabular-nums">{a.srv}</td>
+                <td style={{ ...td, color: MUTED, textAlign: 'right', whiteSpace: 'nowrap' }} className="tabular-nums">{a.time}</td>
+              </tr>
+            ))
+          )}
         </tbody>
       </table>
     </div>
