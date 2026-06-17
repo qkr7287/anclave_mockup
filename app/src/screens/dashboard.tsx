@@ -1024,10 +1024,10 @@ export function RequestStatus() {
         ))}
       </div>
 
-      {/* 3) 검색 및 필터 바 */}
+      {/* 3) 검색 및 필터 바 — 4.10 승인 관리와 동일 간격(18) */}
       <section
         className="bg-card2 border border-line rounded-[14px] shrink-0"
-        style={{ marginTop: 32, padding: '14px 19px' }}
+        style={{ marginTop: 18, padding: '14px 19px' }}
       >
         <h2 className="font-bold text-text" style={{ fontSize: 14.5 }}>검색 및 필터</h2>
         <div className="flex items-center justify-between gap-3 flex-wrap" style={{ marginTop: 11 }}>
@@ -1068,8 +1068,8 @@ export function RequestStatus() {
         </div>
       </section>
 
-      {/* 4) 내 신청 현황 테이블 — 화면 하단까지 채움 */}
-      <section className="bg-card2 border border-line rounded-[14px] overflow-hidden flex flex-col flex-1 min-h-0" style={{ marginTop: 11 }}>
+      {/* 4) 내 신청 현황 테이블 — 화면 하단까지 채움 (필터와 18 간격 통일) */}
+      <section className="bg-card2 border border-line rounded-[14px] overflow-hidden flex flex-col flex-1 min-h-0" style={{ marginTop: 18 }}>
         {/* 카드 헤더: 제목(좌) + 신규 신청(우) — /requests/new 페이지로 이동 */}
         <div className="flex items-center justify-between gap-3 shrink-0" style={{ padding: '16px 24px' }}>
           <h2 className="font-bold text-text" style={{ fontSize: 16 }}>내 신청 현황</h2>

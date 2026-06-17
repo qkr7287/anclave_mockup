@@ -12,16 +12,6 @@
       "department": "시스템 관리"
     },
     {
-      "id": "u-hwang",
-      "username": "hwang",
-      "name": "황상곤",
-      "role": "user",
-      "email": "hwang@anclave.local",
-      "hasHosting": true,
-      "initialRoute": "/dashboard",
-      "department": "대표이사"
-    },
-    {
       "id": "u-kgr",
       "username": "kgr",
       "name": "김가람",
@@ -167,7 +157,7 @@
       "id": "m11",
       "name": "Llama 3 8B",
       "kind": "LLM",
-      "description": "메타 Llama 3 8B — 16GB MIG 인스턴스에 적합한 경량 챗 모델.",
+      "description": "Meta가 공개한 80억 파라미터 오픈 LLM입니다. 8K 토큰 컨텍스트와 향상된 추론·다국어 대화 능력을 갖춰 16GB MIG 인스턴스 단독 구동으로 경량 챗봇·요약·지시 응답에 적합합니다.\n\n• 동급 소형 모델 대비 우수한 지시 따르기와 한국어 품질\n• 범용 생성·대화·요약 등 폭넓은 작업 커버\n• LoRA 어댑터·파인튜닝 적용이 용이",
       "addons": [
         "주피터",
         "API"
@@ -186,7 +176,7 @@
       "id": "m12",
       "name": "Qwen2.5 7B",
       "kind": "LLM",
-      "description": "알리바바 Qwen2.5 7B — 에이전트·도구 호출에 적합한 소형 LLM.",
+      "description": "알리바바가 공개한 70억 파라미터 LLM으로, 최대 128K 토큰의 긴 컨텍스트를 지원합니다. 구조화 출력(JSON)과 도구 호출에 강해 에이전트 워크플로·다단계 추론에 적합합니다.\n\n• 함수 호출·툴 사용 등 에이전트 작업에 최적화\n• 29개 이상 언어 지원\n• 소형 GPU에서 효율적으로 동작",
       "addons": [
         "주피터",
         "API"
@@ -205,7 +195,7 @@
       "id": "m13",
       "name": "Qwen2.5-Coder 7B",
       "kind": "Code",
-      "description": "코드 생성·리뷰 특화 소형 모델 — 단일 소비자 GPU(8GB)에서 구동.",
+      "description": "코드에 특화된 70억 파라미터 모델로, 다수 프로그래밍 언어의 생성·리뷰·디버깅과 FIM(중간 채우기) 보완을 지원합니다. 저장소 단위 긴 컨텍스트를 이해해 실제 개발 보조에 적합합니다.\n\n• 함수 구현·테스트 작성·리팩토링 제안\n• 92개 언어 코드 이해·생성\n• 단일 소비자 GPU(8GB)에서 구동",
       "addons": [
         "주피터",
         "API"
@@ -224,7 +214,7 @@
       "id": "m5",
       "name": "Qwen2.5-VL 7B",
       "kind": "Vision-Language",
-      "description": "이미지 이해·문서 VQA 멀티모달 모델.",
+      "description": "이미지·문서·차트를 이해하는 70억 파라미터 멀티모달 모델입니다. 문서 VQA·OCR·표/수식 추출과 화면 요소 인식을 지원해 문서 자동화·시각 질의응답에 적합합니다.\n\n• 텍스트와 이미지를 함께 입력받아 근거 있는 답변 생성\n• 문서·차트·UI 스크린샷 해석\n• 동영상 프레임 이해 지원",
       "addons": [
         "API"
       ],
@@ -242,7 +232,7 @@
       "id": "m8",
       "name": "SDXL",
       "kind": "Image",
-      "description": "Stable Diffusion XL 이미지 생성.",
+      "description": "Stability AI의 Stable Diffusion XL 이미지 생성 모델로, 1024×1024 고해상도 텍스트→이미지 합성을 지원합니다. Base+Refiner 2단계로 디테일과 구도 품질을 높였습니다.\n\n• 사실적 사진부터 일러스트까지 다양한 스타일\n• 프롬프트 기반 콘텐츠·에셋 제작\n• 해상도·종횡비 조정 지원",
       "addons": [
         "주피터"
       ],
@@ -260,7 +250,7 @@
       "id": "m9",
       "name": "Whisper Large v3",
       "kind": "STT",
-      "description": "다국어 음성 인식(STT) 모델.",
+      "description": "OpenAI의 대규모 다국어 음성 인식(STT) 모델로, 99개 언어 받아쓰기와 영어 번역을 지원합니다. 잡음·억양에 강인해 회의록·자막·음성 검색에 활용됩니다.\n\n• 긴 오디오를 분할 처리해 안정적 전사\n• 다국어 자동 감지\n• 타임스탬프 단위 출력 지원",
       "addons": [
         "API"
       ],
@@ -278,7 +268,7 @@
       "id": "m10",
       "name": "BGE-M3",
       "kind": "Embedding",
-      "description": "다국어 임베딩·리트리버 모델.",
+      "description": "BAAI가 공개한 다국어 임베딩·리트리버 모델로, 100개 이상 언어와 최대 8,192 토큰 입력을 지원합니다. RAG의 문서 검색·재랭킹 단계에 적합합니다.\n\n• Dense·Sparse·Multi-Vector 하이브리드 검색을 한 모델에서 제공\n• 의미 기반 유사도 검색 품질 우수\n• 긴 문서 임베딩 지원",
       "addons": [
         "API"
       ],
@@ -291,118 +281,6 @@
       "reqRamGb": 16,
       "reqStorageGb": 15,
       "reqCpuCores": 4
-    },
-    {
-      "id": "m1",
-      "name": "Llama 3 70B",
-      "kind": "LLM",
-      "description": "메타 Llama 3 70B 범용 대화·추론 모델 — 대형(H100 ×2 필요, 현재 함대 미배포).",
-      "addons": [
-        "주피터",
-        "API",
-        "파인튜닝"
-      ],
-      "license": "Llama 3 Community",
-      "recommendedGpu": "H100 ×2 (cluster)",
-      "params": "70B",
-      "usageRank": 8,
-      "usageCount": 184200,
-      "reqVramGb": 160,
-      "reqRamGb": 200,
-      "reqStorageGb": 160,
-      "reqCpuCores": 24
-    },
-    {
-      "id": "m2",
-      "name": "Qwen2.5-72B",
-      "kind": "LLM",
-      "description": "알리바바 Qwen2.5 72B 다국어 LLM — 대형(H100 ×2 필요, 미배포).",
-      "addons": [
-        "주피터",
-        "API"
-      ],
-      "license": "Qwen License",
-      "recommendedGpu": "H100 ×2 (cluster)",
-      "params": "72B",
-      "usageRank": 9,
-      "usageCount": 162800,
-      "reqVramGb": 160,
-      "reqRamGb": 200,
-      "reqStorageGb": 160,
-      "reqCpuCores": 24
-    },
-    {
-      "id": "m7",
-      "name": "Qwen2.5-Coder 32B",
-      "kind": "Code",
-      "description": "코드 특화 대형 모델 — H100 슬라이스 권장(미배포).",
-      "addons": [
-        "주피터",
-        "API"
-      ],
-      "license": "Apache-2.0",
-      "recommendedGpu": "H100 ×1 (3g 슬라이스)",
-      "params": "32B",
-      "usageRank": 10,
-      "usageCount": 98700,
-      "reqVramGb": 48,
-      "reqRamGb": 80,
-      "reqStorageGb": 80,
-      "reqCpuCores": 16
-    },
-    {
-      "id": "m4",
-      "name": "Mistral Small 24B",
-      "kind": "LLM",
-      "description": "경량 고효율 LLM — H100 슬라이스 권장(미배포).",
-      "addons": [
-        "API"
-      ],
-      "license": "Apache-2.0",
-      "recommendedGpu": "H100 1g 슬라이스",
-      "params": "24B",
-      "usageRank": 11,
-      "usageCount": 61200,
-      "reqVramGb": 48,
-      "reqRamGb": 64,
-      "reqStorageGb": 60,
-      "reqCpuCores": 12
-    },
-    {
-      "id": "m3",
-      "name": "DeepSeek-V3",
-      "kind": "LLM",
-      "description": "DeepSeek-V3 MoE 대형 추론 모델 — H100 ×4 필요(미배포).",
-      "addons": [
-        "API"
-      ],
-      "license": "DeepSeek License",
-      "recommendedGpu": "H100 ×4 (cluster)",
-      "params": "671B (MoE)",
-      "usageRank": 12,
-      "usageCount": 141500,
-      "reqVramGb": 320,
-      "reqRamGb": 512,
-      "reqStorageGb": 700,
-      "reqCpuCores": 48
-    },
-    {
-      "id": "m6",
-      "name": "Gemma2 27B",
-      "kind": "LLM",
-      "description": "구글 Gemma2 27B 오픈 LLM — H100 슬라이스 권장(미배포).",
-      "addons": [
-        "API"
-      ],
-      "license": "Gemma License",
-      "recommendedGpu": "H100 2g 슬라이스",
-      "params": "27B",
-      "usageRank": 13,
-      "usageCount": 38900,
-      "reqVramGb": 54,
-      "reqRamGb": 80,
-      "reqStorageGb": 70,
-      "reqCpuCores": 12
     }
   ],
   "services": [
@@ -423,7 +301,11 @@
         "에이전트"
       ],
       "usageCount": 142800,
-      "usageRank": 1
+      "usageRank": 1,
+      "models": [
+        "m12",
+        "m11"
+      ]
     },
     {
       "id": "svc-llama",
@@ -442,7 +324,11 @@
         "챗봇"
       ],
       "usageCount": 121300,
-      "usageRank": 2
+      "usageRank": 2,
+      "models": [
+        "m11",
+        "m13"
+      ]
     },
     {
       "id": "svc-code",
@@ -459,7 +345,11 @@
         "API"
       ],
       "usageCount": 87600,
-      "usageRank": 3
+      "usageRank": 3,
+      "models": [
+        "m13",
+        "m12"
+      ]
     },
     {
       "id": "svc-doc",
@@ -470,14 +360,19 @@
       "serviceUrl": "http://svc.anclave.local/doc-search",
       "testUrl": "http://svc.anclave.local/doc-search/playground",
       "description": "BGE-M3 임베딩 기반 문서 검색(RAG).",
-      "ownerUserId": "u-hwang",
+      "ownerUserId": "u-jhs",
       "tags": [
         "Embedding",
         "RAG",
         "API"
       ],
       "usageCount": 64200,
-      "usageRank": 4
+      "usageRank": 4,
+      "models": [
+        "m10",
+        "m12",
+        "m9"
+      ]
     },
     {
       "id": "svc-stt",
@@ -494,7 +389,11 @@
         "API"
       ],
       "usageCount": 41900,
-      "usageRank": 5
+      "usageRank": 5,
+      "models": [
+        "m9",
+        "m10"
+      ]
     },
     {
       "id": "svc-sd",
@@ -505,12 +404,16 @@
       "serviceUrl": "http://svc.anclave.local/sd-image",
       "testUrl": "http://svc.anclave.local/sd-image/playground",
       "description": "SDXL 기반 이미지 생성 워크스페이스.",
-      "ownerUserId": "u-hwang",
+      "ownerUserId": "u-jhs",
       "tags": [
         "Image"
       ],
       "usageCount": 33500,
-      "usageRank": 6
+      "usageRank": 6,
+      "models": [
+        "m8",
+        "m5"
+      ]
     },
     {
       "id": "svc-vqa",
@@ -526,7 +429,12 @@
         "Vision-Language"
       ],
       "usageCount": 22100,
-      "usageRank": 7
+      "usageRank": 7,
+      "models": [
+        "m5",
+        "m8",
+        "m11"
+      ]
     }
   ],
   "fleet": [
@@ -792,7 +700,10 @@
       "adminMemo": "우선 슬라이스 1개 할당. 사용량 추이 보고 확장 검토 예정.",
       "allocatedRamGb": 24,
       "allocatedStorageGb": 28,
-      "allocatedCpuCores": 6
+      "allocatedCpuCores": 6,
+      "allocatedServerId": "srv-01",
+      "allocatedGpuId": "srv-01-gpu0",
+      "allocatedSliceId": "srv-01-gpu0-s1"
     },
     {
       "id": "gr-02",
@@ -816,11 +727,13 @@
       "processedBy": "u-admin",
       "allocatedRamGb": 28,
       "allocatedStorageGb": 32,
-      "allocatedCpuCores": 8
+      "allocatedCpuCores": 8,
+      "allocatedServerId": "srv-06",
+      "allocatedGpuId": "srv-06-gpu0"
     },
     {
       "id": "gr-03",
-      "requesterUserId": "u-hwang",
+      "requesterUserId": "u-jhs",
       "capacity": 1,
       "capacityUnit": "card",
       "models": [
@@ -842,11 +755,13 @@
       "adminMemo": "검색 임베딩용 단일 카드 충분. 모니터링 애드온 권장.",
       "allocatedRamGb": 16,
       "allocatedStorageGb": 15,
-      "allocatedCpuCores": 4
+      "allocatedCpuCores": 4,
+      "allocatedServerId": "srv-03",
+      "allocatedGpuId": "srv-03-gpu0"
     },
     {
       "id": "gr-04",
-      "requesterUserId": "u-hwang",
+      "requesterUserId": "u-jhs",
       "capacity": 1,
       "capacityUnit": "card",
       "models": [
@@ -866,7 +781,9 @@
       "processedBy": "u-admin",
       "allocatedRamGb": 24,
       "allocatedStorageGb": 30,
-      "allocatedCpuCores": 8
+      "allocatedCpuCores": 8,
+      "allocatedServerId": "srv-02",
+      "allocatedGpuId": "srv-02-gpu0"
     },
     {
       "id": "gr-05",
@@ -890,7 +807,9 @@
       "processedBy": "u-admin",
       "allocatedRamGb": 16,
       "allocatedStorageGb": 20,
-      "allocatedCpuCores": 6
+      "allocatedCpuCores": 6,
+      "allocatedServerId": "srv-04",
+      "allocatedGpuId": "srv-04-gpu0"
     },
     {
       "id": "gr-06",
@@ -916,7 +835,9 @@
       "processedBy": "u-admin",
       "allocatedRamGb": 24,
       "allocatedStorageGb": 28,
-      "allocatedCpuCores": 6
+      "allocatedCpuCores": 6,
+      "allocatedServerId": "srv-08",
+      "allocatedGpuId": "srv-08-gpu1"
     },
     {
       "id": "gr-07",
@@ -941,110 +862,10 @@
       "adminMemo": "동일 서버 내 잔여 슬롯 배정.",
       "allocatedRamGb": 24,
       "allocatedStorageGb": 30,
-      "allocatedCpuCores": 6
-    },
-    {
-      "id": "gr-08",
-      "requesterUserId": "u-lim",
-      "capacity": 1,
-      "capacityUnit": "slice",
-      "models": [
-        "m4"
-      ],
-      "env": "Ubuntu 22.04",
-      "addons": [
-        "주피터"
-      ],
-      "serviceName": "mistral-svc",
-      "purpose": "Mistral Small 24B 시범(H100 슬라이스 필요)",
-      "attachmentUrl": "/docs/공문-gr08.pdf",
-      "status": "pending",
-      "createdAt": "2026-06-02 09:33",
-      "period": "무기한",
-      "priority": "normal"
-    },
-    {
-      "id": "gr-09",
-      "requesterUserId": "u-pjh",
-      "capacity": 1,
-      "capacityUnit": "slice",
-      "models": [
-        "m6"
-      ],
-      "env": "Ubuntu 22.04",
-      "addons": [
-        "API"
-      ],
-      "serviceName": "gemma-svc",
-      "purpose": "Gemma2 27B 문서 요약(H100 슬라이스 필요)",
-      "status": "pending",
-      "createdAt": "2026-06-03 15:10",
-      "period": "3개월",
-      "priority": "low"
-    },
-    {
-      "id": "gr-10",
-      "requesterUserId": "u-kmw",
-      "capacity": 4,
-      "capacityUnit": "card",
-      "models": [
-        "m3"
-      ],
-      "env": "Ubuntu 22.04",
-      "addons": [
-        "주피터"
-      ],
-      "serviceName": "deepseek-test",
-      "purpose": "DeepSeek-V3 추론 검증(H100 ×4 필요)",
-      "status": "pending",
-      "createdAt": "2026-06-04 11:55",
-      "period": "6개월",
-      "priority": "high"
-    },
-    {
-      "id": "gr-11",
-      "requesterUserId": "u-pjh",
-      "capacity": 4,
-      "capacityUnit": "card",
-      "models": [
-        "m1"
-      ],
-      "env": "Ubuntu 22.04 · CUDA 12.4",
-      "addons": [
-        "주피터",
-        "API"
-      ],
-      "serviceName": "llama-train",
-      "purpose": "Llama 3 70B 사내 도메인 파인튜닝",
-      "status": "rejected",
-      "rejectReason": "70B 학습은 H100 ×2 이상이 필요해요. 현재 함대(소비자 GPU + RTX PRO 4500)로는 불가하며, H100 증설 후 재신청해 주세요.",
-      "createdAt": "2026-05-26 17:22",
-      "period": "1개월",
-      "priority": "normal",
-      "processedAt": "2026-05-27 14:05",
-      "processedBy": "u-admin",
-      "adminMemo": "재신청 시 H100 도입 일정 공유 예정."
-    },
-    {
-      "id": "gr-12",
-      "requesterUserId": "u-lim",
-      "capacity": 2,
-      "capacityUnit": "card",
-      "models": [
-        "m2"
-      ],
-      "env": "Ubuntu 20.04",
-      "addons": [],
-      "serviceName": "qwen-test",
-      "purpose": "테스트",
-      "status": "rejected",
-      "rejectReason": "사용 목적·공문이 불충분하고, 72B는 현재 함대에 올릴 수 없어요. 결재 공문과 함께 H100 증설 후 신청해 주세요.",
-      "createdAt": "2026-05-28 12:08",
-      "period": "무기한",
-      "priority": "high",
-      "processedAt": "2026-05-29 16:20",
-      "processedBy": "u-admin",
-      "adminMemo": "운영 전환 일정 확정 후 재신청 안내함."
+      "allocatedCpuCores": 6,
+      "allocatedServerId": "srv-08",
+      "allocatedGpuId": "srv-08-gpu0",
+      "allocatedSliceId": "srv-08-gpu0-s1"
     }
   ],
   "modelRequests": [
@@ -1127,40 +948,9 @@
       "format": "other",
       "scan": "fail",
       "rejectReason": "picklescan 검출 — pickle 직렬화 위험 코드 발견. safetensors 포맷으로 재신청 바랍니다."
-    },
-    {
-      "id": "mr-04",
-      "requesterUserId": "u-hwang",
-      "modelName": "Gemma2-27B",
-      "kind": "LLM",
-      "source": "huggingface.co/google/gemma-2-27b",
-      "reason": "경량 모델 비교 평가용",
-      "status": "pending",
-      "stage": "requested",
-      "createdAt": "2026-06-06 09:40"
     }
   ],
   "apiRequests": [
-    {
-      "id": "ar-01",
-      "requesterUserId": "u-hwang",
-      "serviceId": "svc-qwen",
-      "model": "m12",
-      "targetServiceUrl": "http://app.anclave.local/park-rag",
-      "status": "approved",
-      "apiKey": "ak_live_qwen_8f2a1c9d4e",
-      "createdAt": "2026-05-22 10:00"
-    },
-    {
-      "id": "ar-02",
-      "requesterUserId": "u-hwang",
-      "serviceId": "svc-llama",
-      "model": "m11",
-      "targetServiceUrl": "http://app.anclave.local/jung-bot",
-      "status": "approved",
-      "apiKey": "ak_live_llama_3b7e0a2f15",
-      "createdAt": "2026-05-24 14:20"
-    },
     {
       "id": "ar-03",
       "requesterUserId": "u-jhs",
@@ -1199,6 +989,36 @@
       "status": "rejected",
       "rejectReason": "대상 서비스 URL이 사내망에서 확인되지 않아요.",
       "createdAt": "2026-06-01 11:08"
+    },
+    {
+      "id": "ar-demo-1",
+      "requesterUserId": "u-kgr",
+      "serviceId": "svc-doc",
+      "model": "m10",
+      "targetServiceUrl": "http://app.anclave.local/kgr-wiki-search",
+      "purpose": "사내 위키 문서 검색(RAG) 연동에 사용 예정입니다.",
+      "status": "pending",
+      "createdAt": "2026-06-14 11:20"
+    },
+    {
+      "id": "ar-demo-2",
+      "requesterUserId": "u-kgr",
+      "serviceId": "svc-doc",
+      "model": "m10",
+      "targetServiceUrl": "http://app.anclave.local/kgr-helpdesk",
+      "purpose": "헬프데스크 상담 문서 자동 검색에 사용합니다.",
+      "status": "pending",
+      "createdAt": "2026-06-15 09:05"
+    },
+    {
+      "id": "ar-demo-3",
+      "requesterUserId": "u-kgr",
+      "serviceId": "svc-doc",
+      "model": "m10",
+      "targetServiceUrl": "http://app.anclave.local/kgr-report-gen",
+      "purpose": "주간 보고서 초안 작성용 근거 문서 검색.",
+      "status": "pending",
+      "createdAt": "2026-06-16 08:40"
     }
   ],
   "publishRequests": [
@@ -1221,53 +1041,53 @@
       "meta": "챗봇 · Llama 3 8B",
       "status": "approved",
       "createdAt": "2026-05-22 15:40"
-    },
-    {
-      "id": "pr-03",
-      "requesterUserId": "u-hwang",
-      "serviceName": "doc-search",
-      "serviceUrl": "http://svc.anclave.local/doc-search",
-      "demoUrl": "http://svc.anclave.local/doc-search/playground",
-      "meta": "RAG 검색 · BGE-M3",
-      "status": "pending",
-      "createdAt": "2026-06-03 10:25"
-    },
-    {
-      "id": "pr-04",
-      "requesterUserId": "u-hwang",
-      "serviceName": "sd-image",
-      "serviceUrl": "http://svc.anclave.local/sd-image",
-      "demoUrl": "http://svc.anclave.local/sd-image/playground",
-      "meta": "이미지 생성 · SDXL",
-      "status": "rejected",
-      "rejectReason": "데모 URL이 응답하지 않아요. 점검 후 다시 신청해 주세요.",
-      "createdAt": "2026-05-30 14:05"
     }
   ],
   "gpuChangeRequests": [
     {
-      "id": "cr-01",
-      "requesterUserId": "u-pts",
-      "type": "expand",
-      "reason": "code-assist 호출량 증가로 RTX 2070(srv-08) → RTX PRO 4500 MIG 슬라이스 확장 필요",
-      "status": "approved",
-      "createdAt": "2026-06-01 09:30"
-    },
-    {
       "id": "cr-02",
-      "requesterUserId": "u-kgr",
-      "type": "migrate",
-      "reason": "srv-06 응답 지연으로 vision-qa를 srv-01 가용 MIG 인스턴스로 이전 요청",
+      "requesterUserId": "u-pts",
+      "type": "change",
+      "targetRequestId": "gr-01",
+      "reason": "에이전트 동시 처리량 증가로 CPU 코어 증설을 요청합니다.",
       "status": "pending",
-      "createdAt": "2026-06-04 16:12"
+      "createdAt": "2026-06-11 14:10",
+      "afterCpuCores": 12
     },
     {
       "id": "cr-03",
-      "requesterUserId": "u-hwang",
+      "requesterUserId": "u-kgr",
       "type": "reclaim",
-      "reason": "srv-05(RTX 2060) 유휴 탐지 → 관리자 직접 회수(가용화)",
+      "targetRequestId": "gr-02",
+      "reason": "비전 QA 파일럿 종료로 할당 자원을 회수합니다.",
+      "status": "pending",
+      "createdAt": "2026-06-12 10:00"
+    },
+    {
+      "id": "cr-04",
+      "requesterUserId": "u-jhs",
+      "type": "expand",
+      "targetRequestId": "gr-05",
+      "reason": "음성 데이터 누적으로 저장 공간 확장이 필요합니다.",
       "status": "approved",
-      "createdAt": "2026-06-05 11:48"
+      "createdAt": "2026-06-07 16:00",
+      "processedAt": "2026-06-08 11:20",
+      "processedBy": "u-admin",
+      "adminMemo": "잔여 용량 충분 — 승인합니다.",
+      "afterStorageGb": 40
+    },
+    {
+      "id": "cr-06",
+      "requesterUserId": "u-kgr",
+      "type": "expand",
+      "targetRequestId": "gr-07",
+      "reason": "챗봇 트래픽 증가로 CPU 코어 확장을 요청합니다.",
+      "status": "approved",
+      "createdAt": "2026-06-08 09:00",
+      "processedAt": "2026-06-09 10:15",
+      "processedBy": "u-admin",
+      "adminMemo": "승인합니다.",
+      "afterCpuCores": 12
     }
   ],
   "apiKeyUsages": [

@@ -11,6 +11,8 @@ import {
 import { useTheme } from '../lib/theme'
 import { accessOf, useRole } from '../lib/role'
 import { userById, users } from '../data/users'
+import { modelById } from '../data/models'
+import { getPostById } from '../screens/board-store'
 import { notifications } from '../data/events'
 import { IA_GROUPS, matchRoute, parentRouteKey, routeByKey } from '../lib/routes'
 
@@ -49,7 +51,18 @@ function useCrumbs(): Crumb[] {
   if (parent && parent.key !== route.key) {
     crumbs.push({ label: parent.title, to: parent.path })
   }
-  crumbs.push({ label: route.title }) // 마지막 = 현재(비활성)
+  // model-detail(/models/:id)은 마지막 단계를 모델명으로 — 동적 라벨.
+  let lastLabel = route.title
+  if (route.key === 'model-detail') {
+    const mid = pathname.split('/')[2]
+    lastLabel = modelById(mid)?.name ?? route.title
+  }
+  // board-detail(/board/:id)도 마지막 단계를 글 제목으로 — 동적 라벨.
+  if (route.key === 'board-detail') {
+    const pid = pathname.split('/')[2]
+    lastLabel = getPostById(pid)?.title ?? route.title
+  }
+  crumbs.push({ label: lastLabel }) // 마지막 = 현재(비활성)
   return crumbs
 }
 
@@ -70,7 +83,7 @@ export function Header() {
 
   return (
     <header
-      className="flex items-center justify-between shrink-0 relative z-20"
+      className="flex items-center justify-between shrink-0 relative z-20 no-select"
       style={{ height: 64, padding: '0 16px', gap: 14, background: 'var(--c-card2)' }}
     >
       {/* 좌: 브레드크럼(헤더 통합·단계 클릭 이동, 현재=비활성) */}

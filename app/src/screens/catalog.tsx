@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FoundationPage } from '../components/FoundationPage'
-import { models, services } from '../data'
+import { models } from '../data'
 import type { Model } from '../data/types'
+import { useCatalogModels } from './model-requests-shared'
 
 // G5 · 4.12 모델 카탈로그 — Figma '모델 카탈로그 (구현)'(node 9-2) 픽셀 매칭.
 // 색=테마 토큰화(다크 Figma 정본 / 라이트 대응). 본문·라벨·배지 텍스트 14px floor(가이드 §2, 차트 축만 예외 허용이나 여기선 14로 통일).
@@ -43,58 +43,32 @@ const K = {
 const BAR_COLORS = ['#3069f6', '#6c32f3', '#0abdc2', '#ff8913', '#ec4e8c']
 const PAGE_SIZE = 8
 const TOKENS_PER_REQ = 5400
-const LOGO_TILE = '#182336'
 
-// 무피그마 제공사 브랜드 SVG 마크(다크 타일 위 브랜드색 글리프) — Figma 다운 로고와 톤 일치.
-const QwenMark = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="#a07bff" strokeWidth="2.2" strokeLinecap="round" style={{ width: '100%', height: '100%' }}>
-    <path d="M12 3.5v17M4.5 7.75l15 8.5M19.5 7.75l-15 8.5" />
-  </svg>
-)
-const DeepSeekMark = () => (
-  <svg viewBox="0 0 24 24" fill="none" style={{ width: '100%', height: '100%' }}>
-    <path d="M3 14.5c2.4 0 3.4-2.2 6-2.2s3.6 2.2 6 2.2 3.4-2.6 6-2.6" stroke="#5b8cff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-    <circle cx="18" cy="7.5" r="1.4" fill="#5b8cff" />
-  </svg>
-)
-const StabilityMark = () => (
-  <svg viewBox="0 0 24 24" style={{ width: '100%', height: '100%' }}>
-    <rect x="3" y="10" width="3.2" height="10" rx="1.3" fill="#c43bff" />
-    <rect x="8.4" y="5" width="3.2" height="15" rx="1.3" fill="#d96bff" />
-    <rect x="13.8" y="12" width="3.2" height="8" rx="1.3" fill="#c43bff" />
-    <rect x="19.2" y="7.5" width="3.2" height="12.5" rx="1.3" fill="#d96bff" />
-  </svg>
-)
-const BaaiMark = () => (
-  <svg viewBox="0 0 24 24" fill="none" style={{ width: '100%', height: '100%' }}>
-    <circle cx="12" cy="12" r="3.6" fill="#22c1a8" />
-    <ellipse cx="12" cy="12" rx="9" ry="3.8" transform="rotate(-32 12 12)" stroke="#22c1a8" strokeWidth="1.8" />
-  </svg>
-)
-
+// 카탈로그 7개 모델(서비스 사용) 제공사 공식 로고 — HuggingFace org 아바타(qwen/stability/baai) + 기존 png.
 interface Brand {
   name: string
-  img?: string
-  mark?: ReactNode
+  img: string
 }
 const BRAND: Record<string, Brand> = {
-  m1: { name: 'Meta', img: '/logos/meta.png' },
-  m9: { name: 'OpenAI', img: '/logos/openai.png' },
-  m6: { name: 'Google', img: '/logos/google.png' },
-  m4: { name: 'Mistral AI', img: '/logos/mistral.png' },
-  m2: { name: 'Alibaba', mark: <QwenMark /> },
-  m5: { name: 'Alibaba', mark: <QwenMark /> },
-  m7: { name: 'Alibaba', mark: <QwenMark /> },
-  m12: { name: 'Alibaba', mark: <QwenMark /> },
-  m13: { name: 'Alibaba', mark: <QwenMark /> },
-  m11: { name: 'Meta', img: '/logos/meta.png' },
-  m3: { name: 'DeepSeek', mark: <DeepSeekMark /> },
-  m8: { name: 'Stability AI', mark: <StabilityMark /> },
-  m10: { name: 'BAAI', mark: <BaaiMark /> },
+  m5: { name: 'Alibaba', img: '/logos/qwen.webp' }, // Qwen2.5-VL
+  m8: { name: 'Stability AI', img: '/logos/stability.webp' }, // SDXL
+  m9: { name: 'OpenAI', img: '/logos/openai.png' }, // Whisper
+  m10: { name: 'BAAI', img: '/logos/baai.webp' }, // BGE-M3
+  m11: { name: 'Meta', img: '/logos/meta.png' }, // Llama 3 8B
+  m12: { name: 'Alibaba', img: '/logos/qwen.webp' }, // Qwen2.5 7B
+  m13: { name: 'Alibaba', img: '/logos/qwen.webp' }, // Qwen2.5-Coder
 }
 export const providerName = (id: string) => BRAND[id]?.name ?? '—'
 
-export function Logo({ id, size = 38 }: { id: string; size?: number }) {
+// BRAND 미등록 모델(신규 반입 배포 등)은 모델명 이니셜 타일로 폴백.
+function logoInitials(name: string): string {
+  const t = (name || '').trim()
+  if (!t) return 'M'
+  const parts = t.split(/[\s_-]+/).filter(Boolean)
+  return (((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase()) || t.slice(0, 2).toUpperCase()
+}
+
+export function Logo({ id, name = '', size = 38 }: { id: string; name?: string; size?: number }) {
   const b = BRAND[id]
   const radius = size * 0.27
   if (b?.img) {
@@ -105,23 +79,22 @@ export function Logo({ id, size = 38 }: { id: string; size?: number }) {
         width={size}
         height={size}
         aria-hidden
-        style={{ width: size, height: size, borderRadius: radius, display: 'block', flexShrink: 0 }}
+        style={{ width: size, height: size, borderRadius: radius, display: 'block', flexShrink: 0, objectFit: 'cover', background: '#fff' }}
       />
     )
   }
   return (
     <span
-      className="flex items-center justify-center shrink-0"
-      style={{ width: size, height: size, borderRadius: radius, background: LOGO_TILE }}
+      className="flex items-center justify-center shrink-0 font-bold"
+      style={{ width: size, height: size, borderRadius: radius, background: 'var(--accent-soft)', color: 'var(--c-accent)', fontSize: size * 0.36, letterSpacing: '-0.5px' }}
       aria-hidden
     >
-      <span style={{ width: size * 0.6, height: size * 0.6, display: 'flex' }}>{b?.mark}</span>
+      {logoInitials(name)}
     </span>
   )
 }
 
 const TOTAL_USAGE = models.reduce((a, m) => a + m.usageCount, 0)
-const SERVED = new Set(services.map((s) => s.model))
 
 const BASE_DATE = new Date('2026-06-08T00:00:00')
 function updatedAt(rank: number): string {
@@ -149,21 +122,24 @@ interface CatModel {
   tokens: number
   updated: string
   tags: string[]
-  served: boolean
 }
 
-const CATALOG: CatModel[] = [...models]
-  .sort((a, b) => a.usageRank - b.usageRank)
-  .map((m) => ({
+// 카탈로그에 있는 Model = 전부 '배포'. 미배포는 카탈로그에 없음(모델 신청 관리 stage 로만 존재).
+function toCatModel(m: Model, total: number): CatModel {
+  return {
     m,
     provider: providerName(m.id),
-    share: (m.usageCount / TOTAL_USAGE) * 100,
+    share: total ? (m.usageCount / total) * 100 : 0,
     requests: m.usageCount,
     tokens: m.usageCount * TOKENS_PER_REQ,
     updated: updatedAt(m.usageRank),
     tags: [m.kind, ...m.addons.slice(0, 1)],
-    served: SERVED.has(m.id),
-  }))
+  }
+}
+
+const CATALOG: CatModel[] = [...models]
+  .sort((a, b) => a.usageRank - b.usageRank)
+  .map((m) => toCatModel(m, TOTAL_USAGE))
 
 const AREA = [
   620, 690, 660, 760, 820, 790, 860, 910, 880, 950, 1000, 970, 1040, 1090, 1060, 1130, 1170, 1140,
@@ -240,7 +216,7 @@ function Top5Panel() {
             <span className="shrink-0 tabular-nums text-center" style={{ width: 14, fontSize: 14, color: K.rank }}>
               {i + 1}
             </span>
-            <Logo id={c.m.id} size={20} />
+            <Logo id={c.m.id} name={c.m.name} size={20} />
             <span className="truncate shrink-0" style={{ width: 132, fontSize: 14, color: K.desc }}>
               {c.m.name}
             </span>
@@ -339,10 +315,10 @@ const IconToken = () => (
 )
 
 // ── 전체 모델 사용 현황 패널 ──
-function UsagePanel() {
+function UsagePanel({ total }: { total: number }) {
   const totalReq = TOTAL_USAGE
   const totalTok = TOTAL_USAGE * TOKENS_PER_REQ
-  const served = new Set(services.map((s) => s.model)).size
+  const providers = new Set(CATALOG.map((c) => c.provider).filter((p) => p !== '—')).size
 
   const CW = 660
   const CH = 86
@@ -364,8 +340,8 @@ function UsagePanel() {
       </div>
 
       <div className="grid" style={{ gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 11 }}>
-        <StatBox icon={<IconGrid />} label="전체 모델 수" value={String(models.length)} unit="종" />
-        <StatBox icon={<IconCheck />} label="사용 가능한 모델" value={String(served)} unit="개" />
+        <StatBox icon={<IconGrid />} label="배포 모델 수" value={String(total)} unit="종" />
+        <StatBox icon={<IconCheck />} label="제공사" value={String(providers)} unit="곳" />
         <StatBox icon={<IconReq />} label="이번 달 총 요청 수" value={fmtReq(totalReq)} delta="▲ 18.7%" />
         <StatBox icon={<IconToken />} label="이번 달 총 토큰" value={fmtTok(totalTok)} delta="▲ 22.4%" />
       </div>
@@ -434,7 +410,7 @@ function ModelCard({ c, onOpen }: { c: CatModel; onOpen: () => void }) {
       style={{ background: K.cardBg, border: `1px solid ${K.cardBorder}`, borderRadius: 14, padding: 15, height: '100%', maxHeight: 288 }}
     >
       <div className="flex items-start min-w-0" style={{ gap: 11 }}>
-        <Logo id={c.m.id} />
+        <Logo id={c.m.id} name={c.m.name} />
         <div className="flex flex-col flex-1 min-w-0" style={{ gap: 3 }}>
           <div className="flex items-center justify-between min-w-0" style={{ gap: 6 }}>
             <span className="truncate font-bold" style={{ fontSize: 15, color: K.name }}>
@@ -521,8 +497,8 @@ function ModelCard({ c, onOpen }: { c: CatModel; onOpen: () => void }) {
       <div className="flex items-center justify-between min-w-0" style={{ gap: 8, marginTop: 14 }}>
         <span className="flex items-center min-w-0" style={{ gap: 7 }}>
           <span style={{ fontSize: 14, color: K.label }}>상태</span>
-          <span className="rounded-full shrink-0" style={{ width: 7, height: 7, background: c.served ? K.ok : K.muted }} />
-          <span style={{ fontSize: 14, color: c.served ? K.ok : K.muted }}>{c.served ? '사용 가능' : '미배포'}</span>
+          <span className="rounded-full shrink-0" style={{ width: 7, height: 7, background: K.ok }} />
+          <span style={{ fontSize: 14, color: K.ok }}>배포</span>
         </span>
         <span className="flex items-center shrink-0" style={{ gap: 7 }}>
           <span style={{ fontSize: 14, color: K.label }}>최종 업데이트</span>
@@ -691,7 +667,7 @@ function ListView({ rows, onOpen }: { rows: CatModel[]; onOpen: (id: string) => 
       w: '26%',
       render: (c) => (
         <span className="flex items-center min-w-0" style={{ gap: 10 }}>
-          <Logo id={c.m.id} size={28} />
+          <Logo id={c.m.id} name={c.m.name} size={28} />
           <span className="truncate font-bold" style={{ color: K.name }}>
             {c.m.name}
           </span>
@@ -713,10 +689,10 @@ function ListView({ rows, onOpen }: { rows: CatModel[]; onOpen: (id: string) => 
       key: 'st',
       header: '상태',
       w: '10%',
-      render: (c) => (
+      render: () => (
         <span className="flex items-center" style={{ gap: 6 }}>
-          <span className="rounded-full shrink-0" style={{ width: 7, height: 7, background: c.served ? K.ok : K.muted }} />
-          <span style={{ color: c.served ? K.ok : K.muted }}>{c.served ? '사용 가능' : '미배포'}</span>
+          <span className="rounded-full shrink-0" style={{ width: 7, height: 7, background: K.ok }} />
+          <span style={{ color: K.ok }}>배포</span>
         </span>
       ),
     },
@@ -767,27 +743,28 @@ function ListView({ rows, onOpen }: { rows: CatModel[]; onOpen: (id: string) => 
 // ── 메인 ──
 export function ModelCatalog() {
   const navigate = useNavigate()
+  // 시드 + 로컬 배포(stage='deployed' 시 등록) 모델 병합 — 전부 '배포'로 취급.
+  const allModels = useCatalogModels()
   const [query, setQuery] = useState('')
   const [provider, setProvider] = useState('all')
   const [kind, setKind] = useState('all')
-  const [status, setStatus] = useState('all')
   const [sort, setSort] = useState('recent')
   const [view, setView] = useState<'grid' | 'list'>('grid')
   const [page, setPage] = useState(1)
 
+  const catalog = useMemo(() => {
+    const total = allModels.reduce((a, m) => a + m.usageCount, 0)
+    return [...allModels].sort((a, b) => a.usageRank - b.usageRank).map((m) => toCatModel(m, total))
+  }, [allModels])
+
   const providerOpts = useMemo(() => {
-    const set = Array.from(new Set(CATALOG.map((c) => c.provider)))
+    const set = Array.from(new Set(catalog.map((c) => c.provider)))
     return [{ value: 'all', label: '전체 제공사' }, ...set.map((p) => ({ value: p, label: p }))]
-  }, [])
+  }, [catalog])
   const kindOpts = useMemo(() => {
-    const set = Array.from(new Set(models.map((m) => m.kind)))
+    const set = Array.from(new Set(allModels.map((m) => m.kind)))
     return [{ value: 'all', label: '전체 유형' }, ...set.map((k) => ({ value: k, label: k }))]
-  }, [])
-  const statusOpts = [
-    { value: 'all', label: '전체 상태' },
-    { value: 'served', label: '사용 가능' },
-    { value: 'idle', label: '미배포' },
-  ]
+  }, [allModels])
   const sortOpts = [
     { value: 'recent', label: '최신 등록' },
     { value: 'usage', label: '사용률 높은순' },
@@ -797,12 +774,10 @@ export function ModelCatalog() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    const list = CATALOG.filter((c) => {
+    const list = catalog.filter((c) => {
       if (q && !(`${c.m.name} ${c.provider} ${c.m.description} ${c.m.kind}`.toLowerCase().includes(q))) return false
       if (provider !== 'all' && c.provider !== provider) return false
       if (kind !== 'all' && c.m.kind !== kind) return false
-      if (status === 'served' && !c.served) return false
-      if (status === 'idle' && c.served) return false
       return true
     })
     const sorted = [...list]
@@ -811,7 +786,7 @@ export function ModelCatalog() {
     else if (sort === 'requests') sorted.sort((a, b) => b.requests - a.requests)
     else sorted.sort((a, b) => a.m.name.localeCompare(b.m.name))
     return sorted
-  }, [query, provider, kind, status, sort])
+  }, [catalog, query, provider, kind, sort])
 
   const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const curPage = Math.min(page, pages)
@@ -858,7 +833,7 @@ export function ModelCatalog() {
       </svg>
 
       <header className="flex flex-col min-w-0" style={{ gap: 4 }}>
-        <h2 className="font-bold truncate" style={{ fontSize: 22, letterSpacing: '-0.4px' }}>
+        <h2 className="font-bold truncate" style={{ fontSize: 23, lineHeight: 1.2 }}>
           모델 카탈로그
         </h2>
         <p style={{ fontSize: 14, color: K.sub }}>등록된 모델의 상세 정보와 모델 통계를 확인할 수 있습니다.</p>
@@ -866,7 +841,7 @@ export function ModelCatalog() {
 
       <div className="grid items-stretch section-grid" style={{ gridTemplateColumns: '541fr 731fr', gap: 22 }}>
         <Top5Panel />
-        <UsagePanel />
+        <UsagePanel total={catalog.length} />
       </div>
 
       <div className="flex items-center justify-between flex-wrap" style={{ gap: 12, marginTop: 4 }}>
@@ -877,7 +852,6 @@ export function ModelCatalog() {
           <SearchBox value={query} onChange={(v) => { setQuery(v); resetPage() }} />
           <FilterSelect value={provider} onChange={(v) => { setProvider(v); resetPage() }} options={providerOpts} width={108} />
           <FilterSelect value={kind} onChange={(v) => { setKind(v); resetPage() }} options={kindOpts} width={104} />
-          <FilterSelect value={status} onChange={(v) => { setStatus(v); resetPage() }} options={statusOpts} width={100} />
           <FilterSelect value={sort} onChange={setSort} options={sortOpts} width={130} />
           <ViewToggle view={view} onChange={setView} />
         </div>
@@ -907,15 +881,5 @@ export function ModelCatalog() {
   )
 }
 
-export function ModelDetail() {
-  return (
-    <FoundationPage
-      screen="4.13"
-      title="모델 상세"
-      desc="모델 메타·사용량, GPU 신청 시 선택 (공통)."
-      group={3}
-      roles={['A', 'B', 'C']}
-      planned={['메타데이터 카드(권장 GPU·라이선스)', '사용 추이 라인차트', 'GPU 신청 시 선택 진입']}
-    />
-  )
-}
+// 4.13 모델 상세 — 별도 파일에서 구현(라우팅·App.tsx import 호환 위해 여기서 re-export).
+export { ModelDetail } from './model-detail'
