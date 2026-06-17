@@ -1,5 +1,5 @@
 import { events } from '../data/events'
-import { servers, allGpus, gpuRequests } from '../data'
+import { servers, allGpus, gpuRequests, services } from '../data'
 import type { EventLog } from '../data/types'
 
 // 4.21 에러·이벤트 관제 — 목업 store(세션 사본). 다른 *-store(gpu-change-store 등) 패턴.
@@ -84,6 +84,25 @@ export function getEventsForUser(userId: string): EventLog[] {
     if (e.gpuId) return gpuIds.has(e.gpuId)
     if (e.serverId) return serverIds.has(e.serverId)
     return false
+  })
+}
+
+// 사용자 소유 서비스명 — 자원 id 없는 이벤트(메시지에 서비스명만)도 본인 것으로 포착.
+function myServiceNames(userId: string): string[] {
+  return services.filter((s) => s.ownerUserId === userId).map((s) => s.name)
+}
+
+// DB(/api/events) · 시드 공용 — 임의 이벤트 행을 사용자 스코프로 필터(A는 호출 안 함).
+// 본인 소유 GPU/서버 OR 메시지에 본인 서비스명 포함.
+export function filterEventRowsForUser<
+  T extends { gpuId?: string | null; serverId?: string | null; message: string },
+>(rows: T[], userId: string): T[] {
+  const { gpuIds, serverIds } = myResourceSets(userId)
+  const names = myServiceNames(userId)
+  return rows.filter((e) => {
+    if (e.gpuId && gpuIds.has(e.gpuId)) return true
+    if (e.serverId && serverIds.has(e.serverId)) return true
+    return names.some((n) => e.message.includes(n))
   })
 }
 
