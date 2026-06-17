@@ -20,7 +20,7 @@ import { Badge, Button, EmptyState, SeverityBadge, useToast } from '../component
 import { useRole } from '../lib/role'
 import { gpuById, serverById, userById } from '../data'
 import { fmtPower, fmtTemp, gpuServices, trend } from '../lib/metrics'
-import type { EventLog, EventStatus, Gpu, GpuServer, Severity } from '../data/types'
+import type { EventLog, EventStatus, GpuServer, Severity } from '../data/types'
 import { useMutedFix } from './approvals'
 import {
   eventRowToLog,
@@ -54,11 +54,13 @@ function EventStatusBadge({ status }: { status: EventStatus }) {
 }
 
 // 발생 상황 1줄 설명 + 원인 메트릭(임계 대비). 수치는 발생 시점 캡처값(capTemp/capSm).
-function describe(event: EventLog, gpu: Gpu | undefined, capTemp: number, capSm: number): { lead: string; cause?: { label: string; value: string; note: string; tone: typeof SEV[Severity] } } {
+// XID는 DB 이벤트 메시지에서 추출(xidCode) — seed gpu.xid 에 의존하지 않음.
+function describe(event: EventLog, capTemp: number, capSm: number, xidCode?: string): { lead: string; cause?: { label: string; value: string; note: string; tone: typeof SEV[Severity] } } {
   const sev = SEV[event.severity]
-  if (gpu?.xid) return { lead: `GPU 하드웨어 장애(${gpu.xid})가 감지되어 점검 모드로 전환됐어요. 드라이버 응답이 없는 상태로 캡처됐습니다.`, cause: { label: '장애 코드', value: gpu.xid, note: 'XID 하드웨어 오류', tone: SEV.critical } }
-  if (gpu && capTemp >= 75) return { lead: '발생 시점 GPU 온도가 경고 임계(75°C)를 초과했어요. 과열 직전 상태로 스냅샷이 캡처됐습니다.', cause: { label: '온도', value: fmtTemp(capTemp), note: '임계 75°C 초과', tone: sev } }
-  if (event.severity === 'warn') return { lead: '자원 사용률이 높아 모니터링 대상으로 표시됐어요. 발생 시점 상태를 스냅샷으로 남겼습니다.', cause: gpu ? { label: 'SM 사용률', value: `${capSm}%`, note: '부하 모니터링', tone: sev } : undefined }
+  if (xidCode) return { lead: `GPU 하드웨어 장애(${xidCode})가 감지되어 점검 모드로 전환됐어요. 드라이버 응답이 없는 상태로 캡처됐습니다.`, cause: { label: '장애 코드', value: xidCode, note: 'XID 하드웨어 오류', tone: SEV.critical } }
+  if (capTemp >= 75) return { lead: '발생 시점 GPU 온도가 경고 임계(75°C)를 초과했어요. 과열 직전 상태로 스냅샷이 캡처됐습니다.', cause: { label: '온도', value: fmtTemp(capTemp), note: '임계 75°C 초과', tone: sev } }
+  if (event.severity === 'warn') return { lead: '자원 사용률이 높아 모니터링 대상으로 표시됐어요. 발생 시점 상태를 스냅샷으로 남겼습니다.', cause: capSm > 0 ? { label: 'SM 사용률', value: `${capSm}%`, note: '부하 모니터링', tone: sev } : undefined }
+  if (event.severity === 'critical') return { lead: '치명 등급 이벤트가 발생한 시점의 시스템 상태를 스냅샷으로 캡처했어요.' }
   if (event.severity === 'recovered') return { lead: '자원이 회수되어 가용 상태로 복구됐어요. 회수 시점 상태를 스냅샷으로 남겼습니다.' }
   return { lead: '배포가 정상 완료된 시점의 상태를 스냅샷으로 캡처했어요.' }
 }
@@ -213,6 +215,8 @@ export function EventDetail({ id: idProp, onBack }: { id?: string; onBack?: () =
   const capVram = snap?.vramUtil ?? gpu?.vramUtil ?? 0
   const capPower = snap?.power ?? gpu?.power ?? 0
   const tempHot = capTemp >= 75
+  // XID 장애 코드 — DB 이벤트는 메시지에만 담겨오므로(seed gpu.xid 미설정) 메시지에서도 추출.
+  const xidCode = gpu?.xid ?? event.message.match(/XID\s*\d+/i)?.[0]
   const tdp = gpu ? (gpu.migCapable ? 600 : 250) : 350 // 전력 게이지 기준(대략 TDP)
   // 발생 직전 추이 — 캡처 시계열 우선, 없으면 캡처 온도로 수렴하는 결정적 추이(끝점=발생값).
   const series = snap?.tempSeries?.length
@@ -226,7 +230,7 @@ export function EventDetail({ id: idProp, onBack }: { id?: string; onBack?: () =
   const tStep = Math.max(5, Math.round((tHi - tLo) / 4 / 5) * 5)
   const tTicks: number[] = []
   for (let t = tLo; t <= tHi; t += tStep) tTicks.push(t)
-  const { lead, cause } = describe(event, gpu, capTemp, capSm)
+  const { lead, cause } = describe(event, capTemp, capSm, xidCode)
 
   const submit = () => {
     if (!action.trim()) {
@@ -338,7 +342,7 @@ export function EventDetail({ id: idProp, onBack }: { id?: string; onBack?: () =
             <div className="flex items-center gap-2 flex-wrap shrink-0">
               <span className={chip} style={chipStyle}><ViewfinderCircleIcon style={{ width: 14, height: 14 }} />발생 시점 동결값</span>
               {svc && <span className={chip} style={chipStyle}><CubeTransparentIcon style={{ width: 14, height: 14 }} />영향 서비스 · {svc.name}</span>}
-              {gpu?.xid && <span className="inline-flex items-center gap-1.5 rounded-[7px] font-mono font-semibold" style={{ fontSize: FS, padding: '4px 10px', background: 'var(--danger-soft)', color: 'var(--c-danger)' }}><ExclamationTriangleIcon style={{ width: 14, height: 14 }} />{gpu.xid}</span>}
+              {xidCode && <span className="inline-flex items-center gap-1.5 rounded-[7px] font-mono font-semibold" style={{ fontSize: FS, padding: '4px 10px', background: 'var(--danger-soft)', color: 'var(--c-danger)' }}><ExclamationTriangleIcon style={{ width: 14, height: 14 }} />{xidCode}</span>}
             </div>
 
             {/* 캡처값 메트릭 — 2×2 컴팩트 */}
