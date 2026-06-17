@@ -1,5 +1,5 @@
 import { useNavigate, useParams } from 'react-router-dom'
-import type { ReactNode } from 'react'
+import { useState, useEffect, type ReactNode } from 'react'
 import {
   CheckIcon,
   ClockIcon,
@@ -10,12 +10,14 @@ import {
   ServerStackIcon,
   CpuChipIcon,
   ArrowLeftIcon,
+  ArrowsRightLeftIcon,
 } from '@heroicons/react/24/outline'
 import { Card, Button, StepBack, EmptyState } from '../components/ui'
-import { userById, serverById, gpuById } from '../data'
 import { useTheme } from '../lib/theme'
 import { useRole } from '../lib/role'
 import { useRequestItem, deriveAllocation, allocationLink, type RequestItem } from './requests-shared'
+import { fetchChangeRequests, type ChangeRequest } from './gpu-change-store'
+import { useServerLookup, useUserLookup } from './db-lookups'
 import { RequestSpec } from './spec-sheet'
 
 // G2 · 4.6a 신청 상세(/requests/status/:id) — 4.6 모달을 전용 페이지로 승격.
@@ -202,6 +204,20 @@ export function RequestDetail() {
   const mutedFix = useMutedFix()
   const { isAdmin } = useRole()
   const { item, isLoading } = useRequestItem(id)
+  // 표시명·할당 서버/GPU는 SoT=DB(라이브 조회). 백엔드 다운 시 seed 폴백.
+  const userLk = useUserLookup()
+  const srvLk = useServerLookup()
+  // 이 신청(할당)에 달린 변경/회수 요청 — 있으면 변경 이력 상세로 가는 버튼 노출.
+  const [changeReq, setChangeReq] = useState<ChangeRequest | null>(null)
+  useEffect(() => {
+    if (!item || item.status !== 'approved') { setChangeReq(null); return }
+    let alive = true
+    const reqId = item.id
+    fetchChangeRequests(item.requesterUserId)
+      .then((list) => { if (alive) setChangeReq(list.find((c) => c.before?.requestId === reqId) ?? null) })
+      .catch(() => { if (alive) setChangeReq(null) })
+    return () => { alive = false }
+  }, [item])
 
   if (!item) {
     return (
@@ -223,16 +239,16 @@ export function RequestDetail() {
   }
 
   const alloc = deriveAllocation(item)
-  const allocServer = alloc ? serverById(alloc.serverId) : undefined
-  const allocGpu = alloc ? gpuById(alloc.gpuId) : undefined
+  const allocServer = alloc ? srvLk.server(alloc.serverId) : undefined
+  const allocGpu = alloc ? srvLk.gpu(alloc.serverId, alloc.gpuId) : undefined
   // 할당된 MIG 슬라이스(있으면) — 자원 제한(VRAM) 표시용
   const allocSlice = allocGpu?.slices?.find((s) => s.requestId === item.id || s.id === item.allocatedSliceId)
   const vramLimit = allocSlice?.gb ?? allocGpu?.vramGb
   const isSlice = item.capacityUnit === 'slice'
-  // 할당 자원 제한 — VRAM 은 실데이터, CPU·메모리·저장은 할당 유형별 기본 쿼터(목업)
-  const cpuLimit = isSlice ? '8 vCPU' : '16 vCPU'
-  const memLimit = isSlice ? '32 GB' : '64 GB'
-  const storeLimit = isSlice ? '200 GB' : '500 GB'
+  // 할당 자원 제한 — DB 확정값(allocated_*) 우선, 없으면 유형별 기본 쿼터(폴백)
+  const cpuLimit = item.allocatedCpuCores != null ? `${item.allocatedCpuCores} vCPU` : isSlice ? '8 vCPU' : '16 vCPU'
+  const memLimit = item.allocatedRamGb != null ? `${item.allocatedRamGb} GB` : isSlice ? '32 GB' : '64 GB'
+  const storeLimit = item.allocatedStorageGb != null ? `${item.allocatedStorageGb} GB` : isSlice ? '200 GB' : '500 GB'
   // 관리자=자원맵 딥링크 / 사용자(B/C)=본인 할당 화면(/dashboard). 자원맵은 관리자 전용 라우트라 분기.
   const resourceLink = allocationLink(item, isAdmin)
   const priorityKr = item.priority === 'high' ? '높음' : item.priority === 'low' ? '낮음' : '보통'
@@ -313,7 +329,7 @@ export function RequestDetail() {
                     icon={<ServerStackIcon style={{ width: 17, height: 17 }} />}
                     kind="할당 서버"
                     name={allocServer?.host ?? alloc?.serverId ?? DASH}
-                    sub={allocServer ? `${allocServer.network} · CPU ${allocServer.cpuUtil}% · MEM ${allocServer.memUtil}%` : undefined}
+                    sub={allocServer?.network ? `${allocServer.network} 네트워크` : undefined}
                     mono
                     connector={!!allocGpu}
                   />
@@ -321,8 +337,8 @@ export function RequestDetail() {
                     <AllocNode
                       icon={<CpuChipIcon style={{ width: 17, height: 17 }} />}
                       kind={allocGpu.allocMode === 'mig' ? '할당 GPU · MIG 슬라이스' : '할당 GPU · 단독'}
-                      name={allocGpu.model}
-                      sub={`${allocGpu.serial}${allocGpu.interconnect ? ` · ${allocGpu.interconnect}` : ''}`}
+                      name={allocGpu.model ?? DASH}
+                      sub={[allocGpu.serial, allocGpu.interconnect].filter(Boolean).join(' · ') || undefined}
                     />
                   )}
                 </div>
@@ -347,7 +363,7 @@ export function RequestDetail() {
               {/* 처리 정보 */}
               <div style={{ marginTop: 16 }}>
                 <KV k="처리일시" v={item.processedAt ?? DASH} />
-                <KV k="처리자" v={item.processedBy ? (userById(item.processedBy)?.name ?? item.processedBy) : DASH} />
+                <KV k="처리자" v={item.processedBy ? (userLk.name(item.processedBy) ?? item.processedBy) : DASH} />
               </div>
               <div className="flex flex-col flex-1 min-h-0" style={{ marginTop: 14 }}>
                 <div className="text-muted shrink-0" style={{ fontSize: 14 }}>관리자 메모</div>
@@ -355,12 +371,22 @@ export function RequestDetail() {
                   {item.adminMemo ?? '메모 없음'}
                 </p>
               </div>
-              {/* 액션 — 자원맵 */}
-              <div style={{ paddingTop: 14 }}>
+              {/* 액션 — (변경/회수 요청 있으면) 변경 이력 보기 + 할당 자원 보기 */}
+              <div className="flex" style={{ paddingTop: 14, gap: 10 }}>
+                {changeReq && (
+                  <Button
+                    variant="outline"
+                    className="flex-1 justify-center"
+                    onClick={() => navigate(`/requests/gpu-change/${changeReq.id}`)}
+                  >
+                    <ArrowsRightLeftIcon style={{ width: 16, height: 16 }} />
+                    변경 이력 보기
+                  </Button>
+                )}
                 <Button
                   disabled={!resourceLink}
                   onClick={() => resourceLink && navigate(resourceLink)}
-                  className="w-full justify-center"
+                  className="flex-1 justify-center"
                 >
                   <ArrowTopRightOnSquareIcon style={{ width: 16, height: 16 }} />
                   할당 자원 보기
@@ -387,7 +413,7 @@ export function RequestDetail() {
               </div>
               <div style={{ marginTop: 12 }}>
                 <KV k="처리일시" v={item.processedAt ?? DASH} />
-                <KV k="처리자" v={item.processedBy ? (userById(item.processedBy)?.name ?? item.processedBy) : DASH} />
+                <KV k="처리자" v={item.processedBy ? (userLk.name(item.processedBy) ?? item.processedBy) : DASH} />
               </div>
               {/* 보완 가이드 — 남는 높이 채움 */}
               <div className="flex flex-col flex-1 min-h-0 rounded-[10px]" style={{ marginTop: 12, background: 'var(--c-soft)', padding: '12px 14px' }}>

@@ -21,6 +21,10 @@ export type RequestItem = Omit<GpuRequest, 'capacity' | 'env' | 'addons' | 'peri
   security?: string
   scale?: string
   remark?: string
+  // 승인 시 확정 자원(DB allocated_*) — 처리결과 카드 '할당 자원 제한'에 실값 표시
+  allocatedRamGb?: number
+  allocatedStorageGb?: number
+  allocatedCpuCores?: number
 }
 
 // 반려 더미는 황상곤(u-hwang) 1건만 노출 — 기존 반려 시드(gr-11·gr-12)는 신청현황/상세에서 숨김.
@@ -82,6 +86,7 @@ type DbRowExt = GpuRequestRow & {
   period?: string | null; priority?: string | null; adminMemo?: string | null
   processedAt?: string | null; processedBy?: string | null
   allocatedServerId?: string | null; allocatedGpuId?: string | null; allocatedSliceId?: string | null
+  allocatedRamGb?: number | null; allocatedStorageGb?: number | null; allocatedCpuCores?: number | null
   team?: string | null; startDate?: string | null; security?: string | null; scale?: string | null; remark?: string | null
 }
 
@@ -121,6 +126,9 @@ function fromDbRow(r: GpuRequestRow): RequestItem {
     allocatedServerId: x.allocatedServerId ?? seed?.allocatedServerId,
     allocatedGpuId: x.allocatedGpuId ?? seed?.allocatedGpuId,
     allocatedSliceId: x.allocatedSliceId ?? seed?.allocatedSliceId,
+    allocatedRamGb: x.allocatedRamGb ?? undefined,
+    allocatedStorageGb: x.allocatedStorageGb ?? undefined,
+    allocatedCpuCores: x.allocatedCpuCores ?? undefined,
     team: x.team ?? sd?.team ?? userById(r.requesterUserId)?.department,
     security: x.security ?? sd?.security,
     scale: x.scale ?? sd?.scale,
