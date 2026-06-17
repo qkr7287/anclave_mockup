@@ -594,6 +594,7 @@ app.delete('/api/publish-requests/:id', async (c) => {
 })
 
 const AR_COLS = `id, requester_user_id "requesterUserId", service_id "serviceId", model,
+  client_service_name "clientServiceName", scale,
   target_service_url "targetServiceUrl", purpose, status, api_key "apiKey",
   reject_reason "rejectReason", processed_by "processedBy", processed_at "processedAt", created_at "createdAt"`
 
@@ -611,9 +612,11 @@ app.post('/api/api-requests', async (c) => {
   if (!b.requesterUserId || !b.serviceId) return c.json({ error: 'requesterUserId, serviceId required' }, 400)
   const id = `ar-${Date.now().toString(36)}`
   const { rows } = await pool.query(
-    `insert into api_requests(id, requester_user_id, service_id, model, target_service_url, purpose, status)
-     values($1,$2,$3,$4,$5,$6,'pending') returning ${AR_COLS}`,
-    [id, b.requesterUserId, b.serviceId, b.model ?? null, b.targetServiceUrl ?? null, b.purpose ?? null])
+    `insert into api_requests(id, requester_user_id, service_id, model, target_service_url, purpose, status,
+        client_service_name, scale)
+     values($1,$2,$3,$4,$5,$6,'pending',$7,$8) returning ${AR_COLS}`,
+    [id, b.requesterUserId, b.serviceId, b.model ?? null, b.targetServiceUrl ?? null, b.purpose ?? null,
+      b.clientServiceName ?? null, b.scale ?? null])
   return c.json(rows[0], 201)
 })
 app.patch('/api/api-requests/:id', async (c) => {
@@ -675,22 +678,19 @@ function seededRng(seed) {
     return ((x ^ (x >>> 14)) >>> 0) / 4294967296
   }
 }
-function usageOf(id, usageNum, candidates) {
+// 사용량 랭킹+추이 빌더 — entries=[{owner, team, serviceName?}] 입력. 수치는 id 시드 결정적(목업).
+function buildUsage(id, usageNum, entries) {
   const rng = seededRng(hashStr(id))
-  const want = 4 + Math.floor(rng() * 3) // 4~6
-  // Fisher-Yates(rng) 셔플 → want 명 선택(승인자). 후보 부족 시 전부.
-  const pool = candidates.slice()
-  for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]] }
-  const picked = pool.slice(0, Math.min(want, pool.length))
-  const raw = picked.map(() => 0.3 + rng())
-  const rawSum = raw.reduce((a, b) => a + b, 0)
+  const raw = entries.map(() => 0.3 + rng())
+  const rawSum = raw.reduce((a, b) => a + b, 0) || 1
   const tokenPerReq = 360 + rng() * 220
-  let rows = picked.map((u, i) => {
+  let rows = entries.map((e, i) => {
     const requests = Math.max(1, Math.round((raw[i] / rawSum) * usageNum))
     return {
       keyId: `sk-${id.slice(0, 4)}-${String(i + 1).padStart(2, '0')}`,
-      owner: u.name, tag: RANK_TAGS[i % RANK_TAGS.length],
-      team: u.department, teamHue: DEPT_HUE[u.department] ?? 200,
+      serviceName: e.serviceName ?? null, // 클라이언트 서비스명(랭킹 메인 라벨)
+      owner: e.owner, tag: RANK_TAGS[i % RANK_TAGS.length],
+      team: e.team, teamHue: DEPT_HUE[e.team] ?? 200,
       requests, tokens: Math.round(requests * tokenPerReq), deltaPct: 0, spark: [],
     }
   }).sort((a, b) => b.requests - a.requests)
@@ -711,11 +711,30 @@ function usageOf(id, usageNum, candidates) {
   return { keyCount: rows.length, rows, days }
 }
 
+// 폴백(키 신청 데이터 없는 서비스) — 후보 user 중 4~6명 결정적 선택(승인자 간주). serviceName 없음.
+function usageOf(id, usageNum, candidates) {
+  const rng = seededRng(hashStr(id + ':pick'))
+  const want = 4 + Math.floor(rng() * 3)
+  const pool = candidates.slice()
+  for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]] }
+  const entries = pool.slice(0, Math.min(want, pool.length)).map((u) => ({ owner: u.name, team: u.department, serviceName: null }))
+  return buildUsage(id, usageNum, entries)
+}
+
 app.get('/api/market-services/:id/usage', async (c) => {
   const id = c.req.param('id')
-  const ms = (await pool.query('select usage_num, owner_user_id from market_services where id = $1', [id])).rows
+  const ms = (await pool.query('select usage_num, owner_user_id, service_id from market_services where id = $1', [id])).rows
   if (!ms.length) return c.json({ error: 'not found' }, 404)
-  // 후보 = 실제 사용자(관리자·배포자 제외) — 그 서비스 키 승인자로 간주(deterministic).
+  // 1순위: 그 서비스에 키 승인받은 실제 클라이언트(api_requests) — serviceName=clientServiceName, owner=요청자.
+  if (ms[0].service_id) {
+    const reqs = (await pool.query(
+      `select ar.client_service_name "serviceName", u.name owner, u.department team
+         from api_requests ar join users u on u.id = ar.requester_user_id
+        where ar.service_id = $1 and ar.status = 'approved' and ar.client_service_name is not null
+        order by ar.created_at`, [ms[0].service_id])).rows
+    if (reqs.length) return c.json(buildUsage(id, Number(ms[0].usage_num), reqs))
+  }
+  // 폴백: 키 신청 없으면 후보 user 기반 합성(기존 카드 유지).
   const candidates = (await pool.query(
     `select id, name, department from users
       where role = 'user' and id <> 'u-admin' and ($1::text is null or id <> $1) order by id`,

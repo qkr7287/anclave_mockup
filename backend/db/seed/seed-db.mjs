@@ -120,8 +120,17 @@ async function main() {
   // --- 신청류 (gpu_requests 는 위에서 먼저 적재) ---
   for (const r of seed.apiRequests ?? [])
     await ins('api_requests',
-      ['id', 'requester_user_id', 'service_id', 'model', 'target_service_url', 'status', 'api_key', 'reject_reason', 'created_at', 'purpose', 'processed_by', 'processed_at'],
-      [r.id, r.requesterUserId, r.serviceId, r.model ?? null, r.targetServiceUrl ?? null, r.status, r.apiKey ?? null, r.rejectReason ?? null, r.createdAt, r.purpose ?? null, r.processedBy ?? null, r.processedAt ?? null])
+      ['id', 'requester_user_id', 'service_id', 'model', 'target_service_url', 'status', 'api_key', 'reject_reason', 'created_at', 'purpose', 'processed_by', 'processed_at', 'client_service_name', 'scale'],
+      [r.id, r.requesterUserId, r.serviceId, r.model ?? null, r.targetServiceUrl ?? null, r.status, r.apiKey ?? null, r.rejectReason ?? null, r.createdAt, r.purpose ?? null, r.processedBy ?? null, r.processedAt ?? null, r.clientServiceName ?? null, r.scale ?? null])
+
+  // 클라이언트 서비스 API 키 신청 9건 백필(별도 파일) — API 신청 관리 + 사용량 랭킹.
+  try {
+    const { requests } = JSON.parse(readFileSync(resolve(here, '../../../app/scripts/api-requests.backfill.json'), 'utf-8'))
+    for (const r of requests)
+      await ins('api_requests',
+        ['id', 'requester_user_id', 'service_id', 'client_service_name', 'target_service_url', 'purpose', 'scale', 'status', 'api_key', 'created_at', 'processed_at', 'processed_by'],
+        [r.id, r.requesterUserId, r.serviceId, r.clientServiceName, r.targetServiceUrl ?? null, r.purpose ?? null, r.scale ?? null, r.status, r.apiKey ?? null, r.createdAt, r.processedAt ?? null, r.processedBy ?? null])
+  } catch { /* 백필 파일 없으면 skip */ }
 
   for (const r of seed.publishRequests ?? [])
     await ins('publish_requests',
