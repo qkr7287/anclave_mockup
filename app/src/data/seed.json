@@ -447,9 +447,24 @@
           "serviceId": null,
           "health": "normal",
           "instances": [
-            { "profile": "3g.90gb", "gb": 90, "serviceId": "svc-educat", "usage": 34 },
-            { "profile": "3g.90gb", "gb": 90, "serviceId": "svc-imagecat", "usage": 48 },
-            { "profile": "3g.90gb", "gb": 90, "serviceId": "svc-biocat", "usage": 27 }
+            {
+              "profile": "3g.90gb",
+              "gb": 90,
+              "serviceId": "svc-educat",
+              "usage": 34
+            },
+            {
+              "profile": "3g.90gb",
+              "gb": 90,
+              "serviceId": "svc-imagecat",
+              "usage": 48
+            },
+            {
+              "profile": "3g.90gb",
+              "gb": 90,
+              "serviceId": "svc-biocat",
+              "usage": 27
+            }
           ]
         }
       ]
@@ -626,9 +641,24 @@
           "serviceId": null,
           "health": "normal",
           "instances": [
-            { "profile": "2g.45gb", "gb": 45, "serviceId": "svc-doragi", "usage": 56 },
-            { "profile": "2g.45gb", "gb": 45, "serviceId": "svc-voicecat", "usage": 39 },
-            { "profile": "2g.45gb", "gb": 45, "serviceId": null, "usage": 0 }
+            {
+              "profile": "2g.45gb",
+              "gb": 45,
+              "serviceId": "svc-doragi",
+              "usage": 56
+            },
+            {
+              "profile": "2g.45gb",
+              "gb": 45,
+              "serviceId": "svc-voicecat",
+              "usage": 39
+            },
+            {
+              "profile": "2g.45gb",
+              "gb": 45,
+              "serviceId": null,
+              "usage": 0
+            }
           ]
         }
       ]
@@ -858,42 +888,6 @@
     }
   ],
   "modelRequests": [
-    {
-      "id": "mr-01",
-      "requesterUserId": "u-jhs",
-      "modelName": "Qwen2.5-72B",
-      "kind": "LLM",
-      "source": "huggingface.co/Qwen/Qwen2.5-72B",
-      "reason": "코드 자동화 에이전트용 최신 LLM 필요",
-      "status": "approved",
-      "stage": "deployed",
-      "createdAt": "2026-06-05 09:30",
-      "processedAt": "2026-06-05 10:50",
-      "processedBy": "u-admin",
-      "fileName": "qwen2.5-72b.safetensors",
-      "format": "safetensors",
-      "scan": "pass",
-      "checksum": "sha256:9f2a…c41e",
-      "registeredModelId": "m12"
-    },
-    {
-      "id": "mr-02",
-      "requesterUserId": "u-pts",
-      "modelName": "DeepSeek-V3",
-      "kind": "LLM",
-      "source": "huggingface.co/deepseek-ai/DeepSeek-V3",
-      "reason": "RAG 추론 품질 개선용",
-      "status": "approved",
-      "stage": "deployed",
-      "createdAt": "2026-06-02 11:10",
-      "processedAt": "2026-06-02 14:20",
-      "processedBy": "u-admin",
-      "fileName": "deepseek-v3.safetensors",
-      "format": "safetensors",
-      "scan": "pass",
-      "checksum": "sha256:1b77…0a2f",
-      "registeredModelId": "m5"
-    },
     {
       "id": "mr-05",
       "requesterUserId": "u-leh",
