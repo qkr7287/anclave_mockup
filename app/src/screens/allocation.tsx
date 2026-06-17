@@ -32,7 +32,7 @@ import {
 import { CHANGE_TYPE_META, fetchChangeRequests, allocLabel } from './gpu-change-store'
 import type { ChangeRequest } from './gpu-change-store'
 
-// G3 · 할당 관리 — 4.8 신청 관리 · 4.11 변경·확장·이전·회수. (4.9·4.10=approvals)
+// G3 · 할당 관리 — 4.8 신청 관리 · 4.11 변경·회수. (4.9·4.10=approvals)
 
 export function Requests() {
   return (
@@ -47,7 +47,7 @@ export function Requests() {
   )
 }
 
-// ════════════════════════════════ 4.11 변경 · 확장 · 이전 · 회수 ════════════════════════════════
+// ════════════════════════════════ 4.11 변경 · 회수 ════════════════════════════════
 
 const STATUS_FROM_KO: Record<string, Status> = { 대기: 'pending', 승인: 'approved', 반려: 'rejected' }
 const TYPE_FROM_KO: Record<string, ChangeType> = { 변경: 'change', 확장: 'expand', 회수: 'reclaim' }
@@ -66,7 +66,7 @@ function StatIcon({ Icon, box, color }: { Icon: typeof ClockIcon; box: string; c
   )
 }
 
-// 유형 배지(변경·확장·이전·회수)
+// 유형 배지(변경·회수, 기존 확장 데이터 호환)
 function TypeBadge({ type }: { type: ChangeType }) {
   const c = TYPE_TONE_BG[type]
   return (
@@ -180,11 +180,11 @@ export function GpuChange() {
       `}</style>
 
       <header className="flex flex-col min-w-0 shrink-0">
-        <h1 className="font-bold text-text" style={{ fontSize: 23, lineHeight: 1.2 }}>{isAdmin ? '할당 변경 관리' : '변경 · 확장 · 회수 신청'}</h1>
+        <h1 className="font-bold text-text" style={{ fontSize: 23, lineHeight: 1.2 }}>{isAdmin ? '할당 변경 관리' : '변경 · 회수 신청'}</h1>
         <p className="text-muted" style={{ fontSize: 14, marginTop: 8 }}>
           {isAdmin
-            ? '사용자가 신청한 변경 · 확장 · 회수 요청을 검토하고 승인 또는 반려합니다.'
-            : '내 할당 자원에 대한 변경 · 확장 · 회수를 신청하고 처리 상태를 확인합니다.'}
+            ? '변경 · 회수 요청을 검토·승인하고, 모든 할당 자원에 대해 직접 변경 · 회수를 신청할 수 있습니다.'
+            : '내 할당 자원에 대한 변경 · 회수를 신청하고 처리 상태를 확인합니다.'}
         </p>
       </header>
 
@@ -209,7 +209,7 @@ export function GpuChange() {
               </button>
             </FieldBox>
             <FilterSelect label="상태" value={statusF} onChange={setStatusF} options={['전체', '대기', '승인', '반려']} width={168} />
-            <FilterSelect label="유형" value={typeF} onChange={setTypeF} options={['전체', '변경', '확장', '회수']} width={188} />
+            <FilterSelect label="유형" value={typeF} onChange={setTypeF} options={['전체', '변경', '회수']} width={188} />
           </div>
           <div className="flex items-center gap-3 shrink-0">
             <button type="button" onClick={resetFilters} className="flex items-center gap-2 bg-card2 border border-line rounded-[8px] transition-[transform,background-color] duration-100 hover:bg-soft active:scale-[0.97]" style={{ height: 38, padding: '0 16px' }}>
@@ -229,11 +229,9 @@ export function GpuChange() {
         headerLeft={
           <div className="flex items-center justify-between w-full gap-3">
             <h2 className="font-bold text-text flex items-center gap-2" style={{ fontSize: 16 }}><ArrowsRightLeftIcon style={{ width: 18, height: 18, color: 'var(--c-accent)' }} />{isAdmin ? '변경 요청' : '내 변경 요청'}</h2>
-            {!isAdmin && (
-              <button type="button" onClick={() => navigate('/requests/gpu-change/new')} className="inline-flex items-center gap-1.5 rounded-[9px] text-onaccent btn-sweep font-semibold transition-transform duration-100 hover:brightness-105 active:scale-[0.97]" style={{ height: 38, padding: '0 15px', fontSize: 14, background: 'var(--c-accent)' }}>
-                <PlusIcon style={{ width: 16, height: 16 }} />신규 변경 · 확장 · 회수 요청
-              </button>
-            )}
+            <button type="button" onClick={() => navigate('/requests/gpu-change/new')} className="inline-flex items-center gap-1.5 rounded-[9px] text-onaccent btn-sweep font-semibold transition-transform duration-100 hover:brightness-105 active:scale-[0.97]" style={{ height: 38, padding: '0 15px', fontSize: 14, background: 'var(--c-accent)' }}>
+              <PlusIcon style={{ width: 16, height: 16 }} />신규 변경 · 회수 요청
+            </button>
           </div>
         }
         cols={CHANGE_COLS}

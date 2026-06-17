@@ -21,28 +21,22 @@ import {
   CHANGE_TYPE_META,
   allocLabel,
   createChangeRequest,
+  fetchAllAllocations,
   fetchChangeRequestById,
   fetchMyAllocations,
   reviewChangeRequest,
 } from './gpu-change-store'
 import type { AllocSpec, ChangeRequest, HistoryEntry } from './gpu-change-store'
-import { buildResourceTree, SpecSection, SpecSheetFrame } from './approval-detail'
+import { buildResourceTree, hostSpec, SpecSection, SpecSheetFrame, unitAlloc } from './approval-detail'
 
-// 4.11 변경·확장·이전·회수 마법사 — 관리자 심사(GpuChangeReview) / 사용자 신청(GpuChangeRequestNew) 공용.
+// 4.11 변경·회수 마법사 — 관리자 심사(GpuChangeReview) / 신청(GpuChangeRequestNew) 공용. 관리자는 전체 할당 대상 가능.
 // 좌: 멀티스텝(기존값 prefill·수정) / 우: 기존 명세서 + 변경 후 + 히스토리.
 
 const TYPE_TONE: Record<ChangeType, 'info' | 'ok' | 'warn' | 'danger'> = {
   change: 'info', expand: 'ok', migrate: 'warn', reclaim: 'danger',
 }
 
-// 자원 자동 할당 — 서버 1대 고정 풀에서 20% 예약 후 통짜 GPU=나머지 전부(GPU 수로 분할),
-// MIG 슬라이스=GPU 몫 × (슬라이스 컴퓨트 units 비율). 수동 슬라이더 대체.
-const HOST_SPEC = { ramGb: 128, storageGb: 1024, cpuCores: 32 } // 서버 1대 물리 풀(고정)
-const RESERVE = 0.2 // 시스템 예약
-function unitAlloc(gpuCount: number, fraction: number): { ramGb: number; storageGb: number; cpuCores: number } {
-  const per = (total: number) => Math.round((total * (1 - RESERVE)) / Math.max(1, gpuCount) * fraction)
-  return { ramGb: per(HOST_SPEC.ramGb), storageGb: per(HOST_SPEC.storageGb), cpuCores: per(HOST_SPEC.cpuCores) }
-}
+// 자원 자동 할당(hostSpec·unitAlloc)은 approval-detail 로 단일화 — 승인 심사와 동일 로직 공유.
 
 // 관리자 자원 선택 목록의 단위(클러스터 GPU 또는 MIG 슬라이스)
 interface PickUnit {
@@ -151,17 +145,18 @@ function Wizard({ mode, id, initialType, before: initBefore, initAfter, reviewRe
 }) {
   const navigate = useNavigate()
   const toast = useToast()
-  const { user } = useRole()
+  const { user, isAdmin } = useRole()
   const goList = () => navigate('/requests/gpu-change')
 
-  // 사용자 신청: 본인 할당 목록(backend). review 모드는 사용 안 함.
+  // 신규 신청 대상 할당 — 관리자는 전체 할당, 사용자는 본인 할당(backend). review 모드는 사용 안 함.
   const [myAllocs, setMyAllocs] = useState<AllocSpec[]>([])
   useEffect(() => {
     if (mode !== 'new') return
     let alive = true
-    fetchMyAllocations(user.id).then((rows) => { if (alive) setMyAllocs(rows) }).catch(() => { if (alive) setMyAllocs([]) })
+    const load = isAdmin ? fetchAllAllocations() : fetchMyAllocations(user.id)
+    load.then((rows) => { if (alive) setMyAllocs(rows) }).catch(() => { if (alive) setMyAllocs([]) })
     return () => { alive = false }
-  }, [mode, user.id])
+  }, [mode, isAdmin, user.id])
   const [allocIdx, setAllocIdx] = useState(0)
   const before = mode === 'new' ? (myAllocs[allocIdx] ?? initBefore) : initBefore
 
@@ -193,13 +188,14 @@ function Wizard({ mode, id, initialType, before: initBefore, initAfter, reviewRe
   const units = useMemo<PickUnit[]>(() => {
     const out: PickUnit[] = []
     for (const s of tree) {
+      const spec = hostSpec(inventory.find((x) => x.id === s.id))
       for (const g of s.gpus) {
         const same = s.id === before.serverId
         const gpuCount = s.gpus.length
         if (g.mode === 'cluster') {
           const uid = `${s.id}/${g.id}`
           // 통짜 GPU = 서버 풀(20% 예약)을 GPU 수로 분할
-          out.push({ id: uid, serverId: s.id, serverHost: s.host, gpuId: g.id, label: g.name, sub: `GPU 단일 · ${g.vramGb}GB`, vramGb: g.vramGb, free: g.free, status: g.status, isCurrent: uid === currentUnitId, sameServer: same, dummy: s.dummy, alloc: unitAlloc(gpuCount, 1) })
+          out.push({ id: uid, serverId: s.id, serverHost: s.host, gpuId: g.id, label: g.name, sub: `GPU 단일 · ${g.vramGb}GB`, vramGb: g.vramGb, free: g.free, status: g.status, isCurrent: uid === currentUnitId, sameServer: same, dummy: s.dummy, alloc: unitAlloc(spec, gpuCount, 1) })
         } else {
           const gpuMaint = g.status === 'maintenance'
           const totalUnits = g.slices.reduce((a, sl) => a + (sl.units || 1), 0) || 1
@@ -207,13 +203,13 @@ function Wizard({ mode, id, initialType, before: initBefore, initAfter, reviewRe
             const uid = `${s.id}/${g.id}/${sl.id}`
             const st = gpuMaint ? 'maintenance' : sl.free ? 'available' : 'full'
             // MIG 슬라이스 = GPU 몫 × (슬라이스 units 비율)
-            out.push({ id: uid, serverId: s.id, serverHost: s.host, gpuId: g.id, sliceId: sl.id, label: `${g.name} · ${sl.profile}`, sub: `MIG ${sl.gb}GB · ${sl.free ? '가용' : sl.tag}`, vramGb: sl.gb, free: sl.free && !gpuMaint, status: st, isCurrent: uid === currentUnitId, sameServer: same, dummy: s.dummy, alloc: unitAlloc(gpuCount, (sl.units || 1) / totalUnits) })
+            out.push({ id: uid, serverId: s.id, serverHost: s.host, gpuId: g.id, sliceId: sl.id, label: `${g.name} · ${sl.profile}`, sub: `MIG ${sl.gb}GB · ${sl.free ? '가용' : sl.tag}`, vramGb: sl.gb, free: sl.free && !gpuMaint, status: st, isCurrent: uid === currentUnitId, sameServer: same, dummy: s.dummy, alloc: unitAlloc(spec, gpuCount, (sl.units || 1) / totalUnits) })
           }
         }
       }
     }
     return out
-  }, [tree, currentUnitId, before.serverId])
+  }, [tree, inventory, currentUnitId, before.serverId])
   const unitById = useMemo(() => new Map(units.map((u) => [u.id, u])), [units])
   const serverGroups = useMemo(() => {
     const m = new Map<string, { serverId: string; serverHost: string; sameServer: boolean; dummy?: boolean; units: PickUnit[] }>()
@@ -233,6 +229,7 @@ function Wizard({ mode, id, initialType, before: initBefore, initAfter, reviewRe
 
   const singleSel = false // 변경·확장 모두 복수 선택(체크). 회수는 picker 미사용
   const selUnits = selUnitIds.map((uid) => unitById.get(uid)).filter(Boolean) as PickUnit[]
+  const selServerId = selUnits[0]?.serverId // 선택된 서버 — 복수 선택은 동일 서버 내에서만(타 서버는 잠금)
   // 기준 자원(서버·GPU 표시) — 현재 유지 시 현재, 아니면 첫 선택분(현재 해제 시 완전 교체). 나머지는 추가 자원.
   const baseUnit = selUnits.find((u) => u.isCurrent) ?? selUnits[0]
   const changeTarget = baseUnit && !baseUnit.isCurrent ? baseUnit : undefined // 서버·GPU 교체 여부
@@ -370,7 +367,7 @@ function Wizard({ mode, id, initialType, before: initBefore, initAfter, reviewRe
           <span className="text-muted tabular-nums" style={{ fontSize: 12.5 }}>{selCount}개 선택 · 서버 {filteredGroups.length}대</span>
         </div>
         <p className="text-muted" style={{ fontSize: 13, lineHeight: 1.5 }}>
-          {type === 'change' ? '사용할 자원을 고르세요 (복수 선택). 현재 자원을 해제하면 완전히 교체할 수도 있어요.' : '현재 자원에 더해 할당할 자원을 고르세요 (복수 선택). 현재 자원을 해제하면 완전히 교체할 수도 있어요.'}
+          {type === 'change' ? '사용할 자원을 고르세요. 복수 선택은 같은 서버 안에서만 가능하며, 현재 자원을 해제하면 다른 서버로 교체할 수 있어요.' : '현재 자원에 더해 할당할 자원을 고르세요. 복수 선택은 같은 서버 안에서만 가능하며, 현재 자원을 해제하면 다른 서버로 교체할 수 있어요.'}
         </p>
         {/* 검색 */}
         <div className="flex items-center bg-card2 border border-line rounded-[9px] transition-[border-color,box-shadow] focus-within:border-[color:var(--c-accent)] focus-within:shadow-[0_0_0_3px_var(--accent-soft)]" style={{ height: 38, padding: '0 11px', gap: 8 }}>
@@ -398,7 +395,8 @@ function Wizard({ mode, id, initialType, before: initBefore, initAfter, reviewRe
                 {grp.units.map((u) => {
                   const on = selUnitIds.includes(u.id)
                   const selectable = u.isCurrent || u.status === 'available' // 선택 가능
-                  const disabled = !selectable // 사용 중·점검은 선택 불가
+                  const serverLocked = !!selServerId && u.serverId !== selServerId && !on // 타 서버 잠금(동일 서버만 복수 선택)
+                  const disabled = !selectable || serverLocked // 사용 중·점검 또는 타 서버 선택 잠금
                   // 선택됨=액센트 / 선택 가능=ok 톤 강조 / 선택 불가=회색 빗금·딤
                   const bd = on ? 'var(--c-accent)' : disabled ? 'var(--c-border)' : 'color-mix(in srgb, var(--c-ok) 55%, var(--c-border))'
                   const bg = on ? 'var(--c-card2)' : disabled ? 'var(--c-bg)' : 'color-mix(in srgb, var(--c-ok) 9%, var(--c-card2))'
@@ -406,7 +404,7 @@ function Wizard({ mode, id, initialType, before: initBefore, initAfter, reviewRe
                   return (
                     <button key={u.id} type="button" disabled={disabled} onClick={() => toggleUnit(u.id)}
                       className="text-left rounded-[10px] flex items-center gap-2.5 transition-[border-color,background,transform] duration-100 disabled:cursor-not-allowed enabled:hover:border-[color:var(--c-accent)] enabled:active:scale-[0.985]"
-                      style={{ padding: '10px 12px', border: `1.5px solid ${bd}`, background: bg, opacity: disabled ? 0.5 : 1, backgroundImage: disabled ? 'repeating-linear-gradient(45deg, transparent 0 6px, var(--c-soft) 6px 7px)' : undefined }}>
+                      style={{ padding: '10px 12px', border: `1.5px solid ${bd}`, background: bg, opacity: disabled ? 0.5 : 1, backgroundImage: !selectable ? 'repeating-linear-gradient(45deg, transparent 0 6px, var(--c-soft) 6px 7px)' : undefined }}>
                       {/* 변경=원형(라디오) / 확장=사각(체크) */}
                       <span className="flex items-center justify-center shrink-0" style={{ width: 18, height: 18, borderRadius: singleSel ? '50%' : 6, border: `1.5px solid ${indColor}`, background: on ? 'var(--c-accent)' : 'transparent' }}>{on && <CheckIcon width={12} height={12} style={{ color: 'var(--c-onaccent)' }} />}</span>
                       {u.sliceId ? <Squares2X2Icon width={18} height={18} className="shrink-0" style={{ color: 'var(--c-accent)' }} /> : <CpuChipIcon width={18} height={18} className="shrink-0" style={{ color: 'var(--c-muted)' }} />}
@@ -447,7 +445,7 @@ function Wizard({ mode, id, initialType, before: initBefore, initAfter, reviewRe
             className="text-left rounded-[10px] border flex items-center gap-2.5 transition" style={{ padding: '11px 13px', background: on ? 'var(--accent-soft)' : 'var(--c-card)', borderColor: on ? 'var(--c-accent)' : 'var(--c-border)', boxShadow: on ? '0 0 0 1px var(--c-accent)' : 'none' }}>
             <span className="flex items-center justify-center shrink-0 rounded-full" style={{ width: 18, height: 18, border: `1.5px solid ${on ? 'var(--c-accent)' : 'var(--c-border)'}`, background: on ? 'var(--c-accent)' : 'transparent' }}>{on && <CheckIcon width={12} height={12} style={{ color: 'var(--c-onaccent)' }} />}</span>
             <ServerStackIcon width={18} height={18} className="shrink-0" style={{ color: 'var(--c-muted)' }} />
-            <span className="min-w-0 flex-1"><span className="block font-semibold text-text truncate" style={{ fontSize: 14 }}>{allocLabel(a)}</span><span className="block text-muted truncate" style={{ fontSize: 13 }}>메모리 {a.ramGb ?? '—'}GB · 저장 {a.storageGb ?? '—'}GB · CPU {a.cpuCores ?? '—'}코어</span></span>
+            <span className="min-w-0 flex-1"><span className="block font-semibold text-text truncate" style={{ fontSize: 14 }}>{allocLabel(a)}{a.ownerUserId && <span className="text-muted font-normal"> · {userById(a.ownerUserId)?.name ?? a.ownerUserId}</span>}</span><span className="block text-muted truncate" style={{ fontSize: 13 }}>메모리 {a.ramGb ?? '—'}GB · 저장 {a.storageGb ?? '—'}GB · CPU {a.cpuCores ?? '—'}코어</span></span>
           </button>
         )
       })}
@@ -488,7 +486,7 @@ function Wizard({ mode, id, initialType, before: initBefore, initAfter, reviewRe
     ) : step === 1 ? (
       // 변경 Step 2 — 대상 할당 선택
       <div className="flex flex-col" style={{ gap: 10 }}>
-        <div className="font-semibold text-text" style={{ fontSize: 14 }}>변경할 할당 선택 <span className="text-muted font-normal" style={{ fontSize: 13 }}>— 내가 할당받은 자원에서 고르세요</span></div>
+        <div className="font-semibold text-text" style={{ fontSize: 14 }}>변경할 할당 선택 <span className="text-muted font-normal" style={{ fontSize: 13 }}>— {isAdmin ? '전체 할당 자원에서 고르세요' : '내가 할당받은 자원에서 고르세요'}</span></div>
         {allocList}
       </div>
     ) : (
