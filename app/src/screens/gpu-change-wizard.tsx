@@ -12,7 +12,7 @@ import {
   Squares2X2Icon,
   XCircleIcon,
 } from '@heroicons/react/24/outline'
-import { Badge, Button, EmptyState, useToast } from '../components/ui'
+import { Badge, Button, EmptyState, Modal, useToast } from '../components/ui'
 import { useRole } from '../lib/role'
 import { gpuRequests, modelById, servers, userById } from '../data'
 import type { ChangeType, GpuRequest, GpuServer } from '../data/types'
@@ -166,6 +166,7 @@ function Wizard({ mode, id, initialType, before: initBefore, initAfter, reviewRe
   const [memo, setMemo] = useState('')
   const [rejecting, setRejecting] = useState(false)
   const [rejectReason, setRejectReason] = useState('')
+  const [rejectOpen, setRejectOpen] = useState(false) // 심사: 어느 단계서든 즉시 반려(모달)
   // 관리자 자원 선택 — 가용 자원 목록에서 체크(변경=단일/확장=복수). 현재 할당 자원이 기본 선택.
   const currentUnitId = before.serverId && before.gpuId
     ? `${before.serverId}/${before.gpuId}${before.sliceId ? `/${before.sliceId}` : ''}`
@@ -574,7 +575,10 @@ function Wizard({ mode, id, initialType, before: initBefore, initAfter, reviewRe
               {step === 0
                 ? <Button variant="ghost" onClick={goList}>목록</Button>
                 : <Button variant="ghost" onClick={() => setStep((s) => Math.max(0, s - 1))}>이전</Button>}
-              <Button onClick={() => setStep((s) => Math.min(lastStep, s + 1))} disabled={!canNext}>{step === lastStep - 1 ? '검토' : '다음'}</Button>
+              <div className="flex items-center gap-2">
+                {mode === 'review' && <Button variant="danger" onClick={() => { setRejectReason(''); setRejectOpen(true) }}><XCircleIcon width={16} height={16} />반려</Button>}
+                <Button onClick={() => setStep((s) => Math.min(lastStep, s + 1))} disabled={!canNext}>{step === lastStep - 1 ? '검토' : '다음'}</Button>
+              </div>
             </div>
           </section>
         </div>
@@ -590,6 +594,36 @@ function Wizard({ mode, id, initialType, before: initBefore, initAfter, reviewRe
           </div>
         </div>
       </div>
+
+      {/* 심사: 어느 단계서든 즉시 반려 — 사유 입력 모달 */}
+      <Modal
+        open={rejectOpen}
+        onClose={() => setRejectOpen(false)}
+        title="변경 요청 반려"
+        width={460}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setRejectOpen(false)}>취소</Button>
+            <Button variant="danger" onClick={reject} disabled={!rejectReason.trim()}>
+              <XCircleIcon width={16} height={16} />반려 확정
+            </Button>
+          </>
+        }
+      >
+        <p className="text-muted" style={{ fontSize: 14, marginBottom: 10, lineHeight: 1.5 }}>
+          <b className="text-text">{requesterName}</b>님의 <b className="text-text">{CHANGE_TYPE_META[type].label}</b> 요청을 반려합니다. 사유는 신청자에게 알림으로 전달됩니다.
+        </p>
+        <textarea
+          value={rejectReason}
+          onChange={(e) => setRejectReason(e.target.value)}
+          maxLength={300}
+          autoFocus
+          placeholder="반려 사유를 입력해주세요."
+          className="w-full rounded-[8px] border border-line text-text"
+          style={{ background: 'var(--c-bg)', height: 96, padding: 11, fontSize: 14, outline: 'none', resize: 'none', lineHeight: 1.5 }}
+        />
+        <div className="text-muted text-right" style={{ fontSize: 13, marginTop: 4 }}>{rejectReason.length}/300</div>
+      </Modal>
     </div>
   )
 }
