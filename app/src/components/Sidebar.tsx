@@ -144,13 +144,16 @@ export function Sidebar({ access, collapsed, onToggle }: SidebarProps) {
         {overview.map(renderGroup)}
       </div>
 
-      <div style={{ borderTop: '1px solid var(--c-line)', margin: '0 16px' }} />
-
-      {/* SETTING */}
-      <div className="flex flex-col" style={{ padding: '0 16px', gap: collapsed ? 4 : 8 }}>
-        {!collapsed && <span style={{ fontSize: 14, fontWeight: 600, letterSpacing: '-0.4px', color: 'var(--c-muted)' }}>SETTING</span>}
-        {setting.map(renderGroup)}
-      </div>
+      {/* SETTING — 표시할 그룹이 있을 때만(감사·보안/시스템 설정 숨김 시 섹션·구분선 미노출) */}
+      {setting.length > 0 && (
+        <>
+          <div style={{ borderTop: '1px solid var(--c-line)', margin: '0 16px' }} />
+          <div className="flex flex-col" style={{ padding: '0 16px', gap: collapsed ? 4 : 8 }}>
+            {!collapsed && <span style={{ fontSize: 14, fontWeight: 600, letterSpacing: '-0.4px', color: 'var(--c-muted)' }}>SETTING</span>}
+            {setting.map(renderGroup)}
+          </div>
+        </>
+      )}
     </nav>
   )
 }
