@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
   BellIcon,
@@ -12,7 +12,9 @@ import { accessOf, useRole } from '../lib/role'
 import { userById, users } from '../data/users'
 import { modelById } from '../data/models'
 import { getPostById } from '../screens/board-store'
-import { notifications } from '../data/events'
+import { targetPath } from '../screens/event-store'
+import { useAllocations, useEvents } from '../data/hooks/usePolling'
+import type { EventLog } from '../data/types'
 import { IA_GROUPS, matchRoute, parentRouteKey, routeByKey } from '../lib/routes'
 
 const DEMO_IDS = users.map((u) => u.id)
@@ -72,8 +74,25 @@ export function Header() {
   const navigate = useNavigate()
   const [bellOpen, setBellOpen] = useState(false)
   const [roleOpen, setRoleOpen] = useState(false)
-  const unread = notifications.filter((n) => !n.read).length
   const crumbs = useCrumbs()
+
+  // 알림 벨 — DB(/api/events) 라이브. 관리자=전체 / 사용자=본인 할당 자원(useAllocations) 이벤트만.
+  // 미확인 = status 'open'(미해결). 사용자 스코프는 events.tsx getEventsForUser 와 동일 정책을 라이브로.
+  const isAdmin = access === 'A'
+  const ev = useEvents({ limit: 50 }, 10000)
+  const alloc = useAllocations(isAdmin ? null : user.id, 10000)
+  const myEvents = useMemo(() => {
+    const all = ev.data ?? []
+    if (isAdmin) return all
+    const gpuIds = new Set<string>()
+    const serverIds = new Set<string>()
+    ;(alloc.data ?? []).forEach((a) => {
+      if (a.gpuId) gpuIds.add(a.gpuId)
+      if (a.serverId) serverIds.add(a.serverId)
+    })
+    return all.filter((e) => (e.gpuId && gpuIds.has(e.gpuId)) || (e.serverId && serverIds.has(e.serverId)))
+  }, [ev.data, alloc.data, isAdmin, user.id])
+  const unread = myEvents.filter((e) => e.status === 'open').length
 
   const close = () => {
     setBellOpen(false)
@@ -162,26 +181,33 @@ export function Header() {
             <button type="button" className="text-accent" style={{ fontSize: 14 }}>모두 읽음</button>
           </div>
           <div className="max-h-80 overflow-y-auto">
-            {notifications.slice(0, 6).map((n) => (
-              <button
-                key={n.id}
-                type="button"
-                onClick={() => {
-                  close()
-                  if (n.link) navigate(n.link)
-                }}
-                className="flex w-full items-start gap-2.5 px-4 py-2.5 text-left hover:bg-[var(--accent-soft)] border-b border-line last:border-0"
-              >
-                <span
-                  className="rounded-full shrink-0 mt-1.5"
-                  style={{ width: 7, height: 7, background: n.read ? 'var(--c-inactive)' : 'var(--c-accent)' }}
-                />
-                <span className="flex-1 min-w-0">
-                  <span className="block" style={{ fontSize: 14 }}>{n.message}</span>
-                  <span className="text-muted block" style={{ fontSize: 14 }}>{n.createdAt}</span>
-                </span>
-              </button>
-            ))}
+            {myEvents.length === 0 && (
+              <div className="px-4 py-6 text-center text-muted" style={{ fontSize: 14 }}>
+                {ev.isLoading ? '불러오는 중…' : '새 이벤트 없음'}
+              </div>
+            )}
+            {myEvents.slice(0, 6).map((e) => {
+              const link = targetPath(e as unknown as EventLog, isAdmin)
+              const dot =
+                e.status !== 'open' ? 'var(--c-inactive)' : e.severity === 'critical' ? 'var(--c-danger)' : 'var(--c-accent)'
+              return (
+                <button
+                  key={e.id}
+                  type="button"
+                  onClick={() => {
+                    close()
+                    if (link) navigate(link)
+                  }}
+                  className="flex w-full items-start gap-2.5 px-4 py-2.5 text-left hover:bg-[var(--accent-soft)] border-b border-line last:border-0"
+                >
+                  <span className="rounded-full shrink-0 mt-1.5" style={{ width: 7, height: 7, background: dot }} />
+                  <span className="flex-1 min-w-0">
+                    <span className="block" style={{ fontSize: 14 }}>{e.message}</span>
+                    <span className="text-muted block" style={{ fontSize: 14 }}>{e.createdAt.slice(0, 16).replace('T', ' ')}</span>
+                  </span>
+                </button>
+              )
+            })}
           </div>
         </div>
       )}
