@@ -53,7 +53,8 @@
         "/services/educat/04.webp",
         "/services/educat/05.webp"
       ],
-      "ownerUserId": "u-jhs"
+      "ownerUserId": "u-jhs",
+      "serviceId": "svc-educat"
     },
     {
       "id": "doragi",
@@ -106,7 +107,8 @@
         "/services/doragi/02.webp",
         "/services/doragi/03.webp"
       ],
-      "ownerUserId": "u-jhs"
+      "ownerUserId": "u-jhs",
+      "serviceId": "svc-doragi"
     },
     {
       "id": "voicecat",
@@ -160,7 +162,8 @@
         "/services/voicecat/03.webp",
         "/services/voicecat/04.webp"
       ],
-      "ownerUserId": "u-jhs"
+      "ownerUserId": "u-jhs",
+      "serviceId": "svc-voicecat"
     },
     {
       "id": "dreamlog",
@@ -216,7 +219,8 @@
         "/services/dreamlog/05.webp",
         "/services/dreamlog/06.webp"
       ],
-      "ownerUserId": "u-pts"
+      "ownerUserId": "u-pts",
+      "serviceId": "svc-dreamlog"
     },
     {
       "id": "dootory",
@@ -270,7 +274,8 @@
         "/services/dootory/03.webp",
         "/services/dootory/04.webp"
       ],
-      "ownerUserId": "u-leh"
+      "ownerUserId": "u-leh",
+      "serviceId": "svc-dootory"
     },
     {
       "id": "biocat",
@@ -326,7 +331,8 @@
         "/services/biocat/05.webp",
         "/services/biocat/06.webp"
       ],
-      "ownerUserId": "u-jhs"
+      "ownerUserId": "u-jhs",
+      "serviceId": "svc-biocat"
     },
     {
       "id": "imagecat",
@@ -382,7 +388,8 @@
         "/services/imagecat/05.webp",
         "/services/imagecat/06.webp"
       ],
-      "ownerUserId": "u-jhs"
+      "ownerUserId": "u-jhs",
+      "serviceId": "svc-imagecat"
     }
   ]
 }

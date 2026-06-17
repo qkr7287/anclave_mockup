@@ -310,6 +310,7 @@ create table market_services (
   api           text,
   owner         text,
   owner_user_id text,            -- 배포자 users.id (사용량 랭킹에서 신청자 후보 제외용)
+  service_id    text,            -- services(id) 연결 — 마켓↔할당 통일(svc-<market>)
   rating        numeric,
   status        text,
   hue           int,

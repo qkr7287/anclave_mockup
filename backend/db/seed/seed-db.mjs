@@ -143,11 +143,8 @@ async function main() {
   // --- market_services (4.17 마켓 표시 전용 — 기존 services 와 별개) — jsonb 는 JSON.stringify ---
   for (const s of seed.marketServices ?? [])
     await ins('market_services',
-      ['id', 'name', 'kind', 'provider', 'model', 'api', 'owner', 'owner_user_id', 'rating', 'status', 'hue', 'icon', 'response_time', 'tier', 'monthly_req', 'usage', 'usage_num', 'delta', 'up', 'req_full', 'success', 'delta_pct', 'last_call', 'tags', 'description', 'overview', 'api_desc', 'features', 'ops_notes', 'service_url', 'demo_url', 'thumbnail', 'screenshots'],
-      [s.id, s.name, s.kind ?? null, s.provider ?? null, s.model ?? null, s.api ?? null, s.owner ?? null, s.ownerUserId ?? null, s.rating ?? null, s.status ?? null, s.hue ?? null, s.icon ?? null, s.responseTime ?? null, s.tier ?? null, s.monthlyReq ?? null, s.usage ?? null, s.usageNum ?? null, s.delta ?? null, s.up ?? null, s.reqFull ?? null, s.success ?? null, s.deltaPct ?? null, s.lastCall ?? null, JSON.stringify(s.tags ?? []), s.desc ?? null, s.overview ?? null, s.apiDesc ?? null, JSON.stringify(s.features ?? []), JSON.stringify(s.opsNotes ?? []), s.serviceUrl ?? null, s.demoUrl ?? null, s.thumbnail ?? null, JSON.stringify(s.screenshots ?? [])])
-
-  // 마켓 기여도 정합 — 정휘선(u-jhs) idle 단일 GPU 추가 할당(srv-05, service 없는 직접 배정).
-  await client.query("update gpus set assigned_user_id = 'u-jhs' where id = 'srv-05-gpu0'")
+      ['id', 'name', 'kind', 'provider', 'model', 'api', 'owner', 'owner_user_id', 'service_id', 'rating', 'status', 'hue', 'icon', 'response_time', 'tier', 'monthly_req', 'usage', 'usage_num', 'delta', 'up', 'req_full', 'success', 'delta_pct', 'last_call', 'tags', 'description', 'overview', 'api_desc', 'features', 'ops_notes', 'service_url', 'demo_url', 'thumbnail', 'screenshots'],
+      [s.id, s.name, s.kind ?? null, s.provider ?? null, s.model ?? null, s.api ?? null, s.owner ?? null, s.ownerUserId ?? null, s.serviceId ?? null, s.rating ?? null, s.status ?? null, s.hue ?? null, s.icon ?? null, s.responseTime ?? null, s.tier ?? null, s.monthlyReq ?? null, s.usage ?? null, s.usageNum ?? null, s.delta ?? null, s.up ?? null, s.reqFull ?? null, s.success ?? null, s.deltaPct ?? null, s.lastCall ?? null, JSON.stringify(s.tags ?? []), s.desc ?? null, s.overview ?? null, s.apiDesc ?? null, JSON.stringify(s.features ?? []), JSON.stringify(s.opsNotes ?? []), s.serviceUrl ?? null, s.demoUrl ?? null, s.thumbnail ?? null, JSON.stringify(s.screenshots ?? [])])
 
   console.log(`✓ seeded ${n} rows`)
   const { rows } = await client.query(`select
