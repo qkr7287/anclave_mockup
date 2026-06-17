@@ -47,7 +47,7 @@ export const ROUTES: RouteDef[] = [
   // 4.10 GPU 자원 승인 = 할당 관리 '승인 관리'. (게시 승인 4.9는 마켓플레이스 그룹으로 이동 — 아래 ④ 참고)
   { key: 'approvals-gpu', path: '/admin/approvals/gpu', screen: '4.10', title: '승인 관리', access: ['A'], group: 2, menu: ['A'], icon: 'check-badge' },
   { key: 'approvals-gpu-detail', path: '/admin/approvals/gpu/:id', screen: '4.10a', title: '신청 상세', access: ['A'], group: 2, icon: 'check-badge' },
-  // 4.11 변경·확장·이전·회수 — 사용자(B=C)는 '자원 신청현황 상세보기'에서 진입(메뉴 제외). 관리자는 메뉴 유지(승인 측).
+  // 4.11 변경·회수 — 사용자(B=C)는 '자원 신청현황 상세보기'에서 진입(메뉴 제외). 관리자는 메뉴 유지(승인 측).
   { key: 'gpu-change', path: '/requests/gpu-change', screen: '4.11', title: '변경 · 회수', access: ['A', 'B', 'C'], group: 2, menu: ['A', 'B', 'C'], icon: 'arrows' },
   { key: 'gpu-change-new', path: '/requests/gpu-change/new', screen: '4.11b', title: '변경·회수 신청', access: ['A', 'B', 'C'], group: 2, icon: 'arrows' },
   { key: 'gpu-change-detail', path: '/requests/gpu-change/:id', screen: '4.11a', title: '변경 요청 심사', access: ['A', 'B', 'C'], group: 2, icon: 'arrows' },
