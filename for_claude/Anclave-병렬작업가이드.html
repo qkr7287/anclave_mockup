@@ -68,6 +68,7 @@
     <tr><td><b>G3</b> 신청·변경회수</td><td><code>..\anclave-g3</code></td><td><code>feat/g3-allocation</code></td><td><code>src/screens/allocation.tsx</code></td><td>5183</td></tr>
     <tr><td><b>G4</b> 게시·GPU 승인</td><td><code>..\anclave-g4</code></td><td><code>feat/g4-approvals</code></td><td><code>src/screens/approvals.tsx</code></td><td>5184</td></tr>
     <tr><td><b>G10</b> 이벤트·알림</td><td><code>..\anclave-g10</code></td><td><code>feat/g10-events</code></td><td><code>src/screens/events.tsx</code></td><td>5190</td></tr>
+    <tr><td><b>G11</b> 관제 빅스크린</td><td><code>..\anclave-g11</code></td><td><code>feat/g11-monitoring</code></td><td><code>src/screens/monitoring.tsx</code> (4.7)</td><td>5191</td></tr>
   </table>
   <p class="tag">전체 경로 예: <code>C:\Users\agics\Desktop\workspace\01. git\anclave-g2</code> (메인 <code>anclave_mockup</code> 옆)</p>
   <p class="tag" style="color:#e3b341"><b>G1(자원맵 3계층 4.2·4.3·4.4)</b>은 데이터·차트·metrics·css까지 손대는 <b>기반 작업</b>이라 deny가 완화됨 — <b>auth/라우팅/셸·문서만 잠그고</b> 자원맵 도메인(resourcemap·data·charts·lib/metrics·index.css)은 허용. App·role·routes·셸·다른 화면은 건드리지 말 것.</p>
@@ -127,6 +128,9 @@ app/src/index.css       ← 디자인 토큰</code></pre>
 
   <h3>G10 — 폴더 <code>anclave-g10</code></h3>
   <pre class="prompt"><button class="copy">복사</button><code>이 worktree(feat/g10-events)에서 G10을 구현해줘. localhost:8765 의 Anclave-구현가이드.html STEP 10(G10 · 이벤트 관제·알림 4.21·4.22) ①구현을 정독해. src/screens/events.tsx 만 수정해(Events=4.21, Notifications=4.22). 공유 파일은 deny로 잠겨 있으니 읽기만 하고, 변경이 필요하면 나한테 알려줘. §2 절대금지·밀도·꽉참·14px floor 지켜. 끝나면 npm run dev -- --port 5190 로 크롬 ②검증 후 이 브랜치에 커밋해.</code></pre>
+
+  <h3>G11 — 폴더 <code>anclave-g11</code> <span class="tag">Figma 구조-우선</span></h3>
+  <pre class="prompt"><button class="copy">복사</button><code>이 worktree(feat/g11-monitoring)에서 G11 관제 모니터링(4.7, /admin/monitoring)을 구현해줘. ★Figma '전체 서버 모니터링(재현)'(fileKey snsAbTQRcDKjaneWGUuYwY · node 3-2)을 get_figma_data로 "구조"를 가져와 픽셀 단위로 똑같이 — 이미지로 보지 말고 구조(좌표·색·폰트)로 보고 구현해(효율↑). PNG(figma-admin-monitoring-final.png)는 최종 시각 검증용. localhost:8765 의 Anclave-구현가이드.html STEP 11(갱신됨) 정독. src/screens/monitoring.tsx 만 수정(AdminMonitoring=4.7). 차트는 monitoring.tsx 안에서 Recharts로 직접 구성(공유 차트 컴포넌트 추가가 필요하면 나한테). 공유 파일은 deny로 잠겨 있으니 읽기만. 9패널·다크 빅스크린·무스크롤(1920)·프로그레스 바 금지 지키고, 끝나면 npm run dev -- --port 5191 로 크롬에서 PNG와 나란히 픽셀 대조 ②검증 후 이 브랜치에 커밋해. 싱크로율 100%.</code></pre>
 </section>
 
 <section>

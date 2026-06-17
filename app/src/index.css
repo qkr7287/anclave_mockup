@@ -162,30 +162,40 @@ body {
   outline-offset: 2px;
 }
 
-/* 클릭 컨트롤 — Tailwind v4 preflight가 비운 pointer 커서 복원(앱 전역).
-   button 기본 커서가 default라 모든 버튼이 누를 수 있어 보이지 않던 문제 해결. */
+/* 클릭 가능한 컨트롤 — Tailwind v4 preflight 가 비운 pointer 커서 복원(앱 전역) */
 button:not(:disabled),
 [role="button"]:not([aria-disabled="true"]),
+[role="tab"],
 a[href],
+select,
+summary,
 label[for],
-summary {
+label:has(input[type="checkbox"]),
+label:has(input[type="radio"]),
+input[type="checkbox"],
+input[type="radio"] {
   cursor: pointer;
 }
 button:disabled,
-[aria-disabled="true"] {
+[aria-disabled="true"],
+[disabled] {
   cursor: not-allowed;
 }
 
-/* 대시보드 chrome — 드래그 텍스트 선택 차단(앱처럼 동작).
-   입력 필드와 복사 유용한 값(.selectable)은 예외로 선택 허용. */
-.no-select {
-  -webkit-user-select: none;
+/* UI 텍스트 드래그 선택 방지. 입력·코드·복사 대상(.selectable·[data-selectable])은 예외 */
+body {
   user-select: none;
+  -webkit-user-select: none;
 }
-.no-select :where(input, textarea, [contenteditable="true"], .selectable) {
-  -webkit-user-select: text;
+input,
+textarea,
+select,
+pre,
+code,
+[data-selectable],
+.selectable {
   user-select: text;
-  cursor: text;
+  -webkit-user-select: text;
 }
 
 /* thin scrollbars to match dense dashboard tone */
@@ -320,6 +330,12 @@ button:disabled,
   *::after {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
+    animation-delay: 0s !important;
     transition-duration: 0.001ms !important;
+  }
+  /* 작고 기능적인 펼침/회전은 reduced-motion 에서도 유지(사이드바 아코디언) */
+  .acc-panel,
+  .acc-caret {
+    transition-duration: 0.24s !important;
   }
 }

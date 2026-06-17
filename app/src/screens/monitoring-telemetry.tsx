@@ -5,6 +5,7 @@
 // 편집 불가 → 동일 계약을 화면-로컬로 둔다. 실 api.ts 도착 시 여기서 re-export.
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
+import { API_BASE } from '../lib/api'
 
 // ───────────────────────── 조회범위 / 단위(권장페어 고정) ─────────────────────────
 
@@ -108,7 +109,7 @@ export async function fetchBand(q: BandQuery): Promise<BandPoint[]> {
     range: q.range,
   })
   try {
-    const res = await fetch(`/api/telemetry/band?${params}`, { headers: { Accept: 'application/json' } })
+    const res = await fetch(`${API_BASE}/api/telemetry/band?${params}`, { headers: { Accept: 'application/json' } })
     if (!res.ok) throw new Error(`band ${res.status}`)
     const json: unknown = await res.json()
     if (!Array.isArray(json)) throw new Error('band: not an array')

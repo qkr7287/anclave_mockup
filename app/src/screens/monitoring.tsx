@@ -216,6 +216,7 @@ function KpiRow() {
             sub={meta.sub}
             trend={trend}
             trendThreshold={meta.threshold}
+            trendAutoPad
             trendFmt={meta.fmt}
             gaugeColor={meta.color}
           />

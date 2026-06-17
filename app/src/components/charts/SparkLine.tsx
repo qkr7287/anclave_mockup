@@ -13,7 +13,13 @@ interface SparkLineProps {
   peak?: boolean // 범위 내 최댓값 마커 (default off)
   fill?: boolean // 컨테이너 높이 100% 채움(부모가 높이 결정 — 레이아웃 고정은 부모 책임)
   fmt?: (v: number) => string // 지정 시 호버 가이드 + 값 툴팁 표시
+  autoPad?: boolean // 도메인 = 데이터 min~max 위아래 pad 여백(꽉채움 자동정규화 대신).
+  // KPI 추이용: 실제값이 중앙대에 놓이고 최댓값이 천장에 안 닿아(=최대치 오인 방지) 헤드룸 확보.
+  // 미세변동(7→8)을 전체높이로 과장하지도, 28%를 바닥으로 보이게 하지도 않는다.
 }
+
+const PAD_MIN = 2 // autoPad 최소 여백(단위 공통: 2% · 2W · 2°C · 2대) — 변동 없어도 중앙 평평
+const PAD_FACTOR = 0.4 // 변동폭 비례 여백 계수 — 변동은 시원히 보이되 최댓값 위 헤드룸 확보
 
 const W = 100 // viewBox 가로(고정) — 가로는 100% 스트레치
 const PAD = 2 // 상하 여백(라인 잘림 방지)
@@ -51,22 +57,36 @@ function monotonePath(xs: number[], ys: number[]): string {
   return d
 }
 
-export function SparkLine({ data, color, height = 26, threshold, peak = false, fill = false, fmt }: SparkLineProps) {
+export function SparkLine({ data, color, height = 26, threshold, peak = false, fill = false, fmt, autoPad = false }: SparkLineProps) {
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '') // url(#…) 안전 + 카드 동시 렌더 id 충돌 방지
   const [hover, setHover] = useState<number | null>(null)
   const n = data.length
   const cssH = fill ? '100%' : height
   if (n === 0) return <div style={{ height: cssH }} aria-hidden /> // 레이아웃 고정 — 높이 흔들림 금지
 
-  // y 도메인 — threshold 포함(점선이 항상 보이게)
+  // y 도메인 — autoPad면 데이터 범위 + pad 여백(실제값 중앙·천장 헤드룸),
+  // 아니면 데이터 min~max 꽉채움. threshold 는 autoPad 가 아닐 때만 도메인에 포함
+  // (autoPad 차트에서 멀리 있는 임계선이 도메인을 늘려 변동을 납작하게 만드는 것 방지).
   const hasTh = threshold !== undefined
-  let top = Math.max(...data)
-  let bot = Math.min(...data)
-  if (hasTh) {
-    top = Math.max(top, threshold)
-    bot = Math.min(bot, threshold)
+  const dMin = Math.min(...data)
+  const dMax = Math.max(...data)
+  let top: number, bot: number
+  if (autoPad) {
+    const pad = Math.max(PAD_MIN, (dMax - dMin) * PAD_FACTOR)
+    top = dMax + pad
+    bot = Math.max(0, dMin - pad)
+  } else {
+    top = dMax
+    bot = dMin
+    if (hasTh) {
+      top = Math.max(top, threshold)
+      bot = Math.min(bot, threshold)
+    }
   }
   const span = Math.max(0.01, top - bot)
+  // 임계선/위험색은 임계치가 도메인 안일 때만 — autoPad 차트에서 멀리 있는 임계선이
+  // 차트 경계에 걸쳐 보이는 것 방지(57% 차트에 90% 점선이 상단에 걸리던 문제).
+  const showTh = hasTh && (threshold as number) >= bot && (threshold as number) <= top
   const x = (i: number) => (n <= 1 ? 0 : (i * W) / (n - 1))
   const y = (v: number) => PAD + (1 - (v - bot) / span) * (height - PAD * 2)
 
@@ -96,7 +116,7 @@ export function SparkLine({ data, color, height = 26, threshold, peak = false, f
             <stop offset="0%" stopColor={color} stopOpacity={0.22} />
             <stop offset="100%" stopColor={color} stopOpacity={0.02} />
           </linearGradient>
-          {hasTh && (
+          {showTh && (
             <clipPath id={`spark-over-${uid}`}>
               {/* 임계치 위쪽(y 0 ~ y(threshold))만 — 초과 구간 강조용 */}
               <rect x={0} y={0} width={W} height={Math.max(0, y(threshold))} />
@@ -105,7 +125,7 @@ export function SparkLine({ data, color, height = 26, threshold, peak = false, f
         </defs>
         <path d={area} fill={`url(#spark-fill-${uid})`} stroke="none" />
         <path d={line} fill="none" stroke={color} strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-        {hasTh && (
+        {showTh && (
           <>
             {/* 같은 라인을 위험색으로 한 번 더 — 임계치 위쪽만 클립 */}
             <path d={line} fill="none" stroke="var(--c-danger)" strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" clipPath={`url(#spark-over-${uid})`} />

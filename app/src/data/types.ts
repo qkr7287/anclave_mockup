@@ -26,6 +26,7 @@ export interface User {
   email: string
   hasHosting: boolean
   initialRoute: string
+  department?: string // 조직도 소속(대표이사·기술개발본부 등)
 }
 
 export interface Model {
@@ -39,6 +40,12 @@ export interface Model {
   params: string
   usageRank: number
   usageCount: number
+  // 모델별 권장 자원 요건(4.10a 심사 "자원 제한" 추천 기준) — GB·코어 단위.
+  // recommendedGpu·params 와 모순 없게(예: H100 ×4 → reqVramGb≈320). MoE(m3)는 실제 배치 기준.
+  reqVramGb: number
+  reqRamGb: number
+  reqStorageGb: number
+  reqCpuCores: number
 }
 
 export interface Service {
@@ -164,6 +171,19 @@ export interface GpuRequest {
   status: Status
   rejectReason?: string
   createdAt: string
+  // 신청 상세·심사 페이지(4.6a/4.10a) 확장 — 기존 데이터 호환 위해 전부 optional
+  period?: '1개월' | '3개월' | '6개월' | '무기한'
+  priority?: 'low' | 'normal' | 'high'
+  adminMemo?: string // 관리자 처리 메모(신청자에게 표시)
+  processedAt?: string
+  processedBy?: string // 처리자 userId
+  allocatedServerId?: string // 승인 시 할당 자원
+  allocatedGpuId?: string
+  allocatedSliceId?: string
+  // 승인 시 관리자가 확정한 자원 제한(4.10a 조회 모드 표시) — GB·코어. VRAM 은 할당 GPU 로 결정.
+  allocatedRamGb?: number
+  allocatedStorageGb?: number
+  allocatedCpuCores?: number
 }
 
 export interface GpuChangeRequest {
@@ -218,14 +238,37 @@ export interface Notification {
   link?: string
 }
 
-export interface ModelImport {
+// 4.14 모델 신청 진행 단계. 카탈로그는 'deployed'(Model 등록)만 노출,
+// 그 외(미배포)는 모델 신청 관리 테이블에만 보인다.
+export type ModelStage =
+  | 'requested' // 신청됨 — 관리자 검토/반입 전
+  | 'scanning' // 반입 파일 보안 점검 중(서버 비동기)
+  | 'scanned' // 점검 완료 — 명세 작성/등록 대기
+  | 'deployed' // 카탈로그(+마켓) 등록 완료 = 배포
+  | 'rejected' // 반려
+
+// 4.14 모델 신청 관리 — 사용자는 등록 신청만, 관리자가 반입·보안점검·등록.
+// 한 엔티티에 신청 단계 + 관리자 처리(반입) 단계를 함께 담는다(GpuRequest 패턴).
+export interface ModelRequest {
   id: string
-  fileName: string
-  format: 'safetensors' | 'other'
-  scan: 'pass' | 'fail' | 'pending'
-  checksum: string
-  status: Status
+  // 신청 단계 (사용자 B/C)
+  requesterUserId: string
+  modelName: string // 요청 모델명(예: 'Qwen2.5-72B')
+  kind?: ModelKind // 모델 종류(선택)
+  source?: string // 출처(HuggingFace URL 등, 선택)
+  reason: string // 신청 사유
+  status: Status // 큰 분류(대기/승인/반려) — 필터·배지용
+  stage: ModelStage // 세부 진행 단계
   createdAt: string
+  rejectReason?: string
+  // 관리자 처리(반입) 단계 — 승인 진행 시 채워짐
+  processedAt?: string
+  processedBy?: string
+  fileName?: string // 반입 파일명
+  format?: 'safetensors' | 'other'
+  scan?: 'pass' | 'fail' | 'pending' // 보안 점검 결과
+  checksum?: string
+  registeredModelId?: string // 등록 완료된 카탈로그 모델 id
 }
 
 export interface ActivationStat {
@@ -244,15 +287,6 @@ export interface AuditLog {
   target: string
   ip?: string
   createdAt: string
-}
-
-export interface Agent {
-  id: string
-  nodeId: string
-  serverId: string
-  version: string
-  status: 'active' | 'stale' | 'down'
-  deployedAt: string
 }
 
 export interface BoardPost {

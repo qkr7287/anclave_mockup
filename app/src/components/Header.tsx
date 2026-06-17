@@ -10,11 +10,13 @@ import {
 } from '@heroicons/react/24/solid'
 import { useTheme } from '../lib/theme'
 import { accessOf, useRole } from '../lib/role'
-import { userById } from '../data/users'
+import { userById, users } from '../data/users'
+import { modelById } from '../data/models'
+import { getPostById } from '../screens/board-store'
 import { notifications } from '../data/events'
-import { IA_GROUPS, ROUTES } from '../lib/routes'
+import { IA_GROUPS, matchRoute, parentRouteKey, routeByKey } from '../lib/routes'
 
-const DEMO_IDS = ['u-admin', 'u-manager', 'u-user']
+const DEMO_IDS = users.map((u) => u.id)
 const ACCESS_LABEL: Record<string, string> = {
   A: '최종 관리자',
   B: '실무 관리자',
@@ -38,9 +40,30 @@ function useCrumbs(): Crumb[] {
     crumbs[crumbs.length - 1] = { label: crumbs[crumbs.length - 1].label } // 현재 = 비활성
     return crumbs
   }
-  const route = [...ROUTES].filter((r) => r.path !== '/' && pathname.startsWith(r.path)).sort((a, b) => b.path.length - a.path.length)[0]
-  const group = route ? IA_GROUPS.find((g) => g.id === route.group) : undefined
-  return [{ label: group?.label ?? '대시보드' }, { label: route?.title ?? '전체 서버 현황' }]
+  // :param 정확 매칭(matchRoute) + 상세→부모(HIGHLIGHT_PARENT) 재사용 → 드릴다운 뎁스.
+  const route = matchRoute(pathname)
+  if (!route) return [{ label: '대시보드' }]
+  const parentKey = parentRouteKey(route.key)
+  const parent = parentKey ? routeByKey(parentKey) : undefined
+  // 상세 라우트가 group 미지정(model-detail 등)이면 부모의 group 으로 그룹 라벨 결정.
+  const group = IA_GROUPS.find((g) => g.id === (route.group ?? parent?.group))
+  const crumbs: Crumb[] = [{ label: group?.label ?? '대시보드' }]
+  if (parent && parent.key !== route.key) {
+    crumbs.push({ label: parent.title, to: parent.path })
+  }
+  // model-detail(/models/:id)은 마지막 단계를 모델명으로 — 동적 라벨.
+  let lastLabel = route.title
+  if (route.key === 'model-detail') {
+    const mid = pathname.split('/')[2]
+    lastLabel = modelById(mid)?.name ?? route.title
+  }
+  // board-detail(/board/:id)도 마지막 단계를 글 제목으로 — 동적 라벨.
+  if (route.key === 'board-detail') {
+    const pid = pathname.split('/')[2]
+    lastLabel = getPostById(pid)?.title ?? route.title
+  }
+  crumbs.push({ label: lastLabel }) // 마지막 = 현재(비활성)
+  return crumbs
 }
 
 // Q2/Q18 헤더(Figma) — 좌: 브레드크럼 / 우: 검색·알림·테마·프로필. GNB 없음.
@@ -60,7 +83,7 @@ export function Header() {
 
   return (
     <header
-      className="flex items-center justify-between shrink-0 relative z-20"
+      className="flex items-center justify-between shrink-0 relative z-20 no-select"
       style={{ height: 64, padding: '0 16px', gap: 14, background: 'var(--c-card2)' }}
     >
       {/* 좌: 브레드크럼(헤더 통합·단계 클릭 이동, 현재=비활성) */}
@@ -183,8 +206,9 @@ export function Header() {
           style={{ top: 60, right: 16, width: 240, boxShadow: 'var(--shadow-pop)' }}
         >
           <div className="px-4 pt-3 pb-1 text-muted uppercase" style={{ fontSize: 14, letterSpacing: '.5px' }}>
-            역할 전환 (A / B=C)
+            역할 전환 · 데모 계정
           </div>
+          <div style={{ maxHeight: 320, overflowY: 'auto' }}>
           {DEMO_IDS.map((id) => {
             const u = userById(id)!
             const a = accessOf(u)
@@ -215,6 +239,7 @@ export function Header() {
               </button>
             )
           })}
+          </div>
           <div className="border-t border-line">
             <button
               type="button"

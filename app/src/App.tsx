@@ -9,16 +9,29 @@ import { useRole } from './lib/role'
 import { Login } from './screens/auth/Login'
 import { ResourceMap, ServerDetail, GpuDetail } from './screens/resourcemap'
 import { MyResources, RequestStatus } from './screens/dashboard'
+import { RequestDetail } from './screens/request-detail'
+import { RequestNew } from './screens/request-new'
 import { AdminMonitoring } from './screens/monitoring'
 import { Requests, GpuChange } from './screens/allocation'
+import { GpuChangeReview, GpuChangeRequestNew } from './screens/gpu-change-wizard'
 import { ApprovalsPublish, ApprovalsGpu } from './screens/approvals'
-import { ModelCatalog, ModelDetail } from './screens/catalog'
-import { ModelImportNew } from './screens/mymodels'
-import { Agents } from './screens/agents'
+import { PublishDetail, PublishView } from './screens/publish-detail'
+import { ApprovalDetail } from './screens/approval-detail'
+import { ModelCatalog } from './screens/catalog'
+import { ModelDetail } from './screens/model-detail'
+import { ModelRequests } from './screens/model-requests'
+import { ModelImport } from './screens/model-import'
+import { ModelRequestNew } from './screens/model-request-new'
+import { ModelRequestDetail } from './screens/model-request-detail'
 import { Marketplace, ServiceDetail } from './screens/market'
 import { ApiApprovals } from './screens/activation'
-import { Events, Notifications } from './screens/events'
+import { ApiRequestNew } from './screens/api-request-new'
+import { ApiApprovalDetail } from './screens/api-approval-detail'
+import { PublishRequest } from './screens/publish-request'
+import { PublishNew } from './screens/publish-new'
+import { Events } from './screens/events'
 import { Board } from './screens/board'
+import { BoardDetail } from './screens/board-detail'
 import { AuditLogScreen, AccessControl } from './screens/audit'
 import { Capabilities, UsersAdmin, InfraIntegrationScreen } from './screens/system'
 
@@ -29,21 +42,34 @@ const REGISTRY: Record<string, ComponentType> = {
   'resource-map-gpu': GpuDetail,
   dashboard: MyResources,
   'requests-status': RequestStatus,
+  'requests-status-detail': RequestDetail,
+  'requests-new': RequestNew,
   'admin-monitoring': AdminMonitoring,
   requests: Requests,
   'approvals-publish': ApprovalsPublish,
+  'publish-detail': PublishDetail,
+  'publish-view': PublishView,
   'approvals-gpu': ApprovalsGpu,
+  'approvals-gpu-detail': ApprovalDetail,
   'gpu-change': GpuChange,
+  'gpu-change-new': GpuChangeRequestNew,
+  'gpu-change-detail': GpuChangeReview,
   models: ModelCatalog,
   'model-detail': ModelDetail,
-  'models-new': ModelImportNew,
-  agents: Agents,
+  'model-requests': ModelRequests,
+  'model-import': ModelImport,
+  'model-request-new': ModelRequestNew,
+  'model-request-detail': ModelRequestDetail,
   marketplace: Marketplace,
   'service-detail': ServiceDetail,
   'api-approvals': ApiApprovals,
+  'api-request': ApiRequestNew,
+  'api-approval-detail': ApiApprovalDetail,
+  'publish-request': PublishRequest,
+  'publish-new': PublishNew,
   events: Events,
-  notifications: Notifications,
   board: Board,
+  'board-detail': BoardDetail,
   audit: AuditLogScreen,
   access: AccessControl,
   caps: Capabilities,
