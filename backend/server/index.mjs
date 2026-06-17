@@ -771,7 +771,7 @@ app.get('/api/my-allocations', async (c) => {
 // 실시간 수치(smUtil·temp·power 등)는 미포함 — 프론트가 telemetry band 로 합성.
 app.get('/api/servers', async (c) => {
   const [servers, gpus, slices, allocs, svcs] = await Promise.all([
-    pool.query('select id, name, rack, host, network, note, health, hosted_service_ids, hosted_user_ids from gpu_servers order by id'),
+    pool.query('select id, name, rack, host, network, note, health, hosted_service_ids, hosted_user_ids, ram_gb, storage_gb, cpu_cores from gpu_servers order by id'),
     pool.query('select id, server_id, name, model, arch, vram_gb, mig_capable, serial, interconnect, health, alloc_mode, xid, assigned_user_id, assigned_service_id from gpus order by id'),
     pool.query('select id, gpu_id, profile, units, gb, owner_user_id, model_id, container_id, health, request_id, status from mig_slices order by id'),
     pool.query("select requester_user_id, service_name, allocated_gpu_id, allocated_slice_id from gpu_requests where status='approved' and active=true and allocated_gpu_id is not null"),
@@ -785,6 +785,7 @@ app.get('/api/servers', async (c) => {
   }
   const out = servers.rows.map((srv) => ({
     id: srv.id, name: srv.name, rack: srv.rack, host: srv.host, network: srv.network, note: srv.note, health: srv.health,
+    ramGb: srv.ram_gb, storageGb: srv.storage_gb, cpuCores: srv.cpu_cores,
     hostedServiceIds: srv.hosted_service_ids, hostedUserIds: srv.hosted_user_ids,
     gpus: gpus.rows.filter((g) => g.server_id === srv.id).map((g) => {
       const ga = gpuAlloc[g.id]

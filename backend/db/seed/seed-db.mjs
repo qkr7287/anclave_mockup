@@ -87,9 +87,11 @@ async function main() {
       : node.gpus[0].migCapable ? 'MIG 분할 노드'
       : `${node.gpus[0].model} · 단일 할당`
 
+    // 호스트 물리 스펙(자원 자동 산정용) — host 기준(41/63 = 32GB·16core, 그 외 = 16GB·8core, 저장 2048GB).
+    const big = node.host === '192.168.0.41' || node.host === '192.168.0.63'
     await ins('gpu_servers',
-      ['id', 'name', 'rack', 'host', 'network', 'note', 'health', 'hosted_service_ids', 'hosted_user_ids'],
-      [node.id, node.host, node.host, node.host, node.network ?? null, note, serverHealth, [...serviceIds], [...userIds]])
+      ['id', 'name', 'rack', 'host', 'network', 'note', 'health', 'hosted_service_ids', 'hosted_user_ids', 'ram_gb', 'storage_gb', 'cpu_cores'],
+      [node.id, node.host, node.host, node.host, node.network ?? null, note, serverHealth, [...serviceIds], [...userIds], big ? 32 : 16, 2048, big ? 16 : 8])
 
     for (let gi = 0; gi < node.gpus.length; gi++) {
       const fg = node.gpus[gi]
