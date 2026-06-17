@@ -670,13 +670,13 @@ function ServiceDetailCard({ service: s, narrow, reserveClose, keyCount }: { ser
   const tone = toneOf(s.status)
   const apiAvailable = hasApiOf(s)
   const usageStats: [string, string][] = [
-    ['월간 요청 수', s.reqFull],
-    ['평균 응답시간', s.responseTime.replace('s', '초')],
-    ['성공률', s.success],
-    ['최근 7일 증감율', s.deltaPct],
-    ['마지막 호출', s.lastCall],
+    ['월간 요청 수', s.reqFull || '—'],
+    ['평균 응답시간', s.responseTime ? s.responseTime.replace('s', '초') : '—'],
+    ['성공률', s.success || '—'],
+    ['최근 7일 증감율', s.deltaPct || '—'],
+    ['마지막 호출', s.lastCall || '—'],
   ]
-  const ops = [...s.opsNotes, '문의: ai-support@anclave.io']
+  const ops = [...(s.opsNotes ?? []), '문의: ai-support@anclave.io']
   const divider = <div style={{ height: 1, background: p.divider }} />
   return (
     <div className="flex flex-col" style={{ gap: narrow ? 18 : 22 }}>
@@ -724,10 +724,10 @@ function ServiceDetailCard({ service: s, narrow, reserveClose, keyCount }: { ser
 
       {/* 4 스탯 카드 */}
       <div className="grid" style={{ gap: 12, gridTemplateColumns: narrow ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)' }}>
-        <StatCard icon={ClockIcon} label="평균 응답 시간" value={s.responseTime} />
+        <StatCard icon={ClockIcon} label="평균 응답 시간" value={s.responseTime || '—'} />
         <StatCard icon={CodeBracketIcon} label="호출 방식" value={apiAvailable ? s.api : '콘솔'} />
         <StatCard icon={KeyIcon} label="활성 API 키" value={keyCount != null ? `${keyCount}개` : '—'} />
-        <StatCard icon={ChartBarIcon} label="월 요청수" value={s.monthlyReq} />
+        <StatCard icon={ChartBarIcon} label="월 요청수" value={s.monthlyReq || '—'} />
       </div>
 
       {/* 개요 */}
