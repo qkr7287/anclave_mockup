@@ -207,7 +207,9 @@ export function EventDetail({ id: idProp, onBack }: { id?: string; onBack?: () =
   const server: GpuServer | undefined = srvId ? serverById(srvId) : undefined
   const svc = gpu ? gpuServices(gpu)[0] : undefined
   const tempHot = gpu ? gpu.temp >= 75 : false
-  const series = gpu ? trend(gpu.temp, 30, 7, 4) : []
+  // 발생 직전 추이 — 끝점은 실제 캡처 온도로 고정해 라인이 '발생' 점/라벨로 수렴하게(노이즈로 끝이 ↘ 꺾이는 것 방지).
+  const captureTemp = gpu?.temp ?? 0
+  const series = gpu ? trend(gpu.temp, 30, 7, 4).map((v, i, a) => (i === a.length - 1 ? captureTemp : v)) : []
   const { lead, cause } = describe(event, gpu)
 
   const submit = () => {
