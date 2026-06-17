@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode, CSSProperties } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { PageShell } from '../components/PageShell'
@@ -17,7 +17,7 @@ import { BandChart, SparkLine, ServerHexMap, bandColor, heatColor } from '../com
 import type { ServerRegion, Bay, BandSeries, BandAxis } from '../components/charts'
 import { ServerIcon, CpuChipIcon, ChartBarSquareIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 import { ArrowLeftIcon } from '@heroicons/react/24/solid'
-import { servers, serverById, allGpus, userById, modelById, gpuRequests } from '../data'
+import { servers as seedServers, allGpus as seedAllGpus, userById, modelById, gpuRequests } from '../data'
 import type { Gpu, MigSlice, EventLog, Service, GpuServer } from '../data/types'
 import {
   serverAvgUtil,
@@ -65,17 +65,75 @@ function BackBtn() {
   )
 }
 
-// 서버 스위처 옵션(정적 — seed.json 단일 소스). 4.3·4.4 공용.
-const SERVER_OPTIONS: PickerOption[] = servers.map((s) => ({
-  id: s.id,
-  label: s.name,
-  hint: `${serverAvgUtil(s)}%`,
-  status: HEALTH_META[s.health]?.label,
-  dotColor: HEALTH_META[s.health]?.color,
-}))
+// 서버 스위처 옵션 — live fleet 기준(4.3·4.4 공용).
+const serverOptions = (servers: GpuServer[]): PickerOption[] =>
+  servers.map((s) => ({
+    id: s.id,
+    label: s.name,
+    hint: `${serverAvgUtil(s)}%`,
+    status: HEALTH_META[s.health]?.label,
+    dotColor: HEALTH_META[s.health]?.color,
+  }))
+
+// ───────────────────────── 자원맵 실연동 — GET /api/servers(인벤토리+할당) ─────────────────────────
+// 할당 진실원천 = gpu_requests.allocated_*(백엔드 join). 응답은 GpuServer[] 동일 형태.
+// 실시간 수치(smUtil·vramUtil·temp·power·usage)는 이 응답에 없음 → seed 매칭으로 보강(이번 범위 밖).
+// 백엔드 미기동/엔드포인트 부재 시 seed 폴백(기존 화면 유지).
+const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? ''
+
+const SEED_GPU_BY_ID = new Map(seedAllGpus.map((g) => [g.id, g]))
+// API gpu 에 빠진 실시간 수치를 seed 로 채움(undefined만 — API가 0을 주면 0 유지).
+function withRealtime(servers: GpuServer[]): GpuServer[] {
+  const n = (v: number | undefined, fb: number) => (v === undefined || v === null ? fb : v)
+  return servers.map((s) => ({
+    ...s,
+    gpus: s.gpus.map((g) => {
+      const sd = SEED_GPU_BY_ID.get(g.id)
+      if (!sd) return g
+      return {
+        ...g,
+        smUtil: n(g.smUtil, sd.smUtil),
+        vramUtil: n(g.vramUtil, sd.vramUtil),
+        temp: n(g.temp, sd.temp),
+        power: n(g.power, sd.power),
+        slices: g.slices?.map((sl) => {
+          const sdsl = sd.slices?.find((x) => x.id === sl.id)
+          return sdsl ? { ...sl, usage: n(sl.usage, sdsl.usage), vramUtil: n(sl.vramUtil, sdsl.vramUtil) } : sl
+        }),
+      }
+    }),
+  }))
+}
+
+async function fetchServers(): Promise<GpuServer[] | null> {
+  try {
+    const res = await fetch(`${API_BASE}/api/servers`, { headers: { Accept: 'application/json' } })
+    if (!res.ok) throw new Error(`servers ${res.status}`)
+    const json: unknown = await res.json()
+    if (!Array.isArray(json) || json.length === 0) throw new Error('servers: empty/invalid')
+    return withRealtime(json as GpuServer[])
+  } catch {
+    return null // 폴백은 호출부에서 seed 유지
+  }
+}
+
+// 자원맵 데이터 소스 — 초기값=seed(로딩 밀림 없음), 마운트 후 /api/servers 성공 시 교체.
+function useFleet(): GpuServer[] {
+  const [fleet, setFleet] = useState<GpuServer[]>(seedServers)
+  useEffect(() => {
+    let alive = true
+    fetchServers().then((live) => {
+      if (alive && live) setFleet(live)
+    })
+    return () => {
+      alive = false
+    }
+  }, [])
+  return fleet
+}
 
 // 4.2 전체 — 단일 연속 벌집(모든 GPU hex 밀착) + 서버 영역 외곽선·라벨·헬스색(HyperCube 구조 베이스)
-function ServerHoneycomb({ onSelect }: { onSelect: (id: string) => void }) {
+function ServerHoneycomb({ servers, onSelect }: { servers: GpuServer[]; onSelect: (id: string) => void }) {
   // 최소 단위 = 슬라이스. 서버 = 자기 슬라이스 헥사 묶음(고유 hue), 부하 음영.
   const regions: ServerRegion[] = servers.map((s, idx) => {
     const hue = HUES[idx % HUES.length]
@@ -229,7 +287,7 @@ function ResStatus({ state }: { state: BoxState }) {
   )
 }
 
-function SliceStatus() {
+function SliceStatus({ allGpus }: { allGpus: Gpu[] }) {
   // 모든 할당 공간 = 단일 GPU(1칸) + MIG GPU 인스턴스(슬라이스). 장애 GPU = 확인 필요(down).
   const sliceState = (sl: MigSlice): BoxState => (sl.usage > 0 || sl.ownerUserId ? 'used' : 'free')
   const items = allGpus.map((g) => {
@@ -574,7 +632,7 @@ function HexGlyph({ size = 15 }: { size?: number }) {
 }
 
 // 서버 폴더(박스) ↔ MIG 육각 탭 래퍼
-function ServerResourceView({ onSelect }: { onSelect: (id: string) => void }) {
+function ServerResourceView({ servers, onSelect }: { servers: GpuServer[]; onSelect: (id: string) => void }) {
   const [view, setView] = useState<'folder' | 'hex'>('folder')
   const tab = (active: boolean): CSSProperties => ({
     fontSize: 14, fontWeight: 600, padding: '7px 15px', borderRadius: 9,
@@ -601,7 +659,7 @@ function ServerResourceView({ onSelect }: { onSelect: (id: string) => void }) {
           </div>
         </div>
       ) : (
-        <div className="flex-1 min-h-0 min-w-0"><ServerHoneycomb onSelect={onSelect} /></div>
+        <div className="flex-1 min-h-0 min-w-0"><ServerHoneycomb servers={servers} onSelect={onSelect} /></div>
       )}
     </div>
   )
@@ -612,10 +670,12 @@ function ServerResourceView({ onSelect }: { onSelect: (id: string) => void }) {
 export function ResourceMap() {
   const navigate = useNavigate()
   const [drawer, setDrawer] = useState(false)
-  const critGpu = useMemo(() => allGpus.find((g) => g.xid), [])
-  const critServer = useMemo(() => servers.find((s) => s.gpus.some((g) => g.xid)), [])
+  const servers = useFleet()
+  const allGpus = useMemo(() => servers.flatMap((s) => s.gpus), [servers])
+  const critGpu = useMemo(() => allGpus.find((g) => g.xid), [allGpus])
+  const critServer = useMemo(() => servers.find((s) => s.gpus.some((g) => g.xid)), [servers])
   // 세션 1회만 — 닫으면 다시 안 뜸(자원맵 정중앙 영구 가림 방지)
-  const [alertOpen, setAlertOpen] = useState(() => !!critGpu && !sessionStorage.getItem('anclave-crit-dismissed'))
+  const [alertOpen, setAlertOpen] = useState(() => !sessionStorage.getItem('anclave-crit-dismissed'))
   const dismissAlert = () => { sessionStorage.setItem('anclave-crit-dismissed', '1'); setAlertOpen(false) }
 
   const activeGpus = allGpus.filter((g) => g.health !== 'inactive' && !g.xid).length
@@ -641,9 +701,9 @@ export function ResourceMap() {
         }
       >
         <div className="grid h-full min-h-0" style={{ gridTemplateColumns: '1.7fr 1fr', gap: 18 }}>
-          <ServerResourceView onSelect={(id) => navigate(`/resource-map/${id}`)} />
+          <ServerResourceView servers={servers} onSelect={(id) => navigate(`/resource-map/${id}`)} />
           <div className="flex flex-col min-h-0 h-full" style={{ gap: 12 }}>
-            <SliceStatus />
+            <SliceStatus allGpus={allGpus} />
             <Card fill flush title="이벤트 로그" action={<button type="button" onClick={() => setDrawer(true)} className="text-accent" style={{ fontSize: 14 }}>전체 보기</button>}>
               <EventTable rows={allEvents} />
             </Card>
@@ -914,7 +974,8 @@ export function ServerDetail() {
   const { serverId = '' } = useParams()
   const navigate = useNavigate()
   const [drawer, setDrawer] = useState(false)
-  const server = serverById(serverId)
+  const servers = useFleet()
+  const server = servers.find((s) => s.id === serverId)
   if (!server) return <Navigate to="/resource-map" replace />
 
   const isMulti = server.gpus.length > 1 // GPU 여러 장=구 레이아웃(카드 행), 1장=신규 레이아웃
@@ -988,7 +1049,7 @@ export function ServerDetail() {
             <Picker
               size="lg"
               value={server.id}
-              options={SERVER_OPTIONS}
+              options={serverOptions(servers)}
               onSelect={(id) => navigate(`/resource-map/${id}`)}
               searchable
               searchPlaceholder="서버 검색"
@@ -1135,7 +1196,8 @@ export function GpuDetail() {
   const { serverId = '', gpuId = '' } = useParams()
   const navigate = useNavigate()
   const [drawer, setDrawer] = useState(false)
-  const server = serverById(serverId)
+  const servers = useFleet()
+  const server = servers.find((s) => s.id === serverId)
   const gpu = server?.gpus.find((g) => g.id === gpuId)
   if (!server || !gpu) return <Navigate to="/resource-map" replace />
 
@@ -1187,9 +1249,9 @@ export function GpuDetail() {
               size="sm"
               align="right"
               value={server.id}
-              options={SERVER_OPTIONS}
+              options={serverOptions(servers)}
               onSelect={(id) => {
-                const s = serverById(id)
+                const s = servers.find((x) => x.id === id)
                 if (s) navigate(`/resource-map/${id}/${s.gpus[0].id}`)
               }}
               searchable
