@@ -19,7 +19,7 @@ import { ServerIcon, CpuChipIcon, ChartBarSquareIcon, ExclamationTriangleIcon } 
 import { ArrowLeftIcon } from '@heroicons/react/24/solid'
 import { servers as seedServers, allGpus as seedAllGpus, modelById } from '../data'
 import { liveUserById as userById, liveRequestById } from '../lib/liveData'
-import { useLiveData } from '../data/hooks/usePolling'
+import { useLiveData, useEvents, type EventRow } from '../data/hooks/usePolling'
 import type { Gpu, MigSlice, EventLog, Service, GpuServer } from '../data/types'
 import {
   serverAvgUtil,
@@ -169,6 +169,26 @@ function sevColor(sev: EventLog['severity']): string {
 const sevLabel: Record<EventLog['severity'], string> = { critical: '위험', warn: '경고', info: '정보', recovered: '복구' }
 
 // 이벤트 로그 테이블(Figma) — 심각도·메시지(넓게·wrap)·서버·시각·상태. thead sticky + tbody 내부 스크롤.
+// DB 이벤트(/api/events) → 화면 EventLog. createdAt ISO → 'YYYY-MM-DD HH:mm'(테이블 slice(5) 호환).
+function fmtEventTs(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return iso
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
+function dbEventsToLogs(rows: EventRow[]): EventLog[] {
+  return rows.map((r) => ({
+    id: r.id,
+    severity: r.severity,
+    status: r.status === 'resolved' ? 'resolved' : 'open',
+    gpuId: r.gpuId ?? undefined,
+    serverId: r.serverId ?? undefined,
+    message: r.message,
+    createdAt: fmtEventTs(r.createdAt),
+    read: true,
+  }))
+}
+
 function EventTable({ rows }: { rows: EventLog[] }) {
   const SEV_TONE = { critical: 'danger', warn: 'warn', info: 'info', recovered: 'ok' } as const
   const th: CSSProperties = { fontSize: 14, fontWeight: 700, color: 'var(--c-muted)', textAlign: 'left', padding: '9px 12px', whiteSpace: 'nowrap', position: 'sticky', top: 0, background: 'var(--th-bg)', borderBottom: '2px solid var(--c-border)' }
@@ -686,7 +706,10 @@ export function ResourceMap() {
   const activeGpus = allGpus.filter((g) => g.health !== 'inactive' && !g.xid).length
   const downGpus = allGpus.length - activeGpus // 유휴+장애 = 비가동(많을수록 위험)
   const avgUtil = Math.round(allGpus.reduce((a, g) => a + g.smUtil, 0) / allGpus.length)
-  const critEvents = allEvents.filter((e) => e.severity === 'critical').length
+  // 이벤트 = DB(/api/events). 자원맵은 admin 전용 라우트라 전체 노출. 미적재/다운 시 seed 폴백.
+  const dbEv = useEvents({ limit: 50 })
+  const eventRows = dbEv.data ? dbEventsToLogs(dbEv.data) : allEvents
+  const critEvents = eventRows.filter((e) => e.severity === 'critical').length
 
   return (
     <>
@@ -710,14 +733,14 @@ export function ResourceMap() {
           <div className="flex flex-col min-h-0 h-full" style={{ gap: 12 }}>
             <SliceStatus allGpus={allGpus} />
             <Card fill flush title="이벤트 로그" action={<button type="button" onClick={() => setDrawer(true)} className="text-accent" style={{ fontSize: 14 }}>전체 보기</button>}>
-              <EventTable rows={allEvents} />
+              <EventTable rows={eventRows} />
             </Card>
           </div>
         </div>
       </PageShell>
       </div>
 
-      <Drawer open={drawer} onClose={() => setDrawer(false)} title="전체 이벤트 로그"><EventList rows={allEvents} /></Drawer>
+      <Drawer open={drawer} onClose={() => setDrawer(false)} title="전체 이벤트 로그"><EventList rows={eventRows} /></Drawer>
       {critServer && (
         <CriticalAlert open={alertOpen} serverName={critServer.name}
           message={`${critGpu?.name} ${critGpu?.xid} — GPU 응답 없음(드라이버). 점검 모드로 전환됐어요.`}
@@ -981,6 +1004,8 @@ export function ServerDetail() {
   const [drawer, setDrawer] = useState(false)
   const servers = useFleet()
   const server = servers.find((s) => s.id === serverId)
+  // 이벤트 = DB(서버 스코프). hook 규칙상 early return 전 호출. 미적재/다운 시 seed 폴백.
+  const dbEv = useEvents({ serverId, limit: 50 })
   if (!server) return <Navigate to="/resource-map" replace />
 
   const isMulti = server.gpus.length > 1 // GPU 여러 장=구 레이아웃(카드 행), 1장=신규 레이아웃
@@ -1123,7 +1148,7 @@ export function ServerDetail() {
       </div>
 
       <FloatingButtons target={server.name} onEventLog={() => setDrawer(true)} />
-      <Drawer open={drawer} onClose={() => setDrawer(false)} title={`${server.name} 이벤트 로그`}><EventList rows={serverEvents(server.id)} /></Drawer>
+      <Drawer open={drawer} onClose={() => setDrawer(false)} title={`${server.name} 이벤트 로그`}><EventList rows={dbEv.data ? dbEventsToLogs(dbEv.data) : serverEvents(server.id)} /></Drawer>
     </>
   )
 }
@@ -1142,7 +1167,24 @@ function GpuActivityFeed({ gpu }: { gpu: Gpu }) {
   const svcs = gpuServices(gpu)
   const seed = seedOf(gpu.id)
   const nm = (i: number) => (svcs.length ? svcs[i % svcs.length].name : '서비스')
-  const items: { tone: FeedTone; kind: string; who: string; desc: string; ago: string }[] = [
+  // 실데이터 = DB(/api/events). 서비스 이벤트는 serverId=null 이라, 이 GPU의 서버/GPU 이벤트
+  // + 올라간 서비스명이 메시지에 포함된 이벤트를 묶는다. 미적재/다운 시 더미 폴백.
+  const serverId = gpu.id.split('-gpu')[0]
+  const svcNames = svcs.map((s) => s.name)
+  const dbEv = useEvents({ limit: 50 })
+  const realItems: { tone: FeedTone; kind: string; who: string; desc: string; ago: string }[] | null =
+    dbEv.data
+      ? dbEventsToLogs(dbEv.data)
+          .filter((e) => e.serverId === serverId || e.gpuId === gpu.id || svcNames.some((n) => e.message.includes(n)))
+          .map((e) => ({
+            tone: e.severity === 'critical' ? 'danger' : e.severity === 'warn' ? 'warn' : e.status === 'resolved' ? 'ok' : 'info',
+            kind: e.message,
+            who: e.status === 'resolved' ? '해결' : sevLabel[e.severity],
+            desc: e.serverId ?? gpu.serial,
+            ago: e.createdAt.slice(5),
+          }))
+      : null
+  const dummyItems: { tone: FeedTone; kind: string; who: string; desc: string; ago: string }[] = [
     { tone: 'ok', kind: '배포 완료', who: nm(0), desc: `버전 v2.${3 + (seed % 5)}.1 롤아웃 · 컨테이너 3/3 Ready`, ago: '2분 전' },
     { tone: 'accent', kind: '호출 급증', who: nm(1), desc: `5분 평균 +${24 + (seed % 28)}% · QPS ${90 + (seed % 110)}`, ago: '11분 전' },
     { tone: 'warn', kind: '응답 지연 경고', who: nm(2), desc: `p95 ${280 + (seed % 130)}ms · 임계 250ms 초과`, ago: '26분 전' },
@@ -1155,7 +1197,10 @@ function GpuActivityFeed({ gpu }: { gpu: Gpu }) {
     { tone: 'ok', kind: '인스턴스 재시작', who: nm(0), desc: '헬스체크 실패 후 자동 재기동', ago: '5시간 전' },
     { tone: 'info', kind: '모델 동기화', who: nm(3), desc: '레지스트리 weights 동기화 완료', ago: '8시간 전' },
   ]
-  if (svcs.length === 0) return (
+  const items = realItems ?? dummyItems
+  // 빈 상태: DB 적재됨(=realItems)인데 0건이거나, 폴백인데 올라간 서비스 없음
+  const empty = realItems ? realItems.length === 0 : svcs.length === 0
+  if (empty) return (
     <div className="flex flex-col h-full min-w-0" style={{ gap: 12 }}>
       <span className="text-muted font-semibold shrink-0" style={{ fontSize: 13 }}>최근 활동 · 올라간 서비스 상세</span>
       <div className="flex-1 min-h-0 rounded-xl border border-line flex flex-col items-center justify-center text-center" style={{ backgroundImage: MIG_HATCH, gap: 4 }}>
@@ -1218,6 +1263,8 @@ function GpuDetailInner() {
   // KPI 추이 = 단일 GPU 텔레메트리 band(DB). hook 규칙상 early return 전에 호출(gpu 없으면 빈 id→빈 결과, Navigate로 폐기).
   const { data: kpiBand } = useTelemetryBand('gpu', gpu?.id ?? '', GPU_KPI_METRICS,
     gpu ? { sm: gpu.smUtil, vram: gpu.vramUtil, temp: gpu.temp, power: gpu.power } : undefined)
+  // GPU 이벤트 로그 = DB(gpu 스코프). hook 규칙상 early return 전 호출. 미적재/다운 시 seed 폴백.
+  const dbEv = useEvents({ gpuId, limit: 50 })
   if (!server || !gpu) return <Navigate to="/resource-map" replace />
 
   const usedMb = vramUsedMb(gpu)
@@ -1357,7 +1404,7 @@ function GpuDetailInner() {
       </div>
 
       <FloatingButtons target={gpu.name} onEventLog={() => setDrawer(true)} />
-      <Drawer open={drawer} onClose={() => setDrawer(false)} title={`${gpu.name} 이벤트 로그`}><EventList rows={gpuEvents(gpu.id)} /></Drawer>
+      <Drawer open={drawer} onClose={() => setDrawer(false)} title={`${gpu.name} 이벤트 로그`}><EventList rows={dbEv.data ? dbEventsToLogs(dbEv.data) : gpuEvents(gpu.id)} /></Drawer>
     </>
   )
 }
