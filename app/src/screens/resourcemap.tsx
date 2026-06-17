@@ -190,6 +190,7 @@ function dbEventsToLogs(rows: EventRow[]): EventLog[] {
 }
 
 function EventTable({ rows }: { rows: EventLog[] }) {
+  const navigate = useNavigate()
   const SEV_TONE = { critical: 'danger', warn: 'warn', info: 'info', recovered: 'ok' } as const
   const th: CSSProperties = { fontSize: 14, fontWeight: 700, color: 'var(--c-muted)', textAlign: 'left', padding: '9px 12px', whiteSpace: 'nowrap', position: 'sticky', top: 0, background: 'var(--th-bg)', borderBottom: '2px solid var(--c-border)' }
   const td: CSSProperties = { fontSize: 14, padding: '9px 12px', borderBottom: '1px solid var(--c-border-s)', verticalAlign: 'top' }
@@ -208,7 +209,9 @@ function EventTable({ rows }: { rows: EventLog[] }) {
         </thead>
         <tbody>
           {rows.map((e) => (
-            <tr key={e.id}>
+            <tr key={e.id} onClick={() => navigate(`/events?detail=${e.id}`)} className="cursor-pointer transition-colors"
+              onMouseEnter={(ev) => (ev.currentTarget.style.background = 'var(--accent-soft)')}
+              onMouseLeave={(ev) => (ev.currentTarget.style.background = 'transparent')}>
               <td style={td}><Badge tone={SEV_TONE[e.severity]} dot>{sevLabel[e.severity]}</Badge></td>
               <td style={{ ...td, lineHeight: 1.35 }}>{e.message}</td>
               <td style={{ ...meta, fontVariantNumeric: 'tabular-nums' }}>{e.serverId ?? '—'}</td>
@@ -1172,19 +1175,22 @@ const POWER_THRESHOLD_PCT = 95
 type FeedTone = 'ok' | 'info' | 'warn' | 'danger' | 'accent'
 const FEED_COL: Record<FeedTone, string> = { ok: 'var(--c-ok)', info: 'var(--c-accent)', warn: 'var(--c-warn)', danger: 'var(--c-danger)', accent: 'var(--c-accent2)' }
 function GpuActivityFeed({ gpu }: { gpu: Gpu }) {
+  const navigate = useNavigate()
   const svcs = gpuServices(gpu)
   const seed = seedOf(gpu.id)
   const nm = (i: number) => (svcs.length ? svcs[i % svcs.length].name : '서비스')
-  // 실데이터 = DB(/api/events). 서비스 이벤트는 serverId=null 이라, 이 GPU의 서버/GPU 이벤트
-  // + 올라간 서비스명이 메시지에 포함된 이벤트를 묶는다. 미적재/다운 시 더미 폴백.
-  const serverId = gpu.id.split('-gpu')[0]
+  // 실데이터 = DB(/api/events). "이 GPU만" — gpuId 일치 + (서비스 이벤트는 gpuId=null 이라)
+  // 올라간 서비스명이 메시지에 포함된 이벤트. 클릭 시 이벤트 상세(/events?detail=id). 미적재/다운 시 더미 폴백.
   const svcNames = svcs.map((s) => s.name)
+  // 서비스 이벤트(gpuId=null)도 잡아야 해 전체를 받아 클라에서 이 GPU 기준으로 필터.
   const dbEv = useEvents({ limit: 50 })
-  const realItems: { tone: FeedTone; kind: string; who: string; desc: string; ago: string }[] | null =
+  type Feed = { id?: string; tone: FeedTone; kind: string; who: string; desc: string; ago: string }
+  const realItems: Feed[] | null =
     dbEv.data
       ? dbEventsToLogs(dbEv.data)
-          .filter((e) => e.serverId === serverId || e.gpuId === gpu.id || svcNames.some((n) => e.message.includes(n)))
+          .filter((e) => e.gpuId === gpu.id || (!e.gpuId && svcNames.some((n) => e.message.includes(n))))
           .map((e) => ({
+            id: e.id,
             tone: e.severity === 'critical' ? 'danger' : e.severity === 'warn' ? 'warn' : e.status === 'resolved' ? 'ok' : 'info',
             kind: e.message,
             who: e.status === 'resolved' ? '해결' : sevLabel[e.severity],
@@ -1192,7 +1198,7 @@ function GpuActivityFeed({ gpu }: { gpu: Gpu }) {
             ago: e.createdAt.slice(5),
           }))
       : null
-  const dummyItems: { tone: FeedTone; kind: string; who: string; desc: string; ago: string }[] = [
+  const dummyItems: Feed[] = [
     { tone: 'ok', kind: '배포 완료', who: nm(0), desc: `버전 v2.${3 + (seed % 5)}.1 롤아웃 · 컨테이너 3/3 Ready`, ago: '2분 전' },
     { tone: 'accent', kind: '호출 급증', who: nm(1), desc: `5분 평균 +${24 + (seed % 28)}% · QPS ${90 + (seed % 110)}`, ago: '11분 전' },
     { tone: 'warn', kind: '응답 지연 경고', who: nm(2), desc: `p95 ${280 + (seed % 130)}ms · 임계 250ms 초과`, ago: '26분 전' },
@@ -1227,14 +1233,15 @@ function GpuActivityFeed({ gpu }: { gpu: Gpu }) {
         {items.map((it, i) => {
           const last = i === items.length - 1
           return (
-            <li key={i} className="flex gap-3 min-w-0">
+            <li key={i} onClick={it.id ? () => navigate(`/events?detail=${it.id}`) : undefined}
+              className={`flex gap-3 min-w-0${it.id ? ' cursor-pointer' : ''}`}>
               {/* 좌측 레일 — dot + 연결선 */}
               <div className="flex flex-col items-center shrink-0" style={{ width: 10 }}>
                 <span className="rounded-full shrink-0" style={{ width: 9, height: 9, marginTop: 3, background: FEED_COL[it.tone], boxShadow: `0 0 0 3px color-mix(in srgb, ${FEED_COL[it.tone]} 24%, transparent)` }} />
                 {!last && <span className="flex-1" style={{ width: 1.5, background: 'var(--c-border)', marginTop: 3 }} />}
               </div>
               {/* 내용 */}
-              <div className="flex flex-col min-w-0" style={{ gap: 3, paddingBottom: last ? 0 : 14 }}>
+              <div className={`flex flex-col min-w-0${it.id ? ' rounded-md -mx-1.5 px-1.5 transition-colors hover:bg-[var(--accent-soft)]' : ''}`} style={{ gap: 3, paddingBottom: last ? 0 : 14 }}>
                 <div className="flex items-center justify-between gap-2 min-w-0">
                   <span className="font-semibold truncate" style={{ fontSize: 14 }}>{it.kind}</span>
                   <span className="text-muted shrink-0 tabular-nums" style={{ fontSize: 12 }}>{it.ago}</span>
