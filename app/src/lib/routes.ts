@@ -70,7 +70,10 @@ export const ROUTES: RouteDef[] = [
   { key: 'publish-view', path: '/marketplace/publish/:id', screen: '4.29b', title: '게시 신청 상세', access: ['A', 'B', 'C'], group: 4, icon: 'megaphone' },
   // 4.19 API 신청 관리 — 내 마켓 서비스에 온 타인의 API key 신청 관리 + 발급 요약. 소유자(B) 전용.
   { key: 'api-approvals', path: '/api-approvals', screen: '4.19', title: 'API 신청 관리', access: ['A', 'B'], group: 4, menu: ['B'], icon: 'key' },
-  { key: 'api-approval-detail', path: '/api-approvals/:id', screen: '4.19a', title: 'API 키 신청 심사', access: ['A', 'B'], group: 4, icon: 'key' },
+  // 4.19b 내 API 신청 — 내가 보낸 API 키 신청 조회(전용). 모두(A·B·C). 게시 신청 목록과 동일 패턴.
+  { key: 'my-api-requests', path: '/marketplace/api-requests', screen: '4.19b', title: '내 API 신청', access: ['A', 'B', 'C'], group: 4, menu: ['A', 'B', 'C'], icon: 'key' },
+  // 상세는 요청자(C)도 조회 가능 — 심사 버튼은 컴포넌트에서 소유자·관리자(B·A)만 노출.
+  { key: 'api-approval-detail', path: '/api-approvals/:id', screen: '4.19a', title: 'API 키 신청 심사', access: ['A', 'B', 'C'], group: 4, icon: 'key' },
   // 4.9 게시 승인 관리 — 마켓 게시(서비스 노출) 신청 승인. 관리자(A) 전용. (할당관리→마켓플레이스 그룹으로 이동)
   { key: 'approvals-publish', path: '/admin/approvals/publish', screen: '4.9', title: '게시 승인 관리', access: ['A'], group: 4, menu: ['A'], icon: 'megaphone' },
   { key: 'publish-detail', path: '/admin/approvals/publish/:id', screen: '4.9a', title: '게시 승인 심사', access: ['A'], group: 4, icon: 'megaphone' },
