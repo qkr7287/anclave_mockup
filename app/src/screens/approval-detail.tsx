@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowDownTrayIcon,
   ArrowLeftIcon,
+  ArrowsRightLeftIcon,
   ArrowTopRightOnSquareIcon,
   CheckCircleIcon,
   CheckIcon,
@@ -28,6 +29,8 @@ import { modelById, servers, services, userById } from '../data'
 import type { GpuRequest, GpuServer } from '../data/types'
 import { usePolling } from '../data/hooks/usePolling'
 import { approveGpuRequest, fetchGpuRequestById, nowStamp, rejectGpuRequest } from './approval-store'
+import { CHANGE_TYPE_META, fetchChangeRequests } from './gpu-change-store'
+import type { ChangeRequest } from './gpu-change-store'
 
 // 4.10a 신청 상세 심사 (/admin/approvals/gpu/:id) — 4.10 승인 관리의 드로어를 전용 페이지로 승격.
 // pending = 2컬럼(좌 할당 판단[멀티스텝 서버→GPU→MIG 슬라이스 · 검색/필터] / 우 신청 상세[명세서 자리]).
@@ -824,6 +827,16 @@ function ProcessedSpec({ req }: { req: GpuRequest }) {
   const stamp = approved ? 'var(--c-ok)' : 'var(--c-danger)'
   const stampBg = approved ? 'var(--ok-soft)' : 'var(--danger-soft)'
   const hasLimits = req.allocatedRamGb != null || req.allocatedStorageGb != null || req.allocatedCpuCores != null
+  // 변경 이력 — 이 할당(req.id)을 대상으로 한 변경·회수 요청. 있으면 하단에 '이전 변경 이력 보기'.
+  const [history, setHistory] = useState<ChangeRequest[]>([])
+  const [histOpen, setHistOpen] = useState(false)
+  useEffect(() => {
+    let alive = true
+    fetchChangeRequests()
+      .then((all) => { if (alive) setHistory(all.filter((c) => c.before.requestId === req.id)) })
+      .catch(() => { if (alive) setHistory([]) })
+    return () => { alive = false }
+  }, [req.id])
   return (
     <SpecSheetFrame
       title="자원 신청 명세서 · 심사"
@@ -878,6 +891,43 @@ function ProcessedSpec({ req }: { req: GpuRequest }) {
             <SpecRow final label="처리일시" value={req.processedAt} emptyText="—" />
             <SpecRow final label="처리 메모" value={req.adminMemo} emptyText="메모 없음" last />
           </SpecSection>
+          {history.length > 0 && (
+            <SpecSection title="변경 이력">
+              <button
+                type="button"
+                onClick={() => setHistOpen((v) => !v)}
+                className="w-full flex items-center gap-2 rounded-[10px] border border-line transition-[background-color,border-color] duration-150 hover:border-[color:var(--c-accent)] hover:bg-soft"
+                style={{ padding: '11px 13px', background: histOpen ? 'var(--accent-soft)' : 'var(--c-card)' }}
+              >
+                <ArrowsRightLeftIcon width={16} height={16} className="shrink-0" style={{ color: 'var(--c-accent)' }} />
+                <span className="font-semibold text-text" style={{ fontSize: 14 }}>이전 변경 이력 보기</span>
+                <span className="rounded-full font-bold tabular-nums" style={{ fontSize: 12, padding: '1px 8px', background: 'var(--c-accent)', color: 'var(--c-onaccent)' }}>{history.length}</span>
+                <ChevronDownIcon width={16} height={16} className="ml-auto shrink-0 transition-transform" style={{ color: 'var(--c-muted)', transform: histOpen ? 'rotate(180deg)' : 'none' }} />
+              </button>
+              {histOpen && (
+                <div className="anim-fade flex flex-col" style={{ gap: 8, marginTop: 10 }}>
+                  {history.map((c) => {
+                    const meta = CHANGE_TYPE_META[c.type]
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => navigate(`/requests/gpu-change/${c.id}`)}
+                        className="text-left flex items-center gap-2.5 rounded-[10px] border border-line transition-[transform,border-color] duration-100 hover:border-[color:var(--c-accent)] active:scale-[0.99]"
+                        style={{ padding: '10px 12px', background: 'var(--c-card)' }}
+                      >
+                        <Badge tone={meta.tone === 'warn' ? 'neutral' : meta.tone}>{meta.label}</Badge>
+                        <span className="min-w-0 flex-1 truncate text-text" style={{ fontSize: 14 }}>{c.reason || '사유 미기재'}</span>
+                        <span className="shrink-0 text-muted tabular-nums" style={{ fontSize: 12.5 }}>{c.createdAt.slice(0, 10)}</span>
+                        <StatusBadge status={c.status} />
+                        <ArrowTopRightOnSquareIcon width={14} height={14} className="shrink-0" style={{ color: 'var(--c-muted)' }} />
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </SpecSection>
+          )}
     </SpecSheetFrame>
   )
 }
