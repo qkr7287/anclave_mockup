@@ -4,6 +4,7 @@ import type { ComponentType, ReactNode, SVGProps } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Button } from '../components/ui'
 import { SparkLine } from '../components/charts'
+import { userById } from '../data/users'
 import { useTheme } from '../lib/theme'
 import { QaPolish } from './qa-polish'
 import { type MarketService as Service, type MarketServiceUsage, listMarketServices, getMarketService, getMarketServiceUsage } from './market-store'
@@ -608,7 +609,7 @@ function UrlRow({ label, url }: { label: string; url: string }) {
   return (
     <div className="flex items-center gap-3 rounded-lg" style={{ padding: '10px 12px', background: p.inset, border: `1px solid ${p.border}` }}>
       <span className="shrink-0" style={{ fontSize: 14, color: p.muted, width: 84 }}>{label}</span>
-      <span className="truncate flex-1 min-w-0" style={{ fontSize: 14, color: p.accent }}>{url}</span>
+      <a href={url} target="_blank" rel="noopener noreferrer" className="truncate flex-1 min-w-0 hover:underline" style={{ fontSize: 14, color: p.accent }}>{url}</a>
       <button type="button" onClick={copy} aria-label={`${label} 복사`} className="shrink-0 transition-transform active:scale-90" style={{ color: p.muted }}>
         <ClipboardIcon p={p} />
       </button>
@@ -662,20 +663,20 @@ function ImageLightbox({ images, index, onIndex, onClose }: { images: string[]; 
   )
 }
 
-function ServiceDetailCard({ service: s, narrow, reserveClose }: { service: Service; narrow: boolean; reserveClose?: boolean }) {
+function ServiceDetailCard({ service: s, narrow, reserveClose, keyCount }: { service: Service; narrow: boolean; reserveClose?: boolean; keyCount?: number }) {
   const p = usePalette()
   const navigate = useNavigate()
   const [lightbox, setLightbox] = useState<number | null>(null)
   const tone = toneOf(s.status)
   const apiAvailable = hasApiOf(s)
   const usageStats: [string, string][] = [
-    ['월간 요청 수', s.reqFull],
-    ['평균 응답시간', s.responseTime.replace('s', '초')],
-    ['성공률', s.success],
-    ['최근 7일 증감율', s.deltaPct],
-    ['마지막 호출', s.lastCall],
+    ['월간 요청 수', s.reqFull || '—'],
+    ['평균 응답시간', s.responseTime ? s.responseTime.replace('s', '초') : '—'],
+    ['성공률', s.success || '—'],
+    ['최근 7일 증감율', s.deltaPct || '—'],
+    ['마지막 호출', s.lastCall || '—'],
   ]
-  const ops = [...s.opsNotes, '문의: ai-support@anclave.io']
+  const ops = [...(s.opsNotes ?? []), '문의: ai-support@anclave.io']
   const divider = <div style={{ height: 1, background: p.divider }} />
   return (
     <div className="flex flex-col" style={{ gap: narrow ? 18 : 22 }}>
@@ -698,17 +699,13 @@ function ServiceDetailCard({ service: s, narrow, reserveClose }: { service: Serv
             <div className="flex flex-col min-w-0" style={{ gap: 10 }}>
               <h2 style={{ fontSize: 21, fontWeight: 800, letterSpacing: '-0.4px', color: p.heading, lineHeight: 1.1 }}>{s.name}</h2>
               <div className="flex items-center flex-wrap gap-2">
-                <MetaChip label="제공사" value={s.provider} />
                 <MetaChip label="API" value={apiAvailable ? s.api : '미제공'} />
                 <MetaChip label="모델" value={s.model} />
-                <MetaChip label="소유자" value={s.owner} />
+                <MetaChip label="소유자" value={userById(s.ownerUserId)?.name ?? s.owner} />
+                {s.visibility && <MetaChip label="공개" value={s.visibility} />}
                 <StatusBadge status={s.status} tone={tone} />
               </div>
             </div>
-          </div>
-          <div className="flex flex-col items-center justify-center shrink-0 rounded-xl" style={{ padding: '8px 18px', background: p.okSoft, border: `1px solid ${toneColor(p, 'ok')}33` }}>
-            <span className="flex items-center gap-1" style={{ fontSize: 19, fontWeight: 800, color: p.ok, lineHeight: 1.1 }}><StarIcon width={16} height={16} /> {s.rating.toFixed(1)}</span>
-            <span style={{ fontSize: 14, color: p.muted }}>사용자 평점</span>
           </div>
         </div>
         {divider}
@@ -728,10 +725,10 @@ function ServiceDetailCard({ service: s, narrow, reserveClose }: { service: Serv
 
       {/* 4 스탯 카드 */}
       <div className="grid" style={{ gap: 12, gridTemplateColumns: narrow ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)' }}>
-        <StatCard icon={ClockIcon} label="평균 응답 시간" value={s.responseTime} />
+        <StatCard icon={ClockIcon} label="평균 응답 시간" value={s.responseTime || '—'} />
         <StatCard icon={CodeBracketIcon} label="호출 방식" value={apiAvailable ? s.api : '콘솔'} />
-        <StatCard icon={StarIcon} label="모델 등급" value={s.tier} />
-        <StatCard icon={ChartBarIcon} label="월 요청수" value={s.monthlyReq} />
+        <StatCard icon={KeyIcon} label="활성 API 키" value={keyCount != null ? `${keyCount}개` : '—'} />
+        <StatCard icon={ChartBarIcon} label="월 요청수" value={s.monthlyReq || '—'} />
       </div>
 
       {/* 개요 */}
@@ -740,11 +737,19 @@ function ServiceDetailCard({ service: s, narrow, reserveClose }: { service: Serv
         <p style={{ fontSize: 14, lineHeight: 1.7, color: p.muted }}>{s.overview}</p>
       </div>
 
-      {/* API 설명(API 제공 시) */}
+      {/* API 설명 — 이 API로 할 수 있는 것(강조 박스) */}
       {apiAvailable && s.apiDesc && (
-        <div className="flex flex-col" style={{ gap: 9 }}>
-          <SectionTitle>API 설명</SectionTitle>
-          <p style={{ fontSize: 14, lineHeight: 1.7, color: p.muted }}>{s.apiDesc}</p>
+        <div className="flex flex-col rounded-xl" style={{ gap: 12, padding: narrow ? 16 : '18px 20px', background: p.accentSoft, border: `1px solid ${p.accent}30` }}>
+          <div className="flex items-center" style={{ gap: 11 }}>
+            <span className="flex items-center justify-center shrink-0 rounded-[10px]" style={{ width: 36, height: 36, background: p.accent, color: '#fff' }}>
+              <CodeBracketIcon width={19} height={19} />
+            </span>
+            <div className="flex flex-col" style={{ gap: 1 }}>
+              <span style={{ fontSize: 15, fontWeight: 800, color: p.heading, letterSpacing: '-0.2px' }}>이 API로 할 수 있는 것</span>
+              <span style={{ fontSize: 14, color: p.muted }}>API 키를 발급받으면 아래 기능을 바로 호출할 수 있어요.</span>
+            </div>
+          </div>
+          <p style={{ fontSize: 14.5, lineHeight: 1.8, color: p.text }}>{s.apiDesc}</p>
         </div>
       )}
 
@@ -790,6 +795,12 @@ function ServiceDetailCard({ service: s, narrow, reserveClose }: { service: Serv
         <div className="flex flex-col" style={{ gap: 8 }}>
           <UrlRow label="서비스 URL" url={s.serviceUrl || `http://svc.anclave.local/${s.id}`} />
           {apiAvailable && <UrlRow label="데모 URL" url={s.demoUrl || `http://svc.anclave.local/${s.id}/playground`} />}
+          {s.demoNote && (
+            <div className="flex items-start gap-2" style={{ fontSize: 14, lineHeight: 1.6, marginTop: 2 }}>
+              <span className="shrink-0 font-semibold" style={{ color: p.text }}>데모 안내</span>
+              <span style={{ color: p.muted }}>{s.demoNote}</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -801,7 +812,7 @@ function ServiceDetailCard({ service: s, narrow, reserveClose }: { service: Serv
           <span className="flex items-center justify-center rounded-full shrink-0" style={{ width: 18, height: 18, background: p.accentSoft, color: p.accent }}>
             <CheckIcon width={11} height={11} strokeWidth={3} />
           </span>
-          소유자 <b style={{ color: p.text }}>{s.owner}</b> 님이 GPU에 배포한 서비스 · 내부 사용자에게만 제공
+          소유자 <b style={{ color: p.text }}>{userById(s.ownerUserId)?.name ?? s.owner}</b> 님이 GPU에 배포한 서비스 · 내부 사용자에게만 제공
         </span>
         <div className="flex items-center gap-2.5 shrink-0">
           <Button variant="outline">서비스 문의</Button>
@@ -890,14 +901,14 @@ const consumerColor = (i: number) => `hsl(${(214 + i * 40) % 360}, 64%, 57%)`
 const hashKey = (s: string) => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) } return h >>> 0 }
 const issuedDate = (keyId: string) => { const h = hashKey(keyId); const m = 1 + (h % 5); const d = 1 + ((h >>> 8) % 28); return `2024.${String(m).padStart(2, '0')}.${String(d).padStart(2, '0')}` }
 
-interface RankRow { name: string; keyId: string; tag: string; team: string; teamHue: number; requests: number; reqPct: number; tokens: number; tokenPct: number; deltaPct: number; up: boolean; spark: number[]; color: string; issuedAt: string }
+interface RankRow { name: string; keyId: string; tag: string; serviceName?: string; team: string; teamHue: number; requests: number; reqPct: number; tokens: number; tokenPct: number; deltaPct: number; up: boolean; spark: number[]; color: string; issuedAt: string }
 interface DayStack { label: string; perUser: number[]; total: number; concurrent: number }
 interface UsageInsight { keyCount: number; rows: RankRow[]; days: DayStack[]; totalRequests: number; totalTokens: number; maxRequests: number; maxConcurrent: number; avgConcurrent: number; todayDeltaPct: number; todayUp: boolean }
 
 // backend raw 집계 → 비율·색·축 스케일 등 화면 표현값 계산(색·정렬·스케일은 프론트 책임).
 function toUsageInsight(raw: MarketServiceUsage): UsageInsight {
   const rows: RankRow[] = raw.rows.map((r, i) => ({
-    name: r.owner, keyId: r.keyId, tag: r.tag, team: r.team, teamHue: r.teamHue,
+    name: r.owner, keyId: r.keyId, tag: r.tag, serviceName: r.serviceName, team: r.team, teamHue: r.teamHue,
     requests: r.requests, reqPct: 0, tokens: r.tokens, tokenPct: 0,
     deltaPct: r.deltaPct, up: r.deltaPct >= 0, spark: r.spark, color: consumerColor(i), issuedAt: issuedDate(r.keyId),
   }))
@@ -930,7 +941,7 @@ function RankingSummary({ insight }: { insight: UsageInsight }) {
         <span className="rounded-full" style={{ padding: '2px 10px', fontSize: 14, fontWeight: 700, color: p.accent, background: p.accentSoft }}>API 키 {insight.keyCount}개</span>
       </div>
       <div className="grid items-center" style={{ gridTemplateColumns: cols, gap: 16, padding: '0 4px 9px', fontSize: 14, fontWeight: 600, color: p.muted, borderBottom: `1px solid ${p.divider}` }}>
-        <span className="text-center">#</span><span>소유자 · 팀</span><span className="text-center">키 발급일</span>
+        <span className="text-center">#</span><span>서비스명 · 요청자</span><span className="text-center">키 발급일</span>
         <span className="text-right">요청 수</span><span className="text-right">변화 · 7일</span>
       </div>
       <div className="flex flex-col">
@@ -940,10 +951,10 @@ function RankingSummary({ insight }: { insight: UsageInsight }) {
             onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}>
             <span className="flex items-center justify-center justify-self-center" style={{ width: 24, height: 24, borderRadius: 999, fontSize: 14, fontWeight: 800, ...rankStyle(i) }}>{i + 1}</span>
             <div className="flex items-center min-w-0" style={{ gap: 8 }}>
-              <span className="flex items-center justify-center shrink-0 rounded-full" style={{ width: 28, height: 28, fontSize: 14, fontWeight: 800, color: '#fff', background: `linear-gradient(140deg, hsl(${r.teamHue},64%,56%), hsl(${(r.teamHue + 24) % 360},60%,46%))` }}>{r.name.slice(0, 1)}</span>
+              <span className="flex items-center justify-center shrink-0 rounded-full" style={{ width: 28, height: 28, fontSize: 14, fontWeight: 800, color: '#fff', background: `linear-gradient(140deg, hsl(${r.teamHue},64%,56%), hsl(${(r.teamHue + 24) % 360},60%,46%))` }}>{(r.serviceName ?? r.tag).slice(0, 1)}</span>
               <div className="flex flex-col min-w-0" style={{ gap: 1 }}>
-                <span className="truncate" style={{ fontSize: 14, fontWeight: 700, color: p.heading }}>{r.name}</span>
-                <span className="truncate" style={{ fontSize: 14, color: p.muted }}>{r.team}</span>
+                <span className="truncate" style={{ fontSize: 14, fontWeight: 700, color: p.heading }}>{r.serviceName ?? r.tag}</span>
+                <span className="truncate" style={{ fontSize: 14, color: p.muted }}>{r.name} · {r.team}</span>
               </div>
             </div>
             <span className="tabular-nums truncate text-center" style={{ fontSize: 14, color: p.muted }}>{r.issuedAt}</span>
@@ -1023,7 +1034,7 @@ function UsageTrendChart({ insight }: { insight: UsageInsight }) {
       <div className="flex flex-wrap items-center shrink-0" style={{ gap: '6px 14px', marginTop: 14 }}>
         {rows.map((r) => (
           <span key={r.keyId} className="flex items-center" style={{ gap: 5, fontSize: 14, color: p.muted }}>
-            <span className="rounded-sm" style={{ width: 10, height: 10, background: r.color }} /> {r.keyId}
+            <span className="rounded-sm" style={{ width: 10, height: 10, background: r.color }} /> {r.name}
           </span>
         ))}
         <span className="flex items-center" style={{ gap: 5, fontSize: 14, color: p.muted }}>
@@ -1076,7 +1087,7 @@ export function ServiceDetail() {
         <div className="grid min-w-0" style={{ gap: 14, flex: fill ? '1 1 0%' : undefined, minHeight: 0, gridTemplateColumns: narrow ? '1fr' : 'minmax(0, 1.25fr) minmax(0, 1fr)' }}>
           {/* 좌 — 서비스 상세(콘텐츠 많을 때 컬럼 내부에서만 스크롤) */}
           <div className="rounded-2xl min-w-0 min-h-0" style={{ ...panel, overflowY: fill ? 'auto' : 'visible', padding: narrow ? 20 : 24 }}>
-            <ServiceDetailCard service={service} narrow={narrow} />
+            <ServiceDetailCard service={service} narrow={narrow} keyCount={insight.keyCount} />
           </div>
           {/* 우 — 랭킹 요약(위) + 사용량 추이(아래) */}
           <div className="flex flex-col min-w-0 min-h-0" style={{ gap: 14, overflowY: fill ? 'auto' : 'visible' }}>

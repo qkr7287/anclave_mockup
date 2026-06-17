@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -6,14 +6,17 @@ import {
   CheckCircleIcon,
   ClipboardDocumentIcon,
   MagnifyingGlassIcon,
+  PhotoIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline'
 import { Button, StepBack, useToast } from '../components/ui'
-import { modelById, servers, services } from '../data'
+import { modelById, servers } from '../data'
 import type { Service } from '../data/types'
 import { useRole } from '../lib/role'
 import { useTheme } from '../lib/theme'
 import { Logo } from './catalog'
 import { createPublishRequest } from './publish-store'
+import { listServices, type DeployedService } from './market-store'
 import { QaPolish } from './qa-polish'
 
 // G8 · 4.29a 서비스 게시 신규 신청(/marketplace/publish/new) — 4.6b 신규 신청과 동일 구조
@@ -38,11 +41,33 @@ const M = {
 const MORPH_EASE = 'cubic-bezier(0.65, 0, 0.35, 1)'
 const WIZARD_STEPS = ['서비스 선택', '상세 내용', '확인 · 제출']
 const VIS_OPTS = [
-  { v: '전사 공개', desc: '모든 사내 사용자에게 노출' },
-  { v: '팀 한정', desc: '소속 팀·부서만 접근' },
-  { v: '링크 보유자', desc: '링크를 받은 사용자만' },
+  { v: '공개', desc: '모든 사내 사용자에게 노출' },
+  { v: '비공개', desc: '소유자와 승인된 사용자만 접근' },
 ] as const
 const INTRO_MIN = 10
+const MAX_SHOTS = 5
+
+// 업로드 이미지를 클라이언트에서 리사이즈(maxW)·webp 압축 → data URL. backend 파일 스토리지 없이
+// screenshots: string[](text[])로 그대로 저장·전송. 마켓 상세 갤러리는 <img src>라 data URL로 동작.
+async function fileToWebp(file: File, maxW = 1280): Promise<string> {
+  const url = URL.createObjectURL(file)
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const i = new Image()
+      i.onload = () => resolve(i)
+      i.onerror = reject
+      i.src = url
+    })
+    const scale = Math.min(1, maxW / img.width)
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.round(img.width * scale)
+    canvas.height = Math.round(img.height * scale)
+    canvas.getContext('2d')?.drawImage(img, 0, 0, canvas.width, canvas.height)
+    return canvas.toDataURL('image/webp', 0.8)
+  } finally {
+    URL.revokeObjectURL(url)
+  }
+}
 
 const inputBase: React.CSSProperties = {
   height: 44, width: '100%', background: M.inputBg, border: `1px solid ${M.border}`,
@@ -133,23 +158,31 @@ function CardKV({ k, v }: { k: string; v: string }) {
 }
 
 // 서비스 카드(단일 선택) — 로고 + 이름 + 종류·모델 + 할당 자원(서버·자원 라벨)
-function ServiceCard({ svc, active, onClick }: { svc: Service; active: boolean; onClick: () => void }) {
+// listed=이미 마켓에 게시된 서비스 → 빗금·비활성(중복 게시 신청 방지).
+function ServiceCard({ svc, active, listed, onClick }: { svc: Service; active: boolean; listed?: boolean; onClick: () => void }) {
   const alloc = allocInfo(svc)
   return (
     <button
       type="button"
-      onClick={onClick}
-      className="relative text-left rounded-[12px] transition-[transform,background-color,border-color] duration-100 active:scale-[0.985] flex flex-col"
-      style={{ padding: 14, background: active ? M.activeBg : M.inputBg, border: `1px solid ${active ? M.blue : M.border}` }}
+      onClick={listed ? undefined : onClick}
+      disabled={listed}
+      aria-disabled={listed}
+      className="relative text-left rounded-[12px] transition-[transform,background-color,border-color] duration-100 enabled:active:scale-[0.985] disabled:cursor-not-allowed flex flex-col"
+      style={{ padding: 14, background: active ? M.activeBg : M.inputBg, border: `1px solid ${active ? M.blue : M.border}`, opacity: listed ? 0.72 : 1 }}
     >
-      {active && (
-        <span className="absolute flex items-center justify-center rounded-full" style={{ top: 10, right: 10, width: 20, height: 20, background: M.blue }}>
+      {listed && (
+        <span aria-hidden className="absolute inset-0 rounded-[12px] pointer-events-none" style={{ background: 'repeating-linear-gradient(45deg, color-mix(in srgb, var(--c-muted) 16%, transparent) 0 5px, transparent 5px 11px)', zIndex: 1 }} />
+      )}
+      {listed ? (
+        <span className="absolute font-semibold" style={{ top: 10, right: 10, zIndex: 2, fontSize: 12, padding: '2px 9px', borderRadius: 999, background: M.idle, color: M.surface }}>게시됨</span>
+      ) : active && (
+        <span className="absolute flex items-center justify-center rounded-full" style={{ top: 10, right: 10, zIndex: 2, width: 20, height: 20, background: M.blue }}>
           <CheckIcon style={{ width: 13, height: 13, color: M.onAccent }} />
         </span>
       )}
-      <div className="flex items-start gap-3 w-full">
+      <div className="flex items-start gap-3 w-full" style={{ position: 'relative', zIndex: 2 }}>
         <Logo id={svc.id} size={40} />
-        <div className="min-w-0 flex-1" style={{ paddingRight: active ? 22 : 0 }}>
+        <div className="min-w-0 flex-1" style={{ paddingRight: active || listed ? 30 : 0 }}>
           <div className="flex items-center gap-1.5">
             <span className="font-bold truncate" style={{ fontSize: 14, color: M.text }}>{svc.name}</span>
             <span className="shrink-0 rounded-[5px] font-medium" style={{ fontSize: 14, padding: '1px 6px', background: M.inputBg, border: `1px solid ${M.border}`, color: M.help }}>{svc.hasApi ? 'API' : '웹 UI'}</span>
@@ -157,7 +190,7 @@ function ServiceCard({ svc, active, onClick }: { svc: Service; active: boolean; 
           <div className="truncate" style={{ fontSize: 14, color: M.help, marginTop: 2 }}>{kindOf(svc)} · {modelOf(svc)}</div>
         </div>
       </div>
-      <div className="flex flex-col w-full rounded-[8px]" style={{ marginTop: 12, padding: '9px 11px', gap: 5, background: M.inputBg, border: `1px solid ${M.border}` }}>
+      <div className="flex flex-col w-full rounded-[8px]" style={{ position: 'relative', zIndex: 2, marginTop: 12, padding: '9px 11px', gap: 5, background: M.inputBg, border: `1px solid ${M.border}` }}>
         <CardKV k="서버" v={alloc.server} />
         <CardKV k="할당된 자원" v={alloc.resource} />
         <CardKV k="누적 호출" v={`${svc.usageCount.toLocaleString('en-US')}회`} />
@@ -220,7 +253,7 @@ function CornerMarks() {
   )
 }
 
-interface PubForm { serviceId: string; intro: string; visibility: string; features: string; tags: string; demoNote: string }
+interface PubForm { serviceId: string; intro: string; visibility: string; features: string; tags: string; demoNote: string; apiDesc: string; screenshots: string[]; serviceUrl: string; demoUrl: string }
 
 function SpecSheet({ f, svc, userName, today, currentStep, reviewing, onEdit, onBack, onSubmit, canSubmit }: {
   f: PubForm; svc: Service | undefined; userName: string; today: string
@@ -274,7 +307,13 @@ function SpecSheet({ f, svc, userName, today, currentStep, reviewing, onEdit, on
             <SpecRow label="공개 범위" value={f.visibility} reviewing={reviewing} pendingW="35%" />
             <SpecRow label="주요 기능" value={f.features ? <span style={{ whiteSpace: 'pre-line' }}>{f.features}</span> : undefined} emptyText="없음" reviewing={reviewing} pendingW="80%" />
             <SpecRow label="태그" value={f.tags} emptyText="없음" reviewing={reviewing} pendingW="50%" />
-            <SpecRow label="데모 안내" value={f.demoNote} emptyText="없음" reviewing={reviewing} pendingW="60%" last />
+            <SpecRow label="데모 안내" value={f.demoNote} emptyText="없음" reviewing={reviewing} pendingW="60%" />
+            <SpecRow label="API 설명" value={f.apiDesc ? <span style={{ whiteSpace: 'pre-line' }}>{f.apiDesc}</span> : undefined} emptyText="없음" reviewing={reviewing} pendingW="85%" />
+            <SpecRow label="스크린샷" value={f.screenshots.length ? `${f.screenshots.length}장 첨부` : undefined} emptyText="없음" reviewing={reviewing} pendingW="30%" last />
+          </SpecSection>
+          <SpecSection title="접속 정보" index={1} currentStep={currentStep} reviewing={reviewing} onEdit={() => onEdit(1)}>
+            <SpecRow label="서비스 URL" value={f.serviceUrl} reviewing={reviewing} pendingW="70%" />
+            <SpecRow label="데모 URL" value={f.demoUrl} emptyText="없음" reviewing={reviewing} pendingW="70%" last />
           </SpecSection>
         </div>
 
@@ -298,15 +337,41 @@ export function PublishNew() {
   const mutedFix = useMutedFix()
   const { user } = useRole()
 
-  // 본인이 배포(소유)한 서비스 — 게시 신청 대상.
-  const myServices = services.filter((s) => s.ownerUserId === user.id)
+  // 배포 서비스 — backend GET /api/services 로드. 본인 소유만 게시 신청 대상.
+  const [allSvcs, setAllSvcs] = useState<DeployedService[]>([])
+  const [svcLoading, setSvcLoading] = useState(true)
+  useEffect(() => {
+    let alive = true
+    listServices()
+      .then((rows) => { if (alive) setAllSvcs(rows) })
+      .catch(() => { if (alive) setAllSvcs([]) })
+      .finally(() => { if (alive) setSvcLoading(false) })
+    return () => { alive = false }
+  }, [])
+  const myServices = allSvcs.filter((s) => s.ownerUserId === user.id)
 
   const [step, setStep] = useState(0)
-  const [f, setF] = useState<PubForm>({ serviceId: '', intro: '', visibility: VIS_OPTS[0].v, features: '', tags: '', demoNote: '' })
+  const [f, setF] = useState<PubForm>({ serviceId: '', intro: '', visibility: VIS_OPTS[0].v, features: '', tags: '', demoNote: '', apiDesc: '', screenshots: [], serviceUrl: '', demoUrl: '' })
   const [svcQ, setSvcQ] = useState('')
+
+  const addShots = async (files: FileList | null) => {
+    if (!files) return
+    const room = MAX_SHOTS - f.screenshots.length
+    const picked = Array.from(files).filter((x) => x.type.startsWith('image/')).slice(0, room)
+    if (picked.length === 0) return
+    try {
+      const urls = await Promise.all(picked.map((x) => fileToWebp(x)))
+      setF((p) => ({ ...p, screenshots: [...p.screenshots, ...urls].slice(0, MAX_SHOTS) }))
+    } catch {
+      toast.push('이미지를 불러오지 못했어요. 다른 파일로 시도해 주세요.', 'warn')
+    }
+  }
+  const removeShot = (i: number) => setF((p) => ({ ...p, screenshots: p.screenshots.filter((_, idx) => idx !== i) }))
   const [doneId, setDoneId] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const set = <K extends keyof PubForm>(k: K, v: PubForm[K]) => setF((p) => ({ ...p, [k]: v }))
+  // 서비스 선택 시 접속 URL prefill(수정 가능). 서비스 변경 시 갱신.
+  const pickService = (s: DeployedService) => setF((p) => ({ ...p, serviceId: s.id, serviceUrl: s.serviceUrl, demoUrl: s.testUrl ?? s.serviceUrl }))
 
   const svc = myServices.find((s) => s.id === f.serviceId)
   const valid = [
@@ -327,9 +392,16 @@ export function PublishNew() {
       const created = await createPublishRequest({
         requesterUserId: user.id,
         serviceName: svc.name,
-        serviceUrl: svc.serviceUrl,
-        demoUrl: svc.testUrl ?? svc.serviceUrl,
+        serviceUrl: f.serviceUrl.trim() || svc.serviceUrl,
+        demoUrl: f.demoUrl.trim() || svc.testUrl || svc.serviceUrl,
         meta: `${kindOf(svc)} · ${modelOf(svc)}`,
+        overview: f.intro.trim(),
+        apiDesc: f.apiDesc.trim(),
+        features: f.features.split('\n').map((x) => x.trim()).filter(Boolean),
+        tags: f.tags.split(',').map((x) => x.trim()).filter(Boolean),
+        visibility: f.visibility,
+        demoNote: f.demoNote.trim(),
+        screenshots: f.screenshots,
       })
       setDoneId(created.id)
       toast.push('게시 신청을 접수했어요. 관리자 검토 후 마켓에 노출됩니다.', 'ok')
@@ -416,22 +488,24 @@ export function PublishNew() {
             {wizardStep === 0 && (
               <div className="flex flex-col flex-1 min-h-0">
                 <h3 className="font-semibold shrink-0" style={{ fontSize: 15, color: M.text, marginBottom: 6 }}>게시할 서비스를 선택해주세요.</h3>
-                <p className="shrink-0" style={{ fontSize: 14, color: M.help, marginBottom: 14 }}>내가 배포한 서비스 {myServices.length}개 중 하나를 선택해 게시 신청해요.</p>
+                <p className="shrink-0" style={{ fontSize: 14, color: M.help, marginBottom: 14 }}>내가 배포한 서비스 {myServices.length}개 중 하나를 선택해 게시 신청해요. 빗금 처리된 서비스는 이미 마켓에 게시돼 있어요.</p>
                 <div className="relative shrink-0" style={{ marginBottom: 12 }}>
                   <MagnifyingGlassIcon className="absolute" style={{ left: 14, top: 13, width: 16, height: 16, color: M.idle }} />
                   <input value={svcQ} onChange={(e) => setSvcQ(e.target.value)} placeholder="서비스명, 종류, 모델 검색" style={{ ...inputBase, height: 42, paddingLeft: 40 }} />
                 </div>
                 <div className="flex-1 min-h-0 overflow-auto" style={{ marginRight: -6, paddingRight: 6 }}>
-                  {myServices.length === 0 ? (
+                  {svcLoading ? (
+                    <div className="text-center" style={{ fontSize: 14, color: M.help, padding: '40px 0' }}>배포한 서비스를 불러오는 중…</div>
+                  ) : myServices.length === 0 ? (
                     <div className="text-center" style={{ fontSize: 14, color: M.help, padding: '40px 0', lineHeight: 1.6 }}>
                       배포한 서비스가 없어요.<br />할당받은 자원에 서비스를 먼저 배포해주세요.
                     </div>
                   ) : (
                     <div className="grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
-                      {filteredSvcs.map((s) => <ServiceCard key={s.id} svc={s} active={f.serviceId === s.id} onClick={() => set('serviceId', s.id)} />)}
+                      {filteredSvcs.map((s) => <ServiceCard key={s.id} svc={s} active={f.serviceId === s.id} listed={s.listed} onClick={() => pickService(s)} />)}
                     </div>
                   )}
-                  {myServices.length > 0 && filteredSvcs.length === 0 && <div className="text-center" style={{ fontSize: 14, color: M.help, padding: '32px 0' }}>검색 결과가 없어요.</div>}
+                  {!svcLoading && myServices.length > 0 && filteredSvcs.length === 0 && <div className="text-center" style={{ fontSize: 14, color: M.help, padding: '32px 0' }}>검색 결과가 없어요.</div>}
                 </div>
                 <div className="shrink-0 flex items-center" style={{ marginTop: 10, fontSize: 14, color: M.help }}>
                   <span>{svc ? `선택: ${svc.name}` : '아직 선택한 서비스가 없어요'}</span>
@@ -440,7 +514,7 @@ export function PublishNew() {
             )}
 
             {wizardStep === 1 && (
-              <div className="flex flex-col flex-1 min-h-0">
+              <div className="flex flex-col flex-1 min-h-0 overflow-auto" style={{ marginRight: -8, paddingRight: 8 }}>
                 <h3 className="font-semibold shrink-0" style={{ fontSize: 15, color: M.text, marginBottom: 18 }}>마켓플레이스에 노출될 상세 내용을 작성해주세요.</h3>
                 <FieldLabel text="서비스 소개" required help={`마켓플레이스 방문자에게 보일 소개를 작성해주세요. (최소 ${INTRO_MIN}자)`} />
                 <div className="relative shrink-0" style={{ marginBottom: 20 }}>
@@ -449,8 +523,18 @@ export function PublishNew() {
                 </div>
                 <div className="shrink-0" style={{ marginBottom: 20 }}>
                   <FieldLabel text="공개 범위" required />
-                  <div className="grid grid-cols-3" style={{ gap: 10 }}>
+                  <div className="grid grid-cols-2" style={{ gap: 10 }}>
                     {VIS_OPTS.map((o) => <SelectCard key={o.v} label={o.v} sub={o.desc} active={f.visibility === o.v} onClick={() => set('visibility', o.v)} />)}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 shrink-0" style={{ gap: 18, marginBottom: 20 }}>
+                  <div>
+                    <FieldLabel text="서비스 URL" help="마켓 상세 접속 정보에 노출됩니다." />
+                    <input value={f.serviceUrl} onChange={(e) => set('serviceUrl', e.target.value)} placeholder="http://svc.anclave.local/…" style={inputBase} />
+                  </div>
+                  <div>
+                    <FieldLabel text="데모 URL" help="체험·플레이그라운드 주소. (선택)" />
+                    <input value={f.demoUrl} onChange={(e) => set('demoUrl', e.target.value)} placeholder="http://svc.anclave.local/…/playground" style={inputBase} />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 shrink-0" style={{ gap: 18, marginBottom: 20 }}>
@@ -463,16 +547,42 @@ export function PublishNew() {
                     <input value={f.demoNote} onChange={(e) => set('demoNote', e.target.value)} placeholder="예: 게스트 계정으로 바로 체험" style={inputBase} />
                   </div>
                 </div>
-                {/* 주요 기능 — 남는 높이를 끝까지 채움 */}
-                <div className="flex flex-col flex-1 min-h-0">
+                <div className="shrink-0" style={{ marginBottom: 20 }}>
+                  <FieldLabel text="API 설명" help="이 API로 무엇을 할 수 있는지 알려주세요. 상세에 강조 표시돼요. (API 제공 시)" />
+                  <textarea value={f.apiDesc} maxLength={300} onChange={(e) => set('apiDesc', e.target.value)} placeholder="예: 문서를 업로드하고 질의하면 근거 출처와 함께 답변을 받아요. JSON 요청/응답·권한 기반 검색 지원." style={{ ...inputBase, height: 76, padding: '14px', resize: 'none', lineHeight: 1.5 }} />
+                </div>
+                {/* 스크린샷 — 마켓 상세 갤러리에 노출. 클라이언트 리사이즈 후 data URL 보관. */}
+                <div className="shrink-0" style={{ marginBottom: 20 }}>
+                  <FieldLabel text="스크린샷" help={`마켓 상세에 갤러리로 노출됩니다. 화면을 보여줄수록 좋아요. (선택, 최대 ${MAX_SHOTS}장)`} />
+                  <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(116px, 1fr))', gap: 10 }}>
+                    {f.screenshots.map((src, i) => (
+                      <div key={i} className="relative rounded-[8px] overflow-hidden" style={{ aspectRatio: '4 / 3', border: `1px solid ${M.border}`, background: M.inputBg }}>
+                        <img src={src} alt={`스크린샷 ${i + 1}`} className="w-full h-full object-cover" />
+                        <button type="button" onClick={() => removeShot(i)} aria-label={`스크린샷 ${i + 1} 삭제`} className="absolute flex items-center justify-center rounded-full transition-transform active:scale-90" style={{ top: 6, right: 6, width: 24, height: 24, background: 'rgba(0,0,0,0.62)', color: '#fff' }}>
+                          <XMarkIcon style={{ width: 14, height: 14 }} />
+                        </button>
+                        <span className="absolute font-semibold" style={{ left: 6, bottom: 6, fontSize: 12, padding: '1px 7px', borderRadius: 999, background: 'rgba(0,0,0,0.55)', color: '#fff' }}>{i + 1}</span>
+                      </div>
+                    ))}
+                    {f.screenshots.length < MAX_SHOTS && (
+                      <label className="flex flex-col items-center justify-center rounded-[8px] cursor-pointer transition-colors hover:border-[var(--c-accent)]" style={{ aspectRatio: '4 / 3', border: `1.5px dashed ${M.border}`, background: M.inputBg, color: M.help, gap: 5 }}>
+                        <PhotoIcon style={{ width: 22, height: 22 }} />
+                        <span style={{ fontSize: 13, fontWeight: 600 }}>이미지 추가</span>
+                        <input type="file" accept="image/*" multiple hidden onChange={(e) => { addShots(e.target.files); e.currentTarget.value = '' }} />
+                      </label>
+                    )}
+                  </div>
+                </div>
+                {/* 주요 기능 */}
+                <div className="flex flex-col shrink-0">
                   <FieldLabel text="주요 기능" help="마켓 상세에 노출됩니다. 한 줄에 하나씩 적어주세요. (선택)" />
-                  <div className="relative flex-1 min-h-0">
+                  <div className="relative">
                     <textarea
                       value={f.features}
                       maxLength={500}
                       onChange={(e) => set('features', e.target.value)}
                       placeholder={'예:\n출처 조항 인용 답변\n권한 기반 문서 필터\n환각 억제(grounding)'}
-                      style={{ ...inputBase, height: '100%', minHeight: 96, padding: '14px', resize: 'none', lineHeight: 1.6 }}
+                      style={{ ...inputBase, height: 120, padding: '14px', resize: 'none', lineHeight: 1.6 }}
                     />
                     <span className="absolute" style={{ right: 14, bottom: 12, fontSize: 14, color: M.meta }}>{f.features.length}/500</span>
                   </div>
