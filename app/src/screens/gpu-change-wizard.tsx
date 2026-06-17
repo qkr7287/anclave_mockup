@@ -1,15 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeftIcon,
   CheckCircleIcon,
   CheckIcon,
   ChevronRightIcon,
-  CircleStackIcon,
   CpuChipIcon,
   MagnifyingGlassIcon,
-  RectangleStackIcon,
   ServerStackIcon,
   Squares2X2Icon,
   XCircleIcon,
@@ -17,7 +15,8 @@ import {
 import { Badge, Button, EmptyState, useToast } from '../components/ui'
 import { useRole } from '../lib/role'
 import { gpuRequests, modelById, servers, userById } from '../data'
-import type { ChangeType, GpuRequest } from '../data/types'
+import type { ChangeType, GpuRequest, GpuServer } from '../data/types'
+import { usePolling } from '../data/hooks/usePolling'
 import {
   CHANGE_TYPE_META,
   allocLabel,
@@ -36,24 +35,26 @@ const TYPE_TONE: Record<ChangeType, 'info' | 'ok' | 'warn' | 'danger'> = {
   change: 'info', expand: 'ok', migrate: 'warn', reclaim: 'danger',
 }
 
+// 자원 자동 할당 — 서버 1대 고정 풀에서 20% 예약 후 통짜 GPU=나머지 전부(GPU 수로 분할),
+// MIG 슬라이스=GPU 몫 × (슬라이스 컴퓨트 units 비율). 수동 슬라이더 대체.
+const HOST_SPEC = { ramGb: 512, storageGb: 4096, cpuCores: 64 } // 서버 1대 물리 풀(고정)
+const RESERVE = 0.2 // 시스템 예약
+function unitAlloc(gpuCount: number, fraction: number): { ramGb: number; storageGb: number; cpuCores: number } {
+  const per = (total: number) => Math.round((total * (1 - RESERVE)) / Math.max(1, gpuCount) * fraction)
+  return { ramGb: per(HOST_SPEC.ramGb), storageGb: per(HOST_SPEC.storageGb), cpuCores: per(HOST_SPEC.cpuCores) }
+}
+
 // 관리자 자원 선택 목록의 단위(클러스터 GPU 또는 MIG 슬라이스)
 interface PickUnit {
   id: string // `${serverId}/${gpuId}[/${sliceId}]`
   serverId: string; serverHost: string; gpuId: string; sliceId?: string
   label: string; sub: string; vramGb: number
-  free: boolean; isCurrent: boolean; sameServer: boolean; dummy?: boolean
+  free: boolean; status: 'available' | 'full' | 'maintenance'; isCurrent: boolean; sameServer: boolean; dummy?: boolean
+  alloc: { ramGb: number; storageGb: number; cpuCores: number } // 자동 산정 자원
 }
 
 // 검토 단계 morph(좌 마법사 접힘 → 우 명세서 가운데로) — requests/new·approval-detail 동일 이징
 const MORPH_EASE = 'cubic-bezier(0.65, 0, 0.35, 1)'
-
-// 추가 자원 신청 시 참고용 예시 자원 카드(사용자는 인벤토리를 직접 못 보므로 카탈로그에서 고르고 텍스트로 작성)
-const EXTRA_RESOURCES: { id: string; label: string; sub: string }[] = [
-  { id: 'rtx4500', label: 'RTX PRO 4500 Blackwell', sub: '32GB · MIG 분할 가능' },
-  { id: 'h100', label: 'H100 80GB', sub: '대형 학습 · 추론' },
-  { id: 'a100', label: 'A100 40GB', sub: '범용 학습' },
-  { id: 'mig', label: 'MIG 슬라이스 1g.16gb', sub: '경량 추론' },
-]
 
 // ── 프리미티브 ──
 // 현재 할당받은 자원 표시 태그(picker 카드/행)
@@ -91,48 +92,6 @@ function Stepper({ current, steps }: { current: number; steps: string[] }) {
   )
 }
 
-function clamp(v: number, lo: number, hi: number): number {
-  return Math.min(hi, Math.max(lo, v))
-}
-
-// 자원 제한 게이지 슬라이더 — 드래그로 올리거나 줄임. 현재값(base) 마커 표시 + 증감 델타.
-function LimitSlider({ icon, label, value, base, min, max, step, unit, onChange }: { icon: ReactNode; label: string; value: number; base?: number; min: number; max: number; step: number; unit: string; onChange: (v: number) => void }) {
-  const ref = useRef<HTMLDivElement>(null)
-  const dragging = useRef(false)
-  const span = Math.max(1, max - min)
-  const pct = (v: number) => clamp(((v - min) / span) * 100, 0, 100)
-  const apply = (clientX: number) => {
-    const el = ref.current
-    if (!el) return
-    const r = el.getBoundingClientRect()
-    const ratio = clamp((clientX - r.left) / r.width, 0, 1)
-    onChange(clamp(Math.round((min + ratio * span) / step) * step, min, max))
-  }
-  const onDown = (e: ReactPointerEvent) => { dragging.current = true; (e.currentTarget as Element).setPointerCapture(e.pointerId); apply(e.clientX) }
-  const onMove = (e: ReactPointerEvent) => { if (dragging.current) apply(e.clientX) }
-  const stop = () => { dragging.current = false }
-  const delta = base != null ? value - base : 0
-  return (
-    <div className="rounded-[10px] border border-line" style={{ background: 'var(--c-card)', padding: '12px 14px' }}>
-      <div className="flex items-center justify-between gap-2">
-        <span className="flex items-center gap-1.5 text-muted" style={{ fontSize: 13 }}>{icon}{label}</span>
-        <span className="flex items-baseline gap-2">
-          {base != null && delta !== 0 && <span className="text-muted line-through" style={{ fontSize: 12.5 }}>{base}{unit}</span>}
-          <span className="font-bold text-text tabular-nums" style={{ fontSize: 17 }}>{value}<span className="text-muted font-medium" style={{ fontSize: 12, marginLeft: 2 }}>{unit}</span></span>
-          {base != null && delta !== 0 && <span className="font-semibold" style={{ fontSize: 12, color: delta > 0 ? 'var(--c-ok)' : 'var(--c-danger)' }}>{delta > 0 ? '+' : ''}{delta}</span>}
-        </span>
-      </div>
-      <div ref={ref} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={stop} onPointerCancel={stop} className="relative select-none cursor-pointer" style={{ height: 18, marginTop: 9, touchAction: 'none' }} role="slider" aria-valuemin={min} aria-valuemax={max} aria-valuenow={value} aria-label={label}>
-        <div className="absolute left-0 right-0 rounded-full overflow-hidden" style={{ top: 6, height: 6, background: 'var(--c-bg)', border: '1px solid var(--c-border)' }}>
-          <div className="h-full" style={{ width: `${pct(value)}%`, background: 'var(--c-accent)' }} />
-        </div>
-        {base != null && <div className="absolute" style={{ left: `${pct(base)}%`, top: 1, width: 2, height: 16, marginLeft: -1, background: 'var(--c-muted)', opacity: 0.6, borderRadius: 1 }} title={`현재 ${base}${unit}`} />}
-        <div className="absolute rounded-full" style={{ left: `${pct(value)}%`, top: 1, width: 16, height: 16, marginLeft: -8, background: 'var(--c-accent)', border: '2px solid var(--c-card2)', boxShadow: '0 1px 4px rgba(0,0,0,0.25)' }} />
-      </div>
-      <div className="flex justify-between text-muted" style={{ fontSize: 11, marginTop: 3 }}><span>{min}{unit}</span><span>{max}{unit}</span></div>
-    </div>
-  )
-}
 
 function HistoryTimeline({ history }: { history: HistoryEntry[] }) {
   const toneColor = (t?: HistoryEntry['tone']) => t === 'ok' ? 'var(--c-ok)' : t === 'danger' ? 'var(--c-danger)' : t === 'accent' ? 'var(--c-accent)' : 'var(--c-muted)'
@@ -205,16 +164,9 @@ function Wizard({ mode, id, initialType, before: initBefore, initAfter, reviewRe
   }, [mode, user.id])
   const [allocIdx, setAllocIdx] = useState(0)
   const before = mode === 'new' ? (myAllocs[allocIdx] ?? initBefore) : initBefore
-  const seed = mode === 'review' ? (initAfter ?? before) : before // 슬라이더 초기값 기준
 
   const [type, setType] = useState<ChangeType>(initialType)
   const [step, setStep] = useState(0)
-  const [ram, setRam] = useState(seed.ramGb ?? 64)
-  const [storage, setStorage] = useState(seed.storageGb ?? 100)
-  const [cpu, setCpu] = useState(seed.cpuCores ?? 8)
-  const [targetServerId, setTargetServerId] = useState(seed.serverId ?? before.serverId ?? '')
-  const [extraSel, setExtraSel] = useState(initAfter?.extra?.label ?? '')
-  const [extraNote, setExtraNote] = useState(initAfter?.extra?.note ?? '')
   const [reason, setReason] = useState('')
   const [memo, setMemo] = useState('')
   const [rejecting, setRejecting] = useState(false)
@@ -224,30 +176,38 @@ function Wizard({ mode, id, initialType, before: initBefore, initAfter, reviewRe
     ? `${before.serverId}/${before.gpuId}${before.sliceId ? `/${before.sliceId}` : ''}`
     : ''
   const [selUnitIds, setSelUnitIds] = useState<string[]>(currentUnitId ? [currentUnitId] : [])
+  // 신규 신청: 대상 할당 선택을 바꾸면 picker 기준 자원(현재)도 그 할당으로 동기화
+  useEffect(() => {
+    if (mode === 'new') setSelUnitIds(currentUnitId ? [currentUnitId] : [])
+  }, [mode, currentUnitId])
   const [resQ, setResQ] = useState('') // 자원 검색
-  const [resPage, setResPage] = useState(1) // 자원 목록 페이지
   const [done, setDone] = useState<null | 'submitted' | 'approved' | 'rejected'>(null)
 
   const reclaim = type === 'reclaim'
-  const migrate = type === 'migrate'
 
   // 자원 선택 목록 — 가용 자원 + 현재 할당 자원을 평면 나열(서버별 그룹). 같은 서버는 박스로 강조.
-  const tree = useMemo(() => buildResourceTree(), [])
+  // GPU 현황은 DB(/api/servers) 폴링, 로딩/에러 시 seed 폴백.
+  const fleet = usePolling<GpuServer[]>('/api/servers')
+  const inventory = fleet.data ?? servers
+  const tree = useMemo(() => buildResourceTree(inventory), [inventory])
   const units = useMemo<PickUnit[]>(() => {
     const out: PickUnit[] = []
     for (const s of tree) {
       for (const g of s.gpus) {
+        const same = s.id === before.serverId
+        const gpuCount = s.gpus.length
         if (g.mode === 'cluster') {
           const uid = `${s.id}/${g.id}`
-          const isCurrent = uid === currentUnitId
-          if (!g.free && !isCurrent) continue
-          out.push({ id: uid, serverId: s.id, serverHost: s.host, gpuId: g.id, label: g.name, sub: `GPU 단일 · ${g.vramGb}GB · 부하 ${g.load}%`, vramGb: g.vramGb, free: g.free, isCurrent, sameServer: s.id === before.serverId, dummy: s.dummy })
+          // 통짜 GPU = 서버 풀(20% 예약)을 GPU 수로 분할
+          out.push({ id: uid, serverId: s.id, serverHost: s.host, gpuId: g.id, label: g.name, sub: `GPU 단일 · ${g.vramGb}GB`, vramGb: g.vramGb, free: g.free, status: g.status, isCurrent: uid === currentUnitId, sameServer: same, dummy: s.dummy, alloc: unitAlloc(gpuCount, 1) })
         } else {
+          const gpuMaint = g.status === 'maintenance'
+          const totalUnits = g.slices.reduce((a, sl) => a + (sl.units || 1), 0) || 1
           for (const sl of g.slices) {
             const uid = `${s.id}/${g.id}/${sl.id}`
-            const isCurrent = uid === currentUnitId
-            if (!sl.free && !isCurrent) continue
-            out.push({ id: uid, serverId: s.id, serverHost: s.host, gpuId: g.id, sliceId: sl.id, label: `${g.name} · ${sl.profile}`, sub: `MIG ${sl.gb}GB · ${sl.free ? '가용' : sl.tag}`, vramGb: sl.gb, free: sl.free, isCurrent, sameServer: s.id === before.serverId, dummy: s.dummy })
+            const st = gpuMaint ? 'maintenance' : sl.free ? 'available' : 'full'
+            // MIG 슬라이스 = GPU 몫 × (슬라이스 units 비율)
+            out.push({ id: uid, serverId: s.id, serverHost: s.host, gpuId: g.id, sliceId: sl.id, label: `${g.name} · ${sl.profile}`, sub: `MIG ${sl.gb}GB · ${sl.free ? '가용' : sl.tag}`, vramGb: sl.gb, free: sl.free && !gpuMaint, status: st, isCurrent: uid === currentUnitId, sameServer: same, dummy: s.dummy, alloc: unitAlloc(gpuCount, (sl.units || 1) / totalUnits) })
           }
         }
       }
@@ -264,37 +224,37 @@ function Wizard({ mode, id, initialType, before: initBefore, initAfter, reviewRe
     return [...m.values()].sort((a, b) => Number(b.sameServer) - Number(a.sameServer) || a.serverHost.localeCompare(b.serverHost))
   }, [units])
 
-  // 검색(서버 호스트·GPU 모델) + 페이지네이션(서버 그룹 단위)
-  const RES_PER_PAGE = 4
+  // 검색(서버 호스트·GPU 모델) — 전체 서버 그룹을 스크롤로 표시(페이지네이션 없음)
   const filteredGroups = useMemo(() => {
     const q = resQ.trim().toLowerCase()
     if (!q) return serverGroups
     return serverGroups.filter((g) => g.serverHost.toLowerCase().includes(q) || g.units.some((u) => u.label.toLowerCase().includes(q)))
   }, [serverGroups, resQ])
-  const resPageCount = Math.max(1, Math.ceil(filteredGroups.length / RES_PER_PAGE))
-  const resCurPage = Math.min(resPage, resPageCount)
-  const pageGroups = filteredGroups.slice((resCurPage - 1) * RES_PER_PAGE, resCurPage * RES_PER_PAGE)
-  const onSearch = (v: string) => { setResQ(v); setResPage(1) }
 
-  const singleSel = type === 'change' // 변경=1개만(라디오) / 확장=복수(체크)
+  const singleSel = false // 변경·확장 모두 복수 선택(체크). 회수는 picker 미사용
   const selUnits = selUnitIds.map((uid) => unitById.get(uid)).filter(Boolean) as PickUnit[]
-  // 기준 자원(서버·GPU 표시) — 변경=선택 1개 / 확장=현재 유지 시 현재, 아니면 첫 선택분(현재 해제 시 완전 교체)
-  const baseUnit = singleSel ? selUnits[0] : (selUnits.find((u) => u.isCurrent) ?? selUnits[0])
+  // 기준 자원(서버·GPU 표시) — 현재 유지 시 현재, 아니면 첫 선택분(현재 해제 시 완전 교체). 나머지는 추가 자원.
+  const baseUnit = selUnits.find((u) => u.isCurrent) ?? selUnits[0]
   const changeTarget = baseUnit && !baseUnit.isCurrent ? baseUnit : undefined // 서버·GPU 교체 여부
-  const addUnits = type === 'expand' ? selUnits.filter((u) => u.id !== baseUnit?.id) : [] // 확장: 추가 선택분
+  const addUnits = !reclaim ? selUnits.filter((u) => u.id !== baseUnit?.id) : [] // 추가 선택분(복수)
   const toggleUnit = (uid: string) => {
-    if (singleSel) { setSelUnitIds([uid]); return } // 변경=라디오(1개)
-    setSelUnitIds((prev) => (prev.includes(uid) ? prev.filter((x) => x !== uid) : [...prev, uid])) // 확장=체크(현재 자원도 해제 가능)
+    setSelUnitIds((prev) => (prev.includes(uid) ? prev.filter((x) => x !== uid) : [...prev, uid])) // 체크(현재 자원도 해제 가능)
   }
 
-  // 추가 자원 — 사용자=카탈로그 텍스트 / 관리자=선택한 자원(없으면 신청자 요청 유지)
-  const extra: AllocSpec['extra'] = mode === 'review'
-    ? (addUnits.length ? { label: addUnits.map((u) => `${u.serverHost} · ${u.label} ${u.vramGb}GB`).join(', '), note: initAfter?.extra?.note ?? '' } : (type === 'expand' ? initAfter?.extra : undefined))
-    : (type === 'expand' && extraSel ? { label: extraSel, note: extraNote.trim() } : undefined)
+  // 자원 제한 — 선택한 GPU/MIG에서 자동 산정(20% 예약·MIG units 비율). 선택분 합계.
+  const allocTotal = selUnits.reduce((a, u) => ({ ramGb: a.ramGb + u.alloc.ramGb, storageGb: a.storageGb + u.alloc.storageGb, cpuCores: a.cpuCores + u.alloc.cpuCores }), { ramGb: 0, storageGb: 0, cpuCores: 0 })
+  const hasSel = selUnits.length > 0
+
+  // 추가 자원 — 관리자가 선택한 자원(resourceListBlock). 없으면 신청자 요청(expand) 유지.
+  const extra: AllocSpec['extra'] = addUnits.length
+    ? { label: addUnits.map((u) => `${u.serverHost} · ${u.label} ${u.vramGb}GB`).join(', '), note: initAfter?.extra?.note ?? '' }
+    : (mode === 'review' && type === 'expand' ? initAfter?.extra : undefined)
 
   const after: AllocSpec | undefined = reclaim ? undefined : {
     ...before,
-    ramGb: ram, storageGb: storage, cpuCores: cpu,
+    ramGb: hasSel ? allocTotal.ramGb : before.ramGb,
+    storageGb: hasSel ? allocTotal.storageGb : before.storageGb,
+    cpuCores: hasSel ? allocTotal.cpuCores : before.cpuCores,
     extra,
     serverId: changeTarget ? changeTarget.serverId : before.serverId,
     serverHost: changeTarget ? changeTarget.serverHost : before.serverHost,
@@ -303,9 +263,12 @@ function Wizard({ mode, id, initialType, before: initBefore, initAfter, reviewRe
     gpuLabel: changeTarget ? `${changeTarget.label} · ${changeTarget.vramGb}GB` : before.gpuLabel,
   }
 
-  // 신청(사용자)=2스텝. 심사(관리자): 회수=2스텝 / 그 외=3스텝(조정 → 추가 자원 → 검토).
+  // 신청(사용자): 변경=4스텝(유형→대상 할당→자원 변경→검토) / 회수=3스텝(유형→대상·사유→검토).
+  // 심사(관리자): 회수=2스텝 / 그 외=3스텝.
   const steps = mode === 'new'
-    ? ['변경 요청', '검토 · 신청']
+    ? (reclaim
+        ? ['요청 유형', '회수 대상·사유', '신청 전 검토']
+        : ['요청 유형', '대상 할당', '자원 변경', '신청 전 검토'])
     : reclaim
       ? ['신청 확인', '검토 · 승인']
       : ['신청 · 조정', type === 'change' ? '대상 자원' : '추가 자원', '검토 · 승인']
@@ -355,9 +318,13 @@ function Wizard({ mode, id, initialType, before: initBefore, initAfter, reviewRe
     </div>
   )
 
-  // 자원 선택 단계(심사·비회수)에서는 최소 1개 선택해야 다음으로
-  const pickerStep = mode === 'review' && !reclaim && step === 1
-  const canNext = !pickerStep || selUnits.length > 0
+  // 단계별 진행 조건
+  const pickerStep = mode === 'review' && !reclaim && step === 1 // 심사 자원 선택
+  let canNext = true
+  if (pickerStep) canNext = selUnits.length > 0
+  else if (mode === 'new' && !reclaim && step === 1) canNext = myAllocs.length > 0 // 변경: 대상 할당 선택
+  else if (mode === 'new' && !reclaim && step === 2) canNext = reason.trim().length > 0 // 변경: 자원 변경 + 사유
+  else if (mode === 'new' && reclaim && step === 1) canNext = myAllocs.length > 0 && reason.trim().length > 0 // 회수: 대상·사유
 
   // 회수 확인 박스
   const reclaimBlock = (
@@ -368,57 +335,17 @@ function Wizard({ mode, id, initialType, before: initBefore, initAfter, reviewRe
     </div>
   )
 
-  // 자원 제한 슬라이더(+migrate 서버) — 신청 step0 · 심사 '신청 · 조정' step
-  const sliderBlock = (
-    <div className="flex flex-col" style={{ gap: 16 }}>
-      {migrate && (
-        <div>
-          <div className="font-semibold text-text" style={{ fontSize: 14, marginBottom: 8 }}>이전할 서버</div>
-          <div className="flex flex-col" style={{ gap: 8, maxHeight: 200, overflow: 'auto' }}>
-            {servers.slice(0, 8).map((s) => {
-              const on = targetServerId === s.id
-              return (
-                <button key={s.id} type="button" onClick={() => setTargetServerId(s.id)} className="text-left rounded-[10px] border flex items-center gap-2.5 transition" style={{ padding: '10px 12px', background: on ? 'var(--accent-soft)' : 'var(--c-card)', borderColor: on ? 'var(--c-accent)' : 'var(--c-border)', boxShadow: on ? '0 0 0 1px var(--c-accent)' : 'none' }}>
-                  <ServerStackIcon width={17} height={17} className="shrink-0" style={{ color: on ? 'var(--c-accent)' : 'var(--c-muted)' }} />
-                  <span className="font-semibold text-text truncate" style={{ fontSize: 14 }}>{s.host}</span>
-                  {s.id === before.serverId && <span className="text-muted" style={{ fontSize: 12 }}>(현재)</span>}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      )}
-      <div>
-        <div className="font-semibold text-text" style={{ fontSize: 14, marginBottom: 8 }}>자원 제한 {mode === 'review' ? '조정' : '조절'} <span className="text-muted font-normal" style={{ fontSize: 13 }}>— 게이지를 끌어 올리거나 줄이세요</span></div>
-        <div className="flex flex-col" style={{ gap: 10 }}>
-          <LimitSlider icon={<RectangleStackIcon width={13} height={13} />} label="메모리" value={ram} unit="GB" onChange={setRam} step={8} min={8} max={1024} base={before.ramGb} />
-          <LimitSlider icon={<CircleStackIcon width={13} height={13} />} label="저장 공간" value={storage} unit="GB" onChange={setStorage} step={20} min={20} max={4096} base={before.storageGb} />
-          <LimitSlider icon={<CpuChipIcon width={13} height={13} />} label="CPU" value={cpu} unit="코어" onChange={setCpu} step={2} min={2} max={128} base={before.cpuCores} />
-        </div>
+  // 자원 제한 — 슬라이더 대신 자동 산정 안내(선택한 GPU/MIG 기준). 심사 '신청 · 조정' step.
+  const autoNote = (
+    <div className="rounded-[10px] border border-line flex items-start gap-2.5" style={{ background: 'var(--c-card)', padding: '13px 15px' }}>
+      <CpuChipIcon width={18} height={18} className="shrink-0" style={{ color: 'var(--c-accent)', marginTop: 1 }} />
+      <div style={{ fontSize: 13.5, lineHeight: 1.6 }}>
+        <div className="font-semibold text-text" style={{ fontSize: 14 }}>자원 제한은 자동 산정됩니다</div>
+        <div className="text-muted" style={{ marginTop: 3 }}>다음 단계에서 선택한 GPU·MIG에 따라 메모리·저장·CPU가 자동 할당됩니다. (서버 풀의 20% 시스템 예약 · 통짜 GPU=나머지 전부 · MIG=컴퓨트 units 비율)</div>
       </div>
     </div>
   )
 
-  // 사용자 추가 자원(카탈로그 카드 + 텍스트) — '확장'일 때만. 인벤토리를 직접 못 보므로 텍스트로 신청
-  const extraCardsBlock = type === 'expand' ? (
-    <div>
-      <div className="font-semibold text-text" style={{ fontSize: 14, marginBottom: 8 }}>추가 자원 신청 <span className="text-muted font-normal" style={{ fontSize: 13 }}>(선택) — 필요한 자원을 고르고 수량·사유를 적어주세요</span></div>
-      <div className="grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
-        {EXTRA_RESOURCES.map((r) => {
-          const on = extraSel === r.label
-          return (
-            <button key={r.id} type="button" onClick={() => { setExtraSel(r.label); if (!extraNote.trim()) setExtraNote(`${r.label} `) }} className="text-left rounded-[10px] border flex items-center gap-2.5 transition" style={{ padding: '10px 12px', background: on ? 'var(--accent-soft)' : 'var(--c-card)', borderColor: on ? 'var(--c-accent)' : 'var(--c-border)', boxShadow: on ? '0 0 0 1px var(--c-accent)' : 'none' }}>
-              <Squares2X2Icon width={16} height={16} className="shrink-0" style={{ color: on ? 'var(--c-accent)' : 'var(--c-muted)' }} />
-              <span className="min-w-0 flex-1"><span className="block font-semibold text-text truncate" style={{ fontSize: 13.5 }}>{r.label}</span><span className="block text-muted truncate" style={{ fontSize: 12 }}>{r.sub}</span></span>
-            </button>
-          )
-        })}
-      </div>
-      {extraSel && (
-        <textarea value={extraNote} onChange={(e) => setExtraNote(e.target.value)} maxLength={200} placeholder="예: RTX PRO 4500 2장, 멀티-GPU 학습용으로 필요합니다." className="w-full rounded-[8px] border border-line text-text" style={{ background: 'var(--c-bg)', height: 64, padding: 11, fontSize: 14, outline: 'none', resize: 'none', lineHeight: 1.5, marginTop: 8 }} />
-      )}
-    </div>
-  ) : null
 
   // 현재 할당받은 자원 배너(관리자 추가 자원 picker 상단)
   const currentAllocBanner = (
@@ -443,20 +370,20 @@ function Wizard({ mode, id, initialType, before: initBefore, initAfter, reviewRe
           <span className="text-muted tabular-nums" style={{ fontSize: 12.5 }}>{selCount}개 선택 · 서버 {filteredGroups.length}대</span>
         </div>
         <p className="text-muted" style={{ fontSize: 13, lineHeight: 1.5 }}>
-          {type === 'change' ? '현재 자원 대신 사용할 자원 1개를 고르세요.' : '현재 자원에 더해 할당할 자원을 고르세요 (복수). 현재 자원을 해제하면 완전히 교체할 수도 있어요.'}
+          {type === 'change' ? '사용할 자원을 고르세요 (복수 선택). 현재 자원을 해제하면 완전히 교체할 수도 있어요.' : '현재 자원에 더해 할당할 자원을 고르세요 (복수 선택). 현재 자원을 해제하면 완전히 교체할 수도 있어요.'}
         </p>
         {/* 검색 */}
         <div className="flex items-center bg-card2 border border-line rounded-[9px] transition-[border-color,box-shadow] focus-within:border-[color:var(--c-accent)] focus-within:shadow-[0_0_0_3px_var(--accent-soft)]" style={{ height: 38, padding: '0 11px', gap: 8 }}>
           <MagnifyingGlassIcon width={16} height={16} className="shrink-0" style={{ color: 'var(--c-muted)' }} />
-          <input value={resQ} onChange={(e) => onSearch(e.target.value)} placeholder="서버·GPU 모델 검색 (예: H100, gpu-a01)" className="bg-transparent min-w-0 flex-1 text-text" style={{ fontSize: 14, outline: 'none', border: 'none' }} />
-          {resQ && <button type="button" onClick={() => onSearch('')} className="shrink-0 text-muted hover:text-text" aria-label="지우기"><XCircleIcon width={15} height={15} /></button>}
+          <input value={resQ} onChange={(e) => setResQ(e.target.value)} placeholder="서버·GPU 모델 검색 (예: H100, gpu-a01)" className="bg-transparent min-w-0 flex-1 text-text" style={{ fontSize: 14, outline: 'none', border: 'none' }} />
+          {resQ && <button type="button" onClick={() => setResQ('')} className="shrink-0 text-muted hover:text-text" aria-label="지우기"><XCircleIcon width={15} height={15} /></button>}
         </div>
       </div>
 
       <div className="flex-1 min-h-0 overflow-auto flex flex-col" style={{ gap: 12 }}>
-        {pageGroups.length === 0 ? (
+        {filteredGroups.length === 0 ? (
           <div className="flex-1 flex items-center justify-center text-muted" style={{ fontSize: 14 }}>검색 결과가 없어요.</div>
-        ) : pageGroups.map((grp) => {
+        ) : filteredGroups.map((grp) => {
           const freeCnt = grp.units.filter((u) => u.free).length
           return (
             <div key={grp.serverId} className="rounded-[12px]" style={{ border: `1.5px solid ${grp.sameServer ? 'var(--c-accent)' : 'var(--c-border)'}`, background: grp.sameServer ? 'var(--accent-soft)' : 'var(--c-card)', padding: 11 }}>
@@ -470,13 +397,18 @@ function Wizard({ mode, id, initialType, before: initBefore, initAfter, reviewRe
               <div className="flex flex-col" style={{ gap: 8 }}>
                 {grp.units.map((u) => {
                   const on = selUnitIds.includes(u.id)
-                  const disabled = !u.free && !u.isCurrent
+                  const selectable = u.isCurrent || u.status === 'available' // 선택 가능
+                  const disabled = !selectable // 사용 중·점검은 선택 불가
+                  // 선택됨=액센트 / 선택 가능=ok 톤 강조 / 선택 불가=회색 빗금·딤
+                  const bd = on ? 'var(--c-accent)' : disabled ? 'var(--c-border)' : 'color-mix(in srgb, var(--c-ok) 55%, var(--c-border))'
+                  const bg = on ? 'var(--c-card2)' : disabled ? 'var(--c-bg)' : 'color-mix(in srgb, var(--c-ok) 9%, var(--c-card2))'
+                  const indColor = on ? 'var(--c-accent)' : selectable ? 'var(--c-ok)' : 'var(--c-border)'
                   return (
                     <button key={u.id} type="button" disabled={disabled} onClick={() => toggleUnit(u.id)}
-                      className="text-left rounded-[10px] flex items-center gap-2.5 transition-[border-color,background,transform] duration-100 disabled:cursor-not-allowed enabled:hover:border-[color:var(--c-accent)] enabled:active:scale-[0.995]"
-                      style={{ padding: '10px 12px', border: `1.5px solid ${on ? 'var(--c-accent)' : 'var(--c-border)'}`, background: on ? 'var(--c-card2)' : 'var(--c-bg)', opacity: disabled ? 0.5 : 1 }}>
+                      className="text-left rounded-[10px] flex items-center gap-2.5 transition-[border-color,background,transform] duration-100 disabled:cursor-not-allowed enabled:hover:border-[color:var(--c-accent)] enabled:active:scale-[0.985]"
+                      style={{ padding: '10px 12px', border: `1.5px solid ${bd}`, background: bg, opacity: disabled ? 0.5 : 1, backgroundImage: disabled ? 'repeating-linear-gradient(45deg, transparent 0 6px, var(--c-soft) 6px 7px)' : undefined }}>
                       {/* 변경=원형(라디오) / 확장=사각(체크) */}
-                      <span className="flex items-center justify-center shrink-0" style={{ width: 18, height: 18, borderRadius: singleSel ? '50%' : 6, border: `1.5px solid ${on ? 'var(--c-accent)' : 'var(--c-border)'}`, background: on ? 'var(--c-accent)' : 'transparent' }}>{on && <CheckIcon width={12} height={12} style={{ color: 'var(--c-onaccent)' }} />}</span>
+                      <span className="flex items-center justify-center shrink-0" style={{ width: 18, height: 18, borderRadius: singleSel ? '50%' : 6, border: `1.5px solid ${indColor}`, background: on ? 'var(--c-accent)' : 'transparent' }}>{on && <CheckIcon width={12} height={12} style={{ color: 'var(--c-onaccent)' }} />}</span>
                       {u.sliceId ? <Squares2X2Icon width={18} height={18} className="shrink-0" style={{ color: 'var(--c-accent)' }} /> : <CpuChipIcon width={18} height={18} className="shrink-0" style={{ color: 'var(--c-muted)' }} />}
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center gap-1.5 min-w-0">
@@ -485,6 +417,12 @@ function Wizard({ mode, id, initialType, before: initBefore, initAfter, reviewRe
                         </span>
                         <span className="block text-muted truncate" style={{ fontSize: 13 }}>{u.sub}</span>
                       </span>
+                      {/* 상태 배지 — 현재 사용은 CurTag로 대체 */}
+                      {!u.isCurrent && (
+                        u.status === 'maintenance' ? <Badge tone="danger" dot>점검</Badge>
+                          : u.status === 'full' ? <Badge tone="neutral" dot>사용 중</Badge>
+                            : <Badge tone="ok" dot>가용</Badge>
+                      )}
                       <span className="shrink-0 rounded-[6px] font-semibold tabular-nums" style={{ fontSize: 12, padding: '2px 8px', background: 'var(--c-soft)', color: 'var(--c-muted)' }}>{u.vramGb}GB</span>
                     </button>
                   )
@@ -494,65 +432,72 @@ function Wizard({ mode, id, initialType, before: initBefore, initAfter, reviewRe
           )
         })}
       </div>
+    </div>
+  )
 
-      {/* 페이지네이션 — 서버 그룹이 한 페이지를 넘으면 */}
-      {resPageCount > 1 && (
-        <div className="shrink-0 flex items-center justify-center gap-3" style={{ paddingTop: 2 }}>
-          <button type="button" onClick={() => setResPage((p) => Math.max(1, p - 1))} disabled={resCurPage <= 1}
-            className="flex items-center justify-center rounded-[8px] border border-line bg-card2 text-muted transition enabled:hover:text-text enabled:hover:bg-soft disabled:opacity-40 disabled:cursor-not-allowed" style={{ width: 32, height: 32 }} aria-label="이전 페이지">
-            <ArrowLeftIcon width={15} height={15} />
+  // 신규: 내 할당 목록(대상 선택)
+  const allocList = myAllocs.length === 0 ? (
+    <div className="text-muted rounded-[10px] border border-line" style={{ fontSize: 14, padding: 14, background: 'var(--c-card)' }}>신청할 수 있는 승인된 할당이 없어요.</div>
+  ) : (
+    <div className="flex flex-col" style={{ gap: 8 }}>
+      {myAllocs.map((a, i) => {
+        const on = i === allocIdx
+        return (
+          <button key={a.requestId ?? i} type="button" onClick={() => setAllocIdx(i)}
+            className="text-left rounded-[10px] border flex items-center gap-2.5 transition" style={{ padding: '11px 13px', background: on ? 'var(--accent-soft)' : 'var(--c-card)', borderColor: on ? 'var(--c-accent)' : 'var(--c-border)', boxShadow: on ? '0 0 0 1px var(--c-accent)' : 'none' }}>
+            <span className="flex items-center justify-center shrink-0 rounded-full" style={{ width: 18, height: 18, border: `1.5px solid ${on ? 'var(--c-accent)' : 'var(--c-border)'}`, background: on ? 'var(--c-accent)' : 'transparent' }}>{on && <CheckIcon width={12} height={12} style={{ color: 'var(--c-onaccent)' }} />}</span>
+            <ServerStackIcon width={18} height={18} className="shrink-0" style={{ color: 'var(--c-muted)' }} />
+            <span className="min-w-0 flex-1"><span className="block font-semibold text-text truncate" style={{ fontSize: 14 }}>{allocLabel(a)}</span><span className="block text-muted truncate" style={{ fontSize: 13 }}>메모리 {a.ramGb ?? '—'}GB · 저장 {a.storageGb ?? '—'}GB · CPU {a.cpuCores ?? '—'}코어</span></span>
           </button>
-          <span className="text-muted tabular-nums" style={{ fontSize: 13 }}>{resCurPage} / {resPageCount}</span>
-          <button type="button" onClick={() => setResPage((p) => Math.min(resPageCount, p + 1))} disabled={resCurPage >= resPageCount}
-            className="flex items-center justify-center rounded-[8px] border border-line bg-card2 text-muted transition enabled:hover:text-text enabled:hover:bg-soft disabled:opacity-40 disabled:cursor-not-allowed" style={{ width: 32, height: 32 }} aria-label="다음 페이지">
-            <ArrowLeftIcon width={15} height={15} style={{ transform: 'rotate(180deg)' }} />
-          </button>
-        </div>
-      )}
+        )
+      })}
+    </div>
+  )
+  // 신규: 사유 입력
+  const reasonInput = (
+    <div className="shrink-0">
+      <div className="font-semibold text-text" style={{ fontSize: 14, marginBottom: 6 }}>{reclaim ? '회수' : '변경'} 사유 <span style={{ color: 'var(--c-danger)' }}>*</span></div>
+      <textarea value={reason} onChange={(e) => setReason(e.target.value)} maxLength={300} placeholder={`${CHANGE_TYPE_META[type].label} 사유를 입력해주세요. 관리자 검토에 사용됩니다.`} className="w-full rounded-[8px] border border-line text-text" style={{ background: 'var(--c-bg)', height: 68, padding: 11, fontSize: 14, outline: 'none', resize: 'none', lineHeight: 1.5 }} />
     </div>
   )
 
   const leftContent = mode === 'new' ? (
-    <div className="flex flex-col" style={{ gap: 16 }}>
-      <div>
-        <div className="font-semibold text-text" style={{ fontSize: 14, marginBottom: 8 }}>대상 할당 선택</div>
-        {myAllocs.length === 0 ? (
-          <div className="text-muted rounded-[10px] border border-line" style={{ fontSize: 14, padding: 14, background: 'var(--c-card)' }}>변경할 수 있는 승인된 할당이 없어요.</div>
-        ) : (
-          <div className="flex flex-col" style={{ gap: 8 }}>
-            {myAllocs.map((a, i) => {
-              const on = i === allocIdx
-              return (
-                <button key={a.requestId ?? i} type="button" onClick={() => { setAllocIdx(i); setRam(a.ramGb ?? 64); setStorage(a.storageGb ?? 100); setCpu(a.cpuCores ?? 8); setTargetServerId(a.serverId ?? ''); setExtraSel(''); setExtraNote('') }}
-                  className="text-left rounded-[10px] border flex items-center gap-2.5 transition" style={{ padding: '11px 13px', background: on ? 'var(--accent-soft)' : 'var(--c-card)', borderColor: on ? 'var(--c-accent)' : 'var(--c-border)', boxShadow: on ? '0 0 0 1px var(--c-accent)' : 'none' }}>
-                  <span className="flex items-center justify-center shrink-0 rounded-full" style={{ width: 18, height: 18, border: `1.5px solid ${on ? 'var(--c-accent)' : 'var(--c-border)'}`, background: on ? 'var(--c-accent)' : 'transparent' }}>{on && <CheckIcon width={12} height={12} style={{ color: 'var(--c-onaccent)' }} />}</span>
-                  <ServerStackIcon width={18} height={18} className="shrink-0" style={{ color: 'var(--c-muted)' }} />
-                  <span className="min-w-0 flex-1"><span className="block font-semibold text-text truncate" style={{ fontSize: 14 }}>{allocLabel(a)}</span><span className="block text-muted truncate" style={{ fontSize: 13 }}>메모리 {a.ramGb ?? '—'}GB · 저장 {a.storageGb ?? '—'}GB · CPU {a.cpuCores ?? '—'}코어</span></span>
-                </button>
-              )
-            })}
-          </div>
-        )}
-      </div>
-      <div>
-        <div className="font-semibold text-text" style={{ fontSize: 14, marginBottom: 8 }}>요청 유형</div>
+    step === 0 ? (
+      // Step 1 — 요청 유형
+      <div className="flex flex-col" style={{ gap: 14 }}>
+        <p className="text-muted" style={{ fontSize: 14, lineHeight: 1.6 }}>신청할 유형을 선택하세요. 다음 단계에서 대상 할당과 {reclaim ? '회수 사유' : '변경 내용'}을 입력합니다.</p>
         <div className="grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
           {(['change', 'reclaim'] as ChangeType[]).map((t) => {
             const on = type === t
             return (
-              <button key={t} type="button" onClick={() => setType(t)} className="rounded-[10px] border text-center transition" style={{ padding: '12px 8px', background: on ? 'var(--accent-soft)' : 'var(--c-card)', borderColor: on ? 'var(--c-accent)' : 'var(--c-border)', boxShadow: on ? '0 0 0 1px var(--c-accent)' : 'none' }}>
-                <span className="block font-bold text-text" style={{ fontSize: 14 }}>{CHANGE_TYPE_META[t].label}</span>
-                <span className="block text-muted" style={{ fontSize: 12, marginTop: 3, lineHeight: 1.4 }}>{CHANGE_TYPE_META[t].desc}</span>
+              <button key={t} type="button" onClick={() => setType(t)} className="rounded-[10px] border text-center transition" style={{ padding: '16px 10px', background: on ? 'var(--accent-soft)' : 'var(--c-card)', borderColor: on ? 'var(--c-accent)' : 'var(--c-border)', boxShadow: on ? '0 0 0 1px var(--c-accent)' : 'none' }}>
+                <span className="block font-bold text-text" style={{ fontSize: 15 }}>{CHANGE_TYPE_META[t].label}</span>
+                <span className="block text-muted" style={{ fontSize: 12.5, marginTop: 4, lineHeight: 1.4 }}>{CHANGE_TYPE_META[t].desc}</span>
               </button>
             )
           })}
         </div>
       </div>
-      <div className="border-t border-line" style={{ paddingTop: 16 }}>
-        <div className="font-semibold text-text" style={{ fontSize: 14, marginBottom: 10 }}>{reclaim ? '회수 확인' : '변경 내용'}</div>
-        {reclaim ? reclaimBlock : <div className="flex flex-col" style={{ gap: 16 }}>{sliderBlock}{extraCardsBlock}</div>}
+    ) : reclaim ? (
+      // 회수 Step 2 — 회수 대상·사유
+      <div className="flex flex-col" style={{ gap: 16 }}>
+        <div><div className="font-semibold text-text" style={{ fontSize: 14, marginBottom: 8 }}>회수할 할당 선택</div>{allocList}</div>
+        {reclaimBlock}
+        {reasonInput}
       </div>
-    </div>
+    ) : step === 1 ? (
+      // 변경 Step 2 — 대상 할당 선택
+      <div className="flex flex-col" style={{ gap: 10 }}>
+        <div className="font-semibold text-text" style={{ fontSize: 14 }}>변경할 할당 선택 <span className="text-muted font-normal" style={{ fontSize: 13 }}>— 내가 할당받은 자원에서 고르세요</span></div>
+        {allocList}
+      </div>
+    ) : (
+      // 변경 Step 3 — 자원 변경(등록 서버에서 선택) + 사유
+      <div className="flex flex-col h-full min-h-0" style={{ gap: 12 }}>
+        <div className="flex-1 min-h-0">{resourceListBlock}</div>
+        {reasonInput}
+      </div>
+    )
   ) : step === 0 ? (
     <div className="flex flex-col" style={{ gap: 14 }}>
       <p className="text-muted" style={{ fontSize: 14, lineHeight: 1.6 }}><b className="text-text">{requesterName}</b>님이 <b className="text-text">{allocLabel(before)}</b> 할당에 대해 <b className="text-text">{CHANGE_TYPE_META[type].label}</b>을 요청했습니다. {reclaim ? '회수를 검토하세요.' : `기존 명세를 참고해 자원을 조정하고, 다음 단계에서 ${type === 'change' ? '사용할 자원을 선택하세요.' : '추가 자원을 선택하세요.'}`}</p>
@@ -561,21 +506,15 @@ function Wizard({ mode, id, initialType, before: initBefore, initAfter, reviewRe
         <div className="text-text" style={{ fontSize: 14, marginTop: 4, lineHeight: 1.5 }}>{reviewReq?.reason ?? ''}</div>
         {initAfter?.extra && <div className="text-muted" style={{ fontSize: 13, marginTop: 8 }}>요청 추가 자원 · <b className="text-text">{initAfter.extra.label}</b>{initAfter.extra.note ? ` — ${initAfter.extra.note}` : ''}</div>}
       </div>
-      {reclaim ? reclaimBlock : sliderBlock}
+      {reclaim ? reclaimBlock : autoNote}
     </div>
   ) : resourceListBlock
 
   // 검토(morph) 시 명세서 안에 들어가는 액션 footer
   const actionFooter = mode === 'new' ? (
-    <div className="flex flex-col" style={{ gap: 10 }}>
-      <div>
-        <div className="font-semibold text-text" style={{ fontSize: 14, marginBottom: 6 }}>요청 사유 <span style={{ color: 'var(--c-danger)' }}>*</span></div>
-        <textarea value={reason} onChange={(e) => setReason(e.target.value)} maxLength={300} autoFocus placeholder={`${CHANGE_TYPE_META[type].label} 사유를 입력해주세요. 관리자 검토에 사용됩니다.`} className="w-full rounded-[8px] border border-line text-text" style={{ background: 'var(--c-bg)', height: 76, padding: 11, fontSize: 14, outline: 'none', resize: 'none', lineHeight: 1.5 }} />
-      </div>
-      <div className="flex items-center justify-between">
-        <Button variant="ghost" onClick={() => setStep(lastStep - 1)}>이전</Button>
-        <Button onClick={submitNew} disabled={!reason.trim()}>신청 제출</Button>
-      </div>
+    <div className="flex items-center justify-between">
+      <Button variant="ghost" onClick={() => setStep(lastStep - 1)}>이전</Button>
+      <Button onClick={submitNew} disabled={!reason.trim()}>신청 제출</Button>
     </div>
   ) : rejecting ? (
     <div className="flex flex-col" style={{ gap: 8 }}>

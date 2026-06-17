@@ -26,8 +26,9 @@ import {
 } from '../components/ui'
 import { useTheme } from '../lib/theme'
 import { useRole } from '../lib/role'
-import { modelById, serverById, servers, services, userById } from '../data'
-import type { GpuRequest } from '../data/types'
+import { modelById, servers, services, userById } from '../data'
+import type { GpuRequest, GpuServer } from '../data/types'
+import { usePolling } from '../data/hooks/usePolling'
 import { approveGpuRequest, fetchGpuRequestById, nowStamp, rejectGpuRequest } from './approval-store'
 
 // 4.10a 신청 상세 심사 (/admin/approvals/gpu/:id) — 4.10 승인 관리의 드로어를 전용 페이지로 승격.
@@ -83,25 +84,27 @@ export const STATUS_META: Record<SlotStatus, { label: string; tone: 'ok' | 'neut
   full: { label: '여유 없음', tone: 'neutral', selectable: false },
   maintenance: { label: '점검', tone: 'danger', selectable: false },
 }
-export interface SliceNode { id: string; profile: string; gb: number; free: boolean; tag: string }
+export interface SliceNode { id: string; profile: string; gb: number; units: number; free: boolean; tag: string }
 export interface GpuNode { id: string; name: string; mode: 'cluster' | 'mig'; vramGb: number; load: number; status: SlotStatus; free: boolean; slices: SliceNode[]; freeSlices: number; totalSlices: number; dummy?: boolean }
 export interface ServerNode { id: string; host: string; models: string; gpus: GpuNode[]; status: SlotStatus; load: number; freeUnits: number; totalUnits: number; dummy?: boolean }
 
-export function buildResourceTree(): ServerNode[] {
-  const real = servers.map((server): ServerNode => {
+// fleet = DB(/api/servers) 또는 seed 폴백. DB 응답은 실시간 수치(smUtil·usage 등)를 omit하므로
+// 슬롯 가용성 판정만 사용(load 없으면 0). 등록된 서버만 — 더미 패딩 없음.
+export function buildResourceTree(fleet: GpuServer[]): ServerNode[] {
+  return fleet.map((server): ServerNode => {
     const gpus = server.gpus.map((g): GpuNode => {
       if (g.allocMode === 'mig') {
         const slices: SliceNode[] = (g.slices ?? []).map((s) => {
-          const free = !s.ownerUserId && s.usage === 0
-          return { id: s.id, profile: s.profile, gb: s.gb, free, tag: free ? '가용' : (userById(s.ownerUserId ?? '')?.name ?? '사용 중') }
+          const free = !s.ownerUserId // 소유자 없으면 가용 (DB엔 usage 없음)
+          return { id: s.id, profile: s.profile, gb: s.gb, units: s.units, free, tag: free ? '가용' : (userById(s.ownerUserId ?? '')?.name ?? '사용 중') }
         })
         const freeSlices = slices.filter((s) => s.free).length
         const status: SlotStatus = g.xid || g.health === 'danger' ? 'maintenance' : freeSlices > 0 ? 'available' : 'full'
-        return { id: g.id, name: g.name, mode: 'mig', vramGb: g.vramGb, load: g.smUtil, status, free: status === 'available', slices, freeSlices, totalSlices: slices.length }
+        return { id: g.id, name: g.name, mode: 'mig', vramGb: g.vramGb, load: g.smUtil ?? 0, status, free: status === 'available', slices, freeSlices, totalSlices: slices.length }
       }
       const free = !g.assignedServiceId && !g.xid && g.health !== 'danger'
       const status: SlotStatus = g.xid || g.health === 'danger' ? 'maintenance' : free ? 'available' : 'full'
-      return { id: g.id, name: g.name, mode: 'cluster', vramGb: g.vramGb, load: g.smUtil, status, free, slices: [], freeSlices: 0, totalSlices: 0 }
+      return { id: g.id, name: g.name, mode: 'cluster', vramGb: g.vramGb, load: g.smUtil ?? 0, status, free, slices: [], freeSlices: 0, totalSlices: 0 }
     })
     const freeUnits = gpus.reduce((a, g) => a + (g.mode === 'mig' ? g.freeSlices : g.free ? 1 : 0), 0)
     const totalUnits = gpus.reduce((a, g) => a + (g.mode === 'mig' ? g.totalSlices : 1), 0)
@@ -109,18 +112,6 @@ export function buildResourceTree(): ServerNode[] {
     const status: SlotStatus = server.health === 'danger' ? 'maintenance' : freeUnits > 0 ? 'available' : 'full'
     return { id: server.id, host: server.host, models: [...new Set(server.gpus.map((g) => g.model))].join(', '), gpus, status, load, freeUnits, totalUnits }
   })
-  // 더미 H100 서버 5대 — 가용 자원 풀 확장(테스트). 자원 선택 picker 페이지네이션·검색 검증용.
-  const dummies: ServerNode[] = Array.from({ length: 5 }, (_, i): ServerNode => {
-    const n = i + 1
-    const sid = `srv-h100-${n}`
-    const gpuCount = n <= 2 ? 2 : 1
-    const gpus: GpuNode[] = Array.from({ length: gpuCount }, (_, gi): GpuNode => ({
-      id: `${sid}-gpu${gi}`, name: 'NVIDIA H100 80GB', mode: 'cluster', vramGb: 80, load: 0,
-      status: 'available', free: true, slices: [], freeSlices: 0, totalSlices: 0, dummy: true,
-    }))
-    return { id: sid, host: `gpu-h100-0${n}`, models: 'NVIDIA H100 80GB', gpus, status: 'available', load: 0, freeUnits: gpuCount, totalUnits: gpuCount, dummy: true }
-  })
-  return [...real, ...dummies]
     .sort((a, b) => Number(STATUS_META[b.status].selectable) - Number(STATUS_META[a.status].selectable) || b.freeUnits - a.freeUnits)
 }
 
@@ -144,10 +135,11 @@ function recommendLimits(models: string[]): Limits & { basis: string[] } {
   return { ...acc, basis: models.map((id) => modelById(id)?.name ?? id) }
 }
 
-// 승인 건 할당 자원 표시 — allocated* 우선(서버 미존재=더미면 raw id), 없으면 serviceName 역추적
-function resolveAllocationLabel(req: GpuRequest): { text: string; link?: { serverId: string; gpuId?: string } } | null {
+// 승인 건 할당 자원 표시 — allocated* 우선(서버 미존재=더미면 raw id), 없으면 serviceName 역추적.
+// fleet = DB(/api/servers) 또는 seed 폴백 — picker 와 동일 인벤토리로 라벨 일관성 유지.
+function resolveAllocationLabel(req: GpuRequest, fleet: GpuServer[]): { text: string; link?: { serverId: string; gpuId?: string } } | null {
   if (req.allocatedServerId) {
-    const server = serverById(req.allocatedServerId)
+    const server = fleet.find((s) => s.id === req.allocatedServerId)
     if (server) {
       const gpu = server.gpus.find((g) => g.id === req.allocatedGpuId)
       const slice = gpu?.slices?.find((sl) => sl.id === req.allocatedSliceId)
@@ -157,7 +149,7 @@ function resolveAllocationLabel(req: GpuRequest): { text: string; link?: { serve
   }
   const svc = services.find((s) => s.name === req.serviceName)
   if (!svc) return null
-  for (const server of servers) {
+  for (const server of fleet) {
     for (const gpu of server.gpus) {
       if (gpu.assignedServiceId === svc.id) return { text: `${server.host} · ${gpu.name}`, link: { serverId: server.id, gpuId: gpu.id } }
       const slice = gpu.slices?.find((sl) => sl.ownerUserId === svc.ownerUserId && sl.modelId === svc.model)
@@ -603,7 +595,10 @@ function PendingReview({ req }: { req: GpuRequest }) {
   const mutedFix = useMutedFix()
   const { user: admin } = useRole()
 
-  const tree = useMemo(() => buildResourceTree(), [])
+  // GPU 현황 — DB(/api/servers) 폴링, 로딩/에러 시 seed 폴백
+  const fleet = usePolling<GpuServer[]>('/api/servers')
+  const inventory = fleet.data ?? servers
+  const tree = useMemo(() => buildResourceTree(inventory), [inventory])
   const rec = useMemo(() => recommendLimits(req.models), [req.models])
   const bounds = useMemo(() => ({
     ram: limitBounds(rec.ramGb, 8, 1024),
@@ -672,7 +667,7 @@ function PendingReview({ req }: { req: GpuRequest }) {
         allocatedRamGb: ram, allocatedStorageGb: storage, allocatedCpuCores: cpu,
       })
       toast.push(`${requesterName}님의 GPU 신청을 승인했어요 · ${node.host} 할당 (RAM ${ram}GB · 디스크 ${storage}GB · CPU ${cpu}코어).`, 'ok')
-      setDone({ mode: 'approved', detail: `${node.host} · ${gpuLabel}`, limits: `메모리 ${ram}GB · 저장 ${storage}GB · CPU ${cpu}코어`, processedAt: updated.processedAt ?? nowStamp(), mapLink: serverById(node.id) ? { serverId: node.id, gpuId: gpu.id } : undefined })
+      setDone({ mode: 'approved', detail: `${node.host} · ${gpuLabel}`, limits: `메모리 ${ram}GB · 저장 ${storage}GB · CPU ${cpu}코어`, processedAt: updated.processedAt ?? nowStamp(), mapLink: inventory.some((s) => s.id === node.id) ? { serverId: node.id, gpuId: gpu.id } : undefined })
     } catch {
       toast.push('승인 처리에 실패했어요. 잠시 후 다시 시도해주세요.', 'danger')
       setSubmitting(false)
@@ -925,7 +920,8 @@ function ProcessedSpec({ req }: { req: GpuRequest }) {
   const modelText = req.models.map((m) => modelById(m)?.name ?? m).join(', ')
   const fileText = req.attachmentUrl?.split('/').pop()
   const approved = req.status === 'approved'
-  const alloc = approved ? resolveAllocationLabel(req) : null
+  const fleet = usePolling<GpuServer[]>('/api/servers')
+  const alloc = approved ? resolveAllocationLabel(req, fleet.data ?? servers) : null
   const processor = req.processedBy ? userById(req.processedBy) : undefined
   const stamp = approved ? 'var(--c-ok)' : 'var(--c-danger)'
   const stampBg = approved ? 'var(--ok-soft)' : 'var(--danger-soft)'
