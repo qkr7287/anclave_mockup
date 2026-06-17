@@ -145,6 +145,23 @@ async function main() {
       ['id', 'requester_user_id', 'model_name', 'kind', 'source', 'reason', 'description', 'license', 'addons', 'status', 'stage', 'created_at', 'reject_reason', 'processed_at', 'processed_by', 'file_name', 'format', 'scan', 'checksum', 'registered_model_id'],
       [r.id, r.requesterUserId, r.modelName, r.kind ?? null, r.source ?? null, r.reason ?? null, r.description ?? null, r.license ?? null, r.addons ?? [], r.status, r.stage, r.createdAt, r.rejectReason ?? null, r.processedAt ?? null, r.processedBy ?? null, r.fileName ?? null, r.format ?? null, r.scan ?? null, r.checksum ?? null, r.registeredModelId ?? null])
 
+  // 카탈로그 모델 신청·배포 이력 백필(정휘선) — models 값(desc/guide/license/addons) 복사. 이미 점유된 모델은 skip(멱등).
+  try {
+    const bf = JSON.parse(readFileSync(resolve(here, '../../../app/scripts/model-requests.backfill.json'), 'utf-8'))
+    const taken = new Set((seed.modelRequests ?? []).filter((r) => r.registeredModelId).map((r) => r.registeredModelId))
+    for (const [modelId, it] of Object.entries(bf.items)) {
+      if (taken.has(modelId)) continue
+      const m = seed.models.find((x) => x.id === modelId)
+      if (!m) continue
+      const mc = modelContent[modelId] ?? {}
+      await ins('model_requests',
+        ['id', 'requester_user_id', 'model_name', 'kind', 'source', 'reason', 'description', 'license', 'addons', 'usage_guide', 'status', 'stage', 'created_at', 'processed_at', 'processed_by', 'file_name', 'format', 'scan', 'checksum', 'registered_model_id'],
+        [`mr-bf-${modelId}`, bf.requesterUserId, m.name, m.kind, it.source, it.reason,
+          mc.description ?? m.description ?? null, m.license ?? null, m.addons ?? [], mc.usageGuide ?? m.usageGuide ?? null,
+          'approved', 'deployed', it.created, it.deployed, bf.processedBy, `${it.slug}.safetensors`, 'safetensors', 'pass', it.checksum, modelId])
+    }
+  } catch { /* 백필 파일 없으면 skip */ }
+
   for (const k of seed.apiKeyUsages ?? [])
     await ins('api_key_usage', ['key_id', 'service_id', 'connections'],
       [k.keyId, k.serviceId ?? null, k.connections ?? 0])

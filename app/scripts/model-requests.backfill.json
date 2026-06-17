@@ -1,0 +1,14 @@
+{
+  "_doc": "카탈로그 7모델 → 정휘선(u-jhs) 신청·배포 이력 백필 메타데이터. description/usageGuide/license/addons 는 models 에서 복사(여기 없음). 멱등: registered_model_id 점유 시 skip.",
+  "requesterUserId": "u-jhs",
+  "processedBy": "u-admin",
+  "items": {
+    "m8":  { "slug": "sdxl",              "reason": "마케팅 이미지·디자인 시안 생성용",   "source": "huggingface.co/stabilityai/stable-diffusion-xl-base-1.0", "created": "2026-03-10 10:00", "deployed": "2026-03-14 14:20", "checksum": "sha256:9f3c1a7be042d58c" },
+    "m9":  { "slug": "whisper-large-v3",  "reason": "회의록·자막 자동 생성용 STT",       "source": "huggingface.co/openai/whisper-large-v3",                 "created": "2026-03-22 09:30", "deployed": "2026-03-26 11:05", "checksum": "sha256:1b7740e9aa3c62d1" },
+    "m10": { "slug": "bge-m3",            "reason": "사내 문서 검색(RAG) 임베딩용",      "source": "huggingface.co/BAAI/bge-m3",                             "created": "2026-04-02 13:15", "deployed": "2026-04-06 10:40", "checksum": "sha256:c84e2f6109ab7d33" },
+    "m5":  { "slug": "qwen2-5-vl-7b",     "reason": "문서 OCR·시각 질의응답용 멀티모달",  "source": "huggingface.co/Qwen/Qwen2.5-VL-7B-Instruct",             "created": "2026-04-15 15:50", "deployed": "2026-04-19 09:25", "checksum": "sha256:6d20b5c7e8f41a09" },
+    "m11": { "slug": "llama-3-8b",        "reason": "사내 챗봇·문서 요약용 경량 LLM",    "source": "huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct",     "created": "2026-04-28 11:10", "deployed": "2026-05-02 16:30", "checksum": "sha256:3a91ce04f7b28d6e" },
+    "m12": { "slug": "qwen2-5-7b",        "reason": "에이전트·도구 호출 워크플로용 LLM",  "source": "huggingface.co/Qwen/Qwen2.5-7B-Instruct",                "created": "2026-05-08 10:05", "deployed": "2026-05-12 13:45", "checksum": "sha256:08e4d1a9627bf5c0" },
+    "m13": { "slug": "qwen2-5-coder-7b",  "reason": "코드 자동화·리뷰 보조용 코더 모델",  "source": "huggingface.co/Qwen/Qwen2.5-Coder-7B-Instruct",          "created": "2026-05-18 09:40", "deployed": "2026-05-22 15:10", "checksum": "sha256:b5f6201ec3a47d82" }
+  }
+}
