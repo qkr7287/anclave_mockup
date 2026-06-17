@@ -30,7 +30,7 @@ import { createRequest } from './model-requests-shared'
 // 라우트/App.tsx 등록은 deny → 메인에서 연결(보고).
 
 const LIST_PATH = '/models/requests'
-const STEPS = ['기본 정보', '신청 내용', '검토 · 제출']
+const STEPS = ['모델 명세', '소개 및 사용법', '신청 내용', '신청 전 검토']
 const KIND_OPTS: ModelKind[] = ['LLM', 'Code', 'Vision-Language', 'Image', 'STT', 'Embedding']
 const KIND_DESC: Record<ModelKind, string> = {
   LLM: '대화·문서 생성',
@@ -50,13 +50,17 @@ function fmtNow(): string {
 interface ReqForm {
   modelName: string
   kind: ModelKind | ''
+  addons: string[]
+  license: string
   source: string
+  description: string
+  usageGuide: string
   reason: string
   usage: string
   files: string[]
   remark: string
 }
-const EMPTY: ReqForm = { modelName: '', kind: '', source: '', reason: '', usage: '', files: [], remark: '' }
+const EMPTY: ReqForm = { modelName: '', kind: '', addons: [], license: '', source: '', description: '', usageGuide: '', reason: '', usage: '', files: [], remark: '' }
 
 function SpecRow({ label, value, pendingW = '60%', reviewing, last }: { label: string; value?: ReactNode; pendingW?: string; reviewing: boolean; last?: boolean }) {
   const empty = value == null || value === ''
@@ -128,24 +132,40 @@ function RequestSpecSheet({ f, userName, today, reviewing, onEdit, onSubmit, onB
         </div>
 
         <div className="flex-1 min-h-0 overflow-auto flex flex-col" style={{ padding: '6px 12px 14px' }}>
-          <SpecSection title="신청 정보" active={!reviewing} reviewing={reviewing} onEdit={() => onEdit(0)}>
-            <SpecRow label="신청자" value={userName} reviewing={reviewing} />
+          <SpecSection title="모델 명세" active={!reviewing} reviewing={reviewing} onEdit={() => onEdit(0)}>
             <SpecRow label="모델명" value={f.modelName} pendingW="70%" reviewing={reviewing} />
             <SpecRow label="종류" value={f.kind || ''} pendingW="40%" reviewing={reviewing} />
+            <SpecRow
+              label="태그"
+              value={f.addons.length ? (
+                <span className="flex flex-wrap" style={{ gap: 5 }}>
+                  {f.addons.map((t) => <span key={t} style={{ background: 'var(--accent-soft)', color: 'var(--c-accent)', borderRadius: 5, padding: '1px 7px', fontSize: 13.5, fontWeight: 600 }}>{t}</span>)}
+                </span>
+              ) : ''}
+              pendingW="50%"
+              reviewing={reviewing}
+            />
+            <SpecRow label="라이선스" value={f.license} pendingW="45%" reviewing={reviewing} />
             <SpecRow label="출처" value={f.source ? <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14 }}>{f.source}</span> : ''} pendingW="80%" reviewing={reviewing} last />
           </SpecSection>
 
-          <SpecSection title="신청 사유" active={false} reviewing={reviewing} onEdit={() => onEdit(1)}>
+          <SpecSection title="소개 · 사용법" active={false} reviewing={reviewing} onEdit={() => onEdit(1)}>
+            <SpecRow label="소개" value={f.description} pendingW="90%" reviewing={reviewing} />
+            <SpecRow label="사용법" value={f.usageGuide ? <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, whiteSpace: 'pre-wrap' }}>{f.usageGuide}</span> : ''} pendingW="85%" reviewing={reviewing} last />
+          </SpecSection>
+
+          <SpecSection title="신청 정보" active={false} reviewing={reviewing} onEdit={() => onEdit(2)}>
+            <SpecRow label="신청자" value={userName} reviewing={reviewing} />
             <SpecRow label="사유" value={f.reason} pendingW="92%" reviewing={reviewing} />
             <SpecRow label="사용처" value={f.usage} pendingW="65%" reviewing={reviewing} last />
           </SpecSection>
 
-          <SpecSection title="참고 자료" active={false} reviewing={reviewing} onEdit={() => onEdit(1)}>
+          <SpecSection title="참고 자료" active={false} reviewing={reviewing} onEdit={() => onEdit(2)}>
             <SpecRow label="첨부" value={f.files.length ? f.files.join(', ') : ''} pendingW="60%" reviewing={reviewing} last />
           </SpecSection>
 
           <div className="flex flex-col flex-1 min-h-0" style={{ marginTop: 6, minHeight: 90, padding: '0 12px' }}>
-            <SectionHead title="비고" active={false} reviewing={reviewing} onEdit={() => onEdit(1)} />
+            <SectionHead title="비고" active={false} reviewing={reviewing} onEdit={() => onEdit(2)} />
             <div className="flex-1 min-h-0 rounded-[8px]" style={{ border: '1px dashed var(--c-border)', background: 'color-mix(in srgb, var(--c-muted) 5%, transparent)', padding: '11px 13px', overflow: 'auto' }}>
               {f.remark
                 ? <p className="anim-fade" style={{ fontSize: 14, color: M.text, lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{f.remark}</p>
@@ -177,11 +197,17 @@ export function ModelRequestNew() {
   const [step, setStep] = useState(0)
   const [f, setF] = useState<ReqForm>(EMPTY)
   const [doneId, setDoneId] = useState<string | null>(null)
+  const [tagInput, setTagInput] = useState('')
   const set = <K extends keyof ReqForm>(k: K, v: ReqForm[K]) => setF((p) => ({ ...p, [k]: v }))
+  const addTag = () => {
+    const t = tagInput.trim()
+    if (t && !f.addons.includes(t)) set('addons', [...f.addons, t])
+    setTagInput('')
+  }
 
-  const valid0 = Boolean(f.modelName.trim()) // 기본 정보 — 모델명 필수
-  const valid1 = Boolean(f.reason.trim()) // 신청 내용 — 사유 필수
-  const reviewing = step === 2
+  const valid0 = Boolean(f.modelName.trim()) // 1단계 모델 명세 — 모델명 필수
+  const valid2 = Boolean(f.reason.trim()) // 3단계 신청 내용 — 사유 필수
+  const reviewing = step === 3 // 4단계 신청 전 검토
 
   const addFiles = (list: FileList | null | undefined) => {
     if (!list?.length) return
@@ -196,6 +222,10 @@ export function ModelRequestNew() {
       kind: f.kind || undefined,
       source: f.source.trim() || undefined,
       reason: f.reason.trim(),
+      description: f.description.trim() || undefined,
+      usageGuide: f.usageGuide.trim() || undefined,
+      license: f.license.trim() || undefined,
+      addons: f.addons.length ? f.addons : undefined,
     })
     setDoneId(created.id) // 서버 발급 id
     toast.push('모델 등록 신청이 접수되었어요. (검토 대기)', 'ok')
@@ -221,12 +251,12 @@ export function ModelRequestNew() {
     )
   }
 
-  // 스텝 0 — 기본 정보. 종류 카드에 설명을 달고(영역 ↑), 하단 진행 절차 안내로 남은 공간을 의미있게 채움.
+  // 스텝 0 — 모델 명세. 모델 상세 페이지에 표시될 정보(종류·태그·라이선스·설명)를 신청자가 직접 입력.
   const basicForm = (
     <div className="flex flex-col h-full">
       <div className="shrink-0">
-        <h3 className="font-semibold" style={{ fontSize: 15, color: M.text, marginBottom: 6 }}>기본 정보를 입력해주세요.</h3>
-        <p style={{ fontSize: 14, color: M.help }}>등록을 신청할 모델을 식별할 수 있는 정보예요.</p>
+        <h3 className="font-semibold" style={{ fontSize: 15, color: M.text, marginBottom: 6 }}>모델 명세를 입력해주세요.</h3>
+        <p style={{ fontSize: 14, color: M.help }}>등록되면 모델 상세 페이지에 그대로 표시될 정보예요.</p>
       </div>
       <div className="flex flex-col flex-1 min-h-0" style={{ paddingTop: 22, gap: 20 }}>
         <div className="shrink-0">
@@ -240,8 +270,55 @@ export function ModelRequestNew() {
           </div>
         </div>
         <div className="shrink-0">
+          <FieldLabel text="태그" help="(선택) 종류 외 특성 태그. 입력 후 Enter 로 추가." />
+          <input
+            value={tagInput}
+            maxLength={20}
+            onChange={(e) => setTagInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTag() } }}
+            placeholder="예: 멀티모달, API, 한국어"
+            style={inputBase}
+          />
+          {f.addons.length > 0 && (
+            <div className="flex flex-wrap" style={{ gap: 8, marginTop: 10 }}>
+              {f.addons.map((t) => (
+                <span key={t} className="inline-flex items-center anim-fade" style={{ gap: 6, background: 'var(--accent-soft)', color: 'var(--c-accent)', borderRadius: 7, padding: '4px 6px 4px 11px', fontSize: 14, fontWeight: 600 }}>
+                  {t}
+                  <button type="button" onClick={() => set('addons', f.addons.filter((x) => x !== t))} aria-label={`${t} 제거`} className="flex items-center cursor-pointer" style={{ color: 'var(--c-accent)', opacity: 0.65 }}>
+                    <XMarkIcon style={{ width: 14, height: 14 }} />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="shrink-0">
+          <FieldLabel text="라이선스" help="(선택) 모델 사용 라이선스." />
+          <input value={f.license} maxLength={60} onChange={(e) => set('license', e.target.value)} placeholder="예: Apache-2.0, Llama 3 Community" style={inputBase} />
+        </div>
+        <div className="shrink-0">
           <FieldLabel text="출처" help="(선택) HuggingFace 등 모델 출처 URL." />
           <input value={f.source} onChange={(e) => set('source', e.target.value)} placeholder="예: huggingface.co/Qwen/Qwen2.5-72B" style={{ ...inputBase, fontFamily: 'var(--font-mono)', fontSize: 14 }} />
+        </div>
+      </div>
+    </div>
+  )
+
+  // 스텝 1 — 소개 및 사용법. 모델 상세에 표시될 '모델 소개' 박스 + '사용법' 박스.
+  const introForm = (
+    <div className="flex flex-col h-full">
+      <div className="shrink-0">
+        <h3 className="font-semibold" style={{ fontSize: 15, color: M.text, marginBottom: 6 }}>소개와 사용법을 작성해주세요.</h3>
+        <p style={{ fontSize: 14, color: M.help }}>모델 상세 페이지의 '모델 소개'와 '사용법'에 그대로 표시돼요.</p>
+      </div>
+      <div className="flex flex-col flex-1 min-h-0" style={{ paddingTop: 22, gap: 18 }}>
+        <div className="flex flex-col shrink-0">
+          <FieldLabel text="모델 소개" help="(선택) 모델 특징·용도 소개." />
+          <textarea value={f.description} maxLength={400} onChange={(e) => set('description', e.target.value)} placeholder="예: 메타 Llama 3 8B — 16GB MIG 인스턴스에 적합한 경량 챗 모델." style={{ ...inputBase, height: 116, padding: '12px 14px', resize: 'none', lineHeight: 1.6 }} />
+        </div>
+        <div className="flex flex-col flex-1 min-h-0">
+          <FieldLabel text="사용법" help="(선택) 호출 방법·예시. 모델 상세 '사용법' 박스에 표시됩니다." />
+          <textarea value={f.usageGuide} maxLength={600} onChange={(e) => set('usageGuide', e.target.value)} placeholder={'예: curl -X POST https://api.anclave.local/v1/chat/completions \\\n  -H "Authorization: Bearer $ANCLAVE_API_KEY" \\\n  -d \'{ "model": "...", "messages": [...] }\''} className="flex-1 min-h-0" style={{ ...inputBase, height: 'auto', padding: '12px 14px', resize: 'none', lineHeight: 1.6, fontFamily: 'var(--font-mono)', fontSize: 14 }} />
         </div>
       </div>
     </div>
@@ -299,7 +376,7 @@ export function ModelRequestNew() {
   const wizardCard: ReactNode = (
     <div className="bg-card2 border border-line rounded-[14px] flex flex-col overflow-hidden h-full" style={{ boxShadow: 'var(--shadow-card)' }}>
       <div className="flex-1 min-h-0 flex flex-col overflow-auto" style={{ padding: '24px 28px' }}>
-        {step === 0 ? basicForm : contentForm}
+        {step === 0 ? basicForm : step === 1 ? introForm : contentForm}
       </div>
       <div className="flex items-center justify-between shrink-0" style={{ borderTop: '1px solid var(--c-border)', padding: '14px 26px' }}>
         {step === 0 ? (
@@ -310,12 +387,17 @@ export function ModelRequestNew() {
               <Button onClick={() => setStep(1)} disabled={!valid0}>다음</Button>
             </div>
           </>
-        ) : (
+        ) : step === 1 ? (
           <>
             <Button variant="ghost" onClick={() => setStep(0)}>이전</Button>
+            <Button onClick={() => setStep(2)}>다음</Button>
+          </>
+        ) : (
+          <>
+            <Button variant="ghost" onClick={() => setStep(1)}>이전</Button>
             <div className="flex items-center gap-3">
-              {!valid1 && <span style={{ fontSize: 14, color: 'var(--c-muted)' }}>신청 사유를 입력해주세요.</span>}
-              <Button onClick={() => setStep(2)} disabled={!valid1}>검토하기</Button>
+              {!valid2 && <span style={{ fontSize: 14, color: 'var(--c-muted)' }}>신청 사유를 입력해주세요.</span>}
+              <Button onClick={() => setStep(3)} disabled={!valid2}>검토하기</Button>
             </div>
           </>
         )}
@@ -356,8 +438,8 @@ export function ModelRequestNew() {
             reviewing={reviewing}
             onEdit={(s) => setStep(s)}
             onSubmit={submit}
-            onBack={() => setStep(1)}
-            canSubmit={valid0 && valid1}
+            onBack={() => setStep(2)}
+            canSubmit={valid0 && valid2}
           />
         }
       />

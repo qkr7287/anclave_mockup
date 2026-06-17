@@ -144,14 +144,27 @@ function SpecCard({ req }: { req: ModelRequest }) {
           </div>
         </div>
         <div className="flex-1 min-h-0 flex flex-col overflow-auto" style={{ padding: '4px 22px 16px' }}>
-          <Section title="기본 정보">
-            <SpecLine label="신청자" value={userName(req.requesterUserId)} />
-            <SpecLine label="신청일" value={fmtDt(req.createdAt)} last />
-          </Section>
-          <Section title="모델 정보">
+          <Section title="모델 명세">
             <SpecLine label="모델명" value={req.modelName} />
             <SpecLine label="종류" value={req.kind} />
+            <SpecLine
+              label="태그"
+              value={req.addons?.length ? (
+                <span className="flex flex-wrap" style={{ gap: 5 }}>
+                  {req.addons.map((t) => <span key={t} style={{ background: 'var(--accent-soft)', color: 'var(--c-accent)', borderRadius: 5, padding: '1px 7px', fontSize: 13.5, fontWeight: 600 }}>{t}</span>)}
+                </span>
+              ) : undefined}
+            />
+            <SpecLine label="라이선스" value={req.license} />
             <SpecLine label="출처" value={req.source} mono last />
+          </Section>
+          <Section title="소개 · 사용법">
+            <SpecLine label="소개" value={req.description} />
+            <SpecLine label="사용법" value={req.usageGuide ? <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, whiteSpace: 'pre-wrap' }}>{req.usageGuide}</span> : undefined} last />
+          </Section>
+          <Section title="신청 정보">
+            <SpecLine label="신청자" value={userName(req.requesterUserId)} />
+            <SpecLine label="신청일" value={fmtDt(req.createdAt)} last />
           </Section>
           {(req.fileName || req.scan || req.checksum) && (
             <Section title="반입 정보">
