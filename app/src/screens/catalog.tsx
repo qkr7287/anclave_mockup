@@ -173,26 +173,6 @@ function MiniSpark() {
   )
 }
 
-function MonthPill() {
-  return (
-    <span
-      className="inline-flex items-center gap-1.5 shrink-0"
-      style={{
-        background: K.pillBg,
-        border: `1px solid ${K.pillBorder}`,
-        color: K.pillText,
-        borderRadius: 7,
-        padding: '5px 9px 5px 11px',
-        fontSize: 14,
-        fontWeight: 500,
-      }}
-    >
-      이번 달
-      <Chevron />
-    </span>
-  )
-}
-
 // ── TOP5 패널 (가로 바 순위) ──
 function Top5Panel() {
   const top5 = CATALOG.slice(0, 5)
@@ -207,7 +187,6 @@ function Top5Panel() {
         <h3 className="font-bold truncate" style={{ fontSize: 15, color: K.title }}>
           가장 많이 사용된 모델 TOP 5
         </h3>
-        <MonthPill />
       </div>
 
       <div className="flex flex-col flex-1 justify-between" style={{ gap: 13 }}>
@@ -336,7 +315,6 @@ function UsagePanel({ total }: { total: number }) {
         <h3 className="font-bold truncate" style={{ fontSize: 15, color: K.title }}>
           전체 모델 사용 현황
         </h3>
-        <MonthPill />
       </div>
 
       <div className="grid" style={{ gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 11 }}>
