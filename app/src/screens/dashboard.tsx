@@ -610,11 +610,7 @@ export function MyResources() {
           )}
           <span className="flex items-center gap-1.5 text-muted" style={{ fontSize: 14 }}>
             <ClockIcon style={{ width: 15, height: 15 }} />
-            마지막 업데이트: 2025-05-14 15:30:45
-          </span>
-          <span className="flex items-center gap-1.5 font-semibold" style={{ fontSize: 14, color: '#16a34a' }}>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#16a34a' }} />
-            실시간
+            마지막 업데이트: 2026-06-18
           </span>
         </div>
       </header>
