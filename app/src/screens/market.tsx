@@ -25,7 +25,6 @@ import {
   ShieldExclamationIcon,
   ClockIcon,
   CodeBracketIcon,
-  StarIcon,
   ChartBarIcon,
   CheckIcon,
   ChevronDownIcon,
@@ -347,7 +346,6 @@ function ServiceCard({ s, onOpen }: { s: Service; onOpen: (s: Service) => void }
           <span style={{ fontSize: 14, color: p.muted }}>API 호출</span>
         </div>
         <div className="flex flex-col items-end" style={{ gap: 3 }}>
-          <span className="flex items-center" style={{ gap: 2, fontSize: 14, fontWeight: 700, color: p.warn }}><StarIcon width={13} height={13} /> {s.rating.toFixed(1)}</span>
           <span style={{ fontSize: 14, fontWeight: 700, color: deltaColor(p, s.up) }}>{s.delta}</span>
         </div>
       </div>
