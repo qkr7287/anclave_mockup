@@ -15,12 +15,21 @@ const RANGE = {
   '7d': ['hourly', '7 days', 21600], '30d': ['hourly', '30 days', 86400],
 }
 // 밴드 차트 — range → (tier, bucket_sec, window). 권장 페어 고정(10m→10s·2h→60s·1d→30m·30d→6h).
+// [tier, bucket_sec, points]. points = range초/bucket + 1 (프론트 POINTS_BY_RANGE 와 일치).
 const BAND_RANGE = {
-  '10m': ['raw', 10, '10 minutes'], '2h': ['raw', 60, '2 hours'],
-  '1d': ['1m', 1800, '1 day'], '30d': ['hourly', 21600, '30 days'],
+  '10m': ['raw', 10, 61], '2h': ['raw', 60, 121],
+  '1d': ['1m', 1800, 49], '30d': ['hourly', 21600, 121],
 }
 // epoch 버킷팅(Plain PG): bucket_sec 정수 상수 → floor 정렬. (RANGE/BAND_RANGE 값만 사용 = 안전)
-const BUCKET = (b) => `to_timestamp(floor(extract(epoch from ts)/${b})*${b})`
+const BUCKET = (b, col = 'ts') => `to_timestamp(floor(extract(epoch from ${col})/${b})*${b})`
+// 고정 시간 그리드 — 끝점(anchor)을 버킷 정렬해 b초 간격 n포인트. 끝점 = 최신 데이터 시각(현재값 보장).
+// anchor 가 null(무데이터)이면 generate_series 0행 → [] 반환. 데이터 없는 중간 버킷은 left join null.
+const GRID = (b, n, anchor = 'now()') => `select generate_series(
+  to_timestamp(floor(extract(epoch from ${anchor})/${b})*${b}) - interval '1 second' * ${(n - 1) * b},
+  to_timestamp(floor(extract(epoch from ${anchor})/${b})*${b}),
+  interval '1 second' * ${b}) ts`
+// 그리드는 무데이터 버킷도 null 로 채움 → 전 포인트가 데이터 없으면 스펙대로 [] 반환.
+const nonEmpty = (arr) => arr.some((r) => Object.keys(r).some((k) => k !== 'ts' && r[k] != null)) ? arr : []
 const KINDS = new Set(['server', 'gpu', 'slice', 'service'])
 const METRICS = new Set(['cpu_util', 'mem_util', 'net_in', 'net_out', 'temp', 'sm', 'vram', 'power', 'usage', 'tokens', 'calls'])
 
@@ -164,34 +173,39 @@ const SERVER_ALIAS = { cpu: 'cpu_util', mem: 'mem_util' }
 // 집계 시계열 — ts별 엔티티 평균(v)의 버킷 평균선 + avg 중심 밴드.
 // 밴드 = avg ± (avg*0.05 기본 + 버킷 내 평균변동). 이종 GPU 산포/장애 0 을 섞지 않아
 // 평균선을 좁게 감싸는 "예쁜" Bollinger 밴드(5176 목 스타일). cluster·단일 동일.
-async function aggSeries(tier, bucket, win, srcKind, srcMetric, ids) {
+async function aggSeries(tier, bucket, points, srcKind, srcMetric, ids) {
   const params = [srcKind, srcMetric]
   let idClause = ''
   if (ids) { params.push(ids); idClause = ` and id = any($${params.length})` }
   const { rows } = await pool.query(
-    `with per_ts as (
+    `with grid as (${GRID(bucket, points, `(select max(ts) from telemetry_${tier})`)}),
+     per_ts as (
        select ts, avg(value) v from telemetry_${tier}
-       where kind = $1 and metric = $2${idClause} and ts >= now() - interval '${win}'
+       where kind = $1 and metric = $2${idClause} and ts >= (select min(ts) from grid)
        group by ts),
      bkt as (
        select ${BUCKET(bucket)} ts, avg(v) a, max(v) - min(v) drift from per_ts group by 1)
-     select ts, round(a::numeric,2)::float8 avg,
-            round(greatest(0, a - (a*0.05 + drift*0.6))::numeric,2)::float8 min,
-            round((a + (a*0.05 + drift*0.6))::numeric,2)::float8 max
-       from bkt order by ts`, params)
+     select g.ts,
+            round(b.a::numeric,2)::float8 avg,
+            round(greatest(0, b.a - (b.a*0.05 + b.drift*0.6))::numeric,2)::float8 min,
+            round((b.a + (b.a*0.05 + b.drift*0.6))::numeric,2)::float8 max
+       from grid g left join bkt b on b.ts = g.ts order by g.ts`, params)
   return rows
 }
 
 // 활성 GPU 수 시계열: ts별 sm>임계 GPU 수 → 버킷 avg/min/max.
-async function usedSeries(tier, bucket, win) {
+async function usedSeries(tier, bucket, points) {
   const { rows } = await pool.query(
-    `with per_ts as (
+    `with grid as (${GRID(bucket, points, `(select max(ts) from telemetry_${tier})`)}),
+     per_ts as (
        select ts, count(distinct id) filter (where value > ${ACTIVE_SM})::float8 v
-       from telemetry_${tier} where kind = 'gpu' and metric = 'sm' and ts >= now() - interval '${win}'
-       group by ts)
-     select ${BUCKET(bucket)} ts, round(avg(v)::numeric,1)::float8 avg,
-            min(v)::float8 min, max(v)::float8 max
-       from per_ts group by 1 order by 1`)
+       from telemetry_${tier} where kind = 'gpu' and metric = 'sm' and ts >= (select min(ts) from grid)
+       group by ts),
+     bkt as (
+       select ${BUCKET(bucket)} ts, round(avg(v)::numeric,1)::float8 avg,
+              min(v)::float8 min, max(v)::float8 max
+       from per_ts group by 1)
+     select g.ts, b.avg, b.min, b.max from grid g left join bkt b on b.ts = g.ts order by g.ts`)
   return rows
 }
 
@@ -215,7 +229,7 @@ app.get('/api/telemetry/band', async (c) => {
   if (!metrics) return c.json({ error: 'kind/metrics required' }, 400)
   const ms = metrics.split(',').map((s) => s.trim()).filter(Boolean)
   if (!ms.length) return c.json({ error: 'invalid metric' }, 400)
-  const [tier, bucket, win] = BAND_RANGE[range] ?? BAND_RANGE['10m']
+  const [tier, bucket, points] = BAND_RANGE[range] ?? BAND_RANGE['10m']
 
   // ① cluster 가상 kind — 화면 metric 을 실시리즈 집계로 번역(4.7 관제)
   if (kind === 'cluster') {
@@ -226,20 +240,20 @@ app.get('/api/telemetry/band', async (c) => {
     for (const m of ms) {
       if (CLUSTER_AVG[m]) {
         const [sk, sm] = CLUSTER_AVG[m]
-        mergeSeries(out, m, await aggSeries(tier, bucket, win, sk, sm, null))
+        mergeSeries(out, m, await aggSeries(tier, bucket, points, sk, sm, null))
       } else if (m === 'used' || m === 'activeGpu') {
-        used ??= await usedSeries(tier, bucket, win)
+        used ??= await usedSeries(tier, bucket, points)
         mergeSeries(out, m, used)
       }
     }
     if (ms.includes('total') || ms.includes('idle')) {
       const total = (await pool.query(`select count(*)::int n from gpus`)).rows[0].n
-      used ??= await usedSeries(tier, bucket, win)
+      used ??= await usedSeries(tier, bucket, points)
       if (ms.includes('total')) mergeSeries(out, 'total', used, () => ({ avg: total, min: total, max: total }))
       const pct = (u) => Math.round(((total - u) / Math.max(1, total)) * 1000) / 10
       if (ms.includes('idle')) mergeSeries(out, 'idle', used, (r) => ({ avg: pct(r.avg), min: pct(r.max), max: pct(r.min) }))
     }
-    return c.json([...out.values()].sort((a, b) => a.ts.localeCompare(b.ts)))
+    return c.json(nonEmpty([...out.values()].sort((a, b) => a.ts.localeCompare(b.ts))))
   }
 
   // ② server 별칭 — cpu/mem/gpu(4.3 부하추이): 그 서버 + 소속 GPU 평균
@@ -249,12 +263,12 @@ app.get('/api/telemetry/band', async (c) => {
     for (const m of ms) {
       if (m === 'gpu') {
         const ids = (await pool.query(`select id from gpus where server_id = $1`, [id])).rows.map((r) => r.id)
-        mergeSeries(out, m, ids.length ? await aggSeries(tier, bucket, win, 'gpu', 'sm', ids) : [])
+        mergeSeries(out, m, ids.length ? await aggSeries(tier, bucket, points, 'gpu', 'sm', ids) : [])
       } else {
-        mergeSeries(out, m, await aggSeries(tier, bucket, win, 'server', SERVER_ALIAS[m], [id]))
+        mergeSeries(out, m, await aggSeries(tier, bucket, points, 'server', SERVER_ALIAS[m], [id]))
       }
     }
-    return c.json([...out.values()].sort((a, b) => a.ts.localeCompare(b.ts)))
+    return c.json(nonEmpty([...out.values()].sort((a, b) => a.ts.localeCompare(b.ts))))
   }
 
   // ③ 기본 경로 — 실 kind/metric 직접 조회
@@ -263,22 +277,27 @@ app.get('/api/telemetry/band', async (c) => {
   // raw 소스: avg/min/max(value). rollup(1m/hourly) 소스: avg(value)/min(v_min)/max(v_max).
   const cols = ms.map((m, i) => {
     const mi = `$${i + 2}`
-    const f = (agg, col) => `round(${agg}(${col}) filter (where metric = ${mi})::numeric, 2)::float8`
+    const f = (agg, col) => `round(${agg}(t.${col}) filter (where t.metric = ${mi})::numeric, 2)::float8`
     return isRaw
       ? `${f('avg', 'value')} "${m}", ${f('min', 'value')} "${m}_min", ${f('max', 'value')} "${m}_max"`
       : `${f('avg', 'value')} "${m}", ${f('min', 'v_min')} "${m}_min", ${f('max', 'v_max')} "${m}_max"`
   }).join(', ')
   const params = [kind, ...ms]
   let idClause = ''
-  if (id) { params.push(id); idClause = ` and id = $${params.length}` }
+  if (id) { params.push(id); idClause = ` and t.id = $${params.length}` }
   params.push(ms)
+  const metricsParam = `$${params.length}`
   const { rows } = await pool.query(
-    `select ${BUCKET(bucket)} ts, ${cols}
-       from telemetry_${tier}
-      where kind = $1${idClause} and metric = any($${params.length}) and ts >= now() - interval '${win}'
-      group by 1 order by 1`,
+    `with grid as (${GRID(bucket, points, `(select max(ts) from telemetry_${tier})`)})
+     select g.ts, ${cols}
+       from grid g
+       left join telemetry_${tier} t
+         on ${BUCKET(bucket, 't.ts')} = g.ts
+        and t.kind = $1${idClause} and t.metric = any(${metricsParam})
+        and t.ts >= (select min(ts) from grid)
+      group by g.ts order by g.ts`,
     params)
-  return c.json(rows)
+  return c.json(nonEmpty(rows))
 })
 
 // 현재값 스냅샷 — kind 전체의 최신값(KPI/배지용)
