@@ -22,7 +22,8 @@ import {
 import { EmptyState, Button, KpiStat, useToast } from '../components/ui'
 import { useRole } from '../lib/role'
 import { useTheme } from '../lib/theme'
-import { useAllocations, useTelemetrySeries, useEvents, useServiceTokens, type AllocationRow, type SeriesPoint, type ServiceTokens } from '../data/hooks/usePolling'
+import { useAllocations, useEvents, useServiceTokens, type AllocationRow, type ServiceTokens } from '../data/hooks/usePolling'
+import { RANGES, RANGE_LABEL, RangeProvider, useRange, useTelemetryBand, tsLabel, type BandPoint, type Range } from './monitoring-telemetry'
 import { useModelLookup } from './db-lookups'
 import { useRequests, allocationLink, type RequestItem } from './requests-shared'
 
@@ -105,21 +106,33 @@ interface MetricDef {
   tone: MetricTone
   spark: number[]
   suffix: string // 호버 툴팁 단위
+  xStart: string // x축 시작 시각 라벨(조회범위 첫 포인트)
+  xEnd: string // x축 끝 시각 라벨(최신 포인트)
 }
 
-// telemetry 시계열 → 6 KPI(MetricDef). value=최신값, spark=시계열. 4.5 DB 연동.
-function buildMetrics(gpuTel: SeriesPoint[] | null, srvTel: SeriesPoint[] | null): MetricDef[] {
-  const last = (a: SeriesPoint[] | null) => (a && a.length ? a[a.length - 1] : null)
+// KPI 텔레메트리 메트릭/폴백 기준값 — band 폴링(monitoring과 동일 계약).
+const GPU_METRICS = ['sm', 'vram', 'temp', 'power']
+const SRV_METRICS = ['cpu_util', 'mem_util']
+const GPU_BASES: Record<string, number> = { sm: 62, vram: 71, temp: 64, power: 240 }
+const SRV_BASES: Record<string, number> = { cpu_util: 45, mem_util: 58 }
+
+// telemetry band 시계열 → 6 KPI(MetricDef). value=최신값(범위 내), spark=시계열. 4.5 DB 연동.
+function buildMetrics(gpuTel: BandPoint[] | null, srvTel: BandPoint[] | null, range: Range): MetricDef[] {
+  const last = (a: BandPoint[] | null) => (a && a.length ? a[a.length - 1] : null)
   const gL = last(gpuTel), sL = last(srvTel)
   const num = (v: unknown) => Math.round(Number(v ?? 0))
-  const spark = (a: SeriesPoint[] | null, k: string) => (a ?? []).map((p) => Number(p[k] ?? 0))
+  const spark = (a: BandPoint[] | null, k: string) => (a ?? []).map((p) => Number(p[k] ?? 0))
+  // x축 라벨 — gpu/server는 동일 시간 그리드 → 첫·끝 ts를 tsLabel(range)로 포맷. 빈 데이터면 라벨 숨김.
+  const ref = (gpuTel && gpuTel.length ? gpuTel : srvTel) ?? []
+  const lbl = tsLabel(range)
+  const xs = { xStart: ref.length ? lbl(String(ref[0].ts)) : '', xEnd: ref.length ? lbl(String(ref[ref.length - 1].ts)) : '' }
   return [
-    { key: 'gpu', label: 'GPU 사용률', value: `${num(gL?.sm)}%`, tone: 'blue', suffix: '%', spark: spark(gpuTel, 'sm') },
-    { key: 'vram', label: 'VRAM 사용률', value: `${num(gL?.vram)}`, sub: '%', tone: 'blue', suffix: '%', spark: spark(gpuTel, 'vram') },
-    { key: 'cpu', label: 'CPU 사용률', value: `${num(sL?.cpu_util)}%`, tone: 'cyan', suffix: '%', spark: spark(srvTel, 'cpu_util') },
-    { key: 'mem', label: '메모리 사용률', value: `${num(sL?.mem_util)}`, sub: '%', tone: 'purple', suffix: '%', spark: spark(srvTel, 'mem_util') },
-    { key: 'temp', label: '온도', value: `${num(gL?.temp)}`, sub: '°C', tone: 'orange', suffix: '°C', spark: spark(gpuTel, 'temp') },
-    { key: 'power', label: '전력 사용량', value: `${num(gL?.power)}`, sub: 'W', tone: 'green', suffix: ' W', spark: spark(gpuTel, 'power') },
+    { key: 'gpu', label: 'GPU 사용률', value: `${num(gL?.sm)}%`, tone: 'blue', suffix: '%', spark: spark(gpuTel, 'sm'), ...xs },
+    { key: 'vram', label: 'VRAM 사용률', value: `${num(gL?.vram)}`, sub: '%', tone: 'blue', suffix: '%', spark: spark(gpuTel, 'vram'), ...xs },
+    { key: 'cpu', label: 'CPU 사용률', value: `${num(sL?.cpu_util)}%`, tone: 'cyan', suffix: '%', spark: spark(srvTel, 'cpu_util'), ...xs },
+    { key: 'mem', label: '메모리 사용률', value: `${num(sL?.mem_util)}`, sub: '%', tone: 'purple', suffix: '%', spark: spark(srvTel, 'mem_util'), ...xs },
+    { key: 'temp', label: '온도', value: `${num(gL?.temp)}`, sub: '°C', tone: 'orange', suffix: '°C', spark: spark(gpuTel, 'temp'), ...xs },
+    { key: 'power', label: '전력 사용량', value: `${num(gL?.power)}`, sub: 'W', tone: 'green', suffix: ' W', spark: spark(gpuTel, 'power'), ...xs },
   ]
 }
 
@@ -146,9 +159,9 @@ function MetricCard({ m }: { m: MetricDef }) {
         <div className="absolute" style={{ left: 28, right: 0, top: 0, bottom: 14 }}>
           <Sparkline data={m.spark} color={color} id={`spark-${m.key}`} suffix={m.suffix} />
         </div>
-        {/* x축 라벨 */}
-        <span className="absolute" style={{ left: 28, bottom: 0, ...axis }}>06:04</span>
-        <span className="absolute" style={{ right: 0, bottom: 0, ...axis }}>지금</span>
+        {/* x축 라벨 — 조회범위 첫·끝 시각(tsLabel) */}
+        <span className="absolute" style={{ left: 28, bottom: 0, ...axis }}>{m.xStart}</span>
+        <span className="absolute" style={{ right: 0, bottom: 0, ...axis }}>{m.xEnd}</span>
       </div>
     </div>
   )
@@ -526,7 +539,7 @@ function ServiceSwitcher({ options, value, onChange }: { options: SvcOption[]; v
   )
 }
 
-export function MyResources() {
+function MyResourcesInner() {
   const { user, access } = useRole()
   const navigate = useNavigate()
   const mutedFix = useMutedFix()
@@ -566,9 +579,16 @@ export function MyResources() {
   // KPI 기준 GPU: 선택 자원의 GPU(없으면 보류→0)
   const gpuAlloc = viewAllocs.find((a) => a.gpuId)
   const totalServices = new Set((allocs ?? []).map((a) => a.serviceId)).size
-  // 내 대표 GPU/서버의 텔레메트리 (백필이 과거라 range=24h). 할당 GPU 없으면 보류(null).
-  const gpuTel = useTelemetrySeries('gpu', 'sm,vram,temp,power', '24h', 'avg', 10000, gpuAlloc?.gpuId ?? null).data
-  const srvTel = useTelemetrySeries('server', 'cpu_util,mem_util', '24h', 'avg', 10000, gpuAlloc?.serverId ?? null).data
+  // 내 대표 GPU/서버 텔레메트리 — monitoring과 동일한 조회범위(range) 기반 band 폴링.
+  //  · range/단위·폴링간격은 useRange Context(헤더 토글) · 할당 GPU 없으면 빈 id(→ mock 폴백)
+  const { range, unit, setRange } = useRange()
+  const gpuBand = useTelemetryBand('gpu', gpuAlloc?.gpuId ?? '', GPU_METRICS, GPU_BASES)
+  const srvBand = useTelemetryBand('server', gpuAlloc?.serverId ?? '', SRV_METRICS, SRV_BASES)
+  const gpuTel = gpuBand.data
+  const srvTel = srvBand.data
+  // 마지막 업데이트 — 진입 시각, 이후 폴링으로 데이터가 갱신될 때마다 현재 시각.
+  const [lastUpdate, setLastUpdate] = useState(() => new Date())
+  useEffect(() => { setLastUpdate(new Date()) }, [gpuBand.data])
 
   // C(호스팅 전) 또는 할당 0건 → 빈 상태
   if (access === 'C' || allocs?.length === 0) {
@@ -600,7 +620,7 @@ export function MyResources() {
           <h1 className="font-bold text-text" style={{ fontSize: 20, lineHeight: 1.2 }}>내 할당 자원</h1>
           <p className="text-muted" style={{ fontSize: 14, marginTop: 8 }}>사용자에게 할당된 GPU 자원과 서비스 사용 현황을 모니터링합니다.</p>
         </div>
-        <div className="flex items-center gap-4 shrink-0">
+        <div className="flex items-center gap-3 shrink-0">
           {svcOptions.length > 1 && (
             <>
               <span className="shrink-0 text-muted font-medium" style={{ fontSize: 14 }}>자원 선택</span>
@@ -608,10 +628,28 @@ export function MyResources() {
               <span className="shrink-0" style={{ width: 1, height: 22, background: 'var(--c-border)' }} />
             </>
           )}
-          <span className="flex items-center gap-1.5 text-muted" style={{ fontSize: 14 }}>
+          <span className="flex items-center gap-1.5 text-muted shrink-0" style={{ fontSize: 14 }}>
             <ClockIcon style={{ width: 15, height: 15 }} />
-            마지막 업데이트: 2026-06-18
+            마지막 업데이트: {fmtReqDate(lastUpdate.toISOString())}
           </span>
+          {/* 조회단위(읽기전용) — 조회범위에 따라 자동 */}
+          <span className="inline-flex items-center gap-2 rounded-lg shrink-0" style={{ fontSize: 13, padding: '5px 11px', background: 'var(--c-soft)', border: '1px solid var(--c-border)' }}>
+            <span className="text-muted">단위</span>
+            <span className="font-bold tabular-nums" style={{ color: 'var(--c-accent)' }}>{unit}</span>
+          </span>
+          {/* 조회범위 토글(4종) — KPI band 폴링의 range·간격에 반영 */}
+          <div className="inline-flex items-center rounded-lg shrink-0" style={{ padding: 3, gap: 2, background: 'var(--c-soft)', border: '1px solid var(--c-border)' }}>
+            {RANGES.map((r) => (
+              <button
+                key={r}
+                onClick={() => setRange(r)}
+                className="rounded-md font-semibold transition-colors"
+                style={{ fontSize: 13, padding: '4px 12px', color: r === range ? 'var(--c-onaccent)' : 'var(--c-muted)', background: r === range ? 'var(--c-accent)' : 'transparent' }}
+              >
+                {RANGE_LABEL[r]}
+              </button>
+            ))}
+          </div>
         </div>
       </header>
 
@@ -623,7 +661,7 @@ export function MyResources() {
       {/* 3) 할당 GPU 상태 — 간격은 Figma대로 촘촘히, 카드는 152:330 비율로 함께 grow */}
       <h2 className="font-bold text-text shrink-0" style={{ fontSize: 15.5, marginTop: 26 }}>할당 GPU 상태</h2>
       <div className="grid stagger" style={{ gridTemplateColumns: 'repeat(6, 1fr)', gap: 34, marginTop: 14, flex: '152 1 152px', minHeight: 152 }}>
-        {buildMetrics(gpuTel, srvTel).map((m) => (
+        {buildMetrics(gpuTel, srvTel, range).map((m) => (
           <MetricCard key={m.key} m={m} />
         ))}
       </div>
@@ -636,6 +674,15 @@ export function MyResources() {
         </div>
       </div>
     </div>
+  )
+}
+
+// 조회범위 Context로 KPI band 폴링에 {range,unit} 공급(monitoring과 동일 인프라 재사용).
+export function MyResources() {
+  return (
+    <RangeProvider initial="10m">
+      <MyResourcesInner />
+    </RangeProvider>
   )
 }
 
