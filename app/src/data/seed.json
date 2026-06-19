@@ -448,20 +448,20 @@
           "health": "normal",
           "instances": [
             {
-              "profile": "3g.90gb",
-              "gb": 90,
+              "profile": "1g.10gb",
+              "gb": 10,
               "serviceId": "svc-educat",
               "usage": 34
             },
             {
-              "profile": "3g.90gb",
-              "gb": 90,
+              "profile": "1g.10gb",
+              "gb": 10,
               "serviceId": "svc-imagecat",
               "usage": 48
             },
             {
-              "profile": "3g.90gb",
-              "gb": 90,
+              "profile": "1g.10gb",
+              "gb": 10,
               "serviceId": "svc-biocat",
               "usage": 27
             }
@@ -642,20 +642,20 @@
           "health": "normal",
           "instances": [
             {
-              "profile": "2g.45gb",
-              "gb": 45,
+              "profile": "1g.10gb",
+              "gb": 10,
               "serviceId": "svc-doragi",
               "usage": 56
             },
             {
-              "profile": "2g.45gb",
-              "gb": 45,
+              "profile": "1g.10gb",
+              "gb": 10,
               "serviceId": "svc-voicecat",
               "usage": 39
             },
             {
-              "profile": "2g.45gb",
-              "gb": 45,
+              "profile": "1g.10gb",
+              "gb": 10,
               "serviceId": null,
               "usage": 0
             }
@@ -1000,26 +1000,6 @@
     }
   ],
   "publishRequests": [
-    {
-      "id": "pr-01",
-      "requesterUserId": "u-jhs",
-      "serviceName": "에듀캣",
-      "serviceUrl": "http://svc.anclave.local/educat",
-      "demoUrl": "http://svc.anclave.local/educat/demo",
-      "meta": "동화 창작 · m8",
-      "status": "approved",
-      "createdAt": "2026-05-20 09:00"
-    },
-    {
-      "id": "pr-02",
-      "requesterUserId": "u-jhs",
-      "serviceName": "도라지",
-      "serviceUrl": "http://svc.anclave.local/doragi",
-      "demoUrl": "http://svc.anclave.local/doragi/demo",
-      "meta": "지식 검색(RAG) · m10",
-      "status": "approved",
-      "createdAt": "2026-05-20 09:00"
-    },
     {
       "id": "pr-03",
       "requesterUserId": "u-pts",

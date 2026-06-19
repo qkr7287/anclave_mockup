@@ -1,0 +1,12 @@
+{
+  "_doc": "정휘선(u-jhs) 게시(listed) 서비스 → 승인 게시 신청 이력 백필. overview/apiDesc/features/tags/serviceUrl/demoUrl/demoNote 는 market_services 에서 복사(여기 없음). 에듀캣은 미게시 전환으로 제외. 멱등(id pr-bf-<svc>).",
+  "requesterUserId": "u-jhs",
+  "processedBy": "u-admin",
+  "removeStale": ["pr-01", "pr-02"],
+  "items": {
+    "svc-doragi":   { "created": "2026-03-05 10:00", "processed": "2026-03-08 14:00" },
+    "svc-biocat":   { "created": "2026-03-18 09:30", "processed": "2026-03-21 11:00" },
+    "svc-voicecat": { "created": "2026-04-01 13:00", "processed": "2026-04-04 10:30" },
+    "svc-imagecat": { "created": "2026-04-12 15:00", "processed": "2026-04-15 09:45" }
+  }
+}

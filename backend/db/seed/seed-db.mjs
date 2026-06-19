@@ -137,6 +137,19 @@ async function main() {
       ['id', 'requester_user_id', 'service_name', 'service_url', 'demo_url', 'meta', 'overview', 'api_desc', 'features', 'tags', 'visibility', 'demo_note', 'status', 'reject_reason', 'created_at', 'admin_memo', 'processed_by', 'processed_at'],
       [r.id, r.requesterUserId, r.serviceName, r.serviceUrl ?? null, r.demoUrl ?? null, r.meta ?? null, r.overview ?? null, r.apiDesc ?? null, r.features ?? [], r.tags ?? [], r.visibility ?? null, r.demoNote ?? null, r.status, r.rejectReason ?? null, r.createdAt, r.adminMemo ?? null, r.processedBy ?? null, r.processedAt ?? null])
 
+  // 정휘선 게시 서비스 → 승인 게시 신청 백필(별도 파일). overview/apiDesc/features/tags 등은 market 에서 복사. 에듀캣 제외.
+  try {
+    const bf = JSON.parse(readFileSync(resolve(here, '../../../app/scripts/publish-requests.backfill.json'), 'utf-8'))
+    for (const [svcId, it] of Object.entries(bf.items)) {
+      const svc = seed.services.find((s) => s.id === svcId)
+      const mk = (seed.marketServices ?? []).find((m) => m.serviceId === svcId)
+      if (!svc) continue
+      await ins('publish_requests',
+        ['id', 'requester_user_id', 'service_name', 'service_url', 'demo_url', 'overview', 'api_desc', 'features', 'tags', 'visibility', 'demo_note', 'status', 'created_at', 'processed_at', 'processed_by', 'admin_memo'],
+        [`pr-bf-${svcId.replace(/^svc-/, '')}`, bf.requesterUserId, svc.name, mk?.serviceUrl ?? null, mk?.demoUrl ?? null, mk?.overview ?? null, mk?.apiDesc ?? null, mk?.features ?? [], mk?.tags ?? [], 'public', mk?.demoNote ?? null, 'approved', it.created, it.processed, bf.processedBy, '게시 승인 완료'])
+    }
+  } catch { /* 백필 파일 없으면 skip */ }
+
   for (const r of seed.gpuChangeRequests ?? [])
     await ins('gpu_change_requests',
       ['id', 'requester_user_id', 'type', 'reason', 'status', 'reject_reason', 'created_at',
