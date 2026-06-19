@@ -1,0 +1,18 @@
+{
+  "name": "anclave-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "seed": "node --env-file=.env db/seed/seed-db.mjs",
+    "seed:telemetry": "node --env-file=.env db/seed/seed-telemetry.mjs",
+    "seed:events": "node --env-file=.env db/seed/seed-events.mjs",
+    "dev:server": "node --env-file=.env server/index.mjs",
+    "worker": "node --env-file=.env db/worker.mjs"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.13.7",
+    "hono": "^4.6.14",
+    "pg": "^8.13.1"
+  }
+}

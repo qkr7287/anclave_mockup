@@ -1,0 +1,73 @@
+# Anclave 통합 배포 — db(내부전용) + backend(8787) + web(5177) + worker(telemetry)
+# 최초: docker compose up -d --build  →  docker compose run --rm seed  (1회)
+# 접속: http://<host>:5177   (API 는 web 의 /api 프록시 → backend)
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: anclave-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-anclave}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-anclave_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-anclave}
+    volumes:
+      - anclave_pgdata:/var/lib/postgresql/data
+      # 최초 기동 시 init/*.sql 전체(0001~) 자동 적용 — 스키마 정합
+      - ./backend/db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-anclave} -d ${POSTGRES_DB:-anclave}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    # 호스트 포트 미노출 — 내부 네트워크(db:5432)로만 접근
+
+  backend:
+    build: ./backend
+    container_name: anclave-backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-anclave}:${POSTGRES_PASSWORD:-anclave_dev}@db:5432/${POSTGRES_DB:-anclave}
+      PORT: 8787
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8787:8787"
+
+  web:
+    build:
+      context: ./app
+      args:
+        VITE_API_BASE: ""   # 상대경로 /api → nginx 가 backend 로 프록시
+    container_name: anclave-web
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "5177:80"
+
+  # 텔레메트리 생성 워커 — 라이브 band 차트용(선택이지만 권장)
+  worker:
+    build: ./backend
+    container_name: anclave-worker
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-anclave}:${POSTGRES_PASSWORD:-anclave_dev}@db:5432/${POSTGRES_DB:-anclave}
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["node", "db/worker.mjs"]
+
+  # 1회성 시드 — docker compose run --rm seed
+  seed:
+    build: ./backend
+    profiles: ["seed"]
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-anclave}:${POSTGRES_PASSWORD:-anclave_dev}@db:5432/${POSTGRES_DB:-anclave}
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["sh", "-c", "node db/seed/seed-db.mjs && node db/seed/seed-telemetry.mjs && node db/seed/seed-events.mjs"]
+
+volumes:
+  anclave_pgdata:
