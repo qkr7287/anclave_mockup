@@ -4,7 +4,6 @@
 services:
   db:
     image: postgres:16-alpine
-    container_name: anclave-db
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-anclave}
@@ -23,7 +22,6 @@ services:
 
   backend:
     build: ./backend
-    container_name: anclave-backend
     restart: unless-stopped
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-anclave}:${POSTGRES_PASSWORD:-anclave_dev}@db:5432/${POSTGRES_DB:-anclave}
@@ -39,7 +37,6 @@ services:
       context: ./app
       args:
         VITE_API_BASE: ""   # 상대경로 /api → nginx 가 backend 로 프록시
-    container_name: anclave-web
     restart: unless-stopped
     depends_on:
       - backend
@@ -49,7 +46,6 @@ services:
   # 텔레메트리 생성 워커 — 라이브 band 차트용(선택이지만 권장)
   worker:
     build: ./backend
-    container_name: anclave-worker
     restart: unless-stopped
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-anclave}:${POSTGRES_PASSWORD:-anclave_dev}@db:5432/${POSTGRES_DB:-anclave}
