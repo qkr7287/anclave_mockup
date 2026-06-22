@@ -62,6 +62,11 @@ services:
     profiles: ["seed"]
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-anclave}:${POSTGRES_PASSWORD:-anclave_dev}@db:5432/${POSTGRES_DB:-anclave}
+    # seed-db.mjs 는 단일 진실원인 app 의 seed.json/scripts 를 그대로 읽는다(monorepo).
+    # backend 이미지엔 app/ 가 없으므로 호스트 app 디렉터리를 read-only 마운트.
+    volumes:
+      - ./app/src/data:/app/src/data:ro
+      - ./app/scripts:/app/scripts:ro
     depends_on:
       db:
         condition: service_healthy
