@@ -30,7 +30,9 @@ services:
       db:
         condition: service_healthy
     ports:
-      - "8787:8787"
+      # 호스트 18787 → 컨테이너 8787. 공유 서버의 기존 8787(구 bare backend)과 충돌 방지.
+      # web(nginx)은 내부 네트워크 backend:8787 로 프록시하므로 이 매핑은 검증/직접접근용일 뿐.
+      - "18787:8787"
 
   web:
     build:
